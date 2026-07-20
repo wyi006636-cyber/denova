@@ -1,0 +1,477 @@
+{
+  "schema_version": 1,
+  "repository": "D:/vibe/harness novel",
+  "source_head": "91c6e509a6beea98e8d025777c97b34b2bc6ac9f",
+  "foundation_start_head": "6548ab94a26c6aa992192065b8a93903ab38e350",
+  "hash_algorithm": "sha256",
+  "line_count_method": "PowerShell Get-Content logical line count",
+  "decision_values": [
+    "reuse",
+    "extend",
+    "isolate",
+    "do_not_modify"
+  ],
+  "risk_values": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "entries": [
+    {
+      "path": "cmd/denova/main.go",
+      "responsibility": "Process entrypoint, configuration loading, backend startup, and optional frontend development launch.",
+      "decision": "do_not_modify",
+      "risk": "high",
+      "line_count": 348,
+      "sha256": "ee272a107d2a121e7f6af9d8bf5b3b85679d85b52eda708e2d5563188d0a174f"
+    },
+    {
+      "path": "internal/api/server.go",
+      "responsibility": "Hertz server construction, middleware registration, static web mounting, and server run boundary.",
+      "decision": "reuse",
+      "risk": "medium",
+      "line_count": 46,
+      "sha256": "d5362b5ea3ed60656aa350402f4c35c891489aa68dd1917e39254d7698ebfbf7"
+    },
+    {
+      "path": "internal/api/routes.go",
+      "responsibility": "Central registration of workspace, chat, session, Skills, Automation, version, and interactive HTTP routes.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 303,
+      "sha256": "bab1ae17ca132f129cc52d7fb041e895b2d821cddb2d6874d530d4f72512bb41"
+    },
+    {
+      "path": "internal/api/handlers/handler_chat.go",
+      "responsibility": "Chat preparation, streaming, context analysis/compaction, active-task lookup, and abort HTTP handlers.",
+      "decision": "isolate",
+      "risk": "high",
+      "line_count": 147,
+      "sha256": "b0de9e84b58ee0c95e0153f2b6b20a79ace3f401cb07dbbff7d6f3cd12fc9086"
+    },
+    {
+      "path": "internal/api/sse/task.go",
+      "responsibility": "Streams Task snapshots and live Agent events over SSE, including AI SDK UI encoding.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 176,
+      "sha256": "d544ba15e16acac46f1ce9d3375726b30dd21ec4bb3b26e293149cc4085a316f"
+    },
+    {
+      "path": "internal/api/agentui/stream.go",
+      "responsibility": "Encodes Agent text, reasoning, tool, activity, metadata, and finish events into the frontend stream protocol.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 488,
+      "sha256": "65ca46b828d6fb5b3aa7c535a1fa3370d1ba0c3ed979eec2c7636b6edda3ea12"
+    },
+    {
+      "path": "internal/app/app.go",
+      "responsibility": "Top-level application facade, service ownership, initialization, and current workspace runtime access.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 251,
+      "sha256": "c4be9c94dee50862aea147300c8cb5c87fec30faf10bafe11ceb24aba869c481"
+    },
+    {
+      "path": "internal/app/runtime_builder.go",
+      "responsibility": "Builds workspace-scoped book, session, Agent, interactive, and version runtime dependencies.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 159,
+      "sha256": "89b1e0d43dc248be8758f5041a0513a09300c86328022ac7fe77b648d6a8fafb"
+    },
+    {
+      "path": "internal/app/task.go",
+      "responsibility": "Runs cancellable background work with panic recovery, event snapshots, live subscriptions, and terminal status.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 175,
+      "sha256": "3fba2762b830427f21875110223d5624ca0a8fbed0883628747d392f1b80e799"
+    },
+    {
+      "path": "internal/app/workspace_version_mutations.go",
+      "responsibility": "Application facade for version status, history, create, diff, restore planning, restore, and automatic snapshots.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 193,
+      "sha256": "970186062898966d7b2ce9c7aa3a6b9a6b048e604df7b83cc67af41efa61c487"
+    },
+    {
+      "path": "internal/agent/builder.go",
+      "responsibility": "Constructs Eino Agents, model/tool middleware, Skills middleware, and configured subagents.",
+      "decision": "isolate",
+      "risk": "high",
+      "line_count": 689,
+      "sha256": "497ce8f10d189fa43aacfe5bf3662178a6bc6107ed75ef6bad1a2acea99331bc"
+    },
+    {
+      "path": "internal/agent/runner.go",
+      "responsibility": "Creates the Eino runner and its current checkpoint storage adapter.",
+      "decision": "reuse",
+      "risk": "medium",
+      "line_count": 32,
+      "sha256": "ab9eccefa94fac5a1a7ab9e5f3cb4379854c4a18afdf4b4a7a3b27ef5cf78a6c"
+    },
+    {
+      "path": "internal/agent/chat.go",
+      "responsibility": "Core Agent chat runtime, request/context assembly, streaming execution, persistence, and completion handling.",
+      "decision": "isolate",
+      "risk": "high",
+      "line_count": 696,
+      "sha256": "73a6c5aa0d8c9c7d898d81eaec367162e11ef9ae28d57eedc453033c5912bbfd"
+    },
+    {
+      "path": "internal/agent/context/context.go",
+      "responsibility": "Builds model context from typed sources with purpose, placement, limits, inclusion, truncation, and ledger parts.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 333,
+      "sha256": "b2dbb181a903395312579b54ef9428cb1b30e116fd02e9fc0c4826f64807ec56"
+    },
+    {
+      "path": "internal/agent/context_ledger.go",
+      "responsibility": "Records bounded context provenance, byte/character counts, hashes, previews, purpose, and truncation metadata.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 142,
+      "sha256": "03c4e4c6a0a34fcbc2e3a3294ae8c7d2ed019ccc3246b2801a8bd3d83b2ebdb3"
+    },
+    {
+      "path": "internal/agent/run_ledger.go",
+      "responsibility": "Persists bounded Agent run metadata, context records, events, tool decisions/executions, mutations, traces, and finish state.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 402,
+      "sha256": "b467368fe808c973c7560bfd61cc4dd887bc9360c3f0cf5e8474a733cf60d109"
+    },
+    {
+      "path": "internal/agent/tool_result_policy.go",
+      "responsibility": "Classifies tool capabilities and filters model-visible tool results into bounded structured manifests.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 263,
+      "sha256": "06567b89c1e9325c124a73838b04438c2ce89c0364fcd9668020a169e429c09c"
+    },
+    {
+      "path": "internal/book/state.go",
+      "responsibility": "Defines workspace creative paths and initializes ideas, settings, chapters, lore, sessions, backups, and internal state.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 498,
+      "sha256": "229ab8da89aa2178b4ebb26c8ff036c93e00db8d7f6098dd88a3ab499d94e303"
+    },
+    {
+      "path": "internal/book/files.go",
+      "responsibility": "Provides safe workspace tree, read/write, content revision, create, delete, rename, copy, move, and search operations.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 303,
+      "sha256": "d15993b62cc4e8d314e9df0333555e2a83f0ff034f2c248a0eaa63bd8e5b62f7"
+    },
+    {
+      "path": "internal/book/versions/files.go",
+      "responsibility": "Collects version-visible workspace files and applies protected internal path inclusion/exclusion rules.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 162,
+      "sha256": "18e7282e7ee444147539d2abb230843a04b7a102d8a7bc1f223ee947a87ebd68"
+    },
+    {
+      "path": "internal/book/versions/service.go",
+      "responsibility": "Defines the workspace version service and default automatic version settings.",
+      "decision": "reuse",
+      "risk": "medium",
+      "line_count": 23,
+      "sha256": "10b7d4693d3ce7f25472ceffdf75f162cad22ab5351431007297d2977fa8ccab"
+    },
+    {
+      "path": "internal/book/versions/create.go",
+      "responsibility": "Creates locked local workspace snapshots and version metadata using the current version store.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 92,
+      "sha256": "7a294f0d922d771bfa7d5c45fb0d235700f82c1470497d88a8158c484b89c1b0"
+    },
+    {
+      "path": "internal/book/versions/restore.go",
+      "responsibility": "Plans and applies full or selective version restores with path validation, atomic file writes, and protected directory handling.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 529,
+      "sha256": "a0e81489ff2b527f81107ce0022b6ba1d338ca4985f31bf991c33662f668b0e0"
+    },
+    {
+      "path": "internal/workspacepath/workspacepath.go",
+      "responsibility": "Selects current `.denova` or legacy `.nova` paths based on existing durable workspace data.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 195,
+      "sha256": "727ad76edae2cef3dc078db84ae53e55e4f1036c51d098bd3f573614c01c3697"
+    },
+    {
+      "path": "internal/workspacechange/service.go",
+      "responsibility": "Owns per-workspace change services, normalization, durable state loading, visible-file reads, event projection, and recovery setup.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 687,
+      "sha256": "d267e74248f493626ca5b9db4699939816501c8062dd2990e46d9dd09c5a4345"
+    },
+    {
+      "path": "internal/workspacechange/apply.go",
+      "responsibility": "Validates base revisions and applies Agent text edits or replacements into durable change groups.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 454,
+      "sha256": "707962eaab65b248915a7dfecea7958f5729357dba6780599fa899dc80ac30a5"
+    },
+    {
+      "path": "internal/workspacechange/save.go",
+      "responsibility": "Persists editor saves with workspace locking, base-revision conflict protection, and durable save intent.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 97,
+      "sha256": "c4b68c0eee5a734aceeb46c89962d1b9b49976e398f29d3e80360f20d2ea5ef8"
+    },
+    {
+      "path": "internal/workspacechange/review.go",
+      "responsibility": "Plans and applies accepted/rejected change review selections across files while preserving stable review mappings.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 551,
+      "sha256": "f294598c09a7f2966fd60a8b5060bfb6d2edb64a90ba8ddfd31f5f290fefbb2d"
+    },
+    {
+      "path": "internal/workspacechange/operation.go",
+      "responsibility": "Implements private durable multi-path operations, projection validation, roll-forward, and conflict recording.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 397,
+      "sha256": "4b4462090fb2df11507c7b47da1a5306c232882366fb280b2c5c525de2565524"
+    },
+    {
+      "path": "internal/workspacechange/atomic_file.go",
+      "responsibility": "Provides atomic visible-file replacement and removal primitives for workspace changes.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 96,
+      "sha256": "8ada05bf44ee8ced6d89602b7ca007675dfc4336f9ba73741bb1134cc1533f01"
+    },
+    {
+      "path": "internal/session/types.go",
+      "responsibility": "Defines persisted model messages, display events, metadata, interruptions, compaction, usage, and session records.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 250,
+      "sha256": "a1f53476f83cb627dba789f84a0a4aedfdfbe4020b3d388b5df9e7cad74e894d"
+    },
+    {
+      "path": "internal/session/display.go",
+      "responsibility": "Persists and updates UI-only content, tool previews/results, illustrations, token usage, and bounded display text.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 250,
+      "sha256": "25344da2ac4bd8c915718852debaf0a97bda5dad1719edd50f1ce03763653212"
+    },
+    {
+      "path": "internal/session/session.go",
+      "responsibility": "Appends model/context messages, clear markers, derives effective model context, and reconstructs display history.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 335,
+      "sha256": "51a12c59d58d3c77d270eaea14e17e2b4f65739a625048bee3fad3cd2872ccb8"
+    },
+    {
+      "path": "internal/skills/types.go",
+      "responsibility": "Defines Skill scopes, directories, summaries, documents, files, and catalog snapshots.",
+      "decision": "extend",
+      "risk": "medium",
+      "line_count": 69,
+      "sha256": "593231c655d6446dfd2553159a5c2f0d88ba23e2173b0816b1829b71b6c86161"
+    },
+    {
+      "path": "internal/skills/catalog.go",
+      "responsibility": "Loads scoped Skill records, resolves active overrides, and filters Skills for an Agent kind.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 202,
+      "sha256": "807634ddf68f5c30518f4da2123f53e838b0b41700bd1ae7a966b4aee66f0b3f"
+    },
+    {
+      "path": "internal/skills/directories.go",
+      "responsibility": "Builds, deduplicates, ranks, and selects builtin, user, and workspace Skill directories.",
+      "decision": "reuse",
+      "risk": "medium",
+      "line_count": 95,
+      "sha256": "164f18003ca89b1c0c4c8f0ee96051dbd8a8d4bcc8e3f451b627419f209dc25a"
+    },
+    {
+      "path": "internal/skills/install.go",
+      "responsibility": "Safely previews and installs Skill archives or directories, discovers candidates, and constrains extraction paths.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 586,
+      "sha256": "92f557fa9c8d3bc9fb4e26c1845c5b1ba7c4a21215231e5925969ba401e8c274"
+    },
+    {
+      "path": "internal/skills/remote.go",
+      "responsibility": "Validates public remote archive URLs, blocks private network targets, downloads bounded archives, and maps GitHub sources.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 299,
+      "sha256": "f279c09895a980c85eab454f4b1f493a6d176b7f582a2ae0e13e72d7665a786d"
+    },
+    {
+      "path": "internal/skills/github.go",
+      "responsibility": "Parses GitHub Skill sources, resolves branches, downloads repository archives, and delegates preview/install.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 213,
+      "sha256": "4b35fff660a60091a9eefdab4a2af7e53066cd06555ee31b93b45bf84c3159b4"
+    },
+    {
+      "path": "internal/automation/types.go",
+      "responsibility": "Defines Automation permissions, execution targets, tasks, templates, triggers, schedules, runs, evidence, and Inbox records.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 286,
+      "sha256": "daa4f76f8f79874ac9a1635a2a80adf1e1cca7e89eae7cca133a0c28231d38fb"
+    },
+    {
+      "path": "internal/automation/store.go",
+      "responsibility": "Reads and mutates user/workspace Automation catalogs and run records across configured workspaces.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 727,
+      "sha256": "c6061d5d0c16038b7b715064329d9530fead59c302d279a9d5aa4daefc8f404f"
+    },
+    {
+      "path": "internal/automation/schedule.go",
+      "responsibility": "Normalizes schedules and computes interval, daily, weekly, and monthly due state.",
+      "decision": "reuse",
+      "risk": "medium",
+      "line_count": 159,
+      "sha256": "dffbdeab905f6cec233fcc06d6df331a1c52a44dada88b0a65f9cd847b889038"
+    },
+    {
+      "path": "internal/app/automation_app_service.go",
+      "responsibility": "Large Automation application service for scheduling, catalog mutations, runs, streams, Inbox, and workspace snapshots.",
+      "decision": "isolate",
+      "risk": "high",
+      "line_count": 944,
+      "sha256": "ad6e70a97995963201b0d66e32f11c42fe028f6c04bbff49055f32bf09885e9a"
+    },
+    {
+      "path": "internal/app/skills_app_service.go",
+      "responsibility": "Application facade for Skill catalog/documents and ZIP, remote, or GitHub preview/install operations.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 161,
+      "sha256": "01b127adfde0f9ec4c75540b345e6fdd262705726b81c2841b020acef54e11ba"
+    },
+    {
+      "path": "web/src/App.tsx",
+      "responsibility": "Global frontend coordinator for workspace, content mode, tabs, editor state, panels, updates, and application composition.",
+      "decision": "isolate",
+      "risk": "high",
+      "line_count": 937,
+      "sha256": "a556d1608b7dbcabb612fc8e0677ddce0c22e54965d4e00f78f755b2420a3477"
+    },
+    {
+      "path": "web/src/stores/workspace-store.ts",
+      "responsibility": "Stores visible workspace mode and panel state while separately preserving the Writing/Game content mode.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 84,
+      "sha256": "b51687e1b81f723f21162698e505c818a9ffbb105552d64d4f36082c7c8916fe"
+    },
+    {
+      "path": "web/src/components/workbench/ModeRouter.tsx",
+      "responsibility": "Large route/layer coordinator for Writing, Game, books, versions, Skills, Agents, Automations, and settings surfaces.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 1184,
+      "sha256": "e5e50463bfe73ee5476123055aeaa3f739a5b8c94263df3ed8426e5c513d9ea2"
+    },
+    {
+      "path": "web/src/components/workbench/WorkbenchShell.tsx",
+      "responsibility": "Large adaptive workbench shell defining primary activity order, exactly-one-active semantics, and explicit mode/navigation actions.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 976,
+      "sha256": "5b15e3c8f2c8bfcac0418c17dcbcfd7bbea8bf7906ef87538adb0395219220be"
+    },
+    {
+      "path": "web/src/components/Editor/MarkdownRichEditor.tsx",
+      "responsibility": "TipTap Markdown editor surface with serialization, search highlighting, workspace images, selection, and save shortcuts.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 128,
+      "sha256": "686c0f0ff6c66cb761fb9139351e37be418809677435896ad6ce2fbeccfa8499"
+    },
+    {
+      "path": "web/src/components/Editor/useEditorDraftPersistence.ts",
+      "responsibility": "Coordinates autosave queues, revision-aware writes, workspace epochs, external conflicts, and editor flush behavior.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 572,
+      "sha256": "3c7d7db62b532c011be7fafc1d5cea70bd5e0fd9fc9d4bcd1beb171ae7d3fda6"
+    },
+    {
+      "path": "web/src/components/Versions/VersionPanel.tsx",
+      "responsibility": "Queries and presents version status/history, creates snapshots, previews diffs, and plans/applies restores.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 257,
+      "sha256": "0d2ca90027586999840f6e313e6c3b11ab0fe892e11db0830bca1db482ea85ce"
+    },
+    {
+      "path": "web/src/features/changes/api.ts",
+      "responsibility": "Workspace Change Review API for groups, threads, review decisions, undo/redo, and inline comments.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 136,
+      "sha256": "8d42fe0c6d147e88927bb9881ff3076fb4ebc161278da6f5b086ad427975d08b"
+    },
+    {
+      "path": "web/src/features/document-review/api.ts",
+      "responsibility": "Document comment API and response normalization for revision-bound manuscript review threads.",
+      "decision": "reuse",
+      "risk": "medium",
+      "line_count": 72,
+      "sha256": "2792de40c778e8e056222fb852a29f2ce0549036f8f62904d90fde5d718a18da"
+    },
+    {
+      "path": "web/src/features/skills/SkillsView.tsx",
+      "responsibility": "Skill catalog, scoped editor, file navigation, create/save/delete, install, and confirmation user interface.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 509,
+      "sha256": "ebd84d8d91c1f125e98992674b7738eafa7d2e9b7d8c56dad476ce213234a28c"
+    },
+    {
+      "path": "web/src/lib/api-client/workspace.ts",
+      "responsibility": "Frontend workspace API client for switching, summary/tree, revision-aware file saves, search, and file operations.",
+      "decision": "reuse",
+      "risk": "high",
+      "line_count": 139,
+      "sha256": "5b838f82360b3c8bc2299b9025da9b7d42aee2263c1e9cd2361a671604df561d"
+    },
+    {
+      "path": "web/src/lib/api-client/versions.ts",
+      "responsibility": "Frontend version API client for status, history, create, diff, restore plans, and restore execution.",
+      "decision": "reuse",
+      "risk": "medium",
+      "line_count": 49,
+      "sha256": "b3f47c4111f53374cabdd2b8f35e87bbf08763eb06aca8f7951984eb3255a8b2"
+    },
+    {
+      "path": "web/src/index.css",
+      "responsibility": "Global Denova product tokens, themes, workbench/editor styling, Tailwind bindings, and base light/dark semantics.",
+      "decision": "extend",
+      "risk": "high",
+      "line_count": 2333,
+      "sha256": "a598c8a4087b16a9f71cd729e920749c8460b4c86607651ec00b9ee6e35665ed"
+    }
+  ]
+}

@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增可机器复核的 Quality Harness 工程与来源基线，记录仓库、远端、工具链、测试证据、57 个源码接入点及依赖复用边界。
+- Added a machine-verifiable Quality Harness engineering and source baseline covering repository/remotes, toolchains, test evidence, 57 source seams, and dependency reuse boundaries.
 - 新增 Quality Harness 实施规划，覆盖架构演进、总体和 Phase 0 开发计划、需求追踪、风险决策及验证发布门禁。
 - Added Quality Harness implementation plans covering architecture evolution, overall and Phase 0 development, requirements traceability, risk decisions, and validation/release gates.
 - 新增小说写作工具项目设计资料集，收录最终融合方案、Kimi 与 WorkBuddy 的 PRD/架构方案、评审反馈、虾评调研证据和来源索引，作为 Quality Harness 模块化演进的实施基线。
