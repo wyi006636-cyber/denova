@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增小说写作工具项目设计资料集，收录最终融合方案、Kimi 与 WorkBuddy 的 PRD/架构方案、评审反馈、虾评调研证据和来源索引，作为 Quality Harness 模块化演进的实施基线。
+- Added the novel-writing product design archive with the final consolidated proposal, Kimi and WorkBuddy PRD/architecture sources, review feedback, Xiaping research evidence, and a source index for the Quality Harness evolution baseline.
 - 写作模式编辑器查找栏新增替换与正则匹配：可展开替换输入框，支持替换当前匹配或全部替换；开启正则后查找与替换均按正则表达式执行，替换文本支持 `$1` 等捕获组引用。
 - The Writing Mode editor search bar now supports replace and regex matching: expand a replace field to replace the current match or all matches; with regex enabled, both find and replace use regular expressions, and the replacement text supports capture group references like `$1`.
 

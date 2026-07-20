@@ -19,8 +19,11 @@ internal/webfs/dist/
 plan.md
 docs/*
 !docs/workspace-change-engine.md
+!docs/project-design/
+!docs/project-design/**
 .worktrees/
 .pnpm-store/
+.tools/
 .DS_Store
 .denova
 .nova

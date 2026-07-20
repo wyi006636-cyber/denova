@@ -1,0 +1,3 @@
+# Preserve imported design artifacts byte-for-byte for source verification.
+final/** -text
+sources/** -text

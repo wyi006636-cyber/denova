@@ -1,0 +1,346 @@
+%% 核心类图
+%% 来源：novel-writer-architecture.md 第3.1节
+
+classDiagram
+    class Project {
+        +string id
+        +string name
+        +string slug
+        +string genre
+        +string basePath
+        +ProjectConfig config
+        +time.Time createdAt
+        +time.Time updatedAt
+        +Init() error
+        +GetStats() ProjectStats
+    }
+
+    class Chapter {
+        +string id
+        +string projectId
+        +string volumeId
+        +string title
+        +int order
+        +ChapterStatus status
+        +string contentPath
+        +int wordCount
+        +time.Time createdAt
+        +time.Time updatedAt
+    }
+
+    class ChapterSpine {
+        +string chapterId
+        +string function
+        +string openingState
+        +string chapterGoal
+        +string coreProgression
+        +string endingChange
+        +string subsequentConstraint
+        +[]string pendingResolutions
+        +Generate(content string) error
+    }
+
+    class StorySystem {
+        +string projectId
+        +string basePath
+        +Contract currentContract
+        +Commit lastCommit
+        +CheckHealth() HealthStatus
+        +GenerateContract(chapterId) Contract
+        +GenerateCommit(chapterId, content) Commit
+    }
+
+    class Contract {
+        +string chapterId
+        +string content
+        +[]string dependencies
+        +time.Time generatedAt
+        +string hash
+    }
+
+    class Commit {
+        +string chapterId
+        +string content
+        +map facts
+        +time.Time committedAt
+        +string hash
+    }
+
+    class Manifest {
+        +string chapterId
+        +string novelSlug
+        +time.Time generatedAt
+        +string approvedSnapshotHash
+        +[]ManifestFile files
+        +Verify() bool
+        +AddFile(path, purpose, lineRange) error
+    }
+
+    class ManifestFile {
+        +string path
+        +string purpose
+        +string lineRange
+        +string sha256
+    }
+
+    class Asset {
+        <<abstract>>
+        +string id
+        +string projectId
+        +string type
+        +string name
+        +time.Time createdAt
+        +time.Time updatedAt
+    }
+
+    class Character {
+        +string appearance
+        +string personality
+        +string background
+        +string abilities
+        +map relationships
+        +[]string dialogueStyleSamples
+        +map currentState
+    }
+
+    class Worldview {
+        +string worldRules
+        +string powerSystem
+        +string history
+        +string culture
+    }
+
+    class Location {
+        +string description
+        +[]string relatedCharacters
+        +string geoRelation
+    }
+
+    class Foreshadow {
+        +string description
+        +string plantedChapter
+        +string resolvedChapter
+        +ForeshadowStatus status
+        +[]string relatedCharacters
+    }
+
+    class TimelineEvent {
+        +string event
+        +string timePoint
+        +string chapterId
+        +[]string relatedCharacters
+    }
+
+    Asset <|-- Character
+    Asset <|-- Worldview
+    Asset <|-- Location
+    Asset <|-- Foreshadow
+    Asset <|-- TimelineEvent
+
+    class Agent {
+        <<interface>>
+        +Execute(ctx, task) AgentResult
+        +GetType() AgentType
+        +IsIsolated() bool
+    }
+
+    class Orchestrator {
+        +Pipeline pipeline
+        +IsolationManager isoManager
+        +SkillRegistry skillRegistry
+        +ExecutePipeline(chapterId) PipelineResult
+        +HandleBlocking(review) void
+        +SaveCheckpoint(step) error
+    }
+
+    class WriterAgent {
+        +Manifest manifest
+        +[]Skill skills
+        +Execute(ctx, task) AgentResult
+        +GetType() AgentType
+        +IsIsolated() bool
+    }
+
+    class ReviewerAgent {
+        +Manifest manifest
+        +[]Skill skills
+        +Execute(ctx, task) AgentResult
+        +GetType() AgentType
+        +IsIsolated() bool
+    }
+
+    class DataAgent {
+        +Manifest manifest
+        +[]Skill skills
+        +Execute(ctx, task) AgentResult
+        +GetType() AgentType
+        +IsIsolated() bool
+    }
+
+    class ContextAgent {
+        +ContextManager ctxManager
+        +Execute(ctx, task) AgentResult
+        +GetType() AgentType
+        +IsIsolated() bool
+        +BuildPacket(contract) Manifest
+        +GenerateTaskBrief(contract) TaskBrief
+    }
+
+    Agent <|.. Orchestrator
+    Agent <|.. WriterAgent
+    Agent <|.. ReviewerAgent
+    Agent <|.. DataAgent
+    Agent <|.. ContextAgent
+
+    class IsolationManager {
+        +string workerBinPath
+        +time.Duration timeout
+        +AIConfig aiConfig
+        +RunIsolated(ctx, agentType, manifest, skillIDs) AgentResult
+        +writeTaskPacket(task) string
+        +sandboxEnv() []string
+    }
+
+    class Pipeline {
+        +string chapterId
+        +int currentStep
+        +[]StepState steps
+        +time.Time startedAt
+        +Start() error
+        +ExecuteStep(step) error
+        +ResumeFromCheckpoint() error
+        +GetCurrentStep() int
+    }
+
+    class StepState {
+        +int stepID
+        +StepStatus status
+        +time.Time startedAt
+        +time.Time completedAt
+        +interface output
+        +string error
+    }
+
+    class Checkpoint {
+        +string chapterId
+        +int lastCompletedStep
+        +map stepOutputs
+        +time.Time savedAt
+        +Save() error
+        +Load() Checkpoint
+    }
+
+    class Skill {
+        <<interface>>
+        +GetMetadata() SkillMetadata
+        +Execute(ctx, input) SkillOutput
+        +Validate(input) error
+    }
+
+    class SkillMetadata {
+        +string id
+        +string name
+        +string category
+        +string description
+        +string version
+        +[]AgentType applicableAgents
+    }
+
+    class SkillRegistry {
+        +map skills
+        +Register(skill) error
+        +Get(skillID) Skill
+        +ListByAgent(agentType) []Skill
+        +Enable(skillID) error
+        +Disable(skillID) error
+    }
+
+    class SkillExecutor {
+        +AIClient aiClient
+        +Execute(skill, input, context) SkillOutput
+        +buildPrompt(skill, input) string
+    }
+
+    SkillRegistry o-- Skill
+    SkillExecutor --> Skill
+    SkillExecutor --> AIClient
+
+    class AIClient {
+        <<interface>>
+        +Chat(ctx, messages, model) ChatResponse
+        +Stream(ctx, messages, model) chan StreamChunk
+        +Embed(ctx, text) []float64
+    }
+
+    class ModelManager {
+        +map models
+        +string defaultModel
+        +GetModel(agentType) ModelConfig
+        +SwitchModel(modelID) error
+    }
+
+    class ReviewReport {
+        +string id
+        +string chapterId
+        +map dimensionScores
+        +[]ReviewIssue blockingIssues
+        +[]ReviewIssue warnings
+        +int overallScore
+        +time.Time createdAt
+        +IsBlocking() bool
+    }
+
+    class ReviewIssue {
+        +string dimension
+        +IssueLevel level
+        +string description
+        +string suggestion
+        +string evidence
+    }
+
+    class VersionManager {
+        +GitManager git
+        +BackupManager backup
+        +Commit(message, files) string
+        +Diff(from, to) DiffResult
+        +Rollback(target) error
+        +Tag(name, message) error
+        +BackupChapter(chapterId) error
+    }
+
+    class GitManager {
+        +string repoPath
+        +Commit(message, files) string
+        +Diff(from, to) DiffResult
+        +Rollback(target) error
+        +Tag(name, message) error
+        +Stash() string
+    }
+
+    class StorageManager {
+        +SQLiteDB sqlite
+        +FileStore fileStore
+        +VectorStore vectorStore
+        +ReadFile(path) []byte
+        +WriteFile(path, data) error
+        +QueryAsset(type, filter) []Asset
+        +SearchRAG(query) []SearchResult
+    }
+
+    Project --> Chapter
+    Project --> StorySystem
+    Chapter --> ChapterSpine
+    StorySystem --> Contract
+    StorySystem --> Commit
+    Orchestrator --> Pipeline
+    Orchestrator --> IsolationManager
+    Orchestrator --> SkillRegistry
+    Pipeline --> StepState
+    Pipeline --> Checkpoint
+    ContextAgent --> ContextManager
+    IsolationManager --> Manifest
+    WriterAgent --> Manifest
+    ReviewerAgent --> Manifest
+    DataAgent --> Manifest
+    VersionManager --> GitManager
+    ReviewReport --> ReviewIssue
