@@ -334,6 +334,10 @@ func TestNormalizeCommentPageAcceptsDirectShapeAndRejectsFailedEnvelope(t *testi
 	if _, err := normalizeSkillDetail([]byte(`{"success":false,"data":{"id":"wanted"}}`), SkillRecord{ID: "wanted"}); err == nil {
 		t.Fatal("accepted unsuccessful detail envelope")
 	}
+	page, err = normalizeCommentPage([]byte(`{"success":true,"data":{"data":{"items":[],"total":0,"hasMore":false},"total":0,"page":1,"limit":50}}`))
+	if err != nil || page.Total != 0 {
+		t.Fatalf("nested page=%#v err=%v", page, err)
+	}
 }
 
 func TestCollectCandidateEvidenceStopsRepeatedCommentPage(t *testing.T) {

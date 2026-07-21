@@ -658,6 +658,14 @@ func normalizeCommentPage(payload []byte) (commentPage, error) {
 			return commentPage{}, err
 		}
 	}
+	if _, hasItems := fields["items"]; !hasItems {
+		if nested, ok := fields["data"]; ok && !isNullJSON(nested) {
+			fields, err = catalogObjectFields(nested)
+			if err != nil {
+				return commentPage{}, err
+			}
+		}
+	}
 	raw, ok := fields["items"]
 	if !ok {
 		raw = fields["comments"]
