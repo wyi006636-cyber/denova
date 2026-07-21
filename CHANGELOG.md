@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评 CLI 失败发布边界：PARTIAL 快照仅保存为可恢复的本地缓存，不再覆盖已发布根工件；详情或评论证据失败会中止排序发布，保持所有根工件逐字节不变。
+- Fixed Xiaping CLI failure publication boundaries: PARTIAL snapshots remain resumable local cache only and never overwrite published root artifacts; detail or comment-evidence failures abort ranking publication and preserve every root artifact byte-for-byte.
 - 修复取消和失败快照的发布边界：预先取消的发现命令不会创建缓存或工件；仅成功的 COMPLETE 快照才能更新根工件，PARTIAL 结果仅保留在本地缓存以便恢复。
 - Fixed cancellation and failed-snapshot publication boundaries: pre-cancelled discovery commands create neither cache nor artifacts; only successful COMPLETE snapshots update root artifacts, while PARTIAL results remain local cache checkpoints for resumption.
 - 修复虾评发现阶段 provenance 校验：排序现在拒绝任何 Schema 形式正确但来源、用途、大小上限或输入哈希未绑定到暂存快照的工件；失败快照仍保留本地 PARTIAL 检查点用于恢复，但绝不覆盖已发布的 COMPLETE 工件。

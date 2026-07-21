@@ -70,16 +70,17 @@ func runXiapingSnapshot(ctx context.Context, args []string, stdout, stderr io.Wr
 	}
 	fmt.Fprintln(stderr, "quality-eval: snapshot-xiaping collecting public catalog")
 	snapshot, err := skilldiscovery.NewCollector(newXiapingHTTPClient(), nil).CollectCatalog(ctx, options)
-	if snapshot.Manifest.SnapshotID != "" {
-		if publishErr := skilldiscovery.WriteSnapshotManifest(*root, snapshot.Manifest); publishErr != nil {
-			return fmt.Errorf("snapshot-xiaping: publish manifest: %w", publishErr)
-		}
-	}
 	if err != nil {
 		return fmt.Errorf("snapshot-xiaping: %w", err)
 	}
 	if snapshot.Manifest.SnapshotID == "" {
 		return errors.New("snapshot-xiaping: collector returned no snapshot identity")
+	}
+	if snapshot.Manifest.Status != skilldiscovery.SnapshotComplete {
+		return fmt.Errorf("snapshot-xiaping: collector returned %s snapshot", snapshot.Manifest.Status)
+	}
+	if err := skilldiscovery.WriteSnapshotManifest(*root, snapshot.Manifest); err != nil {
+		return fmt.Errorf("snapshot-xiaping: publish manifest: %w", err)
 	}
 	fmt.Fprintf(stdout, "SNAPSHOT id=%s status=%s skills=%d\n", snapshot.Manifest.SnapshotID, snapshot.Manifest.Status, len(snapshot.Skills))
 	return nil
@@ -162,6 +163,9 @@ func runXiapingRank(ctx context.Context, args []string, stdout, stderr io.Writer
 	details, comments, failures, err := skilldiscovery.NewCollector(newXiapingHTTPClient(), nil).CollectCandidateEvidence(ctx, skilldiscovery.EvidenceCollectionOptions{CollectorOptions: options, CommentPageSize: *commentPageSize}, staged.Candidates)
 	if err != nil {
 		return fmt.Errorf("rank-xiaping: %w", err)
+	}
+	if len(failures) != 0 {
+		return fmt.Errorf("rank-xiaping: evidence collection incomplete; failures=%d", len(failures))
 	}
 	reviews := make(map[string]skilldiscovery.ReviewEvidence, len(details))
 	for id, detail := range details {
