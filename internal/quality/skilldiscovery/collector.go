@@ -44,8 +44,9 @@ type EvidenceCollectionOptions struct {
 // SkillDetail is the non-identity detail used while calculating evidence.
 type SkillDetail struct {
 	SkillRecord
-	WeightedScore  float64 `json:"weighted_score"`
-	SecurityReport string  `json:"security_report"`
+	WeightedScore       float64 `json:"weighted_score"`
+	SecurityReport      string  `json:"security_report"`
+	CommentCountPresent bool    `json:"-"`
 }
 
 // Collector retrieves public catalog pages through a restricted HTTP client.
@@ -373,7 +374,7 @@ func (collector *Collector) CollectCandidateEvidence(ctx context.Context, option
 		collected := []ReviewRecord{}
 		complete := true
 		expectedTotal := detail.CommentCount
-		expectedSet := expectedTotal > 0
+		expectedSet := detail.CommentCountPresent
 		for page := 1; ; page++ {
 			pageURL := evidenceCommentsURL(base, candidate.Skill.ID, options.CommentPageSize, page)
 			payload, receipt, readErr = cache.ReadPage("skill-comments", pageURL.String())
@@ -427,6 +428,10 @@ func (collector *Collector) CollectCandidateEvidence(ctx context.Context, option
 				break
 			}
 			if !response.HasMore {
+				if len(collected) != expectedTotal {
+					failures = append(failures, evidenceFailure("skill-comments", pageURL.String(), fmt.Errorf("comments do not match reported total")))
+					complete = false
+				}
 				break
 			}
 		}
@@ -494,6 +499,16 @@ func normalizeSkillDetail(payload []byte, fallback SkillRecord) (SkillDetail, er
 		}
 	}
 	var detail SkillDetail
+	rawCommentCount, commentCountPresent := fields["comment_count"]
+	if commentCountPresent {
+		if isNullJSON(rawCommentCount) {
+			return SkillDetail{}, fmt.Errorf("detail comment_count must be a non-negative integer")
+		}
+		var count int
+		if err := json.Unmarshal(rawCommentCount, &count); err != nil || count < 0 {
+			return SkillDetail{}, fmt.Errorf("detail comment_count must be a non-negative integer")
+		}
+	}
 	encoded, err := json.Marshal(fields)
 	if err != nil {
 		return SkillDetail{}, err
@@ -513,6 +528,7 @@ func normalizeSkillDetail(payload []byte, fallback SkillRecord) (SkillDetail, er
 	if detail.OwnerID == "" {
 		detail.OwnerID = fallback.OwnerID
 	}
+	detail.CommentCountPresent = commentCountPresent
 	return detail, nil
 }
 

@@ -20,6 +20,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评评论证据完整性闭环：终页 `hasMore:false` 现在必须与固定来源总数完全一致；详情中的显式 `comment_count:0` 被保留为绑定值，拒绝 null、错误类型、负数及后续评论页的矛盾数据。
+- Fixed Xiaping comment-evidence closure: terminal `hasMore:false` pages must now exactly match the fixed source total; an explicit detail `comment_count:0` remains binding, rejecting null, wrong-type, negative, and later contradictory comment-page data.
+
 - 修复虾评评论分页边界：以详情评论数或首个分页响应的固定 total 约束 hasMore 循环；total 漂移、超额进度、重复非空页和空页续页都会将候选标为不完整，而不会无限请求或写入缓存。
 - Fixed Xiaping comment-pagination bounds: the detail count or first page's fixed total now constrains hasMore loops; changing totals, excess progress, repeated non-empty pages, and empty continuation pages mark a candidate incomplete instead of growing requests or cache indefinitely.
 

@@ -338,6 +338,43 @@ func TestCollectCandidateEvidenceStopsRepeatedCommentPage(t *testing.T) {
 	}
 }
 
+func TestCollectCandidateEvidenceRejectsUnderfilledTerminalPage(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/api/skills/underfilled" {
+			fmt.Fprint(w, `{"id":"underfilled","comment_count":10}`)
+			return
+		}
+		if request.URL.Path == "/api/skills/underfilled/comments" {
+			fmt.Fprint(w, `{"items":[{"id":"one","user_id":"one","stars":5,"content":"synthetic terminal page has one item while the source count says ten","created_at":"2026-07-01T00:00:00Z"}],"total":10,"hasMore":false}`)
+			return
+		}
+		t.Fatalf("unexpected %s", request.URL)
+	}))
+	t.Cleanup(server.Close)
+	collector := NewCollector(server.Client(), fixedClock())
+	options := EvidenceCollectionOptions{CollectorOptions: CollectorOptions{BaseURL: server.URL, CacheRoot: t.TempDir(), PageSize: 1, RetryAttempts: 1}, CommentPageSize: 10}
+	details, comments, failures, err := collector.CollectCandidateEvidence(context.Background(), options, []CandidateRecord{{Skill: SkillRecord{ID: "underfilled"}}})
+	if err != nil || len(details) != 0 || len(comments) != 0 || len(failures) != 1 {
+		t.Fatalf("details=%v comments=%v failures=%v err=%v", details, comments, failures, err)
+	}
+}
+
+func TestNormalizeSkillDetailPreservesExplicitCommentCountPresence(t *testing.T) {
+	for _, payload := range []string{`{"id":"wanted","comment_count":null}`, `{"id":"wanted","comment_count":"0"}`, `{"id":"wanted","comment_count":-1}`} {
+		if _, err := normalizeSkillDetail([]byte(payload), SkillRecord{ID: "wanted"}); err == nil {
+			t.Fatalf("accepted invalid comment count %s", payload)
+		}
+	}
+	explicit, err := normalizeSkillDetail([]byte(`{"id":"wanted","comment_count":0}`), SkillRecord{ID: "wanted"})
+	if err != nil || !explicit.CommentCountPresent || explicit.CommentCount != 0 {
+		t.Fatalf("explicit=%#v err=%v", explicit, err)
+	}
+	omitted, err := normalizeSkillDetail([]byte(`{"id":"wanted"}`), SkillRecord{ID: "wanted"})
+	if err != nil || omitted.CommentCountPresent {
+		t.Fatalf("omitted=%#v err=%v", omitted, err)
+	}
+}
+
 func fixedClock() func() time.Time {
 	return func() time.Time { return time.Date(2026, 7, 21, 0, 0, 0, 0, time.UTC) }
 }
