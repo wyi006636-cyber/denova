@@ -1,0 +1,22 @@
+{
+  "contract": "denova.quality-evaluation-review-form",
+  "version": "v1",
+  "instructions": [
+    "Read both options completely and independently; do not infer or seek their source.",
+    "Restate the character goal, obstacle, choice, cost, and resulting text change before deciding.",
+    "Choose A, B, or tie and cite concrete prose evidence."
+  ],
+  "required_restatement": [
+    "character_goal",
+    "obstacle",
+    "choice",
+    "cost",
+    "text_change"
+  ],
+  "allowed_decisions": [
+    "A",
+    "B",
+    "tie"
+  ],
+  "required_evidence": "Quote the relevant prose and explain how it supports the paired decision."
+}

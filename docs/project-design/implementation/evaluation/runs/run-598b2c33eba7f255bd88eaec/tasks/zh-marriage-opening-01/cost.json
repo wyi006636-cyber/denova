@@ -1,0 +1,16 @@
+{
+  "contract": "denova.quality-evaluation-cost",
+  "version": "v1",
+  "run_id": "run-598b2c33eba7f255bd88eaec",
+  "task_id": "zh-marriage-opening-01",
+  "arms": {
+    "H": {
+      "status": "not_recorded",
+      "note": "P0-T07 does not implement or fabricate the Harness arm."
+    },
+    "S": {
+      "status": "not_recorded",
+      "note": "No successful model response was recorded."
+    }
+  }
+}

@@ -1,0 +1,2282 @@
+{
+  "contract": "denova.quality-evaluation-run",
+  "version": "v1",
+  "run_id": "run-598b2c33eba7f255bd88eaec",
+  "created_at": "2026-07-21T06:31:14.6350901Z",
+  "manifest_file": "corpus-manifest-v1.json",
+  "manifest_sha256": "sha256:b5d635faacf3cd332a359a1f998319e5c0a4b055e2cc25a6f56f7774daac1627",
+  "template_version": "single-turn-v1",
+  "template_sha256": "sha256:56a566495b63cea286fd8bb60abeb9a7770422c3c4c4c67f63e86739859c3a54",
+  "baseline_status": "ENVIRONMENT-BLOCKED",
+  "harness_status": "NOT-READY",
+  "tasks": [
+    {
+      "task_id": "ls-mystery-opening-01",
+      "task_hash": "sha256:cf2de0a63db55450114b5b44964d21dbc1ac18c75f7e3869fe6fe96ae440785e",
+      "profile_id": "long_serial",
+      "genre": "都市悬疑",
+      "task_type": "opening",
+      "length_bucket": "chapter",
+      "data_split": "tuning",
+      "input_sha256": "sha256:31190e66c6c11e572af162ca662bae89fc9ee5128156ba9ff354fb3270474359",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:31190e66c6c11e572af162ca662bae89fc9ee5128156ba9ff354fb3270474359",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:31190e66c6c11e572af162ca662bae89fc9ee5128156ba9ff354fb3270474359",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "ls-xianxia-opening-02",
+      "task_hash": "sha256:14ab9e6ea2acc0fcda0e4d02f2c3f5d09e3de9422010a260ea017d3997ae69f7",
+      "profile_id": "long_serial",
+      "genre": "仙侠冒险",
+      "task_type": "opening",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "input_sha256": "sha256:7a6d8f396cf33763858dee99e1ed48ce3049e7e57ca9489a44d997027ae61d45",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:7a6d8f396cf33763858dee99e1ed48ce3049e7e57ca9489a44d997027ae61d45",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:7a6d8f396cf33763858dee99e1ed48ce3049e7e57ca9489a44d997027ae61d45",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "ls-mystery-dialogue-03",
+      "task_hash": "sha256:ff6d1b2548f9bd96094d05124158f88e8aa654f7539e169a3fe31319b4309fa3",
+      "profile_id": "long_serial",
+      "genre": "都市悬疑",
+      "task_type": "dialogue",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "input_sha256": "sha256:bc145ded1bfa318fca92965a33f7a7f30fda3852ee119b10e815c70642e22221",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:bc145ded1bfa318fca92965a33f7a7f30fda3852ee119b10e815c70642e22221",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:bc145ded1bfa318fca92965a33f7a7f30fda3852ee119b10e815c70642e22221",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "ls-xianxia-choice-04",
+      "task_hash": "sha256:afb5d61b59aeeedbd3bb8a741e754abbb4462bd507be3bcbebf5859208055985",
+      "profile_id": "long_serial",
+      "genre": "仙侠冒险",
+      "task_type": "character_choice",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "input_sha256": "sha256:d89403c4b7c573e6bbf515a4914e127bf932a4f830a1a831b1bda3932c66c773",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:d89403c4b7c573e6bbf515a4914e127bf932a4f830a1a831b1bda3932c66c773",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:d89403c4b7c573e6bbf515a4914e127bf932a4f830a1a831b1bda3932c66c773",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "ls-mystery-turn-05",
+      "task_hash": "sha256:62c4d0bfdb5ef414bc365b036d12aee4dbb1d0746cbc008782312363bf523185",
+      "profile_id": "long_serial",
+      "genre": "都市悬疑",
+      "task_type": "structure_turn",
+      "length_bucket": "chapter",
+      "data_split": "tuning",
+      "input_sha256": "sha256:52b2a56d9d7f126f5e46ac755f062fd4fcdf5b85c467de5468c9826229e307ab",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:52b2a56d9d7f126f5e46ac755f062fd4fcdf5b85c467de5468c9826229e307ab",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:52b2a56d9d7f126f5e46ac755f062fd4fcdf5b85c467de5468c9826229e307ab",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "ls-xianxia-turn-06",
+      "task_hash": "sha256:f288d2b94bd284828a024aee084e6deefd1f4a55097e381c06eab735adb88a5d",
+      "profile_id": "long_serial",
+      "genre": "仙侠冒险",
+      "task_type": "structure_turn",
+      "length_bucket": "chapter",
+      "data_split": "release_holdout",
+      "input_sha256": "sha256:e0878753cf409b1ec5c3ecb2a7b7f67ddd818843aef5aaef88fdcbaf65271ade",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:e0878753cf409b1ec5c3ecb2a7b7f67ddd818843aef5aaef88fdcbaf65271ade",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:e0878753cf409b1ec5c3ecb2a7b7f67ddd818843aef5aaef88fdcbaf65271ade",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "ls-mystery-ending-07",
+      "task_hash": "sha256:95ea9ceea0e2abc9f92a2a132efe2a4e49bd2631f9b10d79c0f1413a4c193d64",
+      "profile_id": "long_serial",
+      "genre": "都市悬疑",
+      "task_type": "ending",
+      "length_bucket": "chapter",
+      "data_split": "tuning",
+      "input_sha256": "sha256:ca11f1a2555fb0d06842154c332be1bc71a028e9c713b1b8a464fe0ed6097cf5",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:ca11f1a2555fb0d06842154c332be1bc71a028e9c713b1b8a464fe0ed6097cf5",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:ca11f1a2555fb0d06842154c332be1bc71a028e9c713b1b8a464fe0ed6097cf5",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "ls-xianxia-continuity-08",
+      "task_hash": "sha256:da07404a8859378c40d4e1fc37073a8444c9e290aaa8163f7700309d327d748e",
+      "profile_id": "long_serial",
+      "genre": "仙侠冒险",
+      "task_type": "continuity",
+      "length_bucket": "chapter",
+      "data_split": "regression",
+      "input_sha256": "sha256:9638e95de244a0cfecb59c2f7e203a103b8d687f64a95042ddf21fa26c138744",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:9638e95de244a0cfecb59c2f7e203a103b8d687f64a95042ddf21fa26c138744",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:9638e95de244a0cfecb59c2f7e203a103b8d687f64a95042ddf21fa26c138744",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "ls-workplace-dialogue-09",
+      "task_hash": "sha256:226d41698c2bf95e42e4ec36e8293c5b86851f9583a2d065e9bf2aa5fb15defa",
+      "profile_id": "long_serial",
+      "genre": "职场现实",
+      "task_type": "dialogue",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "input_sha256": "sha256:8b3c7756c93345308fa40664c6e0c38eeef5f09058eadb491b2bfc8068120c2a",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:8b3c7756c93345308fa40664c6e0c38eeef5f09058eadb491b2bfc8068120c2a",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:8b3c7756c93345308fa40664c6e0c38eeef5f09058eadb491b2bfc8068120c2a",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "ls-workplace-continuity-10",
+      "task_hash": "sha256:490997154a49a56e197722bb4442ad1986517b5e538afd339d8e48b466957d5d",
+      "profile_id": "long_serial",
+      "genre": "职场现实",
+      "task_type": "continuity",
+      "length_bucket": "chapter",
+      "data_split": "regression",
+      "input_sha256": "sha256:e14d3df3f3556bc12d6a87e19f26fafc3a09cb1edaca46cb28b77975006da2fb",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:e14d3df3f3556bc12d6a87e19f26fafc3a09cb1edaca46cb28b77975006da2fb",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:e14d3df3f3556bc12d6a87e19f26fafc3a09cb1edaca46cb28b77975006da2fb",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "ls-workplace-turn-11",
+      "task_hash": "sha256:4c599468751476fd6a6b4f8b415d902dadd45555d6125ee807189cf5a4cc749a",
+      "profile_id": "long_serial",
+      "genre": "职场现实",
+      "task_type": "structure_turn",
+      "length_bucket": "chapter",
+      "data_split": "tuning",
+      "input_sha256": "sha256:0f8ed7a3256fffaede3d7f823fd133afeb0387a1b4ea3820747ca0da4f13dbc4",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:0f8ed7a3256fffaede3d7f823fd133afeb0387a1b4ea3820747ca0da4f13dbc4",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:0f8ed7a3256fffaede3d7f823fd133afeb0387a1b4ea3820747ca0da4f13dbc4",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "ls-workplace-ending-12",
+      "task_hash": "sha256:8d26056417af26b953fc1de455f493590a1509cff44f2bdf154da9696c6890b3",
+      "profile_id": "long_serial",
+      "genre": "职场现实",
+      "task_type": "ending",
+      "length_bucket": "chapter",
+      "data_split": "release_holdout",
+      "input_sha256": "sha256:18c22fa41e0fc1a9f2304177630038ad95a074234616f83a9e8f4b16deb190cc",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:18c22fa41e0fc1a9f2304177630038ad95a074234616f83a9e8f4b16deb190cc",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:18c22fa41e0fc1a9f2304177630038ad95a074234616f83a9e8f4b16deb190cc",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "fq-urban-opening-01",
+      "task_hash": "sha256:a1d943c4a77794e9d46b980fdc080cec512f37978c8c072c0f4d34e5ffc9bd31",
+      "profile_id": "fanqie_short",
+      "genre": "都市情感",
+      "task_type": "opening",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "input_sha256": "sha256:f94c3fd656992831b1be5b32136533aa4704175ab794b1451e4c07ba468ee0c7",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:f94c3fd656992831b1be5b32136533aa4704175ab794b1451e4c07ba468ee0c7",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:f94c3fd656992831b1be5b32136533aa4704175ab794b1451e4c07ba468ee0c7",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "fq-folk-opening-02",
+      "task_hash": "sha256:6951da5f5fc0e71fdb63c45012c61100e5b4dc036b3998c3bc382a2711889f6c",
+      "profile_id": "fanqie_short",
+      "genre": "民俗悬疑",
+      "task_type": "opening",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "input_sha256": "sha256:22dab95dc25fdf3190926e164ede455a3a9c07faf149cd539cb50db653ec0b40",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:22dab95dc25fdf3190926e164ede455a3a9c07faf149cd539cb50db653ec0b40",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:22dab95dc25fdf3190926e164ede455a3a9c07faf149cd539cb50db653ec0b40",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "fq-urban-dialogue-03",
+      "task_hash": "sha256:55a2c40a36f0ee6052c6d2a145bbe2b0b70b2d16a915ebc78526315b9547203c",
+      "profile_id": "fanqie_short",
+      "genre": "都市情感",
+      "task_type": "dialogue",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "input_sha256": "sha256:2d6ef623f0f05731e5c0fdc50e5bd1d8ab130f1ae82193f3aa830796daea21b0",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:2d6ef623f0f05731e5c0fdc50e5bd1d8ab130f1ae82193f3aa830796daea21b0",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:2d6ef623f0f05731e5c0fdc50e5bd1d8ab130f1ae82193f3aa830796daea21b0",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "fq-folk-choice-04",
+      "task_hash": "sha256:c37789c2257463bf09853082cb61ed18d0c57ff6626b53a7bc2e758e400d9112",
+      "profile_id": "fanqie_short",
+      "genre": "民俗悬疑",
+      "task_type": "character_choice",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "input_sha256": "sha256:11f231276c87ed45d979a0d59b2b20cb93b472ecdc440ea68274f797fe12491c",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:11f231276c87ed45d979a0d59b2b20cb93b472ecdc440ea68274f797fe12491c",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:11f231276c87ed45d979a0d59b2b20cb93b472ecdc440ea68274f797fe12491c",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "fq-urban-turn-05",
+      "task_hash": "sha256:4877328f6f750b72d0851c4a377d29ca49d82de39a39562dc5b1d2a80d60ce0b",
+      "profile_id": "fanqie_short",
+      "genre": "现实逆袭",
+      "task_type": "structure_turn",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "input_sha256": "sha256:462fd9c8cdc626f904eeae3706d6aa6b09f8d73c6ad1ebe3143a2fa44d6bd6c3",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:462fd9c8cdc626f904eeae3706d6aa6b09f8d73c6ad1ebe3143a2fa44d6bd6c3",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:462fd9c8cdc626f904eeae3706d6aa6b09f8d73c6ad1ebe3143a2fa44d6bd6c3",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "fq-folk-turn-06",
+      "task_hash": "sha256:89f952633001912074a190d937f8b4ec697c2f9048f1b9a96e17114867420254",
+      "profile_id": "fanqie_short",
+      "genre": "民俗悬疑",
+      "task_type": "structure_turn",
+      "length_bucket": "short_story",
+      "data_split": "release_holdout",
+      "input_sha256": "sha256:aeef3649a2071f8acb1326fd445752b0ab3e21578a2680348b27893cddfb275e",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:aeef3649a2071f8acb1326fd445752b0ab3e21578a2680348b27893cddfb275e",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:aeef3649a2071f8acb1326fd445752b0ab3e21578a2680348b27893cddfb275e",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "fq-urban-ending-07",
+      "task_hash": "sha256:0d5de18df73f3d40c2b143affb686938e50e9b520ce1f03f0b075788b8e8bc7f",
+      "profile_id": "fanqie_short",
+      "genre": "都市情感",
+      "task_type": "ending",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "input_sha256": "sha256:1b6fe878b01e22f184166c5523a41c1b0cf9c1f3b94b44b1d12a9c6e280828b9",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:1b6fe878b01e22f184166c5523a41c1b0cf9c1f3b94b44b1d12a9c6e280828b9",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:1b6fe878b01e22f184166c5523a41c1b0cf9c1f3b94b44b1d12a9c6e280828b9",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "fq-folk-continuity-08",
+      "task_hash": "sha256:a9b9b2bc93881f8cb2209ca7829ead71066f4516c7ce09fe6bf7953bbf05b577",
+      "profile_id": "fanqie_short",
+      "genre": "民俗悬疑",
+      "task_type": "continuity",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "input_sha256": "sha256:98316e30e25665b8dc4761f259ac9e60820df833c0e1837fe202d354297c79cd",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:98316e30e25665b8dc4761f259ac9e60820df833c0e1837fe202d354297c79cd",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:98316e30e25665b8dc4761f259ac9e60820df833c0e1837fe202d354297c79cd",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "fq-revenge-dialogue-09",
+      "task_hash": "sha256:c20416d797bd3dfd6ee8d7a9ad06331798b1b50f916e134e0f53ecf6bba1c801",
+      "profile_id": "fanqie_short",
+      "genre": "现实逆袭",
+      "task_type": "dialogue",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "input_sha256": "sha256:1cb8addf7ddb7bc54830d0a18c3f54ae731fe2576832b9f4b609af2d68e26c95",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:1cb8addf7ddb7bc54830d0a18c3f54ae731fe2576832b9f4b609af2d68e26c95",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:1cb8addf7ddb7bc54830d0a18c3f54ae731fe2576832b9f4b609af2d68e26c95",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "fq-revenge-continuity-10",
+      "task_hash": "sha256:9571c592651a604b33a1f04e4e2041cf663d5cd028999dccd8a4759dc8183c0c",
+      "profile_id": "fanqie_short",
+      "genre": "现实逆袭",
+      "task_type": "continuity",
+      "length_bucket": "short_story",
+      "data_split": "regression",
+      "input_sha256": "sha256:4fc173cb7235276b6dec73f328c6b2051e8a952f6577eedc941d1870e5b13c39",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:4fc173cb7235276b6dec73f328c6b2051e8a952f6577eedc941d1870e5b13c39",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:4fc173cb7235276b6dec73f328c6b2051e8a952f6577eedc941d1870e5b13c39",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "fq-urban-turn-11",
+      "task_hash": "sha256:084c7827fa581114b6b2e3b3f1b8dfefff51c19db29c35c3334afc7901b93745",
+      "profile_id": "fanqie_short",
+      "genre": "都市情感",
+      "task_type": "structure_turn",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "input_sha256": "sha256:83dedf1a39b748f8a73df431043719c3d5f3349859f685ce2c2cc0aca6a5df1e",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:83dedf1a39b748f8a73df431043719c3d5f3349859f685ce2c2cc0aca6a5df1e",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:83dedf1a39b748f8a73df431043719c3d5f3349859f685ce2c2cc0aca6a5df1e",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "fq-revenge-ending-12",
+      "task_hash": "sha256:ab9d0edf3b26f96b09fa1b80f6bea498d3f0cebdf4e918e845d3a77bbd022f0b",
+      "profile_id": "fanqie_short",
+      "genre": "现实逆袭",
+      "task_type": "ending",
+      "length_bucket": "short_story",
+      "data_split": "release_holdout",
+      "input_sha256": "sha256:f84e3c1e2ea5db746c597cd60cec55f334d1d7b3ee7bdf0690b367461a4f7ca7",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:f84e3c1e2ea5db746c597cd60cec55f334d1d7b3ee7bdf0690b367461a4f7ca7",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:f84e3c1e2ea5db746c597cd60cec55f334d1d7b3ee7bdf0690b367461a4f7ca7",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "zh-marriage-opening-01",
+      "task_hash": "sha256:3ef8525895eaa28c6c4496bd6541da34038d26e81303159b77d0c5d61fd190ba",
+      "profile_id": "zhihu_salt_short",
+      "genre": "现实婚恋",
+      "task_type": "opening",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "input_sha256": "sha256:1b1b6ba07737adac7e469ef2bb36cf132e3fc4b6dde10340ce1d966ad87a75db",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:1b1b6ba07737adac7e469ef2bb36cf132e3fc4b6dde10340ce1d966ad87a75db",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:1b1b6ba07737adac7e469ef2bb36cf132e3fc4b6dde10340ce1d966ad87a75db",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "zh-workplace-opening-02",
+      "task_hash": "sha256:c809f13c1d9d26e29d00b6d3c75c07634d524b00a7fecafdae181948830878f1",
+      "profile_id": "zhihu_salt_short",
+      "genre": "职场悬疑",
+      "task_type": "opening",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "input_sha256": "sha256:86b4c3f5c08b8dbfd218475a0c348a7f701044cd98e06996137b7fdb8ee3b4b2",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:86b4c3f5c08b8dbfd218475a0c348a7f701044cd98e06996137b7fdb8ee3b4b2",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:86b4c3f5c08b8dbfd218475a0c348a7f701044cd98e06996137b7fdb8ee3b4b2",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "zh-marriage-dialogue-03",
+      "task_hash": "sha256:7a50bd59790f782b31a4285b09f3c1e409ecc8c377aebb3ff94b78ee59ebf7ad",
+      "profile_id": "zhihu_salt_short",
+      "genre": "现实婚恋",
+      "task_type": "dialogue",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "input_sha256": "sha256:2aa20b55ac413aa9e49a7c801c229f5dc809e5f3c8c3300e38644960954abaf6",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:2aa20b55ac413aa9e49a7c801c229f5dc809e5f3c8c3300e38644960954abaf6",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:2aa20b55ac413aa9e49a7c801c229f5dc809e5f3c8c3300e38644960954abaf6",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "zh-family-choice-04",
+      "task_hash": "sha256:48389fa474fa402dc9a545e51ed9b0188304ccd340245833c8583534ce639792",
+      "profile_id": "zhihu_salt_short",
+      "genre": "家庭伦理",
+      "task_type": "character_choice",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "input_sha256": "sha256:5cefc8e0b11a717db85e478bf83e23eb377e9ec1edfe56d436a977654f0ae970",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:5cefc8e0b11a717db85e478bf83e23eb377e9ec1edfe56d436a977654f0ae970",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:5cefc8e0b11a717db85e478bf83e23eb377e9ec1edfe56d436a977654f0ae970",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "zh-workplace-turn-05",
+      "task_hash": "sha256:4bff77e9e60fc2338aecdd0c064849b36da08d2441b5e8c217efec966492ef88",
+      "profile_id": "zhihu_salt_short",
+      "genre": "职场悬疑",
+      "task_type": "structure_turn",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "input_sha256": "sha256:77d9f78758b9de48b730ce7f208c512510ab71fe1b87fd6ed2f377d4857e000d",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:77d9f78758b9de48b730ce7f208c512510ab71fe1b87fd6ed2f377d4857e000d",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:77d9f78758b9de48b730ce7f208c512510ab71fe1b87fd6ed2f377d4857e000d",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "zh-family-turn-06",
+      "task_hash": "sha256:c889dca3b895f57a61aa548f0c10b8a25b44967fbaffeecbd8b44fd6f54d49f9",
+      "profile_id": "zhihu_salt_short",
+      "genre": "家庭伦理",
+      "task_type": "structure_turn",
+      "length_bucket": "short_story",
+      "data_split": "release_holdout",
+      "input_sha256": "sha256:6c2c33b984b5ff488c1682dda7d6f89839acec1aa39122b7c0b3ed66f4bb1a4b",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:6c2c33b984b5ff488c1682dda7d6f89839acec1aa39122b7c0b3ed66f4bb1a4b",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:6c2c33b984b5ff488c1682dda7d6f89839acec1aa39122b7c0b3ed66f4bb1a4b",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "zh-marriage-ending-07",
+      "task_hash": "sha256:6ff4ec52ffbac235cc818f95fcdc23cb7d966da950b7c11330da239838d7e7b9",
+      "profile_id": "zhihu_salt_short",
+      "genre": "现实婚恋",
+      "task_type": "ending",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "input_sha256": "sha256:98194db0c0a1f78baa3130adaa40099e7c7bc80a83659519802e627b7cd4e291",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:98194db0c0a1f78baa3130adaa40099e7c7bc80a83659519802e627b7cd4e291",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:98194db0c0a1f78baa3130adaa40099e7c7bc80a83659519802e627b7cd4e291",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "zh-workplace-continuity-08",
+      "task_hash": "sha256:b1c303f6cb20ef4eca1824aea7aac54772cfb91e5717a050c2deb46b9873776f",
+      "profile_id": "zhihu_salt_short",
+      "genre": "职场悬疑",
+      "task_type": "continuity",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "input_sha256": "sha256:94ea138961bcf66528e1776587cb3ec39be9c7399fe4f82cb7f2c8a8dfe9f3c4",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:94ea138961bcf66528e1776587cb3ec39be9c7399fe4f82cb7f2c8a8dfe9f3c4",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:94ea138961bcf66528e1776587cb3ec39be9c7399fe4f82cb7f2c8a8dfe9f3c4",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "zh-family-dialogue-09",
+      "task_hash": "sha256:53f7ffebb0e40470eeb9baaf28ed9f976046850587f16797756be1ab427ea6bb",
+      "profile_id": "zhihu_salt_short",
+      "genre": "家庭伦理",
+      "task_type": "dialogue",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "input_sha256": "sha256:d72d250efd4b330a475eac2a0467072368b8fe54e2d0b385e05448b9918b6918",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:d72d250efd4b330a475eac2a0467072368b8fe54e2d0b385e05448b9918b6918",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:d72d250efd4b330a475eac2a0467072368b8fe54e2d0b385e05448b9918b6918",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "zh-marriage-continuity-10",
+      "task_hash": "sha256:de9f1929abefda5740c2fc5dd2aa15f80582a3f3e36609ea45b5f7722bf04001",
+      "profile_id": "zhihu_salt_short",
+      "genre": "现实婚恋",
+      "task_type": "continuity",
+      "length_bucket": "short_story",
+      "data_split": "regression",
+      "input_sha256": "sha256:0aa6f09db1ec2443af9ab2bb552b0a1f3c1e40f69b455ce4b8265e36241deaee",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:0aa6f09db1ec2443af9ab2bb552b0a1f3c1e40f69b455ce4b8265e36241deaee",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:0aa6f09db1ec2443af9ab2bb552b0a1f3c1e40f69b455ce4b8265e36241deaee",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "zh-workplace-turn-11",
+      "task_hash": "sha256:8031ba159d3a5f8ac3366fcdc63bbc54205a1af150deca5986b0ac5b49e9a1b1",
+      "profile_id": "zhihu_salt_short",
+      "genre": "职场悬疑",
+      "task_type": "structure_turn",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "input_sha256": "sha256:27899f7a2e285486f69fbc2d6b4f15c73147b324f0ab4ef841dc46c2ee7a5f9d",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:27899f7a2e285486f69fbc2d6b4f15c73147b324f0ab4ef841dc46c2ee7a5f9d",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:27899f7a2e285486f69fbc2d6b4f15c73147b324f0ab4ef841dc46c2ee7a5f9d",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    },
+    {
+      "task_id": "zh-family-ending-12",
+      "task_hash": "sha256:d5b70e3b72849683245f8ff54f35aba6f1f0efd34e9af63019720002f1619d96",
+      "profile_id": "zhihu_salt_short",
+      "genre": "家庭伦理",
+      "task_type": "ending",
+      "length_bucket": "short_story",
+      "data_split": "release_holdout",
+      "input_sha256": "sha256:81bb08532eab3b173a13fa2cbe1265a1429b54259a4d86dde7b98dbc66c7eea1",
+      "model_config_sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834",
+      "arms": {
+        "H": {
+          "arm": "H",
+          "status": "NOT-READY",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:81bb08532eab3b173a13fa2cbe1265a1429b54259a4d86dde7b98dbc66c7eea1",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "P0-T07 does not implement or fabricate the Harness arm."
+          },
+          "failure_type": "harness_arm_not_available"
+        },
+        "S": {
+          "arm": "S",
+          "status": "ENVIRONMENT-BLOCKED",
+          "provider": "deepseek",
+          "base_url": "https://api.deepseek.com",
+          "model_profile_id": "default",
+          "model": "deepseek-v4-pro",
+          "parameters": {
+            "temperature": 0.7,
+            "max_output_tokens": 4096,
+            "thinking_enabled": false
+          },
+          "input_sha256": "sha256:81bb08532eab3b173a13fa2cbe1265a1429b54259a4d86dde7b98dbc66c7eea1",
+          "usage": {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "model_calls": 0
+          },
+          "cost": {
+            "status": "not_recorded",
+            "note": "No successful model response was recorded."
+          },
+          "failure_type": "provider_credentials_missing"
+        }
+      }
+    }
+  ]
+}

@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增 P0-T07 三 Profile 质量评测基线：包含 36 个按题材、任务类型、篇幅与 tuning/regression/release holdout 分层的许可合成任务、冻结的公平单轮模板、严格 manifest/hash 校验、稳定 Run ID、确定性匿名盲包、双人评审/第三人裁决、bootstrap 95% CI、分层质量/事实错误/改稿量/成本汇总，以及不伪造缺失 arm 的本地 CLI；当前无 Provider 凭据的真实 S arm 明确记录为 `ENVIRONMENT-BLOCKED`。
+- Added the P0-T07 three-profile quality-evaluation baseline with 36 licensed synthetic tasks stratified by genre, task type, length, and tuning/regression/release holdout; a frozen fair single-turn template; strict manifest/hash validation; stable run IDs; deterministic blind packaging; two-reviewer/third-reviewer adjudication; bootstrap 95% CIs; stratified quality, fact-error, author-edit, and cost summaries; and a local CLI that never fabricates missing arms. With no Provider credential available, the real S arm is explicitly recorded as `ENVIRONMENT-BLOCKED`.
 - 新增已接受的 PreferenceMemory v1 与 Author Finalization v1 双语架构合同及 JSON Schema，定义仅作者显式信号的可撤销偏好记忆、Harness 定稿唯一写入边界、哈希/修订/nonce 绑定、耐久回放、故障恢复与 Automation 待审限制。
 - Added accepted bilingual PreferenceMemory v1 and Author Finalization v1 architecture contracts and JSON Schemas defining revocable explicit-author-only preference signals, the sole Harness finalization write boundary, hash/revision/nonce binding, durable replay, failure recovery, and Automation pending-only limits.
 - 新增已接受的 CandidateSet v1 与 ReviewIssue v1 双语架构合同及 JSON Schema，定义可审计的候选状态机、混合片段血缘、审稿证据、修订能力路由、复核闭环和 Author Finalization 交接边界。

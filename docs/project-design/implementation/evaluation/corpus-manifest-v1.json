@@ -1,0 +1,1617 @@
+{
+  "contract": "denova.quality-evaluation-corpus",
+  "version": "v1",
+  "input_root": "../../../../internal/quality/evaluation/testdata",
+  "contract_root": "../contracts/examples",
+  "run_root": "runs",
+  "baseline": {
+    "arm": "S",
+    "template_version": "single-turn-v1",
+    "template_file": "runs/templates/single-turn-baseline-v1.md",
+    "template_sha256": "sha256:56a566495b63cea286fd8bb60abeb9a7770422c3c4c4c67f63e86739859c3a54",
+    "model_call_limit": 1,
+    "harness_artifacts_allowed": false,
+    "thinking_persisted": false
+  },
+  "tasks": [
+    {
+      "task_id": "ls-mystery-opening-01",
+      "profile_id": "long_serial",
+      "genre": "都市悬疑",
+      "task_type": "opening",
+      "purpose": "评估长篇连载中的章节推进、人物选择、连续性与追读压力",
+      "length_bucket": "chapter",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "long_serial/ls-mystery-opening-01.md",
+      "input_sha256": "sha256:31190e66c6c11e572af162ca662bae89fc9ee5128156ba9ff354fb3270474359",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief ls-mystery-opening-01",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "long_serial.json",
+        "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23",
+        "goals": [
+          "qg.serial.continuity",
+          "qg.serial.chapter_end_momentum",
+          "eval.opening.clarity_and_pressure"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/ls-mystery-opening-01/cost.json"
+    },
+    {
+      "task_id": "ls-xianxia-opening-02",
+      "profile_id": "long_serial",
+      "genre": "仙侠冒险",
+      "task_type": "opening",
+      "purpose": "评估长篇连载中的章节推进、人物选择、连续性与追读压力",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "long_serial/ls-xianxia-opening-02.md",
+      "input_sha256": "sha256:7a6d8f396cf33763858dee99e1ed48ce3049e7e57ca9489a44d997027ae61d45",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief ls-xianxia-opening-02",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "long_serial.json",
+        "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23",
+        "goals": [
+          "qg.serial.continuity",
+          "qg.serial.chapter_end_momentum",
+          "eval.opening.clarity_and_pressure"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/ls-xianxia-opening-02/cost.json"
+    },
+    {
+      "task_id": "ls-mystery-dialogue-03",
+      "profile_id": "long_serial",
+      "genre": "都市悬疑",
+      "task_type": "dialogue",
+      "purpose": "评估长篇连载中的章节推进、人物选择、连续性与追读压力",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "long_serial/ls-mystery-dialogue-03.md",
+      "input_sha256": "sha256:bc145ded1bfa318fca92965a33f7a7f30fda3852ee119b10e815c70642e22221",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief ls-mystery-dialogue-03",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "long_serial.json",
+        "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23",
+        "goals": [
+          "qg.serial.continuity",
+          "qg.serial.chapter_end_momentum",
+          "eval.dialogue.identity_relationship_interest"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/ls-mystery-dialogue-03/cost.json"
+    },
+    {
+      "task_id": "ls-xianxia-choice-04",
+      "profile_id": "long_serial",
+      "genre": "仙侠冒险",
+      "task_type": "character_choice",
+      "purpose": "评估长篇连载中的章节推进、人物选择、连续性与追读压力",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "long_serial/ls-xianxia-choice-04.md",
+      "input_sha256": "sha256:d89403c4b7c573e6bbf515a4914e127bf932a4f830a1a831b1bda3932c66c773",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief ls-xianxia-choice-04",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "long_serial.json",
+        "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23",
+        "goals": [
+          "qg.serial.continuity",
+          "qg.serial.chapter_end_momentum",
+          "eval.character.choice_and_cost"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/ls-xianxia-choice-04/cost.json"
+    },
+    {
+      "task_id": "ls-mystery-turn-05",
+      "profile_id": "long_serial",
+      "genre": "都市悬疑",
+      "task_type": "structure_turn",
+      "purpose": "评估长篇连载中的章节推进、人物选择、连续性与追读压力",
+      "length_bucket": "chapter",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "long_serial/ls-mystery-turn-05.md",
+      "input_sha256": "sha256:52b2a56d9d7f126f5e46ac755f062fd4fcdf5b85c467de5468c9826229e307ab",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief ls-mystery-turn-05",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "long_serial.json",
+        "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23",
+        "goals": [
+          "qg.serial.continuity",
+          "qg.serial.chapter_end_momentum",
+          "eval.structure.causal_turn"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/ls-mystery-turn-05/cost.json"
+    },
+    {
+      "task_id": "ls-xianxia-turn-06",
+      "profile_id": "long_serial",
+      "genre": "仙侠冒险",
+      "task_type": "structure_turn",
+      "purpose": "评估长篇连载中的章节推进、人物选择、连续性与追读压力",
+      "length_bucket": "chapter",
+      "data_split": "release_holdout",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "long_serial/ls-xianxia-turn-06.md",
+      "input_sha256": "sha256:e0878753cf409b1ec5c3ecb2a7b7f67ddd818843aef5aaef88fdcbaf65271ade",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief ls-xianxia-turn-06",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "long_serial.json",
+        "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23",
+        "goals": [
+          "qg.serial.continuity",
+          "qg.serial.chapter_end_momentum",
+          "eval.structure.causal_turn"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/ls-xianxia-turn-06/cost.json"
+    },
+    {
+      "task_id": "ls-mystery-ending-07",
+      "profile_id": "long_serial",
+      "genre": "都市悬疑",
+      "task_type": "ending",
+      "purpose": "评估长篇连载中的章节推进、人物选择、连续性与追读压力",
+      "length_bucket": "chapter",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "long_serial/ls-mystery-ending-07.md",
+      "input_sha256": "sha256:ca11f1a2555fb0d06842154c332be1bc71a028e9c713b1b8a464fe0ed6097cf5",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief ls-mystery-ending-07",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "long_serial.json",
+        "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23",
+        "goals": [
+          "qg.serial.continuity",
+          "qg.serial.chapter_end_momentum",
+          "eval.ending.payoff_and_change"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/ls-mystery-ending-07/cost.json"
+    },
+    {
+      "task_id": "ls-xianxia-continuity-08",
+      "profile_id": "long_serial",
+      "genre": "仙侠冒险",
+      "task_type": "continuity",
+      "purpose": "评估长篇连载中的章节推进、人物选择、连续性与追读压力",
+      "length_bucket": "chapter",
+      "data_split": "regression",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "long_serial/ls-xianxia-continuity-08.md",
+      "input_sha256": "sha256:9638e95de244a0cfecb59c2f7e203a103b8d687f64a95042ddf21fa26c138744",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief ls-xianxia-continuity-08",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "long_serial.json",
+        "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23",
+        "goals": [
+          "qg.serial.continuity",
+          "qg.serial.chapter_end_momentum",
+          "eval.continuity.fact_and_state"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/ls-xianxia-continuity-08/cost.json"
+    },
+    {
+      "task_id": "ls-workplace-dialogue-09",
+      "profile_id": "long_serial",
+      "genre": "职场现实",
+      "task_type": "dialogue",
+      "purpose": "评估长篇连载中的章节推进、人物选择、连续性与追读压力",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "long_serial/ls-workplace-dialogue-09.md",
+      "input_sha256": "sha256:8b3c7756c93345308fa40664c6e0c38eeef5f09058eadb491b2bfc8068120c2a",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief ls-workplace-dialogue-09",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "long_serial.json",
+        "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23",
+        "goals": [
+          "qg.serial.continuity",
+          "qg.serial.chapter_end_momentum",
+          "eval.dialogue.identity_relationship_interest"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/ls-workplace-dialogue-09/cost.json"
+    },
+    {
+      "task_id": "ls-workplace-continuity-10",
+      "profile_id": "long_serial",
+      "genre": "职场现实",
+      "task_type": "continuity",
+      "purpose": "评估长篇连载中的章节推进、人物选择、连续性与追读压力",
+      "length_bucket": "chapter",
+      "data_split": "regression",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "long_serial/ls-workplace-continuity-10.md",
+      "input_sha256": "sha256:e14d3df3f3556bc12d6a87e19f26fafc3a09cb1edaca46cb28b77975006da2fb",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief ls-workplace-continuity-10",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "long_serial.json",
+        "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23",
+        "goals": [
+          "qg.serial.continuity",
+          "qg.serial.chapter_end_momentum",
+          "eval.continuity.fact_and_state"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/ls-workplace-continuity-10/cost.json"
+    },
+    {
+      "task_id": "ls-workplace-turn-11",
+      "profile_id": "long_serial",
+      "genre": "职场现实",
+      "task_type": "structure_turn",
+      "purpose": "评估长篇连载中的章节推进、人物选择、连续性与追读压力",
+      "length_bucket": "chapter",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "long_serial/ls-workplace-turn-11.md",
+      "input_sha256": "sha256:0f8ed7a3256fffaede3d7f823fd133afeb0387a1b4ea3820747ca0da4f13dbc4",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief ls-workplace-turn-11",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "long_serial.json",
+        "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23",
+        "goals": [
+          "qg.serial.continuity",
+          "qg.serial.chapter_end_momentum",
+          "eval.structure.causal_turn"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/ls-workplace-turn-11/cost.json"
+    },
+    {
+      "task_id": "ls-workplace-ending-12",
+      "profile_id": "long_serial",
+      "genre": "职场现实",
+      "task_type": "ending",
+      "purpose": "评估长篇连载中的章节推进、人物选择、连续性与追读压力",
+      "length_bucket": "chapter",
+      "data_split": "release_holdout",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "long_serial/ls-workplace-ending-12.md",
+      "input_sha256": "sha256:18c22fa41e0fc1a9f2304177630038ad95a074234616f83a9e8f4b16deb190cc",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief ls-workplace-ending-12",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "long_serial.json",
+        "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23",
+        "goals": [
+          "qg.serial.continuity",
+          "qg.serial.chapter_end_momentum",
+          "eval.ending.payoff_and_change"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/ls-workplace-ending-12/cost.json"
+    },
+    {
+      "task_id": "fq-urban-opening-01",
+      "profile_id": "fanqie_short",
+      "genre": "都市情感",
+      "task_type": "opening",
+      "purpose": "评估番茄短篇的开篇效率、冲突升级、卖点兑现与完整结局",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "fanqie_short/fq-urban-opening-01.md",
+      "input_sha256": "sha256:f94c3fd656992831b1be5b32136533aa4704175ab794b1451e4c07ba468ee0c7",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief fq-urban-opening-01",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "fanqie_short.json",
+        "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d",
+        "goals": [
+          "qg.short.opening_clarity",
+          "qg.short.hook_intensity",
+          "eval.opening.clarity_and_pressure"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/fq-urban-opening-01/cost.json"
+    },
+    {
+      "task_id": "fq-folk-opening-02",
+      "profile_id": "fanqie_short",
+      "genre": "民俗悬疑",
+      "task_type": "opening",
+      "purpose": "评估番茄短篇的开篇效率、冲突升级、卖点兑现与完整结局",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "fanqie_short/fq-folk-opening-02.md",
+      "input_sha256": "sha256:22dab95dc25fdf3190926e164ede455a3a9c07faf149cd539cb50db653ec0b40",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief fq-folk-opening-02",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "fanqie_short.json",
+        "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d",
+        "goals": [
+          "qg.short.opening_clarity",
+          "qg.short.hook_intensity",
+          "eval.opening.clarity_and_pressure"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/fq-folk-opening-02/cost.json"
+    },
+    {
+      "task_id": "fq-urban-dialogue-03",
+      "profile_id": "fanqie_short",
+      "genre": "都市情感",
+      "task_type": "dialogue",
+      "purpose": "评估番茄短篇的开篇效率、冲突升级、卖点兑现与完整结局",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "fanqie_short/fq-urban-dialogue-03.md",
+      "input_sha256": "sha256:2d6ef623f0f05731e5c0fdc50e5bd1d8ab130f1ae82193f3aa830796daea21b0",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief fq-urban-dialogue-03",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "fanqie_short.json",
+        "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d",
+        "goals": [
+          "qg.short.opening_clarity",
+          "qg.short.hook_intensity",
+          "eval.dialogue.identity_relationship_interest"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/fq-urban-dialogue-03/cost.json"
+    },
+    {
+      "task_id": "fq-folk-choice-04",
+      "profile_id": "fanqie_short",
+      "genre": "民俗悬疑",
+      "task_type": "character_choice",
+      "purpose": "评估番茄短篇的开篇效率、冲突升级、卖点兑现与完整结局",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "fanqie_short/fq-folk-choice-04.md",
+      "input_sha256": "sha256:11f231276c87ed45d979a0d59b2b20cb93b472ecdc440ea68274f797fe12491c",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief fq-folk-choice-04",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "fanqie_short.json",
+        "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d",
+        "goals": [
+          "qg.short.opening_clarity",
+          "qg.short.hook_intensity",
+          "eval.character.choice_and_cost"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/fq-folk-choice-04/cost.json"
+    },
+    {
+      "task_id": "fq-urban-turn-05",
+      "profile_id": "fanqie_short",
+      "genre": "现实逆袭",
+      "task_type": "structure_turn",
+      "purpose": "评估番茄短篇的开篇效率、冲突升级、卖点兑现与完整结局",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "fanqie_short/fq-urban-turn-05.md",
+      "input_sha256": "sha256:462fd9c8cdc626f904eeae3706d6aa6b09f8d73c6ad1ebe3143a2fa44d6bd6c3",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief fq-urban-turn-05",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "fanqie_short.json",
+        "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d",
+        "goals": [
+          "qg.short.opening_clarity",
+          "qg.short.hook_intensity",
+          "eval.structure.causal_turn"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/fq-urban-turn-05/cost.json"
+    },
+    {
+      "task_id": "fq-folk-turn-06",
+      "profile_id": "fanqie_short",
+      "genre": "民俗悬疑",
+      "task_type": "structure_turn",
+      "purpose": "评估番茄短篇的开篇效率、冲突升级、卖点兑现与完整结局",
+      "length_bucket": "short_story",
+      "data_split": "release_holdout",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "fanqie_short/fq-folk-turn-06.md",
+      "input_sha256": "sha256:aeef3649a2071f8acb1326fd445752b0ab3e21578a2680348b27893cddfb275e",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief fq-folk-turn-06",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "fanqie_short.json",
+        "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d",
+        "goals": [
+          "qg.short.opening_clarity",
+          "qg.short.hook_intensity",
+          "eval.structure.causal_turn"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/fq-folk-turn-06/cost.json"
+    },
+    {
+      "task_id": "fq-urban-ending-07",
+      "profile_id": "fanqie_short",
+      "genre": "都市情感",
+      "task_type": "ending",
+      "purpose": "评估番茄短篇的开篇效率、冲突升级、卖点兑现与完整结局",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "fanqie_short/fq-urban-ending-07.md",
+      "input_sha256": "sha256:1b6fe878b01e22f184166c5523a41c1b0cf9c1f3b94b44b1d12a9c6e280828b9",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief fq-urban-ending-07",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "fanqie_short.json",
+        "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d",
+        "goals": [
+          "qg.short.opening_clarity",
+          "qg.short.hook_intensity",
+          "eval.ending.payoff_and_change"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/fq-urban-ending-07/cost.json"
+    },
+    {
+      "task_id": "fq-folk-continuity-08",
+      "profile_id": "fanqie_short",
+      "genre": "民俗悬疑",
+      "task_type": "continuity",
+      "purpose": "评估番茄短篇的开篇效率、冲突升级、卖点兑现与完整结局",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "fanqie_short/fq-folk-continuity-08.md",
+      "input_sha256": "sha256:98316e30e25665b8dc4761f259ac9e60820df833c0e1837fe202d354297c79cd",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief fq-folk-continuity-08",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "fanqie_short.json",
+        "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d",
+        "goals": [
+          "qg.short.opening_clarity",
+          "qg.short.hook_intensity",
+          "eval.continuity.fact_and_state"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/fq-folk-continuity-08/cost.json"
+    },
+    {
+      "task_id": "fq-revenge-dialogue-09",
+      "profile_id": "fanqie_short",
+      "genre": "现实逆袭",
+      "task_type": "dialogue",
+      "purpose": "评估番茄短篇的开篇效率、冲突升级、卖点兑现与完整结局",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "fanqie_short/fq-revenge-dialogue-09.md",
+      "input_sha256": "sha256:1cb8addf7ddb7bc54830d0a18c3f54ae731fe2576832b9f4b609af2d68e26c95",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief fq-revenge-dialogue-09",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "fanqie_short.json",
+        "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d",
+        "goals": [
+          "qg.short.opening_clarity",
+          "qg.short.hook_intensity",
+          "eval.dialogue.identity_relationship_interest"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/fq-revenge-dialogue-09/cost.json"
+    },
+    {
+      "task_id": "fq-revenge-continuity-10",
+      "profile_id": "fanqie_short",
+      "genre": "现实逆袭",
+      "task_type": "continuity",
+      "purpose": "评估番茄短篇的开篇效率、冲突升级、卖点兑现与完整结局",
+      "length_bucket": "short_story",
+      "data_split": "regression",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "fanqie_short/fq-revenge-continuity-10.md",
+      "input_sha256": "sha256:4fc173cb7235276b6dec73f328c6b2051e8a952f6577eedc941d1870e5b13c39",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief fq-revenge-continuity-10",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "fanqie_short.json",
+        "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d",
+        "goals": [
+          "qg.short.opening_clarity",
+          "qg.short.hook_intensity",
+          "eval.continuity.fact_and_state"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/fq-revenge-continuity-10/cost.json"
+    },
+    {
+      "task_id": "fq-urban-turn-11",
+      "profile_id": "fanqie_short",
+      "genre": "都市情感",
+      "task_type": "structure_turn",
+      "purpose": "评估番茄短篇的开篇效率、冲突升级、卖点兑现与完整结局",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "fanqie_short/fq-urban-turn-11.md",
+      "input_sha256": "sha256:83dedf1a39b748f8a73df431043719c3d5f3349859f685ce2c2cc0aca6a5df1e",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief fq-urban-turn-11",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "fanqie_short.json",
+        "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d",
+        "goals": [
+          "qg.short.opening_clarity",
+          "qg.short.hook_intensity",
+          "eval.structure.causal_turn"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/fq-urban-turn-11/cost.json"
+    },
+    {
+      "task_id": "fq-revenge-ending-12",
+      "profile_id": "fanqie_short",
+      "genre": "现实逆袭",
+      "task_type": "ending",
+      "purpose": "评估番茄短篇的开篇效率、冲突升级、卖点兑现与完整结局",
+      "length_bucket": "short_story",
+      "data_split": "release_holdout",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "fanqie_short/fq-revenge-ending-12.md",
+      "input_sha256": "sha256:f84e3c1e2ea5db746c597cd60cec55f334d1d7b3ee7bdf0690b367461a4f7ca7",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief fq-revenge-ending-12",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "fanqie_short.json",
+        "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d",
+        "goals": [
+          "qg.short.opening_clarity",
+          "qg.short.hook_intensity",
+          "eval.ending.payoff_and_change"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/fq-revenge-ending-12/cost.json"
+    },
+    {
+      "task_id": "zh-marriage-opening-01",
+      "profile_id": "zhihu_salt_short",
+      "genre": "现实婚恋",
+      "task_type": "opening",
+      "purpose": "评估盐选短篇的叙事声音、可信因果、信息压力、反转证据与主题闭环",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "zhihu_salt_short/zh-marriage-opening-01.md",
+      "input_sha256": "sha256:1b1b6ba07737adac7e469ef2bb36cf132e3fc4b6dde10340ce1d966ad87a75db",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief zh-marriage-opening-01",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "zhihu_salt_short.json",
+        "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663",
+        "goals": [
+          "qg.short.reversal_evidence",
+          "qg.short.causal_closure",
+          "eval.opening.clarity_and_pressure"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/zh-marriage-opening-01/cost.json"
+    },
+    {
+      "task_id": "zh-workplace-opening-02",
+      "profile_id": "zhihu_salt_short",
+      "genre": "职场悬疑",
+      "task_type": "opening",
+      "purpose": "评估盐选短篇的叙事声音、可信因果、信息压力、反转证据与主题闭环",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "zhihu_salt_short/zh-workplace-opening-02.md",
+      "input_sha256": "sha256:86b4c3f5c08b8dbfd218475a0c348a7f701044cd98e06996137b7fdb8ee3b4b2",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief zh-workplace-opening-02",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "zhihu_salt_short.json",
+        "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663",
+        "goals": [
+          "qg.short.reversal_evidence",
+          "qg.short.causal_closure",
+          "eval.opening.clarity_and_pressure"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/zh-workplace-opening-02/cost.json"
+    },
+    {
+      "task_id": "zh-marriage-dialogue-03",
+      "profile_id": "zhihu_salt_short",
+      "genre": "现实婚恋",
+      "task_type": "dialogue",
+      "purpose": "评估盐选短篇的叙事声音、可信因果、信息压力、反转证据与主题闭环",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "zhihu_salt_short/zh-marriage-dialogue-03.md",
+      "input_sha256": "sha256:2aa20b55ac413aa9e49a7c801c229f5dc809e5f3c8c3300e38644960954abaf6",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief zh-marriage-dialogue-03",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "zhihu_salt_short.json",
+        "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663",
+        "goals": [
+          "qg.short.reversal_evidence",
+          "qg.short.causal_closure",
+          "eval.dialogue.identity_relationship_interest"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/zh-marriage-dialogue-03/cost.json"
+    },
+    {
+      "task_id": "zh-family-choice-04",
+      "profile_id": "zhihu_salt_short",
+      "genre": "家庭伦理",
+      "task_type": "character_choice",
+      "purpose": "评估盐选短篇的叙事声音、可信因果、信息压力、反转证据与主题闭环",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "zhihu_salt_short/zh-family-choice-04.md",
+      "input_sha256": "sha256:5cefc8e0b11a717db85e478bf83e23eb377e9ec1edfe56d436a977654f0ae970",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief zh-family-choice-04",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "zhihu_salt_short.json",
+        "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663",
+        "goals": [
+          "qg.short.reversal_evidence",
+          "qg.short.causal_closure",
+          "eval.character.choice_and_cost"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/zh-family-choice-04/cost.json"
+    },
+    {
+      "task_id": "zh-workplace-turn-05",
+      "profile_id": "zhihu_salt_short",
+      "genre": "职场悬疑",
+      "task_type": "structure_turn",
+      "purpose": "评估盐选短篇的叙事声音、可信因果、信息压力、反转证据与主题闭环",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "zhihu_salt_short/zh-workplace-turn-05.md",
+      "input_sha256": "sha256:77d9f78758b9de48b730ce7f208c512510ab71fe1b87fd6ed2f377d4857e000d",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief zh-workplace-turn-05",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "zhihu_salt_short.json",
+        "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663",
+        "goals": [
+          "qg.short.reversal_evidence",
+          "qg.short.causal_closure",
+          "eval.structure.causal_turn"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/zh-workplace-turn-05/cost.json"
+    },
+    {
+      "task_id": "zh-family-turn-06",
+      "profile_id": "zhihu_salt_short",
+      "genre": "家庭伦理",
+      "task_type": "structure_turn",
+      "purpose": "评估盐选短篇的叙事声音、可信因果、信息压力、反转证据与主题闭环",
+      "length_bucket": "short_story",
+      "data_split": "release_holdout",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "zhihu_salt_short/zh-family-turn-06.md",
+      "input_sha256": "sha256:6c2c33b984b5ff488c1682dda7d6f89839acec1aa39122b7c0b3ed66f4bb1a4b",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief zh-family-turn-06",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "zhihu_salt_short.json",
+        "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663",
+        "goals": [
+          "qg.short.reversal_evidence",
+          "qg.short.causal_closure",
+          "eval.structure.causal_turn"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/zh-family-turn-06/cost.json"
+    },
+    {
+      "task_id": "zh-marriage-ending-07",
+      "profile_id": "zhihu_salt_short",
+      "genre": "现实婚恋",
+      "task_type": "ending",
+      "purpose": "评估盐选短篇的叙事声音、可信因果、信息压力、反转证据与主题闭环",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "zhihu_salt_short/zh-marriage-ending-07.md",
+      "input_sha256": "sha256:98194db0c0a1f78baa3130adaa40099e7c7bc80a83659519802e627b7cd4e291",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief zh-marriage-ending-07",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "zhihu_salt_short.json",
+        "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663",
+        "goals": [
+          "qg.short.reversal_evidence",
+          "qg.short.causal_closure",
+          "eval.ending.payoff_and_change"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/zh-marriage-ending-07/cost.json"
+    },
+    {
+      "task_id": "zh-workplace-continuity-08",
+      "profile_id": "zhihu_salt_short",
+      "genre": "职场悬疑",
+      "task_type": "continuity",
+      "purpose": "评估盐选短篇的叙事声音、可信因果、信息压力、反转证据与主题闭环",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "zhihu_salt_short/zh-workplace-continuity-08.md",
+      "input_sha256": "sha256:94ea138961bcf66528e1776587cb3ec39be9c7399fe4f82cb7f2c8a8dfe9f3c4",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief zh-workplace-continuity-08",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "zhihu_salt_short.json",
+        "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663",
+        "goals": [
+          "qg.short.reversal_evidence",
+          "qg.short.causal_closure",
+          "eval.continuity.fact_and_state"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/zh-workplace-continuity-08/cost.json"
+    },
+    {
+      "task_id": "zh-family-dialogue-09",
+      "profile_id": "zhihu_salt_short",
+      "genre": "家庭伦理",
+      "task_type": "dialogue",
+      "purpose": "评估盐选短篇的叙事声音、可信因果、信息压力、反转证据与主题闭环",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "zhihu_salt_short/zh-family-dialogue-09.md",
+      "input_sha256": "sha256:d72d250efd4b330a475eac2a0467072368b8fe54e2d0b385e05448b9918b6918",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief zh-family-dialogue-09",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "zhihu_salt_short.json",
+        "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663",
+        "goals": [
+          "qg.short.reversal_evidence",
+          "qg.short.causal_closure",
+          "eval.dialogue.identity_relationship_interest"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/zh-family-dialogue-09/cost.json"
+    },
+    {
+      "task_id": "zh-marriage-continuity-10",
+      "profile_id": "zhihu_salt_short",
+      "genre": "现实婚恋",
+      "task_type": "continuity",
+      "purpose": "评估盐选短篇的叙事声音、可信因果、信息压力、反转证据与主题闭环",
+      "length_bucket": "short_story",
+      "data_split": "regression",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "zhihu_salt_short/zh-marriage-continuity-10.md",
+      "input_sha256": "sha256:0aa6f09db1ec2443af9ab2bb552b0a1f3c1e40f69b455ce4b8265e36241deaee",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief zh-marriage-continuity-10",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "zhihu_salt_short.json",
+        "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663",
+        "goals": [
+          "qg.short.reversal_evidence",
+          "qg.short.causal_closure",
+          "eval.continuity.fact_and_state"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/zh-marriage-continuity-10/cost.json"
+    },
+    {
+      "task_id": "zh-workplace-turn-11",
+      "profile_id": "zhihu_salt_short",
+      "genre": "职场悬疑",
+      "task_type": "structure_turn",
+      "purpose": "评估盐选短篇的叙事声音、可信因果、信息压力、反转证据与主题闭环",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec",
+        "story_state"
+      ],
+      "input_file": "zhihu_salt_short/zh-workplace-turn-11.md",
+      "input_sha256": "sha256:27899f7a2e285486f69fbc2d6b4f15c73147b324f0ab4ef841dc46c2ee7a5f9d",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief zh-workplace-turn-11",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "zhihu_salt_short.json",
+        "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663",
+        "goals": [
+          "qg.short.reversal_evidence",
+          "qg.short.causal_closure",
+          "eval.structure.causal_turn"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/zh-workplace-turn-11/cost.json"
+    },
+    {
+      "task_id": "zh-family-ending-12",
+      "profile_id": "zhihu_salt_short",
+      "genre": "家庭伦理",
+      "task_type": "ending",
+      "purpose": "评估盐选短篇的叙事声音、可信因果、信息压力、反转证据与主题闭环",
+      "length_bucket": "short_story",
+      "data_split": "release_holdout",
+      "allowed_inputs": [
+        "task_brief",
+        "quality_spec"
+      ],
+      "input_file": "zhihu_salt_short/zh-family-ending-12.md",
+      "input_sha256": "sha256:81bb08532eab3b173a13fa2cbe1265a1429b54259a4d86dde7b98dbc66c7eea1",
+      "source": {
+        "kind": "synthetic",
+        "reference": "Denova P0-T07 project-owned synthetic brief zh-family-ending-12",
+        "license_status": "project_owned",
+        "anonymization_status": "not_applicable"
+      },
+      "quality_spec": {
+        "contract_file": "zhihu_salt_short.json",
+        "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663",
+        "goals": [
+          "qg.short.reversal_evidence",
+          "qg.short.causal_closure",
+          "eval.ending.payoff_and_change"
+        ]
+      },
+      "model_config_snapshot": {
+        "provider": "deepseek",
+        "base_url": "https://api.deepseek.com",
+        "model_profile_id": "default",
+        "model": "deepseek-v4-pro",
+        "credential_source": "runtime_only",
+        "parameters": {
+          "temperature": 0.7,
+          "max_output_tokens": 4096,
+          "thinking_enabled": false
+        },
+        "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      },
+      "actual_cost_record": "runs/{run_id}/tasks/zh-family-ending-12/cost.json"
+    }
+  ]
+}

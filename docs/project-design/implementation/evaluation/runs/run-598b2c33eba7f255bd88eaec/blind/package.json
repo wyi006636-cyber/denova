@@ -1,0 +1,513 @@
+{
+  "contract": "denova.quality-evaluation-blind-index",
+  "version": "v1",
+  "run_id": "run-598b2c33eba7f255bd88eaec",
+  "generated_at": "2026-07-21T06:32:50.5791417Z",
+  "status": "NOT-READY",
+  "samples": [
+    {
+      "sample_id": "sample-cf2de0a63db55450114b",
+      "task_hash": "sha256:cf2de0a63db55450114b5b44964d21dbc1ac18c75f7e3869fe6fe96ae440785e",
+      "profile_id": "long_serial",
+      "genre": "都市悬疑",
+      "task_type": "opening",
+      "length_bucket": "chapter",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-14ab9e6ea2acc0fcda0e",
+      "task_hash": "sha256:14ab9e6ea2acc0fcda0e4d02f2c3f5d09e3de9422010a260ea017d3997ae69f7",
+      "profile_id": "long_serial",
+      "genre": "仙侠冒险",
+      "task_type": "opening",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-ff6d1b2548f9bd96094d",
+      "task_hash": "sha256:ff6d1b2548f9bd96094d05124158f88e8aa654f7539e169a3fe31319b4309fa3",
+      "profile_id": "long_serial",
+      "genre": "都市悬疑",
+      "task_type": "dialogue",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-afb5d61b59aeeedbd3bb",
+      "task_hash": "sha256:afb5d61b59aeeedbd3bb8a741e754abbb4462bd507be3bcbebf5859208055985",
+      "profile_id": "long_serial",
+      "genre": "仙侠冒险",
+      "task_type": "character_choice",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-62c4d0bfdb5ef414bc36",
+      "task_hash": "sha256:62c4d0bfdb5ef414bc365b036d12aee4dbb1d0746cbc008782312363bf523185",
+      "profile_id": "long_serial",
+      "genre": "都市悬疑",
+      "task_type": "structure_turn",
+      "length_bucket": "chapter",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-f288d2b94bd284828a02",
+      "task_hash": "sha256:f288d2b94bd284828a024aee084e6deefd1f4a55097e381c06eab735adb88a5d",
+      "profile_id": "long_serial",
+      "genre": "仙侠冒险",
+      "task_type": "structure_turn",
+      "length_bucket": "chapter",
+      "data_split": "release_holdout",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-95ea9ceea0e2abc9f92a",
+      "task_hash": "sha256:95ea9ceea0e2abc9f92a2a132efe2a4e49bd2631f9b10d79c0f1413a4c193d64",
+      "profile_id": "long_serial",
+      "genre": "都市悬疑",
+      "task_type": "ending",
+      "length_bucket": "chapter",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-da07404a8859378c40d4",
+      "task_hash": "sha256:da07404a8859378c40d4e1fc37073a8444c9e290aaa8163f7700309d327d748e",
+      "profile_id": "long_serial",
+      "genre": "仙侠冒险",
+      "task_type": "continuity",
+      "length_bucket": "chapter",
+      "data_split": "regression",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-226d41698c2bf95e42e4",
+      "task_hash": "sha256:226d41698c2bf95e42e4ec36e8293c5b86851f9583a2d065e9bf2aa5fb15defa",
+      "profile_id": "long_serial",
+      "genre": "职场现实",
+      "task_type": "dialogue",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-490997154a49a56e1977",
+      "task_hash": "sha256:490997154a49a56e197722bb4442ad1986517b5e538afd339d8e48b466957d5d",
+      "profile_id": "long_serial",
+      "genre": "职场现实",
+      "task_type": "continuity",
+      "length_bucket": "chapter",
+      "data_split": "regression",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-4c599468751476fd6a6b",
+      "task_hash": "sha256:4c599468751476fd6a6b4f8b415d902dadd45555d6125ee807189cf5a4cc749a",
+      "profile_id": "long_serial",
+      "genre": "职场现实",
+      "task_type": "structure_turn",
+      "length_bucket": "chapter",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-8d26056417af26b953fc",
+      "task_hash": "sha256:8d26056417af26b953fc1de455f493590a1509cff44f2bdf154da9696c6890b3",
+      "profile_id": "long_serial",
+      "genre": "职场现实",
+      "task_type": "ending",
+      "length_bucket": "chapter",
+      "data_split": "release_holdout",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-a1d943c4a77794e9d46b",
+      "task_hash": "sha256:a1d943c4a77794e9d46b980fdc080cec512f37978c8c072c0f4d34e5ffc9bd31",
+      "profile_id": "fanqie_short",
+      "genre": "都市情感",
+      "task_type": "opening",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-6951da5f5fc0e71fdb63",
+      "task_hash": "sha256:6951da5f5fc0e71fdb63c45012c61100e5b4dc036b3998c3bc382a2711889f6c",
+      "profile_id": "fanqie_short",
+      "genre": "民俗悬疑",
+      "task_type": "opening",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-55a2c40a36f0ee6052c6",
+      "task_hash": "sha256:55a2c40a36f0ee6052c6d2a145bbe2b0b70b2d16a915ebc78526315b9547203c",
+      "profile_id": "fanqie_short",
+      "genre": "都市情感",
+      "task_type": "dialogue",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-c37789c2257463bf0985",
+      "task_hash": "sha256:c37789c2257463bf09853082cb61ed18d0c57ff6626b53a7bc2e758e400d9112",
+      "profile_id": "fanqie_short",
+      "genre": "民俗悬疑",
+      "task_type": "character_choice",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-4877328f6f750b72d085",
+      "task_hash": "sha256:4877328f6f750b72d0851c4a377d29ca49d82de39a39562dc5b1d2a80d60ce0b",
+      "profile_id": "fanqie_short",
+      "genre": "现实逆袭",
+      "task_type": "structure_turn",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-89f952633001912074a1",
+      "task_hash": "sha256:89f952633001912074a190d937f8b4ec697c2f9048f1b9a96e17114867420254",
+      "profile_id": "fanqie_short",
+      "genre": "民俗悬疑",
+      "task_type": "structure_turn",
+      "length_bucket": "short_story",
+      "data_split": "release_holdout",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-0d5de18df73f3d40c2b1",
+      "task_hash": "sha256:0d5de18df73f3d40c2b143affb686938e50e9b520ce1f03f0b075788b8e8bc7f",
+      "profile_id": "fanqie_short",
+      "genre": "都市情感",
+      "task_type": "ending",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-a9b9b2bc93881f8cb220",
+      "task_hash": "sha256:a9b9b2bc93881f8cb2209ca7829ead71066f4516c7ce09fe6bf7953bbf05b577",
+      "profile_id": "fanqie_short",
+      "genre": "民俗悬疑",
+      "task_type": "continuity",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-c20416d797bd3dfd6ee8",
+      "task_hash": "sha256:c20416d797bd3dfd6ee8d7a9ad06331798b1b50f916e134e0f53ecf6bba1c801",
+      "profile_id": "fanqie_short",
+      "genre": "现实逆袭",
+      "task_type": "dialogue",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-9571c592651a604b33a1",
+      "task_hash": "sha256:9571c592651a604b33a1f04e4e2041cf663d5cd028999dccd8a4759dc8183c0c",
+      "profile_id": "fanqie_short",
+      "genre": "现实逆袭",
+      "task_type": "continuity",
+      "length_bucket": "short_story",
+      "data_split": "regression",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-084c7827fa581114b6b2",
+      "task_hash": "sha256:084c7827fa581114b6b2e3b3f1b8dfefff51c19db29c35c3334afc7901b93745",
+      "profile_id": "fanqie_short",
+      "genre": "都市情感",
+      "task_type": "structure_turn",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-ab9d0edf3b26f96b09fa",
+      "task_hash": "sha256:ab9d0edf3b26f96b09fa1b80f6bea498d3f0cebdf4e918e845d3a77bbd022f0b",
+      "profile_id": "fanqie_short",
+      "genre": "现实逆袭",
+      "task_type": "ending",
+      "length_bucket": "short_story",
+      "data_split": "release_holdout",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-3ef8525895eaa28c6c44",
+      "task_hash": "sha256:3ef8525895eaa28c6c4496bd6541da34038d26e81303159b77d0c5d61fd190ba",
+      "profile_id": "zhihu_salt_short",
+      "genre": "现实婚恋",
+      "task_type": "opening",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-c809f13c1d9d26e29d00",
+      "task_hash": "sha256:c809f13c1d9d26e29d00b6d3c75c07634d524b00a7fecafdae181948830878f1",
+      "profile_id": "zhihu_salt_short",
+      "genre": "职场悬疑",
+      "task_type": "opening",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-7a50bd59790f782b31a4",
+      "task_hash": "sha256:7a50bd59790f782b31a4285b09f3c1e409ecc8c377aebb3ff94b78ee59ebf7ad",
+      "profile_id": "zhihu_salt_short",
+      "genre": "现实婚恋",
+      "task_type": "dialogue",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-48389fa474fa402dc9a5",
+      "task_hash": "sha256:48389fa474fa402dc9a545e51ed9b0188304ccd340245833c8583534ce639792",
+      "profile_id": "zhihu_salt_short",
+      "genre": "家庭伦理",
+      "task_type": "character_choice",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-4bff77e9e60fc2338aec",
+      "task_hash": "sha256:4bff77e9e60fc2338aecdd0c064849b36da08d2441b5e8c217efec966492ef88",
+      "profile_id": "zhihu_salt_short",
+      "genre": "职场悬疑",
+      "task_type": "structure_turn",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-c889dca3b895f57a61aa",
+      "task_hash": "sha256:c889dca3b895f57a61aa548f0c10b8a25b44967fbaffeecbd8b44fd6f54d49f9",
+      "profile_id": "zhihu_salt_short",
+      "genre": "家庭伦理",
+      "task_type": "structure_turn",
+      "length_bucket": "short_story",
+      "data_split": "release_holdout",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-6ff4ec52ffbac235cc81",
+      "task_hash": "sha256:6ff4ec52ffbac235cc818f95fcdc23cb7d966da950b7c11330da239838d7e7b9",
+      "profile_id": "zhihu_salt_short",
+      "genre": "现实婚恋",
+      "task_type": "ending",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-b1c303f6cb20ef4eca18",
+      "task_hash": "sha256:b1c303f6cb20ef4eca1824aea7aac54772cfb91e5717a050c2deb46b9873776f",
+      "profile_id": "zhihu_salt_short",
+      "genre": "职场悬疑",
+      "task_type": "continuity",
+      "length_bucket": "scene",
+      "data_split": "regression",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-53f7ffebb0e40470eeb9",
+      "task_hash": "sha256:53f7ffebb0e40470eeb9baaf28ed9f976046850587f16797756be1ab427ea6bb",
+      "profile_id": "zhihu_salt_short",
+      "genre": "家庭伦理",
+      "task_type": "dialogue",
+      "length_bucket": "scene",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-de9f1929abefda5740c2",
+      "task_hash": "sha256:de9f1929abefda5740c2fc5dd2aa15f80582a3f3e36609ea45b5f7722bf04001",
+      "profile_id": "zhihu_salt_short",
+      "genre": "现实婚恋",
+      "task_type": "continuity",
+      "length_bucket": "short_story",
+      "data_split": "regression",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-8031ba159d3a5f8ac336",
+      "task_hash": "sha256:8031ba159d3a5f8ac3366fcdc63bbc54205a1af150deca5986b0ac5b49e9a1b1",
+      "profile_id": "zhihu_salt_short",
+      "genre": "职场悬疑",
+      "task_type": "structure_turn",
+      "length_bucket": "short_story",
+      "data_split": "tuning",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    },
+    {
+      "sample_id": "sample-d5b70e3b72849683245f",
+      "task_hash": "sha256:d5b70e3b72849683245f8ff54f35aba6f1f0efd34e9af63019720002f1619d96",
+      "profile_id": "zhihu_salt_short",
+      "genre": "家庭伦理",
+      "task_type": "ending",
+      "length_bucket": "short_story",
+      "data_split": "release_holdout",
+      "status": "NOT-READY",
+      "missing_arms": [
+        "S",
+        "H"
+      ]
+    }
+  ]
+}

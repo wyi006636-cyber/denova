@@ -1,0 +1,42 @@
+{
+  "contract": "denova.quality-evaluation-summary",
+  "version": "v1",
+  "run_id": "run-598b2c33eba7f255bd88eaec",
+  "status": "NOT-READY",
+  "missing_arms": 36,
+  "missing_reviews": 0,
+  "pending_adjudications": 0,
+  "paired": {
+    "harness_wins": 0,
+    "harness_losses": 0,
+    "ties": 0,
+    "total": 0,
+    "paired_score": 0,
+    "bootstrap_95_ci": {
+      "low": 0,
+      "high": 0
+    }
+  },
+  "by_profile": {},
+  "by_genre": {},
+  "by_task_type": {},
+  "by_length_bucket": {},
+  "fact_errors": {
+    "harness": 0,
+    "single": 0,
+    "delta": 0,
+    "samples": 0
+  },
+  "author_edit_ratio": {
+    "harness": 0,
+    "single": 0,
+    "delta": 0,
+    "samples": 0
+  },
+  "cost": {
+    "status": "NOT-AVAILABLE",
+    "harness_total_tokens": 0,
+    "single_total_tokens": 0
+  },
+  "interpretation": "At least one paired arm is unavailable; no quality conclusion is valid."
+}
