@@ -3,6 +3,7 @@ package skills
 import (
 	"context"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strings"
 	"testing"
@@ -44,6 +45,18 @@ func TestNewRestrictedRemoteHTTPClientPreservesDestinationRestrictions(t *testin
 	redirect, _ = url.Parse("https://example.com/archive.zip")
 	if err := client.CheckRedirect(&http.Request{URL: redirect}, make([]*http.Request, 10)); err == nil {
 		t.Fatal("exported client accepted excessive redirects")
+	}
+}
+
+func TestXiapingPublicCatalogAllowsOnlyItsManagedNetworkRoute(t *testing.T) {
+	managed := netip.MustParseAddr("198.18.0.132")
+	if err := validateXiapingCatalogAddr("xiaping.coze.com", managed); err != nil {
+		t.Fatalf("Xiaping managed route rejected: %v", err)
+	}
+	for _, host := range []string{"example.com", "127.0.0.1"} {
+		if err := validateXiapingCatalogAddr(host, managed); err == nil || !strings.Contains(err.Error(), "non-public") {
+			t.Fatalf("host %q error = %v, want non-public rejection", host, err)
+		}
 	}
 }
 

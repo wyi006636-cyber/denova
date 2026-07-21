@@ -29,6 +29,10 @@ var nonPublicSkillArchiveNetworks = []netip.Prefix{
 	netip.MustParsePrefix("2001:db8::/32"),
 }
 
+var xiapingProxyNetwork = netip.MustParsePrefix("198.18.0.0/15")
+
+const xiapingPublicCatalogHost = "xiaping.coze.com"
+
 func newSkillInstallHTTPClient() *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	// Skill archives are fetched directly so an environment proxy cannot turn
@@ -45,6 +49,16 @@ func newSkillInstallHTTPClient() *http.Client {
 // Skill retrieval. It rejects non-public destinations on every redirect hop.
 func NewRestrictedRemoteHTTPClient() *http.Client {
 	return newSkillInstallHTTPClient()
+}
+
+// NewXiapingPublicHTTPClient fetches the public Xiaping catalog. Some managed
+// networks transparently route this fixed public hostname through the
+// benchmarking range; only that hostname may use that route.
+func NewXiapingPublicHTTPClient() *http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	transport.DialContext = restrictedXiapingCatalogDialContext
+	return &http.Client{Transport: transport, CheckRedirect: skillInstallRedirectPolicy}
 }
 
 func skillInstallRedirectPolicy(req *http.Request, via []*http.Request) error {
@@ -85,6 +99,35 @@ func restrictedSkillArchiveDialContext(ctx context.Context, network, address str
 	return nil, fmt.Errorf("download remote Skill archive failed to connect to %s: %w", host, dialErr)
 }
 
+func restrictedXiapingCatalogDialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, fmt.Errorf("invalid Xiaping public catalog address %q: %w", address, err)
+	}
+	addresses, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Xiaping public catalog host %q: %w", host, err)
+	}
+	if len(addresses) == 0 {
+		return nil, fmt.Errorf("Xiaping public catalog host %q resolved to no addresses", host)
+	}
+	for _, addr := range addresses {
+		if err := validateXiapingCatalogAddr(host, addr); err != nil {
+			return nil, fmt.Errorf("Xiaping public catalog host %q: %w", host, err)
+		}
+	}
+	var dialErr error
+	dialer := net.Dialer{}
+	for _, addr := range addresses {
+		conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(addr.String(), port))
+		if err == nil {
+			return conn, nil
+		}
+		dialErr = errors.Join(dialErr, err)
+	}
+	return nil, fmt.Errorf("Xiaping public catalog failed to connect to %s: %w", host, dialErr)
+}
+
 func resolveSkillArchiveHost(ctx context.Context, host string) ([]netip.Addr, error) {
 	if addr, err := netip.ParseAddr(host); err == nil {
 		if err := validatePublicSkillArchiveAddr(addr); err != nil {
@@ -118,6 +161,14 @@ func validatePublicSkillArchiveAddr(addr netip.Addr) error {
 		}
 	}
 	return nil
+}
+
+func validateXiapingCatalogAddr(host string, addr netip.Addr) error {
+	addr = addr.Unmap()
+	if strings.EqualFold(strings.TrimSuffix(host, "."), xiapingPublicCatalogHost) && xiapingProxyNetwork.Contains(addr) {
+		return nil
+	}
+	return validatePublicSkillArchiveAddr(addr)
 }
 
 // RemoteArchiveSource is the user-provided source for a remote Skill archive.

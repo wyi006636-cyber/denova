@@ -22,7 +22,7 @@ const (
 	defaultXiapingCommentPageSize = 50
 )
 
-var newXiapingHTTPClient = skills.NewRestrictedRemoteHTTPClient
+var newXiapingHTTPClient = skills.NewXiapingPublicHTTPClient
 
 func runSkills(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
