@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增 P0-T08A 虾评公开目录发现的严格 JSON 契约、稳定 SHA-256、快照/Skill 校验与安全写入边界，配套 `example.test` 合成 API/评论 fixture，并在 Phase 0 计划和需求矩阵中追踪其对 P0-T09 Skill 证据闭环的阻断关系。
+- Added P0-T08A strict contracts for public Xiaping catalog discovery: stable SHA-256, snapshot/Skill validation, and safe JSON artifact writing, with `example.test` synthetic API/review fixtures and Phase 0/requirements traceability showing its block on P0-T09 Skill-evidence closeout.
 - 新增虾评小说 Skill 全站发现与证据短名单实施计划：先交付可恢复的公开元数据采集、完整写作能力召回、重复与评论证据治理、数据强/探索双通道短名单，再于独立后续计划执行包审计和基线对照盲测。
 - Added the Xiaping full-catalog novel-Skill discovery and evidence-shortlist implementation plan, delivering resumable public metadata collection, comprehensive writing-capability recall, duplicate/review evidence governance, and dual data-rich/exploration shortlists before a separate package-audit and baseline-controlled blind-evaluation plan.
 - 新增已批准的虾评小说 Skill 全站发现与证据漏斗设计：以公开元数据快照、完整写作能力召回、Capability 扩展提案、重复聚类、数据强/探索双通道短名单和基线对照盲测，从数千候选中筛选最小有效组合，同时隔离原始评论、第三方包与保留评测集。

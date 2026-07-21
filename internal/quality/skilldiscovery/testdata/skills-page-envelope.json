@@ -1,0 +1,18 @@
+{
+  "code": 0,
+  "message": "synthetic success",
+  "data": {
+    "items": [
+      {
+        "id": "33333333-3333-4333-8333-333333333333",
+        "name": "Synthetic Dialogue Coach",
+        "description": "Invented fixture skill for envelope decoding.",
+        "owner": {"id": "44444444-4444-4444-8444-444444444444", "name": "Fixture Editor"},
+        "detail_url": "https://example.test/api/skills/33333333-3333-4333-8333-333333333333"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "limit": 50
+  }
+}

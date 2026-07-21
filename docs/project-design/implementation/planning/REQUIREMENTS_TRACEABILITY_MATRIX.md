@@ -41,19 +41,19 @@
 | CTX-001 | P0 | 每个模型片段有来源、用途、hash 和高但明确的硬上限；不得注入无限历史/日志/全文 | 项目上下文约定、6.5、14.3 | P0-T02、P1-T01、P2-T01、P2-T04、P2-T05、P5-T03 | Context Ledger、真实消息大小、截断/拒绝策略 |
 | CTX-002 | P0 | 展示历史与模型上下文分离；thinking、工具卡片和日志预览不默认回填 | 项目上下文约定、10.1 | P0-T02、P2-T01、P2-T09、P5-T02 | session/display/context 特征测试、恢复消息装配 |
 | SSE-001 | P0 | 继续使用现有 SSE；事件载荷只含稳定 ID/摘要，重连不重复执行或丢完成事件 | 5、13.2、17.1 | P0-T02、P1-T05、P2-T03、P2-T08、P5-T02 | snapshot/live/reconnect/idempotency 测试 |
-| SKILL-001 | P0 | 虾评是第一优先级来源；支持发现、详情、原址下载、安装和登记 | 11.3、19 ADR-010 | P0-T08、P2-T02、P3-T04 | 原始 URL/hash/许可、现有 installer 复用测试 |
-| SKILL-002 | P0 | Harness 依赖 Capability ID，不依赖具体 Skill 名；按 QualitySpec 选择最少必要能力 | 6.6、11.1、19 ADR-007 | P0-T08、P2-T02、P2-T04–P2-T06、P3-T05、P3-T06 | registry/router 契约、无全量注入、能力替换测试 |
-| SKILL-003 | P1 | Skill Manifest 记录版本、来源、许可、hash、权限、模型要求、成本和评测 | 11.2/11.3 | P0-T08、P3-T04、P3-T05、P5-T05 | manifest 校验、权限 UI、许可审计 |
-| SKILL-004 | P1 | Skills 可评测、更新比较、hash 锁定和回滚；更新后不得静默改变行为 | 11.3、18 | P0-T08、P3-T05、P3-T08、P5-T01、P5-T04 | A/B、update diff、rollback、回归 cohort |
+| SKILL-001 | P0 | 虾评是第一优先级来源；支持发现、详情、原址下载、安装和登记 | 11.3、19 ADR-010 | P0-T08、P0-T08A、P2-T02、P3-T04 | 原始 URL/hash/许可、现有 installer 复用测试 |
+| SKILL-002 | P0 | Harness 依赖 Capability ID，不依赖具体 Skill 名；按 QualitySpec 选择最少必要能力 | 6.6、11.1、19 ADR-007 | P0-T08、P0-T08A、P2-T02、P2-T04–P2-T06、P3-T05、P3-T06 | registry/router 契约、无全量注入、能力替换测试 |
+| SKILL-003 | P1 | Skill Manifest 记录版本、来源、许可、hash、权限、模型要求、成本和评测 | 11.2/11.3 | P0-T08、P0-T08A、P3-T04、P3-T05、P5-T05 | manifest 校验、权限 UI、许可审计 |
+| SKILL-004 | P1 | Skills 可评测、更新比较、hash 锁定和回滚；更新后不得静默改变行为 | 11.3、18 | P0-T08、P0-T08A、P3-T05、P3-T08、P5-T01、P5-T04 | A/B、update diff、rollback、回归 cohort |
 | AUTO-001 | P0 | Automation/批量运行最多产出待审内容；`auto_write` 不得对 Harness 正式区生效 | 9.4、12、19 ADR-004 | P0-T02、P0-T06、P2-T03、P2-T07、P3-T07、P5-T02 | 权限负向测试、批次待审、逐项确认 |
 | FE-001 | P1 | 前端继续 React、TipTap、shadcn 和既有 API client/query 模式，不另建 UI 技术栈 | 5、12 | P0-T01、P1-T05、P1-T06、P2-T08、P3-T03、P4-T01 | package diff、组件复用、构建 |
 | FE-002 | P1 | 全部用户可见交互中英双语，亮/暗主题，宽/窄屏、长文本和空数据适配 | 项目前端规范、12、15 | P0-T02、P1-T06、P2-T08、P3-T03、P4-T01、P4-T06、P5-T06 | i18n key check、组件测试、页面验证矩阵 |
 | FE-003 | P1 | 作者能理解 QualitySpec、候选、ReviewIssue、来源、差异、定稿与恢复，无需理解 DAG/Git/Agent | 12、17.2 | P1-T06、P2-T08、P3-T03、P4-T01、P4-T02、P4-T06 | 可用性脚本、任务完成观察、空/错误状态 |
 | TAURI-001 | P1 | Tauri 是 v1 后期发行形态，不能阻塞前期质量验证 | 12.4、15.2、19 ADR-011 | P0-T01、P3-T08、P4-T03–P4-T06、P5-T02、P5-T06 | P3 前无 Tauri 依赖、sidecar/安装/退出矩阵 |
-| EVAL-001 | P0 | 同任务、同模型、可比成本下做普通单轮 vs Harness 人工盲评；模型分数不是发布结论 | 3、17.3 | P0-T07、P0-T09、P2-T09、P3-T08、P5-T04 | 随机盲包、双评审、CI、证据文本 |
-| EVAL-002 | P1 | 三 Profile 分层评测，记录首轮可用、保留/改稿、候选收益、审稿准确、事实错误和成本 | 17.3 | P0-T07、P0-T09、P2-T09、P3-T08、P4-T02、P5-T03、P5-T04 | corpus manifest、指标聚合、质量 Gate Manifest |
+| EVAL-001 | P0 | 同任务、同模型、可比成本下做普通单轮 vs Harness 人工盲评；模型分数不是发布结论 | 3、17.3 | P0-T07、P0-T08A、P0-T09、P2-T09、P3-T08、P5-T04 | 随机盲包、双评审、CI、证据文本 |
+| EVAL-002 | P1 | 三 Profile 分层评测，记录首轮可用、保留/改稿、候选收益、审稿准确、事实错误和成本 | 17.3 | P0-T07、P0-T08A、P0-T09、P2-T09、P3-T08、P4-T02、P5-T03、P5-T04 | corpus manifest、指标聚合、质量 Gate Manifest |
 | SAFE-001 | P0 | 迁移、覆盖、定稿前有预览/版本/备份/回滚；崩溃不能留下半提交 | 14.1、17.1 | P0-T02、P0-T03、P0-T06、P1-T02、P2-T07、P5-T01、P5-T02 | 故障注入、restore receipt、备份恢复演练 |
-| SAFE-002 | P0 | API Key 不进作品目录/日志；第三方来源和权限可见；未知代码不被称作沙箱 | 10.2、11.2、14.1 | P0-T01、P0-T08、P2-T02、P3-T04、P4-T05、P5-T05 | secret scan、权限 manifest、静态安全审计 |
+| SAFE-002 | P0 | API Key 不进作品目录/日志；第三方来源和权限可见；未知代码不被称作沙箱 | 10.2、11.2、14.1 | P0-T01、P0-T08、P0-T08A、P2-T02、P3-T04、P4-T05、P5-T05 | secret scan、权限 manifest、静态安全审计 |
 | REL-001 | P1 | goroutine recover、错误日志有上下文、LLM 无写死超时、状态可恢复 | 项目代码约定、14.2/14.5 | P0-T02、P1-T05、P2-T03、P2-T09、P5-T02、P5-T03 | panic/recovery、日志字段、取消/重试分类测试 |
 | UPSTREAM-001 | P0 | 保持增量模块和最小侵入，定期同步 upstream，并区分上游失败与新增回归 | 18、19 ADR-001 | P0-T01、P0-T02、P0-T09、P5-T05 | 双 SHA 复现、allowlist、同步演练、冲突统计 |
 | RELEASE-001 | P1 | 发布同步前端版本、CHANGELOG、README/README.en、tag 和双语 Release notes | 项目约定、Phase 5 | P4-T06、P5-T05、P5-T06、P5-T07 | release script、tag/version 文本一致、安装/回滚包 |
@@ -74,6 +74,7 @@
 | P0-T06 | DATA-001、AUTH-001、AUTH-002、PREF-001、AUTO-001、SAFE-001 | PreferenceMemory/Finalization ADR |
 | P0-T07 | GOAL-001、PROFILE-001–003、EVAL-001、EVAL-002 | 三 Profile corpus 与单轮基线 |
 | P0-T08 | SKILL-001、SKILL-002、SKILL-003、SKILL-004、SAFE-002 | 虾评 catalog、Capability 初映射和红线 |
+| P0-T08A | SKILL-001、SKILL-002、SKILL-003、SKILL-004、EVAL-001、EVAL-002、SAFE-002 | 用户批准的公开全目录快照、严格证据合同、合成 fixture 与双通道短名单；依赖 P0-T08 并阻塞 P0-T09 的 Skill 证据闭环，不改写 P0-T08 历史 |
 | P0-T09 | GOAL-001、DATA-002、EVAL-001、EVAL-002、UPSTREAM-001 | Gate Manifest、Phase 0 报告、allowlist |
 | P1-T01 | PROFILE-001–003、QS-001、CTX-001 | Profile registry 与 QualitySpec 合同实现 |
 | P1-T02 | DATA-001、DATA-003、AUTH-001、SAFE-001 | Schema adapter 与迁移回滚 |

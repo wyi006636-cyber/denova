@@ -1,0 +1,14 @@
+{
+  "code": 0,
+  "message": "synthetic success",
+  "data": {
+    "id": "55555555-5555-4555-8555-555555555555",
+    "name": "Synthetic Continuity Reviewer",
+    "description": "Invented fixture skill detail.",
+    "owner": {"id": "66666666-6666-4666-8666-666666666666", "name": "Fixture Reviewer"},
+    "version": "1.0.0",
+    "categories": ["writing"],
+    "tags": ["continuity", "synthetic"],
+    "detail_url": "https://example.test/api/skills/55555555-5555-4555-8555-555555555555"
+  }
+}

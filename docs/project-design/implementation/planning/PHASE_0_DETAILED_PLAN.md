@@ -647,7 +647,29 @@ git diff --check
 
 单一提交：`docs: inventory Xiaping novel skills and integration rules`
 
-## 10. P0-T09：Phase 0 集成门禁与质量阈值冻结
+## 10. P0-T08A：全目录发现与证据短名单增量
+
+**目标**
+
+在不改写 P0-T08 已接受静态盘点历史的前提下，落实用户批准的全目录公开元数据发现、完整 Capability 召回、重复与评论证据治理、数据强/探索双通道短名单合同。
+
+**依赖与边界**
+
+- 依赖 P0-T08，并承接 `SKILL-001`、`SKILL-002`、`SKILL-003`、`SKILL-004`、`EVAL-001`、`EVAL-002` 与 `SAFE-002`。
+- 阻塞 P0-T09 中的 Skill 证据闭环；不得回写、替换或重新解释 P0-T08 的历史 catalog、静态审计或结论。
+- 仅采集可公开访问的元数据和合成测试 fixture；不下载、执行、复制或持久化第三方包、原始评论、签名 URL、令牌或密钥。
+
+**产物与验证**
+
+- 版本化快照 manifest、标准化 SkillRecord、Capability 候选/提案、重复簇、评论证据向量与短名单 JSON 合同。
+- 严格 JSON 解码、稳定 SHA-256、唯一 Skill ID、部分/完整快照一致性和敏感数据拒绝测试；所有 fixture 使用 `example.test` 与虚构评论。
+- 后续采集、证据评分和短名单任务必须复用这些合同，P0-T09 只在该证据链完成后冻结 Gate Manifest。
+
+**Commit 边界**
+
+首个合同提交：`test: define Xiaping discovery contracts`
+
+## 11. P0-T09：Phase 0 集成门禁与质量阈值冻结
 
 **目标**
 
@@ -659,7 +681,7 @@ git diff --check
 
 **输入**
 
-P0-T01–P0-T08 全部产物和当前 CI/release 命令。
+P0-T01–P0-T08、P0-T08A 全部产物和当前 CI/release 命令。
 
 **目标 package / 文件**
 
@@ -677,7 +699,7 @@ P0-T01–P0-T08 全部产物和当前 CI/release 命令。
 
 **依赖**
 
-P0-T02、P0-T06、P0-T07、P0-T08。
+P0-T02、P0-T06、P0-T07、P0-T08、P0-T08A。
 
 **实施步骤**
 
@@ -732,7 +754,7 @@ git status --short
 
 ## 11. Phase 0 总退出检查
 
-- [ ] P0-T01–P0-T09 每项一个英文 Commit，工作区干净。
+- [ ] P0-T01–P0-T09（含 P0-T08A）每项一个英文 Commit，工作区干净。
 - [ ] 七个必需 ADR 与 Projection ADR 均有明确状态、批准者和日期。
 - [ ] 三 Profile 任务集、普通单轮结果、盲评包和 Gate Manifest 可复算。
 - [ ] 写作/游戏、菜单、SSE、会话、Workspace Change、版本与 Skills 安装链无新增回归。
