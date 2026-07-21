@@ -164,9 +164,6 @@ func runXiapingRank(ctx context.Context, args []string, stdout, stderr io.Writer
 	if err != nil {
 		return fmt.Errorf("rank-xiaping: %w", err)
 	}
-	if len(failures) != 0 {
-		return fmt.Errorf("rank-xiaping: evidence collection incomplete; failures=%d", len(failures))
-	}
 	reviews := make(map[string]skilldiscovery.ReviewEvidence, len(details))
 	for id, detail := range details {
 		review := skilldiscovery.SummarizeReviews(detail.OwnerID, comments[id], skilldiscovery.ReviewPolicy{})

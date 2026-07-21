@@ -312,7 +312,7 @@ func TestRunSkillsSnapshotResumeUsesCache(t *testing.T) {
 	}
 }
 
-func TestRunSkillsRankTLSFailureLeavesArtifactsUnchanged(t *testing.T) {
+func TestRunSkillsRankCandidateEvidenceFailurePublishesExploration(t *testing.T) {
 	calls := 0
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -326,17 +326,33 @@ func TestRunSkillsRankTLSFailureLeavesArtifactsUnchanged(t *testing.T) {
 	newXiapingHTTPClient = server.Client
 	t.Cleanup(func() { newXiapingHTTPClient = previous })
 	cache, root, snapshot := writeRankInputs(t)
-	before := artifactBytes(t, root)
 	var stdout bytes.Buffer
 	err := run(context.Background(), []string{"skills", "rank-xiaping", "--base-url", server.URL, "--cache-root", cache.Root, "--root", root, "--comment-page-size", "1", "--retry-attempts", "1", "--max-retry-delay", "0s"}, &stdout, io.Discard)
-	if err == nil || calls != 1 || stdout.Len() != 0 {
+	if err != nil || calls != 1 || !strings.Contains(stdout.String(), "RANKED ") || !strings.Contains(stdout.String(), "failures=1") {
 		t.Fatalf("err=%v calls=%d stdout=%q", err, calls, stdout.String())
 	}
-	assertArtifactBytes(t, root, before)
+	var shortlist skilldiscovery.Shortlist
+	data, readErr := os.ReadFile(filepath.Join(root, "xiaping-evidence-shortlist-v1.json"))
+	if readErr != nil || json.Unmarshal(data, &shortlist) != nil || len(shortlist.Entries) != 1 || shortlist.Entries[0].Lane != skilldiscovery.LaneExploration || shortlist.Entries[0].Evidence.EvidenceCacheStatus != "EVIDENCE-CACHE-MISSING" || shortlist.Entries[0].Evidence.PlatformDataRich {
+		t.Fatalf("shortlist=%#v readErr=%v", shortlist, readErr)
+	}
 	loaded, loadErr := cache.LoadLocalSnapshot()
 	if loadErr != nil || loaded.Manifest.Status != skilldiscovery.SnapshotComplete || loaded.Manifest.SnapshotID != snapshot.Manifest.SnapshotID {
 		t.Fatalf("snapshot=%+v err=%v", loaded.Manifest, loadErr)
 	}
+}
+
+func TestRunSkillsRankCancellationLeavesArtifactsUnchanged(t *testing.T) {
+	cache, root, _ := writeRankInputs(t)
+	before := artifactBytes(t, root)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var stdout bytes.Buffer
+	err := run(ctx, []string{"skills", "rank-xiaping", "--cache-root", cache.Root, "--root", root}, &stdout, io.Discard)
+	if !errors.Is(err, context.Canceled) || stdout.Len() != 0 {
+		t.Fatalf("err=%v stdout=%q", err, stdout.String())
+	}
+	assertArtifactBytes(t, root, before)
 }
 
 // TestRunSkillsProductionFactoryRejectsLocalTargets covers the restricted production default.
@@ -360,11 +376,12 @@ func writeRankInputs(t *testing.T) (skilldiscovery.Cache, string, skilldiscovery
 		t.Fatal(err)
 	}
 	root := filepath.Join(base, "artifacts")
-	shortlist, err := skilldiscovery.BuildShortlist(snapshot.Manifest.SnapshotID, []skilldiscovery.CandidateRecord{{Skill: snapshot.Skills[0]}}, nil, nil)
+	candidates := []skilldiscovery.CandidateRecord{{Skill: snapshot.Skills[0], Capabilities: []skilldiscovery.CapabilityMatch{{CapabilityID: "style.revise-prose", Status: skilldiscovery.MatchMatched, Evidence: []skilldiscovery.FieldEvidence{{Field: "name", Term: "candidate"}}}}}}
+	shortlist, err := skilldiscovery.BuildShortlist(snapshot.Manifest.SnapshotID, candidates, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	artifacts := skilldiscovery.DiscoveryArtifacts{Manifest: snapshot.Manifest, Candidates: []skilldiscovery.CandidateRecord{{Skill: snapshot.Skills[0]}}, Proposals: []skilldiscovery.CapabilityProposal{}, Clusters: []skilldiscovery.DuplicateCluster{}, Evidence: []skilldiscovery.EvidenceVector{}, Shortlist: shortlist}
+	artifacts := skilldiscovery.DiscoveryArtifacts{Manifest: snapshot.Manifest, Candidates: candidates, Proposals: []skilldiscovery.CapabilityProposal{}, Clusters: []skilldiscovery.DuplicateCluster{}, Evidence: []skilldiscovery.EvidenceVector{}, Shortlist: shortlist}
 	if err := skilldiscovery.WriteDiscoveryArtifacts(root, artifacts); err != nil {
 		t.Fatal(err)
 	}

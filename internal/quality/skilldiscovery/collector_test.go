@@ -377,14 +377,22 @@ func TestCollectCandidateEvidenceStopsRepeatedCommentPage(t *testing.T) {
 	}
 }
 
-func TestCollectCandidateEvidenceRejectsUnderfilledTerminalPage(t *testing.T) {
+func TestCollectCandidateEvidenceDiscardsTruncatedCandidateAndKeepsCompletePeer(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
 		if request.URL.Path == "/api/skills/underfilled" {
 			fmt.Fprint(w, `{"id":"underfilled","comment_count":10}`)
 			return
 		}
 		if request.URL.Path == "/api/skills/underfilled/comments" {
-			fmt.Fprint(w, `{"items":[{"id":"one","user_id":"one","stars":5,"content":"synthetic terminal page has one item while the source count says ten","created_at":"2026-07-01T00:00:00Z"}],"total":10,"hasMore":false}`)
+			fmt.Fprint(w, `{"items":[],"total":10,"hasMore":true}`)
+			return
+		}
+		if request.URL.Path == "/api/skills/complete" {
+			fmt.Fprint(w, `{"id":"complete","comment_count":0}`)
+			return
+		}
+		if request.URL.Path == "/api/skills/complete/comments" {
+			fmt.Fprint(w, `{"items":[],"total":0,"hasMore":false}`)
 			return
 		}
 		t.Fatalf("unexpected %s", request.URL)
@@ -392,8 +400,8 @@ func TestCollectCandidateEvidenceRejectsUnderfilledTerminalPage(t *testing.T) {
 	t.Cleanup(server.Close)
 	collector := NewCollector(server.Client(), fixedClock())
 	options := EvidenceCollectionOptions{CollectorOptions: CollectorOptions{BaseURL: server.URL, CacheRoot: t.TempDir(), PageSize: 1, RetryAttempts: 1}, CommentPageSize: 10}
-	details, comments, failures, err := collector.CollectCandidateEvidence(context.Background(), options, []CandidateRecord{{Skill: SkillRecord{ID: "underfilled"}}})
-	if err != nil || len(details) != 0 || len(comments) != 0 || len(failures) != 1 {
+	details, comments, failures, err := collector.CollectCandidateEvidence(context.Background(), options, []CandidateRecord{{Skill: SkillRecord{ID: "underfilled"}}, {Skill: SkillRecord{ID: "complete"}}})
+	if err != nil || len(details) != 1 || len(comments) != 1 || details["complete"].CommentCount != 0 || len(comments["complete"]) != 0 || len(failures) != 1 {
 		t.Fatalf("details=%v comments=%v failures=%v err=%v", details, comments, failures, err)
 	}
 }
