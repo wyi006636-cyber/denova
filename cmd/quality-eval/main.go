@@ -30,9 +30,11 @@ func main() {
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("expected validate, create-run, package-blind, or summarize")
+		return errors.New("expected validate, create-run, package-blind, summarize, or skills")
 	}
 	switch args[0] {
+	case "skills":
+		return runSkills(ctx, args[1:], stdout, stderr)
 	case "validate":
 		flags := flag.NewFlagSet("validate", flag.ContinueOnError)
 		flags.SetOutput(stderr)

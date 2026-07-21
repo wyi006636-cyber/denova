@@ -77,6 +77,9 @@ func WriteDiscoveryArtifacts(root string, artifacts DiscoveryArtifacts) error {
 }
 func normalizedCandidates(input []CandidateRecord) []CandidateRecord {
 	out := append([]CandidateRecord(nil), input...)
+	if out == nil {
+		out = []CandidateRecord{}
+	}
 	for i := range out {
 		s := &out[i].Skill
 		if s.Triggers == nil {

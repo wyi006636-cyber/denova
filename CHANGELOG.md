@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增 `quality-eval skills` 离线可验证的虾评发现命令：支持受限 HTTPS 快照、确定性写作候选分类、带本地缓存证据的双通道排序，以及本地 Schema 校验；所有网络节流和重试参数均可显式配置，部分快照不能进入排序。
+- Added offline-validatable `quality-eval skills` Xiaping discovery commands for restricted HTTPS snapshots, deterministic writing-candidate classification, local-cache evidence ranking, and local Schema validation; request pacing and retry settings are explicit, and partial snapshots cannot be ranked.
 - 新增虾评写作 Skill 的确定性双通道短名单与离线、Schema 约束的提交工件：每个 Capability 最多保留 3 个数据充足候选和 2 个探索候选，保留重复簇成员引用与完整证据向量，并明确记录候选不足的缺口；双语报告只陈述平台证据、覆盖、异常与边界，不将其视为写作质量结论。
 - Added deterministic dual-lane Xiaping writing-Skill shortlists and offline, schema-bound committed artifacts: each Capability retains up to three data-rich and two exploration candidates, preserves duplicate-cluster member references and complete evidence vectors, and records explicit shortfalls; the bilingual report states platform evidence, coverage, anomalies, and boundaries without treating them as writing-quality conclusions.
 - 新增虾评写作候选的隐私安全评论证据：仅在本地受限缓存采集详情和分页评论，提交产物仅保留去重后的聚合、异常信号和可用性状态，不包含评论正文、评审身份或签名头像链接。
