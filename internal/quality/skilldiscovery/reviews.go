@@ -1,6 +1,8 @@
 package skilldiscovery
 
 import (
+	"bytes"
+	"encoding/json"
 	"sort"
 	"strings"
 	"time"
@@ -22,20 +24,31 @@ type ReviewRecord struct {
 
 // apiReview is cache-only transport data; identity and avatar fields are discarded during normalization.
 type apiReview struct {
-	ID            string `json:"id"`
-	UserID        string `json:"user_id"`
-	UserName      string `json:"user_name"`
-	UserAvatarURL string `json:"user_avatar_url"`
-	Stars         int    `json:"stars"`
-	Content       string `json:"content"`
-	Pros          string `json:"pros"`
-	Cons          string `json:"cons"`
-	UseCase       string `json:"use_case"`
-	CreatedAt     string `json:"created_at"`
+	ID            string          `json:"id"`
+	UserID        string          `json:"user_id"`
+	UserName      string          `json:"user_name"`
+	UserAvatarURL string          `json:"user_avatar_url"`
+	Stars         int             `json:"stars"`
+	Content       string          `json:"content"`
+	Pros          json.RawMessage `json:"pros"`
+	Cons          json.RawMessage `json:"cons"`
+	UseCase       json.RawMessage `json:"use_case"`
+	CreatedAt     string          `json:"created_at"`
 }
 
 func normalizeAPIReview(raw apiReview) ReviewRecord {
-	return ReviewRecord{ID: raw.ID, UserID: raw.UserID, Stars: raw.Stars, Content: raw.Content, Pros: raw.Pros, Cons: raw.Cons, UseCase: raw.UseCase, CreatedAt: raw.CreatedAt}
+	return ReviewRecord{ID: raw.ID, UserID: raw.UserID, Stars: raw.Stars, Content: raw.Content, Pros: scalarReviewText(raw.Pros), Cons: scalarReviewText(raw.Cons), UseCase: scalarReviewText(raw.UseCase), CreatedAt: raw.CreatedAt}
+}
+
+func scalarReviewText(raw json.RawMessage) string {
+	if len(raw) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return ""
+	}
+	var value string
+	if json.Unmarshal(raw, &value) != nil {
+		return ""
+	}
+	return value
 }
 
 type ReviewPolicy struct {

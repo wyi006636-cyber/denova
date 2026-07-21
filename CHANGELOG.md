@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复霞萍实时评论可选文本字段的结构化变体：`pros`、`cons` 与 `use_case` 的对象或数组值不再阻断受限缓存解析，而是作为未提供处理；评论正文与评分仍用于聚合，身份和原文不会进入提交工件。
+- Fixed structured variants of optional Xiaping review-text fields: object or array `pros`, `cons`, and `use_case` values no longer block restricted-cache parsing and are treated as unavailable; comment body and rating still feed aggregation, while identity and raw text never enter committed artifacts.
 - 修复霞萍实时评论分页的数组数据封装：成功响应现校验非空数组容器、非负总数、正页码和页大小，并从 `page/limit/total` 推导继续分页状态，不信任可变的远端 `hasMore` 标记。
 - Fixed array-backed Xiaping comment-page envelopes: successful responses now validate the non-null array, non-negative total, and positive page/limit, deriving continuation from `page/limit/total` rather than trusting a mutable remote `hasMore` flag.
 - 修复受管网络中的霞萍公开目录访问：仅固定的 `xiaping.coze.com` 可经本机透明路由使用 198.18.0.0/15，其他主机和远程 Skill 包下载仍拒绝非公网地址。

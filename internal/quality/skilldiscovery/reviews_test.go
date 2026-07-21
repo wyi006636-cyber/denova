@@ -37,6 +37,17 @@ func TestCommittedEvidenceContainsNoReviewerOrSignedAvatar(t *testing.T) {
 	}
 }
 
+func TestNormalizeAPIReviewIgnoresStructuredOptionalText(t *testing.T) {
+	var raw apiReview
+	if err := json.Unmarshal([]byte(`{"id":"review-1","user_id":"reader-1","stars":5,"content":"Synthetic comment text remains available for aggregate evidence.","pros":["structured"],"cons":[],"use_case":{"kind":"structured"},"created_at":"2026-07-01T00:00:00Z"}`), &raw); err != nil {
+		t.Fatal(err)
+	}
+	review := normalizeAPIReview(raw)
+	if review.Content == "" || review.Pros != "" || review.Cons != "" || review.UseCase != "" {
+		t.Fatalf("review = %#v", review)
+	}
+}
+
 func TestSummarizeReviewsReportsDefinedAnomalies(t *testing.T) {
 	reviews := make([]ReviewRecord, 0, 10)
 	for index := 0; index < 10; index++ {
