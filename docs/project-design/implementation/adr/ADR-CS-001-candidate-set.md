@@ -86,7 +86,7 @@ P0-T05 creates documentation and schemas only; it rewrites no workspace data. A 
 
 ## Validation
 
-`schema/candidate-set-v1.schema.json` is the normative shape and closed-vocabulary companion. Draft 2020-12 validation must accept an in-memory full chain through mixed selection and finalization, and reject missing source identity, illegal transitions, missing mixed lineage, and malformed actor/evidence records. A semantic validator must recompute hashes, validate contiguous history/current state, candidate references, segment ranges/recomposition, and finalization receipt binding. `git diff --check` and exact-scope review are required.
+`contracts/candidate-set-v1.schema.json` is the normative shape and closed-vocabulary companion. Draft 2020-12 validation must accept an in-memory full chain through mixed selection and finalization, and reject missing source identity, illegal transitions, missing mixed lineage, and malformed actor/evidence records. A semantic validator must recompute hashes, validate contiguous history/current state, candidate references, segment ranges/recomposition, and finalization receipt binding. `git diff --check` and exact-scope review are required.
 
 ## Supersedes
 

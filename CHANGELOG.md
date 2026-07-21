@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增已接受的 PreferenceMemory v1 与 Author Finalization v1 双语架构合同及 JSON Schema，定义仅作者显式信号的可撤销偏好记忆、Harness 定稿唯一写入边界、哈希/修订/nonce 绑定、耐久回放、故障恢复与 Automation 待审限制。
+- Added accepted bilingual PreferenceMemory v1 and Author Finalization v1 architecture contracts and JSON Schemas defining revocable explicit-author-only preference signals, the sole Harness finalization write boundary, hash/revision/nonce binding, durable replay, failure recovery, and Automation pending-only limits.
 - 新增已接受的 CandidateSet v1 与 ReviewIssue v1 双语架构合同及 JSON Schema，定义可审计的候选状态机、混合片段血缘、审稿证据、修订能力路由、复核闭环和 Author Finalization 交接边界。
 - Added accepted bilingual CandidateSet v1 and ReviewIssue v1 architecture contracts and JSON Schemas defining an auditable candidate lifecycle, mixed-segment lineage, review evidence, revision-capability routing, re-verification closure, and the Author Finalization handoff boundary.
 - 新增已接受的 Profile v1 与 QualitySpec v1 双语合同、JSON Schema 和三个可验证示例，定义共享质量引擎、穷尽 Profile ID、确定性覆盖顺序、来源追踪与作者确认边界。

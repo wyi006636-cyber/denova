@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://denova.example/schemas/preference-memory-v1.schema.json",
+  "title": "Denova PreferenceMemory v1",
+  "description": "Normative explicit-author, append-only preference event. Cross-record identity, hash, supersession, revocation, and effective-state checks require semantic validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "signal_id", "event", "scope", "author", "workspace", "provenance", "event_reference", "preference", "confirmation", "recorded_at"],
+  "properties": {
+    "contract": { "$ref": "#/$defs/contract" },
+    "signal_id": { "$ref": "#/$defs/id" },
+    "event": { "enum": ["selection", "mixed_selection", "rejection", "author_rewrite", "rule_confirmation", "correction", "revocation"] },
+    "scope": { "$ref": "#/$defs/scope" },
+    "author": { "$ref": "#/$defs/author" },
+    "workspace": { "$ref": "#/$defs/workspace" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "event_reference": { "oneOf": [
+      { "$ref": "#/$defs/selectionReference" },
+      { "$ref": "#/$defs/mixedReference" },
+      { "$ref": "#/$defs/rejectionReference" },
+      { "$ref": "#/$defs/rewriteReference" },
+      { "$ref": "#/$defs/ruleReference" },
+      { "$ref": "#/$defs/correctionReference" },
+      { "$ref": "#/$defs/revocationReference" }
+    ] },
+    "preference": { "$ref": "#/$defs/preference" },
+    "confirmation": { "$ref": "#/$defs/confirmation" },
+    "supersedes_signal_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+    "revokes_signal_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+    "recorded_at": { "$ref": "#/$defs/time" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "event": { "const": "selection" } }, "required": ["event"] },
+      "then": {
+        "properties": {
+          "provenance": { "properties": { "source_kind": { "const": "candidate" } } },
+          "event_reference": { "$ref": "#/$defs/selectionReference" },
+          "confirmation": { "properties": { "method": { "const": "selection" } } }
+        },
+        "not": { "anyOf": [{ "required": ["supersedes_signal_ids"] }, { "required": ["revokes_signal_ids"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "event": { "const": "mixed_selection" } }, "required": ["event"] },
+      "then": {
+        "properties": {
+          "provenance": { "properties": { "source_kind": { "const": "candidate_segment" } } },
+          "event_reference": { "$ref": "#/$defs/mixedReference" },
+          "confirmation": { "properties": { "method": { "const": "mixed_selection" } } }
+        },
+        "not": { "anyOf": [{ "required": ["supersedes_signal_ids"] }, { "required": ["revokes_signal_ids"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "event": { "const": "rejection" } }, "required": ["event"] },
+      "then": {
+        "properties": {
+          "provenance": { "properties": { "source_kind": { "enum": ["candidate", "review_issue"] } } },
+          "event_reference": { "$ref": "#/$defs/rejectionReference" },
+          "confirmation": { "properties": { "method": { "const": "rejection" } } }
+        },
+        "oneOf": [
+          { "properties": { "provenance": { "properties": { "source_kind": { "const": "candidate" } } }, "event_reference": { "properties": { "kind": { "const": "candidate_rejection" } } } } },
+          { "properties": { "provenance": { "properties": { "source_kind": { "const": "review_issue" } } }, "event_reference": { "properties": { "kind": { "const": "issue_rejection" } } } } }
+        ],
+        "not": { "anyOf": [{ "required": ["supersedes_signal_ids"] }, { "required": ["revokes_signal_ids"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "event": { "const": "author_rewrite" } }, "required": ["event"] },
+      "then": {
+        "properties": {
+          "provenance": { "properties": { "source_kind": { "const": "author_rewrite" } } },
+          "event_reference": { "$ref": "#/$defs/rewriteReference" },
+          "confirmation": { "properties": { "method": { "const": "author_rewrite" } } }
+        },
+        "not": { "anyOf": [{ "required": ["supersedes_signal_ids"] }, { "required": ["revokes_signal_ids"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "event": { "const": "rule_confirmation" } }, "required": ["event"] },
+      "then": {
+        "properties": {
+          "provenance": { "properties": { "source_kind": { "const": "author_rule" } } },
+          "event_reference": { "$ref": "#/$defs/ruleReference" },
+          "confirmation": { "properties": { "method": { "const": "rule_confirmation" } } }
+        },
+        "not": { "anyOf": [{ "required": ["supersedes_signal_ids"] }, { "required": ["revokes_signal_ids"] }] }
+      }
+    },
+    {
+      "if": { "properties": { "event": { "const": "correction" } }, "required": ["event"] },
+      "then": {
+        "required": ["supersedes_signal_ids"],
+        "properties": {
+          "provenance": { "properties": { "source_kind": { "enum": ["candidate", "candidate_segment", "review_issue", "author_rewrite", "author_rule", "author_revocation", "finalization_receipt"] } } },
+          "event_reference": { "$ref": "#/$defs/correctionReference" },
+          "confirmation": { "properties": { "method": { "const": "correction" } } }
+        },
+        "not": { "required": ["revokes_signal_ids"] }
+      }
+    },
+    {
+      "if": { "properties": { "event": { "const": "revocation" } }, "required": ["event"] },
+      "then": {
+        "required": ["revokes_signal_ids"],
+        "properties": {
+          "provenance": { "properties": { "source_kind": { "const": "author_revocation" } } },
+          "event_reference": { "$ref": "#/$defs/revocationReference" },
+          "confirmation": { "properties": { "method": { "const": "revocation" } } }
+        },
+        "not": { "required": ["supersedes_signal_ids"] }
+      }
+    }
+  ],
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "time": { "type": "string", "format": "date-time" },
+    "contract": { "type": "object", "additionalProperties": false, "required": ["kind", "version", "schema_id"], "properties": { "kind": { "const": "denova.preference-signal" }, "version": { "const": "v1" }, "schema_id": { "const": "preference-memory-v1.schema.json" } } },
+    "scope": { "type": "object", "additionalProperties": false, "required": ["kind", "author_id", "project_id", "workspace_id"], "properties": { "kind": { "enum": ["author", "project", "workspace"] }, "author_id": { "$ref": "#/$defs/id" }, "project_id": { "$ref": "#/$defs/id" }, "workspace_id": { "$ref": "#/$defs/id" } } },
+    "author": { "type": "object", "additionalProperties": false, "required": ["actor_id", "actor_type"], "properties": { "actor_id": { "$ref": "#/$defs/id" }, "actor_type": { "const": "author" } } },
+    "workspace": { "type": "object", "additionalProperties": false, "required": ["workspace_id", "project_id", "canonical_path", "revision", "content_hash"], "properties": { "workspace_id": { "$ref": "#/$defs/id" }, "project_id": { "$ref": "#/$defs/id" }, "canonical_path": { "type": "string", "minLength": 1 }, "revision": { "type": "string", "minLength": 1 }, "content_hash": { "$ref": "#/$defs/sha256" } } },
+    "profile": { "type": "object", "additionalProperties": false, "required": ["id", "version", "hash"], "properties": { "id": { "$ref": "#/$defs/id" }, "version": { "type": "string", "minLength": 1 }, "hash": { "$ref": "#/$defs/sha256" } } },
+    "qualitySpec": { "type": "object", "additionalProperties": false, "required": ["id", "revision", "version", "hash"], "properties": { "id": { "$ref": "#/$defs/id" }, "revision": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 }, "hash": { "$ref": "#/$defs/sha256" } } },
+    "provenance": { "type": "object", "additionalProperties": false, "required": ["source_kind", "operation_id", "profile", "quality_spec", "content_hash"], "properties": { "source_kind": { "enum": ["candidate", "candidate_segment", "review_issue", "author_rewrite", "author_rule", "author_revocation", "finalization_receipt"] }, "operation_id": { "$ref": "#/$defs/id" }, "profile": { "$ref": "#/$defs/profile" }, "quality_spec": { "$ref": "#/$defs/qualitySpec" }, "content_hash": { "$ref": "#/$defs/sha256" } } },
+    "preference": { "type": "object", "additionalProperties": false, "required": ["dimension", "value", "reason", "strength", "confidence"], "properties": { "dimension": { "type": "string", "minLength": 1, "maxLength": 256 }, "value": { "type": "string", "minLength": 1, "maxLength": 4096 }, "reason": { "type": "string", "minLength": 1, "maxLength": 4096 }, "strength": { "enum": ["weak", "normal", "strong"] }, "confidence": { "type": "number", "minimum": 0, "maximum": 1 } } },
+    "confirmation": { "type": "object", "additionalProperties": false, "required": ["explicit", "method", "confirmed_at", "evidence_hash"], "properties": { "explicit": { "const": true }, "method": { "enum": ["selection", "mixed_selection", "rejection", "author_rewrite", "rule_confirmation", "correction", "revocation"] }, "confirmed_at": { "$ref": "#/$defs/time" }, "evidence_hash": { "$ref": "#/$defs/sha256" } } },
+    "selectionReference": { "type": "object", "additionalProperties": false, "required": ["kind", "candidate_set_id", "candidate_id", "candidate_hash"], "properties": { "kind": { "const": "selection" }, "candidate_set_id": { "$ref": "#/$defs/id" }, "candidate_id": { "$ref": "#/$defs/id" }, "candidate_hash": { "$ref": "#/$defs/sha256" } } },
+    "mixedReference": { "type": "object", "additionalProperties": false, "required": ["kind", "candidate_set_id", "composed_artifact_id", "composed_hash", "parent_candidate_ids", "segment_map_hash"], "properties": { "kind": { "const": "mixed_selection" }, "candidate_set_id": { "$ref": "#/$defs/id" }, "composed_artifact_id": { "$ref": "#/$defs/id" }, "composed_hash": { "$ref": "#/$defs/sha256" }, "parent_candidate_ids": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } }, "segment_map_hash": { "$ref": "#/$defs/sha256" } } },
+    "rejectionReference": { "oneOf": [
+      { "type": "object", "additionalProperties": false, "required": ["kind", "candidate_set_id", "candidate_id", "candidate_hash"], "properties": { "kind": { "const": "candidate_rejection" }, "candidate_set_id": { "$ref": "#/$defs/id" }, "candidate_id": { "$ref": "#/$defs/id" }, "candidate_hash": { "$ref": "#/$defs/sha256" } } },
+      { "type": "object", "additionalProperties": false, "required": ["kind", "issue_id", "issue_hash"], "properties": { "kind": { "const": "issue_rejection" }, "issue_id": { "$ref": "#/$defs/id" }, "issue_hash": { "$ref": "#/$defs/sha256" } } }
+    ] },
+    "rewriteReference": { "type": "object", "additionalProperties": false, "required": ["kind", "original_artifact_id", "original_hash", "rewritten_artifact_id", "rewritten_hash"], "properties": { "kind": { "const": "author_rewrite" }, "original_artifact_id": { "$ref": "#/$defs/id" }, "original_hash": { "$ref": "#/$defs/sha256" }, "rewritten_artifact_id": { "$ref": "#/$defs/id" }, "rewritten_hash": { "$ref": "#/$defs/sha256" } } },
+    "ruleReference": { "type": "object", "additionalProperties": false, "required": ["kind", "rule_id", "rule_hash"], "properties": { "kind": { "const": "rule" }, "rule_id": { "$ref": "#/$defs/id" }, "rule_hash": { "$ref": "#/$defs/sha256" } } },
+    "correctionReference": { "type": "object", "additionalProperties": false, "required": ["kind", "corrected_signal_id", "replacement_evidence_hash"], "properties": { "kind": { "const": "correction" }, "corrected_signal_id": { "$ref": "#/$defs/id" }, "replacement_evidence_hash": { "$ref": "#/$defs/sha256" } } },
+    "revocationReference": { "type": "object", "additionalProperties": false, "required": ["kind", "revocation_reason_hash"], "properties": { "kind": { "const": "revocation" }, "revocation_reason_hash": { "$ref": "#/$defs/sha256" } } }
+  }
+}

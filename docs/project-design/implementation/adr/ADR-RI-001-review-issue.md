@@ -81,7 +81,7 @@ P0-T05 creates documentation and schemas only; it rewrites no review data. A v1 
 
 ## Validation
 
-`schema/review-issue-v1.schema.json` is the normative shape and closed-vocabulary companion. Draft 2020-12 validation must accept an in-memory full binding chain and reject missing provenance, missing reader-observable evidence, unknown capability/enum values, illegal lifecycle transitions, and invalid closure payloads. A semantic validator must recompute reviewed-byte/evidence hashes, validate range and reference equality, ensure history is contiguous and ends at current status, and prove a closed issue has passed re-verification against the revised bytes. `git diff --check` and exact-scope review are required.
+`contracts/review-issue-v1.schema.json` is the normative shape and closed-vocabulary companion. Draft 2020-12 validation must accept an in-memory full binding chain and reject missing provenance, missing reader-observable evidence, unknown capability/enum values, illegal lifecycle transitions, and invalid closure payloads. A semantic validator must recompute reviewed-byte/evidence hashes, validate range and reference equality, ensure history is contiguous and ends at current status, and prove a closed issue has passed re-verification against the revised bytes. `git diff --check` and exact-scope review are required.
 
 ## Supersedes
 

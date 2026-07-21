@@ -80,7 +80,7 @@ The example catalog defines reversal evidence and causal closure with Profile de
 
 ## Validation
 
-`schema/quality-spec-v1.schema.json` is the normative machine-readable companion for JSON shape and closed values. `schema/profile-v1.schema.json` binds each Profile example to it. The ADR is authoritative for semantics that JSON Schema cannot express across catalog references and provenance chains.
+`contracts/quality-spec-v1.schema.json` is the normative machine-readable companion for JSON shape and closed values. `contracts/profile-v1.schema.json` binds each Profile example to it. The ADR is authoritative for semantics that JSON Schema cannot express across catalog references and provenance chains.
 
 The three committed examples must parse and validate under JSON Schema Draft 2020-12. Negative validation must reject at least an unknown Profile ID, a goal missing evidence/provenance, and malformed or unauthorized override/resolution data. Negative cases remain temporary or in memory, not committed fixtures.
 

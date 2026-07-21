@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://denova.example/schemas/author-finalization-v1.schema.json",
+  "title": "Denova Author Finalization v1",
+  "description": "Tagged request, durable operation, and receipt records. Cross-record identity, bytes, revision, target uniqueness, nonce replay, and recovery checks require service validation.",
+  "oneOf": [
+    { "$ref": "#/$defs/request" },
+    { "$ref": "#/$defs/operation" },
+    { "$ref": "#/$defs/receipt" }
+  ],
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "time": { "type": "string", "format": "date-time" },
+    "nullableId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/id" }] },
+    "contract": { "type": "object", "additionalProperties": false, "required": ["kind", "version", "schema_id"], "properties": { "kind": { "const": "denova.author-finalization" }, "version": { "const": "v1" }, "schema_id": { "const": "author-finalization-v1.schema.json" } } },
+    "workspace": { "type": "object", "additionalProperties": false, "required": ["workspace_id", "project_id", "canonical_path", "base_revision", "expected_revision", "workspace_hash"], "properties": { "workspace_id": { "$ref": "#/$defs/id" }, "project_id": { "$ref": "#/$defs/id" }, "canonical_path": { "type": "string", "minLength": 1 }, "base_revision": { "type": "string", "minLength": 1 }, "expected_revision": { "type": "string", "minLength": 1 }, "workspace_hash": { "$ref": "#/$defs/sha256" } } },
+    "nullableWorkspace": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/workspace" }] },
+    "profile": { "type": "object", "additionalProperties": false, "required": ["id", "version", "hash"], "properties": { "id": { "$ref": "#/$defs/id" }, "version": { "type": "string", "minLength": 1 }, "hash": { "$ref": "#/$defs/sha256" } } },
+    "qualitySpec": { "type": "object", "additionalProperties": false, "required": ["id", "revision", "version", "hash"], "properties": { "id": { "$ref": "#/$defs/id" }, "revision": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 }, "hash": { "$ref": "#/$defs/sha256" } } },
+    "target": { "type": "object", "additionalProperties": false, "required": ["target_id", "canonical_path", "base_revision", "artifact_id", "bytes_hash"], "properties": { "target_id": { "$ref": "#/$defs/id" }, "canonical_path": { "type": "string", "minLength": 1 }, "base_revision": { "type": "string", "minLength": 1 }, "artifact_id": { "$ref": "#/$defs/id" }, "bytes_hash": { "$ref": "#/$defs/sha256" } } },
+    "selectedOutput": { "type": "object", "additionalProperties": false, "required": ["kind", "candidate_state", "candidate_set_id", "candidate_set_hash", "candidate_id", "artifact_id", "output_hash"], "properties": { "kind": { "const": "selected" }, "candidate_state": { "const": "author_selected" }, "candidate_set_id": { "$ref": "#/$defs/id" }, "candidate_set_hash": { "$ref": "#/$defs/sha256" }, "candidate_id": { "$ref": "#/$defs/id" }, "artifact_id": { "$ref": "#/$defs/id" }, "output_hash": { "$ref": "#/$defs/sha256" } } },
+    "mixedOutput": { "type": "object", "additionalProperties": false, "required": ["kind", "candidate_state", "candidate_set_id", "candidate_set_hash", "composed_artifact_id", "output_hash", "parent_candidate_ids", "segment_map_hash"], "properties": { "kind": { "const": "mixed" }, "candidate_state": { "const": "mixed" }, "candidate_set_id": { "$ref": "#/$defs/id" }, "candidate_set_hash": { "$ref": "#/$defs/sha256" }, "composed_artifact_id": { "$ref": "#/$defs/id" }, "output_hash": { "$ref": "#/$defs/sha256" }, "parent_candidate_ids": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } }, "segment_map_hash": { "$ref": "#/$defs/sha256" } } },
+    "confirmation": { "type": "object", "additionalProperties": false, "required": ["author_id", "actor_type", "explicit", "confirmed_at", "confirmation_hash"], "properties": { "author_id": { "$ref": "#/$defs/id" }, "actor_type": { "const": "author" }, "explicit": { "const": true }, "confirmed_at": { "$ref": "#/$defs/time" }, "confirmation_hash": { "$ref": "#/$defs/sha256" } } },
+    "nullableConfirmation": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/confirmation" }] },
+    "authorization": { "type": "object", "additionalProperties": false, "required": ["authorization_id", "nonce", "idempotency_key", "bound_payload_hash", "issued_at", "confirmation"], "properties": { "authorization_id": { "$ref": "#/$defs/id" }, "nonce": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{16,256}$" }, "idempotency_key": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{16,256}$" }, "bound_payload_hash": { "$ref": "#/$defs/sha256" }, "issued_at": { "$ref": "#/$defs/time" }, "confirmation": { "$ref": "#/$defs/confirmation" } } },
+    "nullableAuthorization": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/authorization" }] },
+    "candidateLineage": { "type": "object", "additionalProperties": false, "required": ["kind", "candidate_set_id", "candidate_set_hash", "output_hash", "candidate_ids"], "properties": { "kind": { "enum": ["selected", "mixed"] }, "candidate_set_id": { "$ref": "#/$defs/id" }, "candidate_set_hash": { "$ref": "#/$defs/sha256" }, "output_hash": { "$ref": "#/$defs/sha256" }, "candidate_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } }, "segment_map_hash": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/sha256" }] } }, "allOf": [
+      { "if": { "properties": { "kind": { "const": "selected" } }, "required": ["kind"] }, "then": { "properties": { "candidate_ids": { "maxItems": 1 }, "segment_map_hash": { "type": "null" } } } },
+      { "if": { "properties": { "kind": { "const": "mixed" } }, "required": ["kind"] }, "then": { "properties": { "candidate_ids": { "minItems": 2 }, "segment_map_hash": { "$ref": "#/$defs/sha256" } } } }
+    ] },
+    "nullableLineage": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/candidateLineage" }] },
+    "failure": { "type": "object", "additionalProperties": false, "required": ["stage", "code", "message", "at"], "properties": { "stage": { "enum": ["authorization", "workspace_write", "workspace_commit", "version_checkpoint", "receipt", "recovery"] }, "code": { "type": "string", "minLength": 1 }, "message": { "type": "string", "minLength": 1 }, "at": { "$ref": "#/$defs/time" } } },
+    "version": { "type": "object", "additionalProperties": false, "required": ["checkpoint_id", "commit_id", "status"], "properties": { "checkpoint_id": { "$ref": "#/$defs/nullableId" }, "commit_id": { "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }] }, "status": { "enum": ["not_started", "pending_reconciliation", "succeeded", "failed"] } }, "allOf": [
+      { "if": { "properties": { "status": { "const": "not_started" } }, "required": ["status"] }, "then": { "properties": { "checkpoint_id": { "type": "null" }, "commit_id": { "type": "null" } } } },
+      { "if": { "properties": { "status": { "enum": ["pending_reconciliation", "failed"] } }, "required": ["status"] }, "then": { "properties": { "commit_id": { "type": "null" } } } },
+      { "if": { "properties": { "status": { "const": "succeeded" } }, "required": ["status"] }, "then": { "properties": { "checkpoint_id": { "$ref": "#/$defs/id" }, "commit_id": { "type": "string", "minLength": 1 } } } }
+    ] },
+    "recovery": { "type": "object", "additionalProperties": false, "required": ["status", "strategy", "attempt_count", "last_checked_at"], "properties": { "status": { "enum": ["pending", "completed", "manual_intervention"] }, "strategy": { "enum": ["roll_forward", "reconcile", "compensate", "manual_intervention"] }, "attempt_count": { "type": "integer", "minimum": 0 }, "last_checked_at": { "$ref": "#/$defs/time" } } },
+    "compensation": { "type": "object", "additionalProperties": false, "required": ["status", "details"], "properties": { "status": { "enum": ["not_needed", "pending", "completed", "manual_intervention"] }, "details": { "type": "string" } } },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_type", "contract", "request_id", "workspace", "candidate_output", "targets", "profile", "quality_spec", "authorization", "requested_at"],
+      "properties": {
+        "record_type": { "const": "request" },
+        "contract": { "$ref": "#/$defs/contract" },
+        "request_id": { "$ref": "#/$defs/id" },
+        "workspace": { "$ref": "#/$defs/workspace" },
+        "candidate_output": { "oneOf": [{ "$ref": "#/$defs/selectedOutput" }, { "$ref": "#/$defs/mixedOutput" }] },
+        "targets": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/target" } },
+        "profile": { "$ref": "#/$defs/profile" },
+        "quality_spec": { "$ref": "#/$defs/qualitySpec" },
+        "authorization": { "$ref": "#/$defs/authorization" },
+        "requested_at": { "$ref": "#/$defs/time" }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_type", "contract", "operation_id", "request_id", "authorization_id", "bound_payload_hash", "state", "workspace_change_operation_id", "version", "recovery", "failures", "compensation", "receipt_id", "updated_at"],
+      "properties": {
+        "record_type": { "const": "operation" },
+        "contract": { "$ref": "#/$defs/contract" },
+        "operation_id": { "$ref": "#/$defs/id" },
+        "request_id": { "$ref": "#/$defs/id" },
+        "authorization_id": { "$ref": "#/$defs/id" },
+        "bound_payload_hash": { "$ref": "#/$defs/sha256" },
+        "state": { "enum": ["prepared", "writing", "workspace_committed", "version_checkpointing", "needs_recovery", "succeeded", "compensated", "failed"] },
+        "workspace_change_operation_id": { "$ref": "#/$defs/nullableId" },
+        "version": { "$ref": "#/$defs/version" },
+        "recovery": { "$ref": "#/$defs/recovery" },
+        "failures": { "type": "array", "items": { "$ref": "#/$defs/failure" } },
+        "compensation": { "$ref": "#/$defs/compensation" },
+        "receipt_id": { "$ref": "#/$defs/nullableId" },
+        "updated_at": { "$ref": "#/$defs/time" }
+      },
+      "allOf": [
+        { "if": { "properties": { "state": { "const": "prepared" } }, "required": ["state"] }, "then": { "properties": { "workspace_change_operation_id": { "type": "null" }, "version": { "properties": { "checkpoint_id": { "type": "null" }, "commit_id": { "type": "null" }, "status": { "const": "not_started" } } }, "recovery": { "properties": { "status": { "const": "pending" }, "strategy": { "const": "roll_forward" } } }, "failures": { "maxItems": 0 }, "compensation": { "properties": { "status": { "const": "not_needed" } } }, "receipt_id": { "type": "null" } } } },
+        { "if": { "properties": { "state": { "const": "writing" } }, "required": ["state"] }, "then": { "properties": { "workspace_change_operation_id": { "$ref": "#/$defs/id" }, "version": { "properties": { "checkpoint_id": { "type": "null" }, "commit_id": { "type": "null" }, "status": { "const": "not_started" } } }, "recovery": { "properties": { "status": { "const": "pending" }, "strategy": { "const": "roll_forward" } } }, "failures": { "maxItems": 0 }, "compensation": { "properties": { "status": { "const": "not_needed" } } }, "receipt_id": { "type": "null" } } } },
+        { "if": { "properties": { "state": { "enum": ["workspace_committed", "version_checkpointing"] } }, "required": ["state"] }, "then": { "properties": { "workspace_change_operation_id": { "$ref": "#/$defs/id" }, "version": { "properties": { "commit_id": { "type": "null" }, "status": { "const": "pending_reconciliation" } } }, "recovery": { "properties": { "status": { "const": "pending" }, "strategy": { "const": "reconcile" } } }, "failures": { "maxItems": 0 }, "compensation": { "properties": { "status": { "const": "not_needed" } } }, "receipt_id": { "type": "null" } } } },
+        { "if": { "properties": { "state": { "const": "needs_recovery" } }, "required": ["state"] }, "then": { "properties": { "workspace_change_operation_id": { "$ref": "#/$defs/id" }, "recovery": { "properties": { "status": { "enum": ["pending", "manual_intervention"] }, "strategy": { "enum": ["roll_forward", "reconcile", "compensate", "manual_intervention"] } } }, "failures": { "minItems": 1 }, "compensation": { "properties": { "status": { "enum": ["pending", "manual_intervention"] } } }, "receipt_id": { "type": "null" } } } },
+        { "if": { "properties": { "state": { "const": "succeeded" } }, "required": ["state"] }, "then": { "properties": { "workspace_change_operation_id": { "$ref": "#/$defs/id" }, "version": { "properties": { "checkpoint_id": { "$ref": "#/$defs/id" }, "commit_id": { "type": "string", "minLength": 1 }, "status": { "const": "succeeded" } } }, "recovery": { "properties": { "status": { "const": "completed" }, "strategy": { "enum": ["roll_forward", "reconcile"] } } }, "failures": { "maxItems": 0 }, "compensation": { "properties": { "status": { "const": "not_needed" } } }, "receipt_id": { "$ref": "#/$defs/id" } } } },
+        { "if": { "properties": { "state": { "const": "compensated" } }, "required": ["state"] }, "then": { "properties": { "workspace_change_operation_id": { "$ref": "#/$defs/id" }, "version": { "properties": { "status": { "enum": ["not_started", "pending_reconciliation", "failed"] } } }, "recovery": { "properties": { "status": { "const": "completed" }, "strategy": { "const": "compensate" } } }, "failures": { "minItems": 1 }, "compensation": { "properties": { "status": { "const": "completed" } } }, "receipt_id": { "$ref": "#/$defs/id" } } } },
+        { "if": { "properties": { "state": { "const": "failed" } }, "required": ["state"] }, "then": { "properties": { "version": { "properties": { "checkpoint_id": { "type": "null" }, "commit_id": { "type": "null" }, "status": { "enum": ["not_started", "failed"] } } }, "recovery": { "properties": { "status": { "enum": ["completed", "manual_intervention"] }, "strategy": { "enum": ["reconcile", "compensate", "manual_intervention"] } } }, "failures": { "minItems": 1 }, "compensation": { "properties": { "status": { "enum": ["not_needed", "completed", "manual_intervention"] } } }, "receipt_id": { "$ref": "#/$defs/id" } } } }
+      ]
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_type", "contract", "receipt_id", "request_id", "operation_id", "outcome", "before_workspace", "after_workspace", "changed_paths", "workspace_change_operation_id", "version", "author_confirmation", "candidate_lineage", "preference_signal_id", "authorization", "created_at", "failures", "compensation"],
+      "properties": {
+        "record_type": { "const": "receipt" },
+        "contract": { "$ref": "#/$defs/contract" },
+        "receipt_id": { "$ref": "#/$defs/id" },
+        "request_id": { "$ref": "#/$defs/id" },
+        "operation_id": { "$ref": "#/$defs/nullableId" },
+        "outcome": { "enum": ["succeeded", "needs_recovery", "compensated", "failed", "rejected"] },
+        "before_workspace": { "$ref": "#/$defs/workspace" },
+        "after_workspace": { "$ref": "#/$defs/nullableWorkspace" },
+        "changed_paths": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "workspace_change_operation_id": { "$ref": "#/$defs/nullableId" },
+        "version": { "$ref": "#/$defs/version" },
+        "author_confirmation": { "$ref": "#/$defs/nullableConfirmation" },
+        "candidate_lineage": { "$ref": "#/$defs/nullableLineage" },
+        "preference_signal_id": { "$ref": "#/$defs/nullableId" },
+        "authorization": { "$ref": "#/$defs/nullableAuthorization" },
+        "created_at": { "$ref": "#/$defs/time" },
+        "failures": { "type": "array", "items": { "$ref": "#/$defs/failure" } },
+        "compensation": { "$ref": "#/$defs/compensation" }
+      },
+      "allOf": [
+        { "if": { "properties": { "outcome": { "const": "succeeded" } }, "required": ["outcome"] }, "then": { "properties": { "operation_id": { "$ref": "#/$defs/id" }, "after_workspace": { "$ref": "#/$defs/workspace" }, "changed_paths": { "minItems": 1 }, "workspace_change_operation_id": { "$ref": "#/$defs/id" }, "version": { "properties": { "checkpoint_id": { "$ref": "#/$defs/id" }, "commit_id": { "type": "string", "minLength": 1 }, "status": { "const": "succeeded" } } }, "author_confirmation": { "$ref": "#/$defs/confirmation" }, "candidate_lineage": { "$ref": "#/$defs/candidateLineage" }, "authorization": { "$ref": "#/$defs/authorization" }, "failures": { "maxItems": 0 }, "compensation": { "properties": { "status": { "const": "not_needed" } } } } } },
+        { "if": { "properties": { "outcome": { "const": "needs_recovery" } }, "required": ["outcome"] }, "then": { "properties": { "operation_id": { "$ref": "#/$defs/id" }, "after_workspace": { "$ref": "#/$defs/workspace" }, "changed_paths": { "minItems": 1 }, "workspace_change_operation_id": { "$ref": "#/$defs/id" }, "version": { "properties": { "status": { "enum": ["pending_reconciliation", "failed", "succeeded"] } } }, "author_confirmation": { "$ref": "#/$defs/confirmation" }, "candidate_lineage": { "$ref": "#/$defs/candidateLineage" }, "authorization": { "$ref": "#/$defs/authorization" }, "failures": { "minItems": 1 }, "compensation": { "properties": { "status": { "enum": ["pending", "manual_intervention"] } } } } } },
+        { "if": { "properties": { "outcome": { "const": "compensated" } }, "required": ["outcome"] }, "then": { "properties": { "operation_id": { "$ref": "#/$defs/id" }, "after_workspace": { "$ref": "#/$defs/workspace" }, "changed_paths": { "minItems": 1 }, "workspace_change_operation_id": { "$ref": "#/$defs/id" }, "author_confirmation": { "$ref": "#/$defs/confirmation" }, "candidate_lineage": { "$ref": "#/$defs/candidateLineage" }, "authorization": { "$ref": "#/$defs/authorization" }, "failures": { "minItems": 1 }, "compensation": { "properties": { "status": { "const": "completed" } } } } } },
+        { "if": { "properties": { "outcome": { "const": "failed" } }, "required": ["outcome"] }, "then": { "properties": { "after_workspace": { "type": "null" }, "changed_paths": { "maxItems": 0 }, "version": { "properties": { "checkpoint_id": { "type": "null" }, "commit_id": { "type": "null" }, "status": { "enum": ["not_started", "failed"] } } }, "author_confirmation": { "$ref": "#/$defs/confirmation" }, "candidate_lineage": { "$ref": "#/$defs/candidateLineage" }, "authorization": { "$ref": "#/$defs/authorization" }, "failures": { "minItems": 1 }, "compensation": { "properties": { "status": { "enum": ["not_needed", "completed", "manual_intervention"] } } } } } },
+        { "if": { "properties": { "outcome": { "const": "rejected" } }, "required": ["outcome"] }, "then": { "properties": { "operation_id": { "type": "null" }, "after_workspace": { "type": "null" }, "changed_paths": { "maxItems": 0 }, "workspace_change_operation_id": { "type": "null" }, "version": { "properties": { "checkpoint_id": { "type": "null" }, "commit_id": { "type": "null" }, "status": { "const": "not_started" } } }, "author_confirmation": { "type": "null" }, "candidate_lineage": { "type": "null" }, "authorization": { "type": "null" }, "failures": { "minItems": 1 }, "compensation": { "properties": { "status": { "const": "not_needed" } } }, "preference_signal_id": { "type": "null" } } } }
+      ]
+    }
+  }
+}

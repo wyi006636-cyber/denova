@@ -83,7 +83,7 @@ The `zhihu_salt_short` example resolves `evaluate_reversal_ending`. The reversal
 
 ## Schema authority and compatibility
 
-`schema/profile-v1.schema.json` is the normative machine-readable companion for shape and closed-value validation. It references `schema/quality-spec-v1.schema.json`; neither schema is a second implementation truth or a substitute for this ADR's authority and merge semantics. P1-T01 may choose Go field layout, but it must preserve these identities, error behavior, source fields, author boundary, and deterministic result.
+`contracts/profile-v1.schema.json` is the normative machine-readable companion for shape and closed-value validation. It references the sibling `contracts/quality-spec-v1.schema.json`; neither schema is a second implementation truth or a substitute for this ADR's authority and merge semantics. P1-T01 may choose Go field layout, but it must preserve these identities, error behavior, source fields, author boundary, and deterministic result.
 
 A v1 reader rejects malformed authoritative records for managed operations while preserving the bytes and keeping safe workspace access available under Workspace Schema v1. A newer/unknown contract is read-only input until a compatible reader or controlled migration is available. A future Profile version may add Profiles or fields only through a superseding decision; extending the enum silently is not v1-compatible.
 
