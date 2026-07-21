@@ -1,0 +1,1310 @@
+{
+  "contract": "harness-novel.xiaping-static-applicability-fixture",
+  "contract_version": "1.0.0",
+  "catalog_ref": "../xiaping-catalog-v1.json",
+  "captured_at": "2026-07-21T08:11:29.669022Z",
+  "method": "STATIC-APPLICABILITY-ONLY",
+  "quality_spec_ref": "docs/project-design/implementation/adr/ADR-QS-001-quality-spec-contract.md",
+  "split_guard": {
+    "manifest_task_count": 36,
+    "tuning_count": 18,
+    "regression_count": 12,
+    "release_holdout_count": 6,
+    "selected_tuning_count": 6,
+    "regression_inputs_read": 0,
+    "release_holdout_inputs_read": 0
+  },
+  "closed_sets": {
+    "profiles": [
+      "long_serial",
+      "fanqie_short",
+      "zhihu_salt_short"
+    ],
+    "capabilities": [
+      "ideation.generate-premises",
+      "project.bootstrap-genre",
+      "outline.build-long-arc",
+      "outline.build-short-structure",
+      "outline.simulate-multiline",
+      "outline.build-execution-brief",
+      "character.build-profile",
+      "character.build-dialogue-voice",
+      "opening.review-hook",
+      "engagement.review-reading-drive",
+      "plot.manage-foreshadowing",
+      "continuity.review-facts",
+      "editor.review-story",
+      "editor.review-profile-rubric",
+      "style.revise-naturalness",
+      "style.revise-prose"
+    ],
+    "verdicts": [
+      "RELEVANT",
+      "IRRELEVANT",
+      "UNCERTAIN"
+    ]
+  },
+  "tasks": [
+    {
+      "task_id": "ls-mystery-dialogue-03",
+      "profile_id": "long_serial",
+      "input_sha256": "bc145ded1bfa318fca92965a33f7a7f30fda3852ee119b10e815c70642e22221",
+      "task_type": "dialogue",
+      "purpose": "Chapter advance through character choice, continuity, and reading-drive pressure.",
+      "quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "continuity.review-facts",
+        "editor.review-profile-rubric",
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "manifest_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:106-132"
+    },
+    {
+      "task_id": "ls-mystery-ending-07",
+      "profile_id": "long_serial",
+      "input_sha256": "ca11f1a2555fb0d06842154c332be1bc71a028e9c713b1b8a464fe0ed6097cf5",
+      "task_type": "ending",
+      "purpose": "Continuity, chapter-end momentum, payoff, and meaningful change.",
+      "quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.ending.payoff_and_change"
+      ],
+      "capability_ids": [
+        "character.build-profile",
+        "engagement.review-reading-drive",
+        "plot.manage-foreshadowing",
+        "continuity.review-facts",
+        "editor.review-story"
+      ],
+      "manifest_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:284-310"
+    },
+    {
+      "task_id": "fq-revenge-dialogue-09",
+      "profile_id": "fanqie_short",
+      "input_sha256": "1cb8addf7ddb7bc54830d0a18c3f54ae731fe2576832b9f4b609af2d68e26c95",
+      "task_type": "dialogue",
+      "purpose": "Opening efficiency, conflict escalation, selling-point delivery, and complete payoff.",
+      "quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "opening.review-hook",
+        "engagement.review-reading-drive",
+        "editor.review-profile-rubric",
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "manifest_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:906-932"
+    },
+    {
+      "task_id": "fq-urban-dialogue-03",
+      "profile_id": "fanqie_short",
+      "input_sha256": "2d6ef623f0f05731e5c0fdc50e5bd1d8ab130f1ae82193f3aa830796daea21b0",
+      "task_type": "dialogue",
+      "purpose": "Opening efficiency, conflict escalation, selling-point delivery, and complete payoff.",
+      "quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "opening.review-hook",
+        "engagement.review-reading-drive",
+        "editor.review-profile-rubric",
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "manifest_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:639-665"
+    },
+    {
+      "task_id": "zh-family-dialogue-09",
+      "profile_id": "zhihu_salt_short",
+      "input_sha256": "d72d250efd4b330a475eac2a0467072368b8fe54e2d0b385e05448b9918b6918",
+      "task_type": "dialogue",
+      "purpose": "Narrative voice, credible causality, information pressure, reversal evidence, and closure.",
+      "quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "continuity.review-facts",
+        "editor.review-story",
+        "editor.review-profile-rubric",
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "manifest_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1439-1465"
+    },
+    {
+      "task_id": "zh-marriage-dialogue-03",
+      "profile_id": "zhihu_salt_short",
+      "input_sha256": "2aa20b55ac413aa9e49a7c801c229f5dc809e5f3c8c3300e38644960954abaf6",
+      "task_type": "dialogue",
+      "purpose": "Narrative voice, credible causality, information pressure, reversal evidence, and closure.",
+      "quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "continuity.review-facts",
+        "editor.review-story",
+        "editor.review-profile-rubric",
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "manifest_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1172-1198"
+    }
+  ],
+  "reviews": [
+    {
+      "candidate_id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+      "task_id": "ls-mystery-dialogue-03",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "continuity.review-facts"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:191-239,328-356,392-463",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:106-132",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+      "task_id": "ls-mystery-ending-07",
+      "capability_ids": [
+        "continuity.review-facts",
+        "plot.manage-foreshadowing"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:191-239,328-356,392-463",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:284-310",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.ending.payoff_and_change"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+      "task_id": "fq-revenge-dialogue-09",
+      "capability_ids": [
+        "character.build-dialogue-voice"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:191-239,328-356,392-463",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:906-932",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+      "task_id": "fq-urban-dialogue-03",
+      "capability_ids": [
+        "character.build-dialogue-voice"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:191-239,328-356,392-463",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:639-665",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+      "task_id": "zh-family-dialogue-09",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "continuity.review-facts"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:191-239,328-356,392-463",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1439-1465",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+      "task_id": "zh-marriage-dialogue-03",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "continuity.review-facts"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:191-239,328-356,392-463",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1172-1198",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+      "task_id": "ls-mystery-dialogue-03",
+      "capability_ids": [
+        "continuity.review-facts",
+        "editor.review-profile-rubric",
+        "style.revise-prose"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!SKILL.md:52-99,101-237",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:106-132",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Some responsibilities intersect, but Profile, input, or capability fit is indirect.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+      "task_id": "ls-mystery-ending-07",
+      "capability_ids": [
+        "character.build-profile",
+        "continuity.review-facts",
+        "editor.review-story",
+        "engagement.review-reading-drive",
+        "plot.manage-foreshadowing"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:52-99,101-237",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:284-310",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.ending.payoff_and_change"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+      "task_id": "fq-revenge-dialogue-09",
+      "capability_ids": [
+        "editor.review-profile-rubric",
+        "engagement.review-reading-drive",
+        "opening.review-hook",
+        "style.revise-prose"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!SKILL.md:52-99,101-237",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:906-932",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Some responsibilities intersect, but Profile, input, or capability fit is indirect.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+      "task_id": "fq-urban-dialogue-03",
+      "capability_ids": [
+        "editor.review-profile-rubric",
+        "engagement.review-reading-drive",
+        "opening.review-hook",
+        "style.revise-prose"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!SKILL.md:52-99,101-237",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:639-665",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Some responsibilities intersect, but Profile, input, or capability fit is indirect.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+      "task_id": "zh-family-dialogue-09",
+      "capability_ids": [
+        "continuity.review-facts",
+        "editor.review-profile-rubric",
+        "editor.review-story",
+        "style.revise-prose"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!SKILL.md:52-99,101-237",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1439-1465",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Some responsibilities intersect, but Profile, input, or capability fit is indirect.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+      "task_id": "zh-marriage-dialogue-03",
+      "capability_ids": [
+        "continuity.review-facts",
+        "editor.review-profile-rubric",
+        "editor.review-story",
+        "style.revise-prose"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!SKILL.md:52-99,101-237",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1172-1198",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Some responsibilities intersect, but Profile, input, or capability fit is indirect.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+      "task_id": "ls-mystery-dialogue-03",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:106-132",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+      "task_id": "ls-mystery-ending-07",
+      "capability_ids": [
+        "character.build-profile",
+        "editor.review-story",
+        "engagement.review-reading-drive",
+        "plot.manage-foreshadowing"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:284-310",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.ending.payoff_and_change"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+      "task_id": "fq-revenge-dialogue-09",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "engagement.review-reading-drive",
+        "opening.review-hook",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:906-932",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+      "task_id": "fq-urban-dialogue-03",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "engagement.review-reading-drive",
+        "opening.review-hook",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:639-665",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+      "task_id": "zh-family-dialogue-09",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "editor.review-story",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1439-1465",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+      "task_id": "zh-marriage-dialogue-03",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "editor.review-story",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1172-1198",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "7e465336-639f-469e-a268-9633cfd7d448",
+      "task_id": "ls-mystery-dialogue-03",
+      "capability_ids": [],
+      "verdict": "IRRELEVANT",
+      "skill_evidence_ref": "archive.zip!golden-opening-master/SKILL.md:14-35,39-155,211-218,250-297",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:106-132",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "No direct static capability match for this task objective.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "7e465336-639f-469e-a268-9633cfd7d448",
+      "task_id": "ls-mystery-ending-07",
+      "capability_ids": [
+        "engagement.review-reading-drive"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!golden-opening-master/SKILL.md:14-35,39-155,211-218,250-297",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:284-310",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.ending.payoff_and_change"
+      ],
+      "evidence_summary": "Static capabilities intersect, but the Skill stage, required framework inputs, or Profile fit is indirect for this task.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "7e465336-639f-469e-a268-9633cfd7d448",
+      "task_id": "fq-revenge-dialogue-09",
+      "capability_ids": [
+        "engagement.review-reading-drive",
+        "opening.review-hook"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!golden-opening-master/SKILL.md:14-35,39-155,211-218,250-297",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:906-932",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "7e465336-639f-469e-a268-9633cfd7d448",
+      "task_id": "fq-urban-dialogue-03",
+      "capability_ids": [
+        "engagement.review-reading-drive",
+        "opening.review-hook"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!golden-opening-master/SKILL.md:14-35,39-155,211-218,250-297",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:639-665",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "7e465336-639f-469e-a268-9633cfd7d448",
+      "task_id": "zh-family-dialogue-09",
+      "capability_ids": [],
+      "verdict": "IRRELEVANT",
+      "skill_evidence_ref": "archive.zip!golden-opening-master/SKILL.md:14-35,39-155,211-218,250-297",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1439-1465",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "No direct static capability match for this task objective.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "7e465336-639f-469e-a268-9633cfd7d448",
+      "task_id": "zh-marriage-dialogue-03",
+      "capability_ids": [],
+      "verdict": "IRRELEVANT",
+      "skill_evidence_ref": "archive.zip!golden-opening-master/SKILL.md:14-35,39-155,211-218,250-297",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1172-1198",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "No direct static capability match for this task objective.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+      "task_id": "ls-mystery-dialogue-03",
+      "capability_ids": [
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!人味写作助手/SKILL.md:74-143,258-266",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:106-132",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+      "task_id": "ls-mystery-ending-07",
+      "capability_ids": [],
+      "verdict": "IRRELEVANT",
+      "skill_evidence_ref": "archive.zip!人味写作助手/SKILL.md:74-143,258-266",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:284-310",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.ending.payoff_and_change"
+      ],
+      "evidence_summary": "No direct static capability match for this task objective.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+      "task_id": "fq-revenge-dialogue-09",
+      "capability_ids": [
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!人味写作助手/SKILL.md:74-143,258-266",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:906-932",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+      "task_id": "fq-urban-dialogue-03",
+      "capability_ids": [
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!人味写作助手/SKILL.md:74-143,258-266",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:639-665",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+      "task_id": "zh-family-dialogue-09",
+      "capability_ids": [
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!人味写作助手/SKILL.md:74-143,258-266",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1439-1465",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+      "task_id": "zh-marriage-dialogue-03",
+      "capability_ids": [
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!人味写作助手/SKILL.md:74-143,258-266",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1172-1198",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "95687260-d5ad-43d3-b083-008d00a9dfa3",
+      "task_id": "ls-mystery-dialogue-03",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "continuity.review-facts",
+        "editor.review-profile-rubric"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!character-master/SKILL.md:78-102,106-876,1174-1281,1484-1584,1810-1891",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:106-132",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "95687260-d5ad-43d3-b083-008d00a9dfa3",
+      "task_id": "ls-mystery-ending-07",
+      "capability_ids": [
+        "character.build-profile",
+        "continuity.review-facts"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!character-master/SKILL.md:78-102,106-876,1174-1281,1484-1584,1810-1891",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:284-310",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.ending.payoff_and_change"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "95687260-d5ad-43d3-b083-008d00a9dfa3",
+      "task_id": "fq-revenge-dialogue-09",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "editor.review-profile-rubric"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!character-master/SKILL.md:78-102,106-876,1174-1281,1484-1584,1810-1891",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:906-932",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "95687260-d5ad-43d3-b083-008d00a9dfa3",
+      "task_id": "fq-urban-dialogue-03",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "editor.review-profile-rubric"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!character-master/SKILL.md:78-102,106-876,1174-1281,1484-1584,1810-1891",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:639-665",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "95687260-d5ad-43d3-b083-008d00a9dfa3",
+      "task_id": "zh-family-dialogue-09",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "continuity.review-facts",
+        "editor.review-profile-rubric"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!character-master/SKILL.md:78-102,106-876,1174-1281,1484-1584,1810-1891",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1439-1465",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "95687260-d5ad-43d3-b083-008d00a9dfa3",
+      "task_id": "zh-marriage-dialogue-03",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "continuity.review-facts",
+        "editor.review-profile-rubric"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!character-master/SKILL.md:78-102,106-876,1174-1281,1484-1584,1810-1891",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1172-1198",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+      "task_id": "ls-mystery-dialogue-03",
+      "capability_ids": [
+        "continuity.review-facts",
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:106-132",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+      "task_id": "ls-mystery-ending-07",
+      "capability_ids": [
+        "continuity.review-facts",
+        "editor.review-story",
+        "engagement.review-reading-drive",
+        "plot.manage-foreshadowing"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:284-310",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.ending.payoff_and_change"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+      "task_id": "fq-revenge-dialogue-09",
+      "capability_ids": [
+        "engagement.review-reading-drive",
+        "opening.review-hook",
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:906-932",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+      "task_id": "fq-urban-dialogue-03",
+      "capability_ids": [
+        "engagement.review-reading-drive",
+        "opening.review-hook",
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:639-665",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+      "task_id": "zh-family-dialogue-09",
+      "capability_ids": [
+        "continuity.review-facts",
+        "editor.review-story",
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1439-1465",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Some responsibilities intersect, but Profile, input, or capability fit is indirect.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+      "task_id": "zh-marriage-dialogue-03",
+      "capability_ids": [
+        "continuity.review-facts",
+        "editor.review-story",
+        "style.revise-naturalness",
+        "style.revise-prose"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1172-1198",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Some responsibilities intersect, but Profile, input, or capability fit is indirect.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "f47e299c-3861-421d-9f1d-971de45bf622",
+      "task_id": "ls-mystery-dialogue-03",
+      "capability_ids": [
+        "continuity.review-facts",
+        "editor.review-profile-rubric",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:8-53,55-196,717-829,888-1007,1180-1205,1391-1420,1519-1555",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:106-132",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "f47e299c-3861-421d-9f1d-971de45bf622",
+      "task_id": "ls-mystery-ending-07",
+      "capability_ids": [
+        "continuity.review-facts",
+        "editor.review-story",
+        "engagement.review-reading-drive",
+        "plot.manage-foreshadowing"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:8-53,55-196,717-829,888-1007,1180-1205,1391-1420,1519-1555",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:284-310",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.ending.payoff_and_change"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "f47e299c-3861-421d-9f1d-971de45bf622",
+      "task_id": "fq-revenge-dialogue-09",
+      "capability_ids": [
+        "editor.review-profile-rubric",
+        "engagement.review-reading-drive",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:8-53,55-196,717-829,888-1007,1180-1205,1391-1420,1519-1555",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:906-932",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "f47e299c-3861-421d-9f1d-971de45bf622",
+      "task_id": "fq-urban-dialogue-03",
+      "capability_ids": [
+        "editor.review-profile-rubric",
+        "engagement.review-reading-drive",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:8-53,55-196,717-829,888-1007,1180-1205,1391-1420,1519-1555",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:639-665",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "f47e299c-3861-421d-9f1d-971de45bf622",
+      "task_id": "zh-family-dialogue-09",
+      "capability_ids": [
+        "continuity.review-facts",
+        "editor.review-profile-rubric",
+        "editor.review-story",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:8-53,55-196,717-829,888-1007,1180-1205,1391-1420,1519-1555",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1439-1465",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "f47e299c-3861-421d-9f1d-971de45bf622",
+      "task_id": "zh-marriage-dialogue-03",
+      "capability_ids": [
+        "continuity.review-facts",
+        "editor.review-profile-rubric",
+        "editor.review-story",
+        "style.revise-prose"
+      ],
+      "verdict": "RELEVANT",
+      "skill_evidence_ref": "archive.zip!SKILL.md:8-53,55-196,717-829,888-1007,1180-1205,1391-1420,1519-1555",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1172-1198",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static responsibilities intersect the task objective and QualitySpec goals; eligibility only, not a quality result.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "d4f61b34-aa84-4d75-aa43-fa2ae81823c2",
+      "task_id": "ls-mystery-dialogue-03",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "continuity.review-facts",
+        "style.revise-naturalness"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:106-132",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Some responsibilities intersect, but Profile, input, or capability fit is indirect.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "d4f61b34-aa84-4d75-aa43-fa2ae81823c2",
+      "task_id": "ls-mystery-ending-07",
+      "capability_ids": [
+        "continuity.review-facts",
+        "editor.review-story",
+        "engagement.review-reading-drive",
+        "plot.manage-foreshadowing"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:284-310",
+      "task_quality_goal_ids": [
+        "qg.serial.continuity",
+        "qg.serial.chapter_end_momentum",
+        "eval.ending.payoff_and_change"
+      ],
+      "evidence_summary": "Some responsibilities intersect, but Profile, input, or capability fit is indirect.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "d4f61b34-aa84-4d75-aa43-fa2ae81823c2",
+      "task_id": "fq-revenge-dialogue-09",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "engagement.review-reading-drive",
+        "opening.review-hook",
+        "style.revise-naturalness"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:906-932",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static capabilities intersect, but the Skill stage, required framework inputs, or Profile fit is indirect for this task.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "d4f61b34-aa84-4d75-aa43-fa2ae81823c2",
+      "task_id": "fq-urban-dialogue-03",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "engagement.review-reading-drive",
+        "opening.review-hook",
+        "style.revise-naturalness"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:639-665",
+      "task_quality_goal_ids": [
+        "qg.short.opening_clarity",
+        "qg.short.hook_intensity",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static capabilities intersect, but the Skill stage, required framework inputs, or Profile fit is indirect for this task.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "d4f61b34-aa84-4d75-aa43-fa2ae81823c2",
+      "task_id": "zh-family-dialogue-09",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "continuity.review-facts",
+        "editor.review-story",
+        "style.revise-naturalness"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1439-1465",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static capabilities intersect, but the Skill stage, required framework inputs, or Profile fit is indirect for this task.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    },
+    {
+      "candidate_id": "d4f61b34-aa84-4d75-aa43-fa2ae81823c2",
+      "task_id": "zh-marriage-dialogue-03",
+      "capability_ids": [
+        "character.build-dialogue-voice",
+        "continuity.review-facts",
+        "editor.review-story",
+        "style.revise-naturalness"
+      ],
+      "verdict": "UNCERTAIN",
+      "skill_evidence_ref": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+      "task_evidence_ref": "docs/project-design/implementation/evaluation/corpus-manifest-v1.json:1172-1198",
+      "task_quality_goal_ids": [
+        "qg.short.reversal_evidence",
+        "qg.short.causal_closure",
+        "eval.dialogue.identity_relationship_interest"
+      ],
+      "evidence_summary": "Static capabilities intersect, but the Skill stage, required framework inputs, or Profile fit is indirect for this task.",
+      "source_status": "SOURCE-VERIFIED",
+      "static_review_status": "STATIC-REVIEWED",
+      "quality_status": "PENDING-BLIND-REVIEW"
+    }
+  ],
+  "summary": {
+    "review_count": 54,
+    "relevant_count": 36,
+    "irrelevant_count": 4,
+    "uncertain_count": 14,
+    "source_verified_candidates": 9,
+    "static_reviewed_candidates": 9,
+    "pending_blind_review_candidates": 9
+  },
+  "limitations": [
+    "No model was called.",
+    "No third-party script was executed.",
+    "No fiction text was generated.",
+    "No quality score or win rate was assigned.",
+    "Task Capability IDs are P0-T08 static inferences; the corpus manifest has no Capability field."
+  ]
+}

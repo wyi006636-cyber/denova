@@ -1,0 +1,2210 @@
+{
+  "contract": "harness-novel.xiaping-skill-catalog",
+  "contract_version": "1.0.0",
+  "captured_at": "2026-07-21T08:11:29.669022Z",
+  "scope": "P0-T08-STATIC-INVENTORY-ONLY",
+  "hashing": {
+    "algorithm": "SHA-256",
+    "encoding": "lowercase-hex",
+    "archive_sha256_input": "raw archive bytes",
+    "manifest_sha256_input": "exact bytes of the selected SKILL.md ZIP member",
+    "file_manifest_sha256_input": "UTF-8 JSON array of non-directory entries sorted by case-folded path; each entry contains path, size, compressed_size, and sha256; JSON uses sorted keys, ensure_ascii=false, and comma/colon separators"
+  },
+  "closed_sets": {
+    "profiles": [
+      "long_serial",
+      "fanqie_short",
+      "zhihu_salt_short"
+    ],
+    "capabilities": [
+      "ideation.generate-premises",
+      "project.bootstrap-genre",
+      "outline.build-long-arc",
+      "outline.build-short-structure",
+      "outline.simulate-multiline",
+      "outline.build-execution-brief",
+      "character.build-profile",
+      "character.build-dialogue-voice",
+      "opening.review-hook",
+      "engagement.review-reading-drive",
+      "plot.manage-foreshadowing",
+      "continuity.review-facts",
+      "editor.review-story",
+      "editor.review-profile-rubric",
+      "style.revise-naturalness",
+      "style.revise-prose"
+    ]
+  },
+  "status_enums": {
+    "source": [
+      "SOURCE-VERIFIED",
+      "SOURCE-UNAVAILABLE"
+    ],
+    "security": [
+      "STATIC-REVIEWED",
+      "NOT-REVIEWED"
+    ],
+    "license": [
+      "LICENSE-UNKNOWN",
+      "LICENSE-REVIEW-REQUIRED",
+      "LICENSE-VERIFIED"
+    ],
+    "evaluation": [
+      "PENDING-BLIND-REVIEW",
+      "BLIND-REVIEWED"
+    ],
+    "recommendation": [
+      "HOLD",
+      "CANDIDATE",
+      "REJECT"
+    ],
+    "applicability": [
+      "RELEVANT",
+      "IRRELEVANT",
+      "UNCERTAIN"
+    ]
+  },
+  "original_sources": {
+    "homepage": {
+      "url": "https://xiaping.coze.com/",
+      "method": "GET",
+      "authentication": "NONE",
+      "captured_at": "2026-07-21T08:13:26.7593814Z",
+      "http_status": 200,
+      "sha256": "f619a296ac26bf984f3da03dec22ef0fbc0d69893b004477176cb39b5c95895f"
+    },
+    "agent_guide": {
+      "url": "https://xiaping.coze.com/skill.md",
+      "method": "GET",
+      "authentication": "NONE",
+      "captured_at": "2026-07-21T08:13:30.2000268Z",
+      "http_status": 200,
+      "sha256": "80672e853798bd865259b7842ce6e8b074be516461880b457ceeb7e6cc112751"
+    },
+    "search_api": {
+      "url_template": "https://xiaping.coze.com/api/skills?search={query}&limit={limit}&page={page}",
+      "method": "GET",
+      "authentication": "NONE"
+    },
+    "detail_api": {
+      "url_template": "https://xiaping.coze.com/api/skills/{skill_id}",
+      "method": "GET",
+      "authentication": "NONE"
+    },
+    "agent_document": {
+      "url_template": "https://xiaping.coze.com/skill/{skill_id}/agent.md",
+      "method": "GET",
+      "authentication": "NONE"
+    },
+    "download_api": {
+      "url_template": "https://xiaping.coze.com/api/skills/{skill_id}/download",
+      "method": "GET",
+      "authentication": "REQUIRED",
+      "anonymous_result": "HTTP-401"
+    }
+  },
+  "search_evidence": {
+    "query": "小说",
+    "limit": 50,
+    "pages": [
+      {
+        "page": 1,
+        "status": 200,
+        "captured_at": "2026-07-21T08:10:59.230213Z",
+        "response_sha256": "6d5e70953e5a2663655d51507cbdb15a032a73a2c2017f4a5474520e601beb78",
+        "response_bytes": 63976,
+        "item_count": 50,
+        "reported_total": 72,
+        "has_more": true
+      },
+      {
+        "page": 2,
+        "status": 200,
+        "captured_at": "2026-07-21T08:11:01.301867Z",
+        "response_sha256": "f765cf9bca761d9e24642ef76de5d7fa13ff206afa48e5dd95071883154c6f4b",
+        "response_bytes": 25097,
+        "item_count": 22,
+        "reported_total": 72,
+        "has_more": false
+      }
+    ],
+    "deduplicated_count": 72,
+    "canonical_result_sha256": "94f4519917f26cd8d2e2c67225ddff0decea298dda3496c799fc611d77d438b9"
+  },
+  "historical_snapshot": {
+    "status": "HISTORICAL-SNAPSHOT-ONLY",
+    "reported_count": 72,
+    "references": [
+      {
+        "path": "docs/project-design/sources/kimi/xiaping_research_report.md",
+        "sha256": "d2aa930ecb521f9cebb737ef7ab3fb6bed6e01c00ded3599b3021ed300734207"
+      },
+      {
+        "path": "docs/project-design/sources/kimi/xiaping-evidence/xiaping_search_xiaoshuo.json",
+        "sha256": "b941f048ddf011814147ca2768b0849ed1b5caee4eb8ae0c711822a4c523eeb4"
+      },
+      {
+        "path": "docs/project-design/sources/kimi/xiaping-evidence/xiaping_search_xiaoshuo_p2.json",
+        "sha256": "48e1ca7d10dce576f92fdf24ffc766355532436a74a1d91a95ececa94ad9a698"
+      }
+    ],
+    "current_comparison": {
+      "snapshot_count": 72,
+      "current_count": 72,
+      "added_ids": [],
+      "disappeared_ids": [],
+      "version_changes": [
+        {
+          "id": "e7923dd4-3e07-4d15-8065-1b7a4a19b1b9",
+          "old_version": "1.1.1",
+          "current_version": "1.1.2"
+        }
+      ],
+      "unable_to_confirm_count": 0
+    }
+  },
+  "capability_count_note": "The prose label said 15; the explicit list and approved section 11 contain 16. The user confirmed continuation with all 16.",
+  "capability_coverage": [
+    {
+      "capability_id": "ideation.generate-premises",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "7e465336-639f-469e-a268-9633cfd7d448",
+        "56ed7d78-5636-4c78-83cc-0aee4802b0b7"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "project.bootstrap-genre",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "7e465336-639f-469e-a268-9633cfd7d448",
+        "56ed7d78-5636-4c78-83cc-0aee4802b0b7"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "outline.build-long-arc",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+        "d4f61b34-aa84-4d75-aa43-fa2ae81823c2"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "outline.build-short-structure",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "7e465336-639f-469e-a268-9633cfd7d448",
+        "56ed7d78-5636-4c78-83cc-0aee4802b0b7"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "outline.simulate-multiline",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "5a7d600a-1ff2-4d11-818c-e080f405deb9"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "outline.build-execution-brief",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+        "d4f61b34-aa84-4d75-aa43-fa2ae81823c2"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "character.build-profile",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "95687260-d5ad-43d3-b083-008d00a9dfa3"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "character.build-dialogue-voice",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+        "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "95687260-d5ad-43d3-b083-008d00a9dfa3",
+        "d4f61b34-aa84-4d75-aa43-fa2ae81823c2"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "opening.review-hook",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "7e465336-639f-469e-a268-9633cfd7d448",
+        "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+        "d4f61b34-aa84-4d75-aa43-fa2ae81823c2"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "engagement.review-reading-drive",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "7e465336-639f-469e-a268-9633cfd7d448",
+        "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+        "f47e299c-3861-421d-9f1d-971de45bf622",
+        "d4f61b34-aa84-4d75-aa43-fa2ae81823c2"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "plot.manage-foreshadowing",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+        "f47e299c-3861-421d-9f1d-971de45bf622",
+        "d4f61b34-aa84-4d75-aa43-fa2ae81823c2"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "continuity.review-facts",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "95687260-d5ad-43d3-b083-008d00a9dfa3",
+        "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+        "f47e299c-3861-421d-9f1d-971de45bf622",
+        "d4f61b34-aa84-4d75-aa43-fa2ae81823c2"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "editor.review-story",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+        "f47e299c-3861-421d-9f1d-971de45bf622",
+        "d4f61b34-aa84-4d75-aa43-fa2ae81823c2"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "editor.review-profile-rubric",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "95687260-d5ad-43d3-b083-008d00a9dfa3",
+        "f47e299c-3861-421d-9f1d-971de45bf622"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "style.revise-naturalness",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+        "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+        "d4f61b34-aa84-4d75-aa43-fa2ae81823c2"
+      ],
+      "gap_reason": null
+    },
+    {
+      "capability_id": "style.revise-prose",
+      "status": "CANDIDATE",
+      "candidate_ids": [
+        "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+        "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+        "f47e299c-3861-421d-9f1d-971de45bf622"
+      ],
+      "gap_reason": null
+    }
+  ],
+  "candidates": [
+    {
+      "id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+      "name": "小说助手",
+      "author": {
+        "id": "7bb45b9a-7d9a-4f66-8e63-56742a3c8b35",
+        "name": "OpenClaw-XiaPing"
+      },
+      "current_version": "1.0.3",
+      "published_status": "official",
+      "created_at": "2026-03-25T11:19:18.484683+08:00",
+      "updated_at": "2026-03-31T12:19:28.769+08:00",
+      "source": {
+        "detail_url": "https://xiaping.coze.com/api/skills/a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+        "detail_status": "SOURCE-VERIFIED",
+        "detail_captured_at": "2026-07-21T08:11:02.167602Z",
+        "detail_response_sha256": "0c3c257486c1a16c20df9c7937bb5cdb6fc62ec9be0cb7179f76f0004291588a",
+        "agent_url": "https://xiaping.coze.com/skill/a3504d81-736d-49b3-9a98-2a4a3cd3aaf1/agent.md",
+        "agent_status": "SOURCE-VERIFIED",
+        "agent_captured_at": "2026-07-21T08:11:04.378989Z",
+        "agent_response_sha256": "e16fa9e277d49d928703d9d3a078e4068223c9b601761b4125d91b38646950ff",
+        "agent_hash_stability": "VOLATILE-SIGNED-LINK-DOCUMENT",
+        "download_api_url": "https://xiaping.coze.com/api/skills/a3504d81-736d-49b3-9a98-2a4a3cd3aaf1/download",
+        "download_api_status": "AUTHENTICATION-REQUIRED",
+        "archive_retrieval": "EPHEMERAL-LINK-FROM-PUBLIC-AGENT-DOCUMENT"
+      },
+      "raw_metadata": {
+        "platform_security_status": "safe",
+        "platform_security_checked_at": "2026-03-25T11:19:28",
+        "platform_requires_api_key": null,
+        "version_count": 4,
+        "is_new_version": false
+      },
+      "archive": {
+        "status": "SOURCE-VERIFIED",
+        "captured_at": "2026-07-21T08:11:05.311858Z",
+        "sha256": "a31a3241f3d1df34fa5034654c8719213d18f781012663ff4bca98611ddbbeb3",
+        "bytes": 10916,
+        "file_count": 3,
+        "uncompressed_bytes": 28045,
+        "manifest_path": "SKILL.md",
+        "manifest_sha256": "effdf0f473787ad2085687e3a98403fc13fadc355819f2d0749ce0621bcc1ee6",
+        "file_manifest_sha256": "456a1ffcfc11fcad3ed9b6ed93fcba8ac467c7e3b64f080d412bb58396d322e4",
+        "top_level_entries": [
+          "SKILL.md",
+          "scripts"
+        ],
+        "script_files": [
+          {
+            "path": "scripts/compress_novel_memory.py",
+            "bytes": 7117,
+            "sha256": "cbf8f96cfb11c882ba57d632938afde2562144d6150be12e639a90ed5db93aa6"
+          },
+          {
+            "path": "scripts/compress_novel_memory.sh",
+            "bytes": 4025,
+            "sha256": "163804d1f370244a3f7f7abe43817c5d4d69d722f3a227526b146411813c392f"
+          }
+        ],
+        "unsafe_path_count": 0,
+        "symlink_count": 0,
+        "binary_file_count": 0
+      },
+      "license": {
+        "status": "LICENSE-UNKNOWN",
+        "evidence": "No explicit package license or SPDX declaration found.",
+        "license_files": [],
+        "public_download": true,
+        "local_use_permission": "UNCONFIRMED",
+        "redistribution_allowed": false,
+        "preinstall_allowed": false,
+        "default_install_strategy": "ORIGIN-REFERENCED-PENDING-USER-CONSENT"
+      },
+      "static_review": {
+        "status": "STATIC-REVIEWED",
+        "platform_security_status_is_advisory": true,
+        "unknown_code_executed": false,
+        "secret_like_value_count": 0,
+        "hidden_format_controls": {
+          "detected": false,
+          "count": 0
+        },
+        "summary": "Long-form memory, continuity, foreshadowing, timeline, and dialogue voice.",
+        "notes": [
+          "Scripts can rename and overwrite author files; explicit confirmation is mandatory."
+        ]
+      },
+      "permissions": {
+        "filesystem": {
+          "status": "REQUIRES-PROMPT",
+          "operations": [
+            "read selected chapters/memory",
+            "write or overwrite memory/backup",
+            "rename original memory"
+          ]
+        },
+        "network": {
+          "status": "REQUIRES-PROMPT",
+          "operations": [
+            "optional Git pull/push"
+          ]
+        },
+        "process": {
+          "status": "SCRIPT-PRESENT-NOT-EXECUTED",
+          "operations": [
+            "optional Python or Bash compression",
+            "optional Git pull/push"
+          ]
+        },
+        "tools": {
+          "status": "OPTIONAL",
+          "items": [
+            "Python 3",
+            "Bash/coreutils",
+            "Git"
+          ]
+        }
+      },
+      "requirements": {
+        "api_key": "NOT-DECLARED",
+        "model_capabilities": [
+          "text generation and/or semantic analysis"
+        ],
+        "external_tools": [
+          "Python 3",
+          "Bash/coreutils",
+          "Git"
+        ]
+      },
+      "interface": {
+        "inputs": [
+          "bounded novel memory",
+          "chapter draft",
+          "character/world facts"
+        ],
+        "outputs": [
+          "continuity findings",
+          "chapter guidance",
+          "memory update proposal"
+        ],
+        "stages": [
+          "planning",
+          "drafting",
+          "review"
+        ]
+      },
+      "profiles": {
+        "long_serial": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "fanqie_short": {
+          "applicability": "UNCERTAIN",
+          "rationale": "Capability/profile fit requires validation and narrower scoping."
+        },
+        "zhihu_salt_short": {
+          "applicability": "UNCERTAIN",
+          "rationale": "Capability/profile fit requires validation and narrower scoping."
+        }
+      },
+      "capability_mappings": [
+        {
+          "capability_id": "character.build-dialogue-voice",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:191-239,328-356,392-463",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "plot.manage-foreshadowing",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:191-239,328-356,392-463",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "continuity.review-facts",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:191-239,328-356,392-463",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        }
+      ],
+      "statuses": {
+        "source": "SOURCE-VERIFIED",
+        "security": "STATIC-REVIEWED",
+        "license": "LICENSE-UNKNOWN",
+        "evaluation": "PENDING-BLIND-REVIEW",
+        "recommendation": "HOLD"
+      },
+      "update_policy": {
+        "refetch_stable_sources": true,
+        "recompute_hashes": true,
+        "show_content_and_permission_diff": true,
+        "run_independent_regression_cohort": true,
+        "require_reversible_snapshot": true,
+        "silent_update_allowed": false
+      }
+    },
+    {
+      "id": "12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+      "name": "多米的长篇小说创作",
+      "author": {
+        "id": "0338e33e-dbd6-4755-83e7-d5edb5fe6d55",
+        "name": "duomi-is-cat-xp"
+      },
+      "current_version": "1.0.0",
+      "published_status": "official",
+      "created_at": "2026-06-23T10:44:37.121554+08:00",
+      "updated_at": "2026-06-23T10:44:37.111+08:00",
+      "source": {
+        "detail_url": "https://xiaping.coze.com/api/skills/12c7fc40-3ae0-474a-a21f-a9b8aff4b572",
+        "detail_status": "SOURCE-VERIFIED",
+        "detail_captured_at": "2026-07-21T08:11:05.455764Z",
+        "detail_response_sha256": "5a6496a28ccf64510a2e6c330ba242e05cc6feb7a13888a6d667072d17f61a89",
+        "agent_url": "https://xiaping.coze.com/skill/12c7fc40-3ae0-474a-a21f-a9b8aff4b572/agent.md",
+        "agent_status": "SOURCE-VERIFIED",
+        "agent_captured_at": "2026-07-21T08:11:07.355724Z",
+        "agent_response_sha256": "4332b227dd705c73d4bb1559a35e5d9f7ae1b166e38428e77792c3523c91f88e",
+        "agent_hash_stability": "VOLATILE-SIGNED-LINK-DOCUMENT",
+        "download_api_url": "https://xiaping.coze.com/api/skills/12c7fc40-3ae0-474a-a21f-a9b8aff4b572/download",
+        "download_api_status": "AUTHENTICATION-REQUIRED",
+        "archive_retrieval": "EPHEMERAL-LINK-FROM-PUBLIC-AGENT-DOCUMENT"
+      },
+      "raw_metadata": {
+        "platform_security_status": "safe_checked",
+        "platform_security_checked_at": "2026-06-23T10:44:54",
+        "platform_requires_api_key": false,
+        "version_count": 1,
+        "is_new_version": false
+      },
+      "archive": {
+        "status": "SOURCE-VERIFIED",
+        "captured_at": "2026-07-21T08:11:08.247130Z",
+        "sha256": "40b83c962955c50034de85000a38424fc50db6a3468a4e9e1e0344474207cccf",
+        "bytes": 81424,
+        "file_count": 23,
+        "uncompressed_bytes": 159237,
+        "manifest_path": "SKILL.md",
+        "manifest_sha256": "e4b35bea7473671f609311e158fae014adce3bd70e523c25b6d759c4a959bf6f",
+        "file_manifest_sha256": "743821aeba7887d5db5fd69cfbb194a771c77e0991c4c0037d61ef1bd269d29f",
+        "top_level_entries": [
+          "CHANGELOG.md",
+          "SKILL.md",
+          "assets",
+          "references",
+          "scripts"
+        ],
+        "script_files": [
+          {
+            "path": "scripts/v5-check.sh",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "unsafe_path_count": 0,
+        "symlink_count": 0,
+        "binary_file_count": 0
+      },
+      "license": {
+        "status": "LICENSE-UNKNOWN",
+        "evidence": "No explicit package license or SPDX declaration found.",
+        "license_files": [],
+        "public_download": true,
+        "local_use_permission": "UNCONFIRMED",
+        "redistribution_allowed": false,
+        "preinstall_allowed": false,
+        "default_install_strategy": "ORIGIN-REFERENCED-PENDING-USER-CONSENT"
+      },
+      "static_review": {
+        "status": "STATIC-REVIEWED",
+        "platform_security_status_is_advisory": true,
+        "unknown_code_executed": false,
+        "secret_like_value_count": 0,
+        "hidden_format_controls": {
+          "detected": false,
+          "count": 0
+        },
+        "summary": "Seven-stage long-novel workflow with genre bootstrap, six-line simulation, outlines, drafting, and review.",
+        "notes": [
+          "scripts/v5-check.sh is zero bytes although the manifest advertises it."
+        ]
+      },
+      "permissions": {
+        "filesystem": {
+          "status": "REQUIRES-PROMPT",
+          "operations": [
+            "read/write selected project files",
+            "write recent_memory and requested DOCX"
+          ]
+        },
+        "network": {
+          "status": "NOT-DECLARED",
+          "operations": []
+        },
+        "process": {
+          "status": "SCRIPT-PRESENT-NOT-EXECUTED",
+          "operations": [
+            "optional Bash v5-check",
+            "optional pandoc conversion"
+          ]
+        },
+        "tools": {
+          "status": "OPTIONAL",
+          "items": [
+            "Bash",
+            "pandoc"
+          ]
+        }
+      },
+      "requirements": {
+        "api_key": "NOT-DECLARED",
+        "model_capabilities": [
+          "text generation and/or semantic analysis"
+        ],
+        "external_tools": [
+          "Bash",
+          "pandoc"
+        ]
+      },
+      "interface": {
+        "inputs": [
+          "author brief",
+          "genre/platform target",
+          "bounded project materials"
+        ],
+        "outputs": [
+          "premise/requirements",
+          "six-line design",
+          "outline/execution brief",
+          "draft/review deliverables"
+        ],
+        "stages": [
+          "ideation",
+          "planning",
+          "drafting",
+          "review"
+        ]
+      },
+      "profiles": {
+        "long_serial": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "fanqie_short": {
+          "applicability": "UNCERTAIN",
+          "rationale": "Capability/profile fit requires validation and narrower scoping."
+        },
+        "zhihu_salt_short": {
+          "applicability": "UNCERTAIN",
+          "rationale": "Capability/profile fit requires validation and narrower scoping."
+        }
+      },
+      "capability_mappings": [
+        {
+          "capability_id": "ideation.generate-premises",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "project.bootstrap-genre",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "outline.build-long-arc",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "outline.build-short-structure",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "outline.simulate-multiline",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "outline.build-execution-brief",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "character.build-profile",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "opening.review-hook",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "engagement.review-reading-drive",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "plot.manage-foreshadowing",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "continuity.review-facts",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "editor.review-story",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "editor.review-profile-rubric",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "style.revise-prose",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:52-99,101-237",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        }
+      ],
+      "statuses": {
+        "source": "SOURCE-VERIFIED",
+        "security": "STATIC-REVIEWED",
+        "license": "LICENSE-UNKNOWN",
+        "evaluation": "PENDING-BLIND-REVIEW",
+        "recommendation": "HOLD"
+      },
+      "update_policy": {
+        "refetch_stable_sources": true,
+        "recompute_hashes": true,
+        "show_content_and_permission_diff": true,
+        "run_independent_regression_cohort": true,
+        "require_reversible_snapshot": true,
+        "silent_update_allowed": false
+      }
+    },
+    {
+      "id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+      "name": "深度小说写作法",
+      "author": {
+        "id": "0cedbbea-588d-4a56-aba6-5c6388573866",
+        "name": "静水流深"
+      },
+      "current_version": "1.0.1",
+      "published_status": "official",
+      "created_at": "2026-04-07T13:25:58.877657+08:00",
+      "updated_at": "2026-04-10T10:51:20.46+08:00",
+      "source": {
+        "detail_url": "https://xiaping.coze.com/api/skills/5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "detail_status": "SOURCE-VERIFIED",
+        "detail_captured_at": "2026-07-21T08:11:08.382803Z",
+        "detail_response_sha256": "3569c41afac1b22c2275f56376076ba7475958ffd629ad5d841414e0fb7e0a1c",
+        "agent_url": "https://xiaping.coze.com/skill/5a7d600a-1ff2-4d11-818c-e080f405deb9/agent.md",
+        "agent_status": "SOURCE-VERIFIED",
+        "agent_captured_at": "2026-07-21T08:11:10.117724Z",
+        "agent_response_sha256": "e4c48d55c3fb82178a04fa1ca6c30e088cfd6ba1cd33e85ac9000ca5e4431c98",
+        "agent_hash_stability": "VOLATILE-SIGNED-LINK-DOCUMENT",
+        "download_api_url": "https://xiaping.coze.com/api/skills/5a7d600a-1ff2-4d11-818c-e080f405deb9/download",
+        "download_api_status": "AUTHENTICATION-REQUIRED",
+        "archive_retrieval": "EPHEMERAL-LINK-FROM-PUBLIC-AGENT-DOCUMENT"
+      },
+      "raw_metadata": {
+        "platform_security_status": "safe_checked",
+        "platform_security_checked_at": "2026-04-07T13:26:10",
+        "platform_requires_api_key": null,
+        "version_count": 2,
+        "is_new_version": false
+      },
+      "archive": {
+        "status": "SOURCE-VERIFIED",
+        "captured_at": "2026-07-21T08:11:10.996135Z",
+        "sha256": "96459babf584b3a248885583cdbe236e5f8d47ae8b906d3f6cbfc7650815bb18",
+        "bytes": 507255,
+        "file_count": 7,
+        "uncompressed_bytes": 538189,
+        "manifest_path": "qingshan-novel-writing/SKILL.md",
+        "manifest_sha256": "173f31f3b67a7c79112aa971046a99e3c24c42807370a1aa725ab4203a4b26dc",
+        "file_manifest_sha256": "1fbcbce0b4a60221dbd81746638114a1991da90528a268655d1841a2dba99118",
+        "top_level_entries": [
+          "qingshan-novel-writing"
+        ],
+        "script_files": [],
+        "unsafe_path_count": 0,
+        "symlink_count": 0,
+        "binary_file_count": 0
+      },
+      "license": {
+        "status": "LICENSE-UNKNOWN",
+        "evidence": "No explicit package license or SPDX declaration found.",
+        "license_files": [],
+        "public_download": true,
+        "local_use_permission": "UNCONFIRMED",
+        "redistribution_allowed": false,
+        "preinstall_allowed": false,
+        "default_install_strategy": "ORIGIN-REFERENCED-PENDING-USER-CONSENT"
+      },
+      "static_review": {
+        "status": "STATIC-REVIEWED",
+        "platform_security_status_is_advisory": true,
+        "unknown_code_executed": false,
+        "secret_like_value_count": 0,
+        "hidden_format_controls": {
+          "detected": false,
+          "count": 0
+        },
+        "summary": "Structure, character, foreshadowing, pacing, dialogue, and prose craft.",
+        "notes": [
+          "Manifest cites a named source work; redistribution rights remain unknown."
+        ]
+      },
+      "permissions": {
+        "filesystem": {
+          "status": "REQUIRES-PROMPT",
+          "operations": [
+            "optional bounded read"
+          ]
+        },
+        "network": {
+          "status": "NOT-DECLARED",
+          "operations": []
+        },
+        "process": {
+          "status": "NOT-DECLARED",
+          "operations": []
+        },
+        "tools": {
+          "status": "NOT-REQUIRED",
+          "items": []
+        }
+      },
+      "requirements": {
+        "api_key": "NOT-DECLARED",
+        "model_capabilities": [
+          "text generation and/or semantic analysis"
+        ],
+        "external_tools": []
+      },
+      "interface": {
+        "inputs": [
+          "premise/outline",
+          "bounded draft",
+          "craft objective"
+        ],
+        "outputs": [
+          "structure/foreshadowing plan",
+          "dialogue/prose guidance"
+        ],
+        "stages": [
+          "ideation",
+          "planning",
+          "drafting",
+          "revision"
+        ]
+      },
+      "profiles": {
+        "long_serial": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "fanqie_short": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "zhihu_salt_short": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        }
+      },
+      "capability_mappings": [
+        {
+          "capability_id": "ideation.generate-premises",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "outline.build-long-arc",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "outline.build-short-structure",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "outline.simulate-multiline",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "character.build-profile",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "character.build-dialogue-voice",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "opening.review-hook",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "engagement.review-reading-drive",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "plot.manage-foreshadowing",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "editor.review-story",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "style.revise-prose",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!qingshan-novel-writing/SKILL.md:45-351,389-420",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        }
+      ],
+      "statuses": {
+        "source": "SOURCE-VERIFIED",
+        "security": "STATIC-REVIEWED",
+        "license": "LICENSE-UNKNOWN",
+        "evaluation": "PENDING-BLIND-REVIEW",
+        "recommendation": "HOLD"
+      },
+      "update_policy": {
+        "refetch_stable_sources": true,
+        "recompute_hashes": true,
+        "show_content_and_permission_diff": true,
+        "run_independent_regression_cohort": true,
+        "require_reversible_snapshot": true,
+        "silent_update_allowed": false
+      }
+    },
+    {
+      "id": "7e465336-639f-469e-a268-9633cfd7d448",
+      "name": "黄金开篇大师",
+      "author": {
+        "id": "34c8c69a-1146-4453-8b41-6043c5bc425b",
+        "name": "小图助手"
+      },
+      "current_version": "2.2.0",
+      "published_status": "official",
+      "created_at": "2026-06-27T11:06:09.159889+08:00",
+      "updated_at": "2026-06-27T17:08:41.038+08:00",
+      "source": {
+        "detail_url": "https://xiaping.coze.com/api/skills/7e465336-639f-469e-a268-9633cfd7d448",
+        "detail_status": "SOURCE-VERIFIED",
+        "detail_captured_at": "2026-07-21T08:11:11.169340Z",
+        "detail_response_sha256": "2e9851ef38bb7c3e1a118b9dffb93879f7b6cf2bdb27cadaa1b9fb0d146ec062",
+        "agent_url": "https://xiaping.coze.com/skill/7e465336-639f-469e-a268-9633cfd7d448/agent.md",
+        "agent_status": "SOURCE-VERIFIED",
+        "agent_captured_at": "2026-07-21T08:11:12.979811Z",
+        "agent_response_sha256": "395b27332c1fbc105f2e9d81383d6211afbf859730eb05714a8101f5bc6f3790",
+        "agent_hash_stability": "VOLATILE-SIGNED-LINK-DOCUMENT",
+        "download_api_url": "https://xiaping.coze.com/api/skills/7e465336-639f-469e-a268-9633cfd7d448/download",
+        "download_api_status": "AUTHENTICATION-REQUIRED",
+        "archive_retrieval": "EPHEMERAL-LINK-FROM-PUBLIC-AGENT-DOCUMENT"
+      },
+      "raw_metadata": {
+        "platform_security_status": "safe_checked",
+        "platform_security_checked_at": "2026-06-27T17:08:52",
+        "platform_requires_api_key": false,
+        "version_count": 5,
+        "is_new_version": false
+      },
+      "archive": {
+        "status": "SOURCE-VERIFIED",
+        "captured_at": "2026-07-21T08:11:14.019502Z",
+        "sha256": "444220a2994074a6e193fca30922185ae34c96a4aa8b0b36f37d1f2a15902738",
+        "bytes": 14886,
+        "file_count": 3,
+        "uncompressed_bytes": 32762,
+        "manifest_path": "golden-opening-master/SKILL.md",
+        "manifest_sha256": "c6209589f1e84ca06ae082724a7378c15c77b409b6300b1c953f8f32192d9103",
+        "file_manifest_sha256": "6b64de775bf15b8a2379cf6bff80b31bc307f77b13db16bcd9ee10620a3668b1",
+        "top_level_entries": [
+          "golden-opening-master"
+        ],
+        "script_files": [
+          {
+            "path": "golden-opening-master/scripts/title_generator.py",
+            "bytes": 12005,
+            "sha256": "f5927bedf57e7a633667454cc85d937aec70bb4569ddd3d2e913a998c1fa5aba"
+          }
+        ],
+        "unsafe_path_count": 0,
+        "symlink_count": 0,
+        "binary_file_count": 0
+      },
+      "license": {
+        "status": "LICENSE-UNKNOWN",
+        "evidence": "No explicit package license or SPDX declaration found.",
+        "license_files": [],
+        "public_download": true,
+        "local_use_permission": "UNCONFIRMED",
+        "redistribution_allowed": false,
+        "preinstall_allowed": false,
+        "default_install_strategy": "ORIGIN-REFERENCED-PENDING-USER-CONSENT"
+      },
+      "static_review": {
+        "status": "STATIC-REVIEWED",
+        "platform_security_status_is_advisory": true,
+        "unknown_code_executed": false,
+        "secret_like_value_count": 0,
+        "hidden_format_controls": {
+          "detected": false,
+          "count": 0
+        },
+        "summary": "Opening/hook design and review with short structure and reading-drive checks.",
+        "notes": [
+          "Manifest advertises three scripts; archive contains only title_generator.py."
+        ]
+      },
+      "permissions": {
+        "filesystem": {
+          "status": "REQUIRES-PROMPT",
+          "operations": [
+            "optional title file write"
+          ]
+        },
+        "network": {
+          "status": "NOT-DECLARED",
+          "operations": []
+        },
+        "process": {
+          "status": "SCRIPT-PRESENT-NOT-EXECUTED",
+          "operations": [
+            "optional Python title generator"
+          ]
+        },
+        "tools": {
+          "status": "OPTIONAL",
+          "items": [
+            "Python 3"
+          ]
+        }
+      },
+      "requirements": {
+        "api_key": "NOT-DECLARED",
+        "model_capabilities": [
+          "text generation and/or semantic analysis"
+        ],
+        "external_tools": [
+          "Python 3"
+        ]
+      },
+      "interface": {
+        "inputs": [
+          "premise/genre",
+          "title/summary/opening"
+        ],
+        "outputs": [
+          "hook review",
+          "opening structure",
+          "revision suggestions"
+        ],
+        "stages": [
+          "planning",
+          "opening",
+          "review"
+        ]
+      },
+      "profiles": {
+        "long_serial": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "fanqie_short": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "zhihu_salt_short": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        }
+      },
+      "capability_mappings": [
+        {
+          "capability_id": "ideation.generate-premises",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!golden-opening-master/SKILL.md:14-35,39-155,211-218,250-297",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "project.bootstrap-genre",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!golden-opening-master/SKILL.md:14-35,39-155,211-218,250-297",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "outline.build-short-structure",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!golden-opening-master/SKILL.md:14-35,39-155,211-218,250-297",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "opening.review-hook",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!golden-opening-master/SKILL.md:14-35,39-155,211-218,250-297",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "engagement.review-reading-drive",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!golden-opening-master/SKILL.md:14-35,39-155,211-218,250-297",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        }
+      ],
+      "statuses": {
+        "source": "SOURCE-VERIFIED",
+        "security": "STATIC-REVIEWED",
+        "license": "LICENSE-UNKNOWN",
+        "evaluation": "PENDING-BLIND-REVIEW",
+        "recommendation": "HOLD"
+      },
+      "update_policy": {
+        "refetch_stable_sources": true,
+        "recompute_hashes": true,
+        "show_content_and_permission_diff": true,
+        "run_independent_regression_cohort": true,
+        "require_reversible_snapshot": true,
+        "silent_update_allowed": false
+      }
+    },
+    {
+      "id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+      "name": "人味写作引擎",
+      "author": {
+        "id": "1666eae7-e5c5-4ba8-addf-44c1915f8f52",
+        "name": "魔王"
+      },
+      "current_version": "1.0.1",
+      "published_status": "official",
+      "created_at": "2026-06-11T09:28:07.889171+08:00",
+      "updated_at": "2026-06-11T12:41:26.589+08:00",
+      "source": {
+        "detail_url": "https://xiaping.coze.com/api/skills/8643f73c-7eeb-4409-9136-09c9a125c2ff",
+        "detail_status": "SOURCE-VERIFIED",
+        "detail_captured_at": "2026-07-21T08:11:14.179543Z",
+        "detail_response_sha256": "6feaeb0a945d03f830178160cf0c3a361fc6c1690593d7b5018ed4c15fa1501d",
+        "agent_url": "https://xiaping.coze.com/skill/8643f73c-7eeb-4409-9136-09c9a125c2ff/agent.md",
+        "agent_status": "SOURCE-VERIFIED",
+        "agent_captured_at": "2026-07-21T08:11:15.966504Z",
+        "agent_response_sha256": "8042a77fd29bae482b125ffd459c3c8813bc6c1f32a9eb9648d6f44985624848",
+        "agent_hash_stability": "VOLATILE-SIGNED-LINK-DOCUMENT",
+        "download_api_url": "https://xiaping.coze.com/api/skills/8643f73c-7eeb-4409-9136-09c9a125c2ff/download",
+        "download_api_status": "AUTHENTICATION-REQUIRED",
+        "archive_retrieval": "EPHEMERAL-LINK-FROM-PUBLIC-AGENT-DOCUMENT"
+      },
+      "raw_metadata": {
+        "platform_security_status": "safe_checked",
+        "platform_security_checked_at": "2026-06-11T12:41:42",
+        "platform_requires_api_key": false,
+        "version_count": 2,
+        "is_new_version": false
+      },
+      "archive": {
+        "status": "SOURCE-VERIFIED",
+        "captured_at": "2026-07-21T08:11:16.828673Z",
+        "sha256": "2d5f8aac4c968dec341f8741531b044b72a5b7cd82d98f78122933d77422fa5d",
+        "bytes": 11480,
+        "file_count": 6,
+        "uncompressed_bytes": 21634,
+        "manifest_path": "人味写作助手/SKILL.md",
+        "manifest_sha256": "f6f43c3b7bde1c05763b8299fe4b8a24811afffa3ee24b0f1969be04700a7dec",
+        "file_manifest_sha256": "3850d7605acdee6a4e8b75c975197ccdcb07bce82730960870cdccc56cb52676",
+        "top_level_entries": [
+          "cases.json",
+          "人味写作助手"
+        ],
+        "script_files": [],
+        "unsafe_path_count": 0,
+        "symlink_count": 0,
+        "binary_file_count": 0
+      },
+      "license": {
+        "status": "LICENSE-UNKNOWN",
+        "evidence": "No explicit package license or SPDX declaration found.",
+        "license_files": [],
+        "public_download": true,
+        "local_use_permission": "UNCONFIRMED",
+        "redistribution_allowed": false,
+        "preinstall_allowed": false,
+        "default_install_strategy": "ORIGIN-REFERENCED-PENDING-USER-CONSENT"
+      },
+      "static_review": {
+        "status": "STATIC-REVIEWED",
+        "platform_security_status_is_advisory": true,
+        "unknown_code_executed": false,
+        "secret_like_value_count": 0,
+        "hidden_format_controls": {
+          "detected": false,
+          "count": 0
+        },
+        "summary": "Naturalness and prose revision rules.",
+        "notes": [
+          "Long-serial use must stay bounded because deliberate contradiction/non-closure can conflict with continuity."
+        ]
+      },
+      "permissions": {
+        "filesystem": {
+          "status": "NOT-REQUIRED",
+          "operations": []
+        },
+        "network": {
+          "status": "NOT-DECLARED",
+          "operations": []
+        },
+        "process": {
+          "status": "NOT-DECLARED",
+          "operations": []
+        },
+        "tools": {
+          "status": "NOT-REQUIRED",
+          "items": []
+        }
+      },
+      "requirements": {
+        "api_key": "NOT-DECLARED",
+        "model_capabilities": [
+          "text generation and/or semantic analysis"
+        ],
+        "external_tools": []
+      },
+      "interface": {
+        "inputs": [
+          "bounded draft",
+          "persona/tone",
+          "generation/revision mode"
+        ],
+        "outputs": [
+          "revised prose",
+          "naturalness rationale"
+        ],
+        "stages": [
+          "drafting",
+          "revision"
+        ]
+      },
+      "profiles": {
+        "long_serial": {
+          "applicability": "UNCERTAIN",
+          "rationale": "Capability/profile fit requires validation and narrower scoping."
+        },
+        "fanqie_short": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "zhihu_salt_short": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        }
+      },
+      "capability_mappings": [
+        {
+          "capability_id": "style.revise-naturalness",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!人味写作助手/SKILL.md:74-143,258-266",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "style.revise-prose",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!人味写作助手/SKILL.md:74-143,258-266",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        }
+      ],
+      "statuses": {
+        "source": "SOURCE-VERIFIED",
+        "security": "STATIC-REVIEWED",
+        "license": "LICENSE-UNKNOWN",
+        "evaluation": "PENDING-BLIND-REVIEW",
+        "recommendation": "HOLD"
+      },
+      "update_policy": {
+        "refetch_stable_sources": true,
+        "recompute_hashes": true,
+        "show_content_and_permission_diff": true,
+        "run_independent_regression_cohort": true,
+        "require_reversible_snapshot": true,
+        "silent_update_allowed": false
+      }
+    },
+    {
+      "id": "95687260-d5ad-43d3-b083-008d00a9dfa3",
+      "name": "人物塑造大师",
+      "author": {
+        "id": "34c8c69a-1146-4453-8b41-6043c5bc425b",
+        "name": "小图助手"
+      },
+      "current_version": "2.2.0",
+      "published_status": "official",
+      "created_at": "2026-06-27T01:56:50.080347+08:00",
+      "updated_at": "2026-06-27T17:08:14.567+08:00",
+      "source": {
+        "detail_url": "https://xiaping.coze.com/api/skills/95687260-d5ad-43d3-b083-008d00a9dfa3",
+        "detail_status": "SOURCE-VERIFIED",
+        "detail_captured_at": "2026-07-21T08:11:16.948637Z",
+        "detail_response_sha256": "7ca77b532e08b73141c7933da6a545067ac6d1207c9c02681b3f22608bb8b3da",
+        "agent_url": "https://xiaping.coze.com/skill/95687260-d5ad-43d3-b083-008d00a9dfa3/agent.md",
+        "agent_status": "SOURCE-VERIFIED",
+        "agent_captured_at": "2026-07-21T08:11:19.106519Z",
+        "agent_response_sha256": "92ee89f292ad6ad62d7562c54baab5d3197fef45105b6d45f0f2d833c30c619e",
+        "agent_hash_stability": "VOLATILE-SIGNED-LINK-DOCUMENT",
+        "download_api_url": "https://xiaping.coze.com/api/skills/95687260-d5ad-43d3-b083-008d00a9dfa3/download",
+        "download_api_status": "AUTHENTICATION-REQUIRED",
+        "archive_retrieval": "EPHEMERAL-LINK-FROM-PUBLIC-AGENT-DOCUMENT"
+      },
+      "raw_metadata": {
+        "platform_security_status": "safe_checked",
+        "platform_security_checked_at": "2026-06-27T17:08:30",
+        "platform_requires_api_key": false,
+        "version_count": 5,
+        "is_new_version": false
+      },
+      "archive": {
+        "status": "SOURCE-VERIFIED",
+        "captured_at": "2026-07-21T08:11:20.024530Z",
+        "sha256": "acc80c09366b13511e8d10eefce4cc2edce17665f430eac1d0a2d62e22a49f8c",
+        "bytes": 88643,
+        "file_count": 7,
+        "uncompressed_bytes": 225004,
+        "manifest_path": "character-master/SKILL.md",
+        "manifest_sha256": "252b7ce231e92c4b51b949ca958c474d799216f7c0488022e835bb17c64f615f",
+        "file_manifest_sha256": "8cf7442274e9f442306fe00111449666911ee5fce06bb46812d2105ae9dc6f0f",
+        "top_level_entries": [
+          "character-master"
+        ],
+        "script_files": [
+          {
+            "path": "character-master/scripts/character_card_generator.py",
+            "bytes": 34766,
+            "sha256": "05f5bd72c3c04cc77971f6f4b6f4bc84263fe5c9b1baea0baa69956a7a1cc75c"
+          },
+          {
+            "path": "character-master/scripts/character_consistency_checker.py",
+            "bytes": 24700,
+            "sha256": "5a786fbc4d4bdb31b1f5ff283490efb5ea29e5ad8a143d9a17b061ed53218e2c"
+          }
+        ],
+        "unsafe_path_count": 0,
+        "symlink_count": 0,
+        "binary_file_count": 0
+      },
+      "license": {
+        "status": "LICENSE-UNKNOWN",
+        "evidence": "No explicit package license or SPDX declaration found.",
+        "license_files": [],
+        "public_download": true,
+        "local_use_permission": "UNCONFIRMED",
+        "redistribution_allowed": false,
+        "preinstall_allowed": false,
+        "default_install_strategy": "ORIGIN-REFERENCED-PENDING-USER-CONSENT"
+      },
+      "static_review": {
+        "status": "STATIC-REVIEWED",
+        "platform_security_status_is_advisory": true,
+        "unknown_code_executed": false,
+        "secret_like_value_count": 0,
+        "hidden_format_controls": {
+          "detected": false,
+          "count": 0
+        },
+        "summary": "Character profile, arc, relationships, dialogue voice, and consistency.",
+        "notes": []
+      },
+      "permissions": {
+        "filesystem": {
+          "status": "REQUIRES-PROMPT",
+          "operations": [
+            "read selected manuscript/card",
+            "write optional Markdown/JSON"
+          ]
+        },
+        "network": {
+          "status": "NOT-DECLARED",
+          "operations": []
+        },
+        "process": {
+          "status": "SCRIPT-PRESENT-NOT-EXECUTED",
+          "operations": [
+            "optional Python generator/checker"
+          ]
+        },
+        "tools": {
+          "status": "OPTIONAL",
+          "items": [
+            "Python 3"
+          ]
+        }
+      },
+      "requirements": {
+        "api_key": "NOT-DECLARED",
+        "model_capabilities": [
+          "text generation and/or semantic analysis"
+        ],
+        "external_tools": [
+          "Python 3"
+        ]
+      },
+      "interface": {
+        "inputs": [
+          "character seed",
+          "genre/role",
+          "optional manuscript/card"
+        ],
+        "outputs": [
+          "character card",
+          "dialogue guidance",
+          "consistency findings"
+        ],
+        "stages": [
+          "planning",
+          "drafting",
+          "review"
+        ]
+      },
+      "profiles": {
+        "long_serial": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "fanqie_short": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "zhihu_salt_short": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        }
+      },
+      "capability_mappings": [
+        {
+          "capability_id": "character.build-profile",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!character-master/SKILL.md:78-102,106-876,1174-1281,1484-1584,1810-1891",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "character.build-dialogue-voice",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!character-master/SKILL.md:78-102,106-876,1174-1281,1484-1584,1810-1891",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "continuity.review-facts",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!character-master/SKILL.md:78-102,106-876,1174-1281,1484-1584,1810-1891",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "editor.review-profile-rubric",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!character-master/SKILL.md:78-102,106-876,1174-1281,1484-1584,1810-1891",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        }
+      ],
+      "statuses": {
+        "source": "SOURCE-VERIFIED",
+        "security": "STATIC-REVIEWED",
+        "license": "LICENSE-UNKNOWN",
+        "evaluation": "PENDING-BLIND-REVIEW",
+        "recommendation": "HOLD"
+      },
+      "update_policy": {
+        "refetch_stable_sources": true,
+        "recompute_hashes": true,
+        "show_content_and_permission_diff": true,
+        "run_independent_regression_cohort": true,
+        "require_reversible_snapshot": true,
+        "silent_update_allowed": false
+      }
+    },
+    {
+      "id": "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+      "name": "小说爽点架构生成器",
+      "author": {
+        "id": "c0388930-0196-445f-b9fc-a81783a59c66",
+        "name": "悠洋的小助手"
+      },
+      "current_version": "5.3.0",
+      "published_status": "official",
+      "created_at": "2026-05-16T10:46:56.90385+08:00",
+      "updated_at": "2026-07-14T20:32:59.427+08:00",
+      "source": {
+        "detail_url": "https://xiaping.coze.com/api/skills/56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+        "detail_status": "SOURCE-VERIFIED",
+        "detail_captured_at": "2026-07-21T08:11:20.162786Z",
+        "detail_response_sha256": "88a353fb8588f2598a9fe12ba135389b8431e9557fdbd353b17d5fa5552465a2",
+        "agent_url": "https://xiaping.coze.com/skill/56ed7d78-5636-4c78-83cc-0aee4802b0b7/agent.md",
+        "agent_status": "SOURCE-VERIFIED",
+        "agent_captured_at": "2026-07-21T08:11:22.300912Z",
+        "agent_response_sha256": "6b6245f9de199ff0436e4636ac8e325626ab54e9704b8b5f2dd84d066867ec48",
+        "agent_hash_stability": "VOLATILE-SIGNED-LINK-DOCUMENT",
+        "download_api_url": "https://xiaping.coze.com/api/skills/56ed7d78-5636-4c78-83cc-0aee4802b0b7/download",
+        "download_api_status": "AUTHENTICATION-REQUIRED",
+        "archive_retrieval": "EPHEMERAL-LINK-FROM-PUBLIC-AGENT-DOCUMENT"
+      },
+      "raw_metadata": {
+        "platform_security_status": "safe_duplicate",
+        "platform_security_checked_at": "2026-07-14T20:33:22",
+        "platform_requires_api_key": false,
+        "version_count": 70,
+        "is_new_version": false
+      },
+      "archive": {
+        "status": "SOURCE-VERIFIED",
+        "captured_at": "2026-07-21T08:11:23.188547Z",
+        "sha256": "7cff5ac590ae47c19f3fc4a666dcc435c4b478aede034f89af21590b6b66d512",
+        "bytes": 763297,
+        "file_count": 96,
+        "uncompressed_bytes": 1765903,
+        "manifest_path": "SKILL.md",
+        "manifest_sha256": "a96e07f207d7c996290e0864170031e8147bb1210eb488959b28b25c20a1fa9e",
+        "file_manifest_sha256": "1312ee209efcb7db6f9564cd4cb73c9c387d2e5088b72db019e0266df868c10f",
+        "top_level_entries": [
+          "CHANGELOG-v5.3.0.md",
+          "SKILL.md",
+          "reference"
+        ],
+        "script_files": [],
+        "unsafe_path_count": 0,
+        "symlink_count": 0,
+        "binary_file_count": 0
+      },
+      "license": {
+        "status": "LICENSE-UNKNOWN",
+        "evidence": "No explicit package license or SPDX declaration found.",
+        "license_files": [],
+        "public_download": true,
+        "local_use_permission": "UNCONFIRMED",
+        "redistribution_allowed": false,
+        "preinstall_allowed": false,
+        "default_install_strategy": "ORIGIN-REFERENCED-PENDING-USER-CONSENT"
+      },
+      "static_review": {
+        "status": "STATIC-REVIEWED",
+        "platform_security_status_is_advisory": true,
+        "unknown_code_executed": false,
+        "secret_like_value_count": 0,
+        "hidden_format_controls": {
+          "detected": true,
+          "count": 2256
+        },
+        "summary": "Payoff and reading-drive workbench producing execution-ready candidates.",
+        "notes": [
+          "SKILL.md has 2256 Unicode Cf controls: U+200B=1056, U+200C=1184, U+2060=16.",
+          "Manifest references missing dispatcher.py.",
+          "Network defaults to deny."
+        ]
+      },
+      "permissions": {
+        "filesystem": {
+          "status": "REQUIRES-PROMPT",
+          "operations": [
+            "read installed references/bounded input"
+          ]
+        },
+        "network": {
+          "status": "REQUIRES-PROMPT",
+          "operations": [
+            "optional web search in one research mode"
+          ]
+        },
+        "process": {
+          "status": "NOT-DECLARED",
+          "operations": []
+        },
+        "tools": {
+          "status": "OPTIONAL",
+          "items": [
+            "optional web search in one research mode"
+          ]
+        }
+      },
+      "requirements": {
+        "api_key": "NOT-DECLARED",
+        "model_capabilities": [
+          "text generation and/or semantic analysis"
+        ],
+        "external_tools": [
+          "optional web search in one research mode"
+        ]
+      },
+      "interface": {
+        "inputs": [
+          "genre/premise",
+          "conflict/character constraints",
+          "payoff type"
+        ],
+        "outputs": [
+          "candidate designs",
+          "scene structure",
+          "risk notes"
+        ],
+        "stages": [
+          "ideation",
+          "planning",
+          "review"
+        ]
+      },
+      "profiles": {
+        "long_serial": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "fanqie_short": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "zhihu_salt_short": {
+          "applicability": "UNCERTAIN",
+          "rationale": "Capability/profile fit requires validation and narrower scoping."
+        }
+      },
+      "capability_mappings": [
+        {
+          "capability_id": "ideation.generate-premises",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "project.bootstrap-genre",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "outline.build-long-arc",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "outline.build-short-structure",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "outline.build-execution-brief",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "opening.review-hook",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "engagement.review-reading-drive",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "plot.manage-foreshadowing",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "continuity.review-facts",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "editor.review-story",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "style.revise-naturalness",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "style.revise-prose",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:12-25,30-180,201-235,293-313,336-390",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        }
+      ],
+      "statuses": {
+        "source": "SOURCE-VERIFIED",
+        "security": "STATIC-REVIEWED",
+        "license": "LICENSE-UNKNOWN",
+        "evaluation": "PENDING-BLIND-REVIEW",
+        "recommendation": "HOLD"
+      },
+      "update_policy": {
+        "refetch_stable_sources": true,
+        "recompute_hashes": true,
+        "show_content_and_permission_diff": true,
+        "run_independent_regression_cohort": true,
+        "require_reversible_snapshot": true,
+        "silent_update_allowed": false
+      }
+    },
+    {
+      "id": "f47e299c-3861-421d-9f1d-971de45bf622",
+      "name": "小说审校员",
+      "author": {
+        "id": "f1b3d0bd-f76a-4a30-ad6d-746909517e8d",
+        "name": "小说修订助手"
+      },
+      "current_version": "1.48.0",
+      "published_status": "official",
+      "created_at": "2026-06-19T08:59:05.807922+08:00",
+      "updated_at": "2026-07-14T11:07:44.836+08:00",
+      "source": {
+        "detail_url": "https://xiaping.coze.com/api/skills/f47e299c-3861-421d-9f1d-971de45bf622",
+        "detail_status": "SOURCE-VERIFIED",
+        "detail_captured_at": "2026-07-21T08:11:23.372962Z",
+        "detail_response_sha256": "0bc67cccf0a9ac72f6230ee2a64472df620e41c206c0aac0c03ca5c6ab8f35d7",
+        "agent_url": "https://xiaping.coze.com/skill/f47e299c-3861-421d-9f1d-971de45bf622/agent.md",
+        "agent_status": "SOURCE-VERIFIED",
+        "agent_captured_at": "2026-07-21T08:11:25.526466Z",
+        "agent_response_sha256": "69e9f330fb801f8f6c5e17d238c3047b640ae6596a58195097f4578a81ad20cb",
+        "agent_hash_stability": "VOLATILE-SIGNED-LINK-DOCUMENT",
+        "download_api_url": "https://xiaping.coze.com/api/skills/f47e299c-3861-421d-9f1d-971de45bf622/download",
+        "download_api_status": "AUTHENTICATION-REQUIRED",
+        "archive_retrieval": "EPHEMERAL-LINK-FROM-PUBLIC-AGENT-DOCUMENT"
+      },
+      "raw_metadata": {
+        "platform_security_status": "safe_checked",
+        "platform_security_checked_at": "2026-07-14T11:08:04",
+        "platform_requires_api_key": false,
+        "version_count": 59,
+        "is_new_version": false
+      },
+      "archive": {
+        "status": "SOURCE-VERIFIED",
+        "captured_at": "2026-07-21T08:11:26.571949Z",
+        "sha256": "ab96990fcaf65dcea8d2da293f8ca9d449e6ece3a5313845b80609a963e5112c",
+        "bytes": 75639,
+        "file_count": 1,
+        "uncompressed_bytes": 195861,
+        "manifest_path": "SKILL.md",
+        "manifest_sha256": "5511b534990d7ed106182faa1338818a30a2b719a475ecc9f2a71af341e46c7a",
+        "file_manifest_sha256": "f186272dec75fb7f13f987ec19c5f7ae1f868d21406b65c351cc4fb0cc45ed2c",
+        "top_level_entries": [
+          "SKILL.md"
+        ],
+        "script_files": [],
+        "unsafe_path_count": 0,
+        "symlink_count": 0,
+        "binary_file_count": 0
+      },
+      "license": {
+        "status": "LICENSE-UNKNOWN",
+        "evidence": "No explicit package license or SPDX declaration found.",
+        "license_files": [],
+        "public_download": true,
+        "local_use_permission": "UNCONFIRMED",
+        "redistribution_allowed": false,
+        "preinstall_allowed": false,
+        "default_install_strategy": "ORIGIN-REFERENCED-PENDING-USER-CONSENT"
+      },
+      "static_review": {
+        "status": "STATIC-REVIEWED",
+        "platform_security_status_is_advisory": true,
+        "unknown_code_executed": false,
+        "secret_like_value_count": 0,
+        "hidden_format_controls": {
+          "detected": false,
+          "count": 0
+        },
+        "summary": "Twelve-dimension story review for logic, continuity, causality, prose, and repairs.",
+        "notes": [
+          "Dialogue is reviewed, not used to build a voice contract."
+        ]
+      },
+      "permissions": {
+        "filesystem": {
+          "status": "REQUIRES-PROMPT",
+          "operations": [
+            "read selected chapter files/directory"
+          ]
+        },
+        "network": {
+          "status": "NOT-DECLARED",
+          "operations": []
+        },
+        "process": {
+          "status": "NOT-DECLARED",
+          "operations": []
+        },
+        "tools": {
+          "status": "NOT-REQUIRED",
+          "items": []
+        }
+      },
+      "requirements": {
+        "api_key": "NOT-DECLARED",
+        "model_capabilities": [
+          "text generation and/or semantic analysis"
+        ],
+        "external_tools": []
+      },
+      "interface": {
+        "inputs": [
+          "bounded chapter text/files",
+          "optional references",
+          "review intensity"
+        ],
+        "outputs": [
+          "prioritized issues",
+          "repair proposals",
+          "cross-chapter summary"
+        ],
+        "stages": [
+          "review",
+          "revision"
+        ]
+      },
+      "profiles": {
+        "long_serial": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "fanqie_short": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "zhihu_salt_short": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        }
+      },
+      "capability_mappings": [
+        {
+          "capability_id": "engagement.review-reading-drive",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:8-53,55-196,717-829,888-1007,1180-1205,1391-1420,1519-1555",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "plot.manage-foreshadowing",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:8-53,55-196,717-829,888-1007,1180-1205,1391-1420,1519-1555",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "continuity.review-facts",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:8-53,55-196,717-829,888-1007,1180-1205,1391-1420,1519-1555",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "editor.review-story",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:8-53,55-196,717-829,888-1007,1180-1205,1391-1420,1519-1555",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "editor.review-profile-rubric",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:8-53,55-196,717-829,888-1007,1180-1205,1391-1420,1519-1555",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "style.revise-prose",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!SKILL.md:8-53,55-196,717-829,888-1007,1180-1205,1391-1420,1519-1555",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        }
+      ],
+      "statuses": {
+        "source": "SOURCE-VERIFIED",
+        "security": "STATIC-REVIEWED",
+        "license": "LICENSE-UNKNOWN",
+        "evaluation": "PENDING-BLIND-REVIEW",
+        "recommendation": "HOLD"
+      },
+      "update_policy": {
+        "refetch_stable_sources": true,
+        "recompute_hashes": true,
+        "show_content_and_permission_diff": true,
+        "run_independent_regression_cohort": true,
+        "require_reversible_snapshot": true,
+        "silent_update_allowed": false
+      }
+    },
+    {
+      "id": "d4f61b34-aa84-4d75-aa43-fa2ae81823c2",
+      "name": "小说框架维度化器",
+      "author": {
+        "id": "f1b3d0bd-f76a-4a30-ad6d-746909517e8d",
+        "name": "小说修订助手"
+      },
+      "current_version": "2.19.0",
+      "published_status": "official",
+      "created_at": "2026-06-21T08:31:12.951119+08:00",
+      "updated_at": "2026-07-20T07:49:12.657+08:00",
+      "source": {
+        "detail_url": "https://xiaping.coze.com/api/skills/d4f61b34-aa84-4d75-aa43-fa2ae81823c2",
+        "detail_status": "SOURCE-VERIFIED",
+        "detail_captured_at": "2026-07-21T08:11:26.717514Z",
+        "detail_response_sha256": "822c1508f5cccb470390961acf9a601c10d17e753222031644b2f2eb0df2cccd",
+        "agent_url": "https://xiaping.coze.com/skill/d4f61b34-aa84-4d75-aa43-fa2ae81823c2/agent.md",
+        "agent_status": "SOURCE-VERIFIED",
+        "agent_captured_at": "2026-07-21T08:11:28.612060Z",
+        "agent_response_sha256": "1ce36d5378b12f14e51c7dc1f952bfdeb5c957beeba42c0586d0b246bd8652a0",
+        "agent_hash_stability": "VOLATILE-SIGNED-LINK-DOCUMENT",
+        "download_api_url": "https://xiaping.coze.com/api/skills/d4f61b34-aa84-4d75-aa43-fa2ae81823c2/download",
+        "download_api_status": "AUTHENTICATION-REQUIRED",
+        "archive_retrieval": "EPHEMERAL-LINK-FROM-PUBLIC-AGENT-DOCUMENT"
+      },
+      "raw_metadata": {
+        "platform_security_status": "safe_checked",
+        "platform_security_checked_at": "2026-07-20T07:49:30",
+        "platform_requires_api_key": false,
+        "version_count": 31,
+        "is_new_version": true
+      },
+      "archive": {
+        "status": "SOURCE-VERIFIED",
+        "captured_at": "2026-07-21T08:11:29.540881Z",
+        "sha256": "dd2b50c2868bdb86c3c65cbea87d02773de9a3b33864de8661087c58c886e1fb",
+        "bytes": 82057,
+        "file_count": 3,
+        "uncompressed_bytes": 247711,
+        "manifest_path": "novel-framework-dimensionizer/SKILL.md",
+        "manifest_sha256": "14bd97d4345678efef9564b8ca77fcf90f9216f17430b7c1936dd82021fac79e",
+        "file_manifest_sha256": "9d5f9f4e6dd407502b6016289bcc90a5b924aa0673f2963a12484eb0d7986941",
+        "top_level_entries": [
+          "novel-framework-dimensionizer"
+        ],
+        "script_files": [
+          {
+            "path": "novel-framework-dimensionizer/scripts/consistency_checker.py",
+            "bytes": 29929,
+            "sha256": "544df24fe90b5537ddef19055af3337aca4610bc0c999421574cb210066cf73d"
+          },
+          {
+            "path": "novel-framework-dimensionizer/scripts/generate_construction_order.py",
+            "bytes": 28053,
+            "sha256": "9dcc6680012389e51c971e58699cd32a672d62518ee59cb097b0360e1a6a0674"
+          }
+        ],
+        "unsafe_path_count": 0,
+        "symlink_count": 0,
+        "binary_file_count": 0
+      },
+      "license": {
+        "status": "LICENSE-UNKNOWN",
+        "evidence": "No explicit package license or SPDX declaration found.",
+        "license_files": [],
+        "public_download": true,
+        "local_use_permission": "UNCONFIRMED",
+        "redistribution_allowed": false,
+        "preinstall_allowed": false,
+        "default_install_strategy": "ORIGIN-REFERENCED-PENDING-USER-CONSENT"
+      },
+      "static_review": {
+        "status": "STATIC-REVIEWED",
+        "platform_security_status_is_advisory": true,
+        "unknown_code_executed": false,
+        "secret_like_value_count": 0,
+        "hidden_format_controls": {
+          "detected": false,
+          "count": 0
+        },
+        "summary": "Framework dimensionization, chapter briefs, and cross-dimension consistency.",
+        "notes": [
+          "Targets an existing large framework; short-profile use is conditional."
+        ]
+      },
+      "permissions": {
+        "filesystem": {
+          "status": "REQUIRES-PROMPT",
+          "operations": [
+            "recursively read selected Markdown",
+            "create directories/write reports"
+          ]
+        },
+        "network": {
+          "status": "NOT-DECLARED",
+          "operations": []
+        },
+        "process": {
+          "status": "SCRIPT-PRESENT-NOT-EXECUTED",
+          "operations": [
+            "optional Python construction/checker"
+          ]
+        },
+        "tools": {
+          "status": "OPTIONAL",
+          "items": [
+            "Python 3 standard library"
+          ]
+        }
+      },
+      "requirements": {
+        "api_key": "NOT-DECLARED",
+        "model_capabilities": [
+          "text generation and/or semantic analysis"
+        ],
+        "external_tools": [
+          "Python 3 standard library"
+        ]
+      },
+      "interface": {
+        "inputs": [
+          "framework directory/files",
+          "chapter id",
+          "optional writing rules"
+        ],
+        "outputs": [
+          "dimension files",
+          "chapter brief",
+          "consistency report"
+        ],
+        "stages": [
+          "planning",
+          "pre-draft",
+          "review"
+        ]
+      },
+      "profiles": {
+        "long_serial": {
+          "applicability": "RELEVANT",
+          "rationale": "Direct static match."
+        },
+        "fanqie_short": {
+          "applicability": "UNCERTAIN",
+          "rationale": "Capability/profile fit requires validation and narrower scoping."
+        },
+        "zhihu_salt_short": {
+          "applicability": "UNCERTAIN",
+          "rationale": "Capability/profile fit requires validation and narrower scoping."
+        }
+      },
+      "capability_mappings": [
+        {
+          "capability_id": "outline.build-long-arc",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "outline.build-execution-brief",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "character.build-dialogue-voice",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "opening.review-hook",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "engagement.review-reading-drive",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "plot.manage-foreshadowing",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "continuity.review-facts",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "editor.review-story",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        },
+        {
+          "capability_id": "style.revise-naturalness",
+          "mapping_status": "CANDIDATE",
+          "evidence": "archive.zip!novel-framework-dimensionizer/SKILL.md:8-31,92-152,213-318,525-631",
+          "split_reason": "Invoke only this capability; never delegate Harness state, gates, or finalization."
+        }
+      ],
+      "statuses": {
+        "source": "SOURCE-VERIFIED",
+        "security": "STATIC-REVIEWED",
+        "license": "LICENSE-UNKNOWN",
+        "evaluation": "PENDING-BLIND-REVIEW",
+        "recommendation": "HOLD"
+      },
+      "update_policy": {
+        "refetch_stable_sources": true,
+        "recompute_hashes": true,
+        "show_content_and_permission_diff": true,
+        "run_independent_regression_cohort": true,
+        "require_reversible_snapshot": true,
+        "silent_update_allowed": false
+      }
+    }
+  ],
+  "global_update_and_rollback_policy": {
+    "refetch_from_stable_origin": true,
+    "never_persist_ephemeral_download_url": true,
+    "compare_archive_manifest_and_permission_diff": true,
+    "require_user_reconfirmation_on_drift": true,
+    "evaluate_in_independent_regression_cohort": true,
+    "preserve_previous_hash_for_rollback": true,
+    "overwrite_without_reversible_snapshot": false
+  },
+  "limitations": [
+    "Static review does not prove runtime safety, sandbox strength, or quality improvement.",
+    "Public download does not establish redistribution or preinstallation rights.",
+    "All recommendations remain PENDING-BLIND-REVIEW.",
+    "No third-party script was executed and no model-based quality evaluation was run."
+  ]
+}
