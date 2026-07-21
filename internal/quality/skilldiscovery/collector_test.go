@@ -101,6 +101,46 @@ func TestNormalizeCatalogPageDistinguishesDirectAndEnvelopeResponses(t *testing.
 	}
 }
 
+func TestNormalizeCatalogPageRequiresCompleteTypedShape(t *testing.T) {
+	validDirect := `{"skills":[],"total":0,"hasMore":false,"upstream":"ignored"}`
+	validEnvelope := `{"success":true,"data":{"skills":[],"total":0,"hasMore":false,"upstream":"ignored"}}`
+	for _, test := range []struct {
+		name    string
+		payload string
+		wantErr bool
+	}{
+		{"valid empty direct", validDirect, false},
+		{"valid empty envelope", validEnvelope, false},
+		{"empty object", `{}`, true},
+		{"null root", `null`, true},
+		{"array root", `[]`, true},
+		{"missing skills", `{"total":0,"hasMore":false}`, true},
+		{"missing total", `{"skills":[],"hasMore":false}`, true},
+		{"missing hasMore", `{"skills":[],"total":0}`, true},
+		{"null skills", `{"skills":null,"total":0,"hasMore":false}`, true},
+		{"null total", `{"skills":[],"total":null,"hasMore":false}`, true},
+		{"null hasMore", `{"skills":[],"total":0,"hasMore":null}`, true},
+		{"wrong skills type", `{"skills":{},"total":0,"hasMore":false}`, true},
+		{"wrong total type", `{"skills":[],"total":"0","hasMore":false}`, true},
+		{"fractional total", `{"skills":[],"total":0.5,"hasMore":false}`, true},
+		{"wrong hasMore type", `{"skills":[],"total":0,"hasMore":"false"}`, true},
+		{"negative total", `{"skills":[],"total":-1,"hasMore":false}`, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := normalizeCatalogPage([]byte(test.payload))
+			if test.wantErr {
+				if err == nil {
+					t.Fatalf("normalizeCatalogPage(%s) accepted malformed shape", test.payload)
+				}
+				return
+			}
+			if err != nil || got.Skills == nil || got.Total != 0 || got.HasMore {
+				t.Fatalf("normalizeCatalogPage() = %+v, %v", got, err)
+			}
+		})
+	}
+}
+
 func TestCollectCatalogMarksPartialAfterNonRetryablePage(t *testing.T) {
 	collector, options := failingPageCollector(t, http.StatusBadRequest)
 	got, err := collector.CollectCatalog(context.Background(), options)
@@ -118,6 +158,8 @@ func TestCollectCatalogRecordsReceiptsForResponseFailures(t *testing.T) {
 		body func(page int) string
 	}{
 		{"invalid JSON", func(int) string { return "{" }},
+		{"missing catalog fields", func(int) string { return `{}` }},
+		{"null catalog skills", func(int) string { return `{"skills":null,"total":0,"hasMore":false}` }},
 		{"failed envelope", func(int) string { return `{"success":false,"data":{"skills":[],"total":0,"hasMore":false}}` }},
 		{"successful envelope without data", func(int) string { return `{"success":true}` }},
 		{"successful envelope with null data", func(int) string { return `{"success":true,"data":null}` }},

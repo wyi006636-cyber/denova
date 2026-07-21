@@ -1,6 +1,7 @@
 package skilldiscovery
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -155,33 +156,64 @@ type catalogPage struct {
 }
 
 func normalizeCatalogPage(payload []byte) (catalogPage, error) {
-	var envelope struct {
-		Success *bool           `json:"success"`
-		Data    json.RawMessage `json:"data"`
+	fields, err := catalogObjectFields(payload)
+	if err != nil {
+		return catalogPage{}, err
 	}
-	if err := json.Unmarshal(payload, &envelope); err != nil {
-		return catalogPage{}, fmt.Errorf("decode catalog JSON: %w", err)
-	}
-	decoded := payload
-	if envelope.Success != nil {
-		if !*envelope.Success {
+	if successRaw, enveloped := fields["success"]; enveloped {
+		var success bool
+		if isNullJSON(successRaw) || json.Unmarshal(successRaw, &success) != nil {
+			return catalogPage{}, fmt.Errorf("catalog envelope has invalid success field")
+		}
+		if !success {
 			return catalogPage{}, fmt.Errorf("catalog envelope reports unsuccessful response")
 		}
-		var dataObject map[string]json.RawMessage
-		if len(envelope.Data) == 0 || json.Unmarshal(envelope.Data, &dataObject) != nil || dataObject == nil {
+		dataRaw, exists := fields["data"]
+		if !exists || isNullJSON(dataRaw) {
 			return catalogPage{}, fmt.Errorf("successful catalog envelope requires a data object")
 		}
-		decoded = envelope.Data
+		return decodeCatalogObject(dataRaw)
+	}
+	return decodeCatalogFields(fields)
+}
+
+func decodeCatalogObject(payload []byte) (catalogPage, error) {
+	fields, err := catalogObjectFields(payload)
+	if err != nil {
+		return catalogPage{}, fmt.Errorf("successful catalog envelope requires a data object: %w", err)
+	}
+	return decodeCatalogFields(fields)
+}
+
+func catalogObjectFields(payload []byte) (map[string]json.RawMessage, error) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &fields); err != nil || fields == nil {
+		return nil, fmt.Errorf("catalog payload must be a JSON object")
+	}
+	return fields, nil
+}
+
+func decodeCatalogFields(fields map[string]json.RawMessage) (catalogPage, error) {
+	skillsRaw, skillsPresent := fields["skills"]
+	totalRaw, totalPresent := fields["total"]
+	hasMoreRaw, hasMorePresent := fields["hasMore"]
+	if !skillsPresent || !totalPresent || !hasMorePresent || isNullJSON(skillsRaw) || isNullJSON(totalRaw) || isNullJSON(hasMoreRaw) {
+		return catalogPage{}, fmt.Errorf("catalog payload requires skills, total, and hasMore")
 	}
 	var page catalogPage
-	if err := json.Unmarshal(decoded, &page); err != nil {
-		return catalogPage{}, fmt.Errorf("decode normalized catalog response: %w", err)
+	if err := json.Unmarshal(skillsRaw, &page.Skills); err != nil || page.Skills == nil {
+		return catalogPage{}, fmt.Errorf("catalog skills must be an array")
 	}
-	if page.Total < 0 {
-		return catalogPage{}, fmt.Errorf("catalog total must not be negative")
+	if err := json.Unmarshal(totalRaw, &page.Total); err != nil || page.Total < 0 {
+		return catalogPage{}, fmt.Errorf("catalog total must be a non-negative integer")
+	}
+	if err := json.Unmarshal(hasMoreRaw, &page.HasMore); err != nil {
+		return catalogPage{}, fmt.Errorf("catalog hasMore must be a boolean")
 	}
 	return page, nil
 }
+
+func isNullJSON(raw json.RawMessage) bool { return bytes.Equal(bytes.TrimSpace(raw), []byte("null")) }
 
 func requestFailureReceipt(target string, capturedAt time.Time, err error) PageReceipt {
 	return PageReceipt{URL: target, HTTPStatus: 0, CapturedAt: capturedAt.UTC().Format(time.RFC3339), SHA256: payloadSHA256(nil), ItemCount: 0, Error: safeError(err)}

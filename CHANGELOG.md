@@ -810,6 +810,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评目录载荷结构校验：direct/envelope 均要求显式且类型正确的 skills、total、hasMore 字段，避免零值掩盖上游缺失或 null 数据。
+- Fixed Xiaping catalog payload-shape validation: direct and enveloped responses now require explicit, correctly typed skills, total, and hasMore fields so missing or null upstream data cannot masquerade as zero values.
 - 修复虾评目录 envelope 语义：显式失败响应及 success:true 缺失或为空 data 不再被当作空目录页。
 - Fixed Xiaping catalog envelope semantics: explicit failures and success:true responses without usable data are no longer treated as empty catalog pages.
 - 修复虾评采集基础地址边界：仅接受无凭据、无 query/fragment、无子路径的 HTTPS 根地址，并收紧传输失败 receipt 的空响应哈希与零条目校验。
