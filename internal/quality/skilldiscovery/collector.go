@@ -244,10 +244,10 @@ type apiCatalogSkill struct {
 	ID             string          `json:"id"`
 	Name           string          `json:"name"`
 	Description    string          `json:"description"`
-	Trigger        string          `json:"trigger"`
-	Triggers       []string        `json:"triggers"`
-	Category       string          `json:"category"`
-	Categories     []string        `json:"categories"`
+	Trigger        json.RawMessage `json:"trigger"`
+	Triggers       json.RawMessage `json:"triggers"`
+	Category       json.RawMessage `json:"category"`
+	Categories     json.RawMessage `json:"categories"`
 	Tags           json.RawMessage `json:"tags"`
 	OwnerID        string          `json:"owner_id"`
 	OwnerName      string          `json:"owner_name"`
@@ -269,25 +269,27 @@ type apiCatalogSkill struct {
 }
 
 func (source apiCatalogSkill) normalized() (SkillRecord, error) {
-	tags := []string{}
-	if len(source.Tags) != 0 && !isNullJSON(source.Tags) {
-		if err := json.Unmarshal(source.Tags, &tags); err != nil {
-			var tag string
-			if string(source.Tags) == `""` || json.Unmarshal(source.Tags, &tag) != nil {
-				return SkillRecord{}, fmt.Errorf("catalog skill tags must be an array or string")
-			}
-			if tag != "" {
-				tags = []string{tag}
-			}
-		}
+	tags, err := normalizedTextList(source.Tags, "tags")
+	if err != nil {
+		return SkillRecord{}, err
 	}
-	triggers := append([]string(nil), source.Triggers...)
-	if source.Trigger != "" {
-		triggers = append(triggers, source.Trigger)
+	triggers, err := normalizedTextList(source.Trigger, "trigger")
+	if err != nil {
+		return SkillRecord{}, err
 	}
-	categories := append([]string(nil), source.Categories...)
-	if source.Category != "" {
-		categories = append(categories, source.Category)
+	if aliases, err := normalizedTextList(source.Triggers, "triggers"); err != nil {
+		return SkillRecord{}, err
+	} else {
+		triggers = append(triggers, aliases...)
+	}
+	categories, err := normalizedTextList(source.Category, "category")
+	if err != nil {
+		return SkillRecord{}, err
+	}
+	if aliases, err := normalizedTextList(source.Categories, "categories"); err != nil {
+		return SkillRecord{}, err
+	} else {
+		categories = append(categories, aliases...)
 	}
 	stars := source.AverageStars
 	if stars == 0 && source.AvgStars != 0 {
@@ -298,6 +300,24 @@ func (source apiCatalogSkill) normalized() (SkillRecord, error) {
 		status = source.Status
 	}
 	return SkillRecord{ID: source.ID, Name: source.Name, Description: source.Description, Triggers: triggers, Categories: categories, Tags: tags, OwnerID: source.OwnerID, OwnerName: source.OwnerName, CurrentVersion: source.CurrentVersion, Downloads: source.Downloads, AverageStars: stars, StarCount: source.StarCount, CommentCount: source.CommentCount, Featured: source.Featured || source.IsFeatured, PlatformStatus: status, SecurityStatus: source.SecurityStatus, VersionCount: source.VersionCount, CreatedAt: source.CreatedAt, UpdatedAt: source.UpdatedAt, DetailURL: source.DetailURL}, nil
+}
+
+func normalizedTextList(raw json.RawMessage, field string) ([]string, error) {
+	if len(raw) == 0 || isNullJSON(raw) {
+		return []string{}, nil
+	}
+	var values []string
+	if err := json.Unmarshal(raw, &values); err == nil {
+		return values, nil
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil, fmt.Errorf("catalog skill %s must be an array or string", field)
+	}
+	if value == "" {
+		return []string{}, nil
+	}
+	return []string{value}, nil
 }
 
 func isNullJSON(raw json.RawMessage) bool { return bytes.Equal(bytes.TrimSpace(raw), []byte("null")) }

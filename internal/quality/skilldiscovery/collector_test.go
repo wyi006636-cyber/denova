@@ -102,7 +102,7 @@ func TestNormalizeCatalogPageDistinguishesDirectAndEnvelopeResponses(t *testing.
 }
 
 func TestNormalizeCatalogPageSupportsLiveXiapingFieldAliases(t *testing.T) {
-	payload := `{"skills":[{"id":"one","trigger":"小说大纲","category":"writing","tags":"novel","avg_stars":4.25,"is_featured":true,"status":"published"},{"id":"two","triggers":["rewrite"],"categories":["editorial"],"tags":["prose"],"average_stars_x100":490}],"total":2,"hasMore":false}`
+	payload := `{"skills":[{"id":"one","trigger":["小说大纲"],"category":["writing"],"tags":"novel","avg_stars":4.25,"is_featured":true,"status":"published"},{"id":"two","triggers":["rewrite"],"categories":["editorial"],"tags":["prose"],"average_stars_x100":490}],"total":2,"hasMore":false}`
 	page, err := normalizeCatalogPage([]byte(payload))
 	if err != nil {
 		t.Fatal(err)
