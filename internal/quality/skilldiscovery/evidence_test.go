@@ -64,3 +64,11 @@ func TestPlatformDataRichRequiresDownloadsAndAvailableCache(t *testing.T) {
 		t.Fatalf("missing cache: %#v", vector)
 	}
 }
+
+func TestBuildEvidenceVectorsOrdersMultipleCapabilitiesDeterministically(t *testing.T) {
+	candidates := []CandidateRecord{{Skill: SkillRecord{ID: "z", Downloads: 50}, Capabilities: []CapabilityMatch{{CapabilityID: "z-cap", Status: MatchMatched}, {CapabilityID: "a-cap", Status: MatchMatched}}}}
+	vectors := BuildEvidenceVectors(candidates, map[string]ReviewEvidence{"z": {}}, nil)
+	if len(vectors) != 2 || vectors[0].CapabilityID != "a-cap" || vectors[1].CapabilityID != "z-cap" {
+		t.Fatalf("vectors=%#v", vectors)
+	}
+}

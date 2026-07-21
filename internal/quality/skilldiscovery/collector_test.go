@@ -207,10 +207,10 @@ func TestCollectCandidateEvidenceUsesOnlyCandidatesPaginatesAndResumes(t *testin
 			fmt.Fprint(w, `{"code":0,"data":{"id":"writing"}}`)
 		case "/api/skills/writing/comments":
 			if request.URL.Query().Get("page") == "1" {
-				fmt.Fprint(w, `{"success":true,"data":{"items":[{"id":"one","user_id":"reader","stars":5,"content":"续写以后人物说话保持稳定，时间线没有漂移，输出章节可以直接使用。","created_at":"2026-07-02T00:00:00Z"}],"hasMore":true}}`)
+				fmt.Fprint(w, `{"success":true,"data":{"items":[{"id":"one","user_id":"reader","stars":5,"content":"续写以后人物说话保持稳定，时间线没有漂移，输出章节可以直接使用。","created_at":"2026-07-02T00:00:00Z"}],"total":2,"hasMore":true}}`)
 				return
 			}
-			fmt.Fprint(w, `{"items":[{"id":"two","user_id":"reader2","stars":4,"content":"输入大纲之后输出章节完整，人物行为符合设定，比较旧稿没有发生冲突。","created_at":"2026-07-03T00:00:00Z"}],"hasMore":false}`)
+			fmt.Fprint(w, `{"items":[{"id":"two","user_id":"reader2","stars":4,"content":"输入大纲之后输出章节完整，人物行为符合设定，比较旧稿没有发生冲突。","created_at":"2026-07-03T00:00:00Z"}],"total":2,"hasMore":false}`)
 		default:
 			t.Fatalf("unexpected request %s", request.URL)
 		}
@@ -223,10 +223,18 @@ func TestCollectCandidateEvidenceUsesOnlyCandidatesPaginatesAndResumes(t *testin
 	if err != nil || len(failures) != 0 || len(details) != 1 || len(comments["writing"]) != 2 {
 		t.Fatalf("details=%v comments=%v failures=%v err=%v", details, comments, failures, err)
 	}
-	before := len(calls)
-	if _, _, failures, err = collector.CollectCandidateEvidence(context.Background(), options, candidates); err != nil || len(failures) != 0 || len(calls) != before {
+	before := requestCallTotal(calls)
+	if _, _, failures, err = collector.CollectCandidateEvidence(context.Background(), options, candidates); err != nil || len(failures) != 0 || requestCallTotal(calls) != before {
 		t.Fatalf("resume calls=%v failures=%v err=%v", calls, failures, err)
 	}
+}
+
+func requestCallTotal(calls map[string]int) int {
+	total := 0
+	for _, count := range calls {
+		total += count
+	}
+	return total
 }
 
 func TestNormalizeSkillDetailDecodesAndValidatesReturnedID(t *testing.T) {
@@ -268,6 +276,65 @@ func TestNormalizeCommentPageRejectsMissingEnvelopeDataAndPaginationFields(t *te
 		if _, err := normalizeCommentPage([]byte(payload)); err == nil {
 			t.Fatalf("accepted incomplete comments payload %s", payload)
 		}
+	}
+}
+
+func TestCollectCandidateEvidenceBoundsPerpetualPaginationByReportedTotal(t *testing.T) {
+	calls := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		calls++
+		if request.URL.Path == "/api/skills/bounded" {
+			fmt.Fprint(w, `{"id":"bounded","comment_count":2}`)
+			return
+		}
+		if request.URL.Path == "/api/skills/bounded/comments" {
+			fmt.Fprint(w, `{"items":[{"id":"`+request.URL.Query().Get("page")+`","user_id":"u`+request.URL.Query().Get("page")+`","stars":5,"content":"synthetic observation content has enough unique detail for pagination testing","created_at":"2026-07-01T00:00:00Z"}],"total":2,"hasMore":true}`)
+			return
+		}
+		t.Fatalf("unexpected request %s", request.URL)
+	}))
+	t.Cleanup(server.Close)
+	collector := NewCollector(server.Client(), fixedClock())
+	options := EvidenceCollectionOptions{CollectorOptions: CollectorOptions{BaseURL: server.URL, CacheRoot: t.TempDir(), PageSize: 1, RetryAttempts: 1}, CommentPageSize: 1}
+	details, comments, failures, err := collector.CollectCandidateEvidence(context.Background(), options, []CandidateRecord{{Skill: SkillRecord{ID: "bounded"}}})
+	if err != nil || len(details) != 0 || len(comments) != 0 || len(failures) != 1 || calls != 3 {
+		t.Fatalf("details=%v comments=%v failures=%v calls=%d err=%v", details, comments, failures, calls, err)
+	}
+}
+
+func TestNormalizeCommentPageAcceptsDirectShapeAndRejectsFailedEnvelope(t *testing.T) {
+	page, err := normalizeCommentPage([]byte(`{"items":[],"total":0,"hasMore":false}`))
+	if err != nil || page.Total != 0 {
+		t.Fatalf("page=%#v err=%v", page, err)
+	}
+	if _, err := normalizeCommentPage([]byte(`{"success":false,"data":{"items":[],"total":0,"hasMore":false}}`)); err == nil {
+		t.Fatal("accepted unsuccessful envelope")
+	}
+	if _, err := normalizeSkillDetail([]byte(`{"success":false,"data":{"id":"wanted"}}`), SkillRecord{ID: "wanted"}); err == nil {
+		t.Fatal("accepted unsuccessful detail envelope")
+	}
+}
+
+func TestCollectCandidateEvidenceStopsRepeatedCommentPage(t *testing.T) {
+	calls := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		calls++
+		if request.URL.Path == "/api/skills/repeated" {
+			fmt.Fprint(w, `{"id":"repeated","comment_count":10}`)
+			return
+		}
+		if request.URL.Path == "/api/skills/repeated/comments" {
+			fmt.Fprint(w, `{"items":[{"id":"same","user_id":"same","stars":5,"content":"synthetic comment response for repeated hash detection only","created_at":"2026-07-01T00:00:00Z"}],"total":10,"hasMore":true}`)
+			return
+		}
+		t.Fatalf("unexpected %s", request.URL)
+	}))
+	t.Cleanup(server.Close)
+	collector := NewCollector(server.Client(), fixedClock())
+	options := EvidenceCollectionOptions{CollectorOptions: CollectorOptions{BaseURL: server.URL, CacheRoot: t.TempDir(), PageSize: 1, RetryAttempts: 1}, CommentPageSize: 1}
+	details, comments, failures, err := collector.CollectCandidateEvidence(context.Background(), options, []CandidateRecord{{Skill: SkillRecord{ID: "repeated"}}})
+	if err != nil || len(details) != 0 || len(comments) != 0 || len(failures) != 1 || calls != 3 {
+		t.Fatalf("details=%v comments=%v failures=%v calls=%d err=%v", details, comments, failures, calls, err)
 	}
 }
 

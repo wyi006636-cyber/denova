@@ -372,6 +372,8 @@ func (collector *Collector) CollectCandidateEvidence(ctx context.Context, option
 		pageHashes := map[string]struct{}{}
 		collected := []ReviewRecord{}
 		complete := true
+		expectedTotal := detail.CommentCount
+		expectedSet := expectedTotal > 0
 		for page := 1; ; page++ {
 			pageURL := evidenceCommentsURL(base, candidate.Skill.ID, options.CommentPageSize, page)
 			payload, receipt, readErr = cache.ReadPage("skill-comments", pageURL.String())
@@ -393,6 +395,13 @@ func (collector *Collector) CollectCandidateEvidence(ctx context.Context, option
 				complete = false
 				break
 			}
+			if !expectedSet {
+				expectedTotal, expectedSet = response.Total, true
+			} else if response.Total != expectedTotal {
+				failures = append(failures, evidenceFailure("skill-comments", pageURL.String(), fmt.Errorf("comments total changed across pages")))
+				complete = false
+				break
+			}
 			if len(response.Reviews) > 0 {
 				if _, seen := pageHashes[receipt.SHA256]; seen {
 					failures = append(failures, evidenceFailure("skill-comments", pageURL.String(), fmt.Errorf("repeated nonempty comments page")))
@@ -406,7 +415,17 @@ func (collector *Collector) CollectCandidateEvidence(ctx context.Context, option
 				complete = false
 				break
 			}
+			if len(collected)+len(response.Reviews) > expectedTotal {
+				failures = append(failures, evidenceFailure("skill-comments", pageURL.String(), fmt.Errorf("comments exceed reported total")))
+				complete = false
+				break
+			}
 			collected = append(collected, response.Reviews...)
+			if response.HasMore && len(collected) >= expectedTotal {
+				failures = append(failures, evidenceFailure("skill-comments", pageURL.String(), fmt.Errorf("comments hasMore exceeds reported total")))
+				complete = false
+				break
+			}
 			if !response.HasMore {
 				break
 			}
@@ -500,6 +519,7 @@ func normalizeSkillDetail(payload []byte, fallback SkillRecord) (SkillDetail, er
 type commentPage struct {
 	Reviews []ReviewRecord
 	HasMore bool
+	Total   int
 }
 
 func normalizeCommentPage(payload []byte) (commentPage, error) {
@@ -540,7 +560,15 @@ func normalizeCommentPage(payload []byte) (commentPage, error) {
 	if err := json.Unmarshal(rawMore, &more); err != nil {
 		return commentPage{}, fmt.Errorf("comments hasMore must be boolean")
 	}
-	return commentPage{Reviews: reviews, HasMore: more}, nil
+	rawTotal, ok := fields["total"]
+	if !ok || isNullJSON(rawTotal) {
+		return commentPage{}, fmt.Errorf("comments payload requires total")
+	}
+	var total int
+	if err := json.Unmarshal(rawTotal, &total); err != nil || total < 0 {
+		return commentPage{}, fmt.Errorf("comments total must be a non-negative integer")
+	}
+	return commentPage{Reviews: reviews, HasMore: more, Total: total}, nil
 }
 func retryableStatus(status int) bool {
 	return status == http.StatusTooManyRequests || status >= 500 && status <= 599

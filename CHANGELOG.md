@@ -20,6 +20,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评评论分页边界：以详情评论数或首个分页响应的固定 total 约束 hasMore 循环；total 漂移、超额进度、重复非空页和空页续页都会将候选标为不完整，而不会无限请求或写入缓存。
+- Fixed Xiaping comment-pagination bounds: the detail count or first page's fixed total now constrains hasMore loops; changing totals, excess progress, repeated non-empty pages, and empty continuation pages mark a candidate incomplete instead of growing requests or cache indefinitely.
+
 - 修复虾评评论证据完整性：独立评分不再回退到目录聚合星级；重复簇外单例保留；缓存缺失或部分分页强制探索通道；数据强分层现在严格要求下载、分位、有效评审、实质评论和无严重异常。
 - Fixed Xiaping review-evidence integrity: independent ratings no longer fall back to catalog aggregates; cluster-external singletons are retained; missing or partial paginated cache forces exploration; DATA-RICH now strictly requires downloads, percentile, effective raters, substantive comments, and no severe anomaly.
 
