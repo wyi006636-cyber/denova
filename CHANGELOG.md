@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评发现阶段 provenance 校验：排序现在拒绝任何 Schema 形式正确但来源、用途、大小上限或输入哈希未绑定到暂存快照的工件；失败快照仍保留本地 PARTIAL 检查点用于恢复，但绝不覆盖已发布的 COMPLETE 工件。
+- Fixed Xiaping discovery-stage provenance validation: ranking now rejects schema-valid artifacts whose source, purpose, size bound, or input hash is not bound to the staged snapshot; failed snapshots retain local PARTIAL checkpoints for resumption but never overwrite published COMPLETE artifacts.
 - 修复 `quality-eval skills` 的虾评发现阶段边界：快照、分类和排序现在通过受校验、原子发布的阶段工件交接；排序只消费已分类的候选、提案和重复簇，并在缓存来源或快照身份不匹配时保持既有工件不变。
 - Fixed `quality-eval skills` Xiaping discovery stage boundaries: snapshot, classification, and ranking now hand off through validated atomic artifacts; ranking consumes only staged candidates, proposals, and duplicate clusters, preserving existing artifacts when cache provenance or snapshot identity mismatches.
 - 修复虾评评论证据完整性闭环：终页 `hasMore:false` 现在必须与固定来源总数完全一致；详情中的显式 `comment_count:0` 被保留为绑定值，拒绝 null、错误类型、负数及后续评论页的矛盾数据。

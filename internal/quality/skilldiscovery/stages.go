@@ -83,11 +83,30 @@ func LoadStagedDiscoveryArtifacts(root, schema string) (StagedDiscoveryArtifacts
 	if err := ValidateSnapshotManifest(manifest); err != nil || manifest.Status != SnapshotComplete {
 		return StagedDiscoveryArtifacts{}, fmt.Errorf("staged manifest is not COMPLETE")
 	}
+	if err := validateStageProvenance(manifest, manifest.Provenance, "snapshot manifest"); err != nil {
+		return StagedDiscoveryArtifacts{}, err
+	}
 	if candidates.Contract != candidateIndexContract || proposals.Contract != proposalIndexContract || clusters.Contract != clusterIndexContract || candidates.SnapshotID != manifest.SnapshotID || proposals.SnapshotID != manifest.SnapshotID || clusters.SnapshotID != manifest.SnapshotID {
 		return StagedDiscoveryArtifacts{}, fmt.Errorf("staged artifact snapshot identity mismatch")
 	}
 	if err := ValidateSkillRecords(candidateSkills(candidates.Candidates)); err != nil {
 		return StagedDiscoveryArtifacts{}, err
 	}
+	if err := validateStageProvenance(manifest, candidates.Provenance, "candidate index"); err != nil {
+		return StagedDiscoveryArtifacts{}, err
+	}
+	if err := validateStageProvenance(manifest, proposals.Provenance, "capability proposals"); err != nil {
+		return StagedDiscoveryArtifacts{}, err
+	}
+	if err := validateStageProvenance(manifest, clusters.Provenance, "duplicate clusters"); err != nil {
+		return StagedDiscoveryArtifacts{}, err
+	}
 	return StagedDiscoveryArtifacts{Manifest: manifest, Candidates: candidates.Candidates, Proposals: proposals.Proposals, Clusters: clusters.Clusters}, nil
+}
+
+func validateStageProvenance(manifest SnapshotManifest, provenance ArtifactProvenance, purpose string) error {
+	if provenance.Source != "completed snapshot manifest receipts" || provenance.Purpose != purpose || provenance.InputSHA256 != manifest.SkillRecordsSHA256 || provenance.MaxBytes != artifactMaxBytes {
+		return fmt.Errorf("staged %s provenance mismatch", purpose)
+	}
+	return nil
 }
