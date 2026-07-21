@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增已接受的 Profile v1 与 QualitySpec v1 双语合同、JSON Schema 和三个可验证示例，定义共享质量引擎、穷尽 Profile ID、确定性覆盖顺序、来源追踪与作者确认边界。
+- Added accepted bilingual Profile v1 and QualitySpec v1 contracts, JSON Schemas, and three validated examples defining one shared quality engine, exhaustive Profile IDs, deterministic override resolution, provenance, and author-confirmation boundaries.
 - 新增已接受的 Workspace Schema v1 架构决策与可解析示例，定义并批准 Denova 正式文件、待审产物、运行恢复、可重建投影、版本保护及 `.nova` 迁移边界的演进基线。
 - Added the accepted Workspace Schema v1 decision and parseable example, defining Denova formal files, review artifacts, runtime recovery, rebuildable projections, version protection, and `.nova` migration boundaries.
 - 新增 Denova Quality Harness 核心安全边界特征测试，覆盖 Task/SSE 重连、会话上下文隔离、工作区 revision 与版本保护，以及桌面和移动端共享导航模式保持。

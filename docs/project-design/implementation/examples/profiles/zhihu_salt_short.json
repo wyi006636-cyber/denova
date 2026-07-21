@@ -1,0 +1,404 @@
+{
+  "contract": {
+    "kind": "denova.quality-profile",
+    "version": "v1",
+    "issued_at": "2026-07-21T11:00:00+08:00"
+  },
+  "profile_id": "zhihu_salt_short",
+  "display_name": {
+    "zh-CN": "知乎盐选风格短篇",
+    "en": "Zhihu Salt-style short fiction"
+  },
+  "engine_contract": {
+    "engine_id": "denova.shared-quality-engine",
+    "contract_version": "v1",
+    "implementation_branching": "profile_data_only"
+  },
+  "profile_provenance": {
+    "source_id": "plan-p0-t04-20260721",
+    "source_kind": "approved_plan",
+    "source_ref": "PHASE_0_DETAILED_PLAN.md#P0-T04",
+    "observed_at": "2026-07-21",
+    "effective_from": "2026-07-21",
+    "recorded_at": "2026-07-21T11:00:00+08:00"
+  },
+  "identity_policy": {
+    "unknown_profile_id": "reject_explicitly",
+    "silent_fallback": false,
+    "model_mutation": "candidate_only"
+  },
+  "settings": {
+    "required_artifacts": [
+      {
+        "id": "artifacts.reversal_ending",
+        "value": ["ending_draft", "reversal_evidence_map", "causal_review"],
+        "provenance": {
+          "source_id": "profile-zhihu-salt-v1",
+          "source_kind": "approved_plan",
+          "source_ref": "Profile v1 Zhihu Salt-style reversal walkthrough",
+          "observed_at": "2026-07-21",
+          "effective_from": "2026-07-21",
+          "recorded_at": "2026-07-21T11:00:00+08:00"
+        },
+        "author_override_policy": {
+          "allowed": true,
+          "allowed_scopes": ["project", "task", "operation_confirmation"],
+          "requires_explicit_confirmation": true,
+          "unsupported_value_policy": "reject_explicitly"
+        }
+      }
+    ],
+    "required_capabilities": [
+      {
+        "id": "capabilities.reversal_audit",
+        "value": ["causal.trace", "evidence.locate", "closure.review"],
+        "provenance": {
+          "source_id": "profile-zhihu-salt-v1",
+          "source_kind": "approved_plan",
+          "source_ref": "Profile v1 reversal capability defaults",
+          "observed_at": "2026-07-21",
+          "effective_from": "2026-07-21",
+          "recorded_at": "2026-07-21T11:00:00+08:00"
+        },
+        "author_override_policy": {
+          "allowed": true,
+          "allowed_scopes": ["project", "task"],
+          "requires_explicit_confirmation": true,
+          "unsupported_value_policy": "reject_explicitly"
+        }
+      }
+    ],
+    "candidate_policy": [
+      {
+        "id": "candidates.reversal_ending_count",
+        "value": 2,
+        "provenance": {
+          "source_id": "profile-zhihu-salt-v1",
+          "source_kind": "approved_plan",
+          "source_ref": "Profile v1 reviewable ending candidate default",
+          "observed_at": "2026-07-21",
+          "effective_from": "2026-07-21",
+          "recorded_at": "2026-07-21T11:00:00+08:00"
+        },
+        "author_override_policy": {
+          "allowed": true,
+          "allowed_scopes": ["task", "operation_confirmation"],
+          "requires_explicit_confirmation": true,
+          "unsupported_value_policy": "reject_explicitly"
+        }
+      }
+    ],
+    "review_rubric": [
+      {
+        "id": "review.reversal_ending",
+        "value": ["narrative_voice", "causal_pressure", "prior_evidence", "closure"],
+        "provenance": {
+          "source_id": "profile-zhihu-salt-v1",
+          "source_kind": "approved_plan",
+          "source_ref": "Profile v1 Zhihu Salt-style review focus",
+          "observed_at": "2026-07-21",
+          "effective_from": "2026-07-21",
+          "recorded_at": "2026-07-21T11:00:00+08:00"
+        },
+        "author_override_policy": {
+          "allowed": true,
+          "allowed_scopes": ["project", "task", "operation_confirmation"],
+          "requires_explicit_confirmation": true,
+          "unsupported_value_policy": "reject_explicitly"
+        }
+      }
+    ],
+    "export_config": [
+      {
+        "id": "export.short_markdown",
+        "value": { "format": "markdown", "scope": "complete_short_story" },
+        "provenance": {
+          "source_id": "profile-zhihu-salt-v1",
+          "source_kind": "approved_plan",
+          "source_ref": "Profile v1 short-fiction export default",
+          "observed_at": "2026-07-21",
+          "effective_from": "2026-07-21",
+          "recorded_at": "2026-07-21T11:00:00+08:00"
+        },
+        "author_override_policy": {
+          "allowed": true,
+          "allowed_scopes": ["project", "task"],
+          "requires_explicit_confirmation": true,
+          "unsupported_value_policy": "reject_explicitly"
+        }
+      }
+    ]
+  },
+  "walkthrough": {
+    "operation_id": "evaluate_reversal_ending",
+    "artifact_ref": "artifact:zhihu-reversal-ending-001",
+    "description": {
+      "zh-CN": "评估知乎盐选风格短篇的反转结尾，要求反转能回溯到前文证据并完成因果闭环。",
+      "en": "Evaluate a Zhihu Salt-style reversal ending whose turn traces back to earlier evidence and closes the causal chain."
+    },
+    "evaluation_focus": ["qg.short.reversal_evidence", "qg.short.causal_closure"]
+  },
+  "quality_spec": {
+    "contract": {
+      "kind": "denova.quality-spec",
+      "version": "v1",
+      "issued_at": "2026-07-21T11:10:00+08:00"
+    },
+    "spec_id": "qs-zhihu-reversal-ending",
+    "revision": 1,
+    "profile_id": "zhihu_salt_short",
+    "goal_catalog": [
+      {
+        "id": "qg.short.reversal_evidence",
+        "contract": { "kind": "denova.quality-goal", "version": "v1" },
+        "description": {
+          "zh-CN": "结尾反转可由前文证据和因果链支持，而不是无依据惊吓。",
+          "en": "The ending reversal is supported by prior evidence and causality rather than an unsupported shock."
+        },
+        "source": {
+          "source_id": "profile-zhihu-salt-v1",
+          "source_kind": "profile_contract",
+          "source_ref": "ADR-PROFILE-001#zhihu-salt-style-reversal-ending",
+          "observed_at": "2026-07-21",
+          "effective_from": "2026-07-21",
+          "recorded_at": "2026-07-21T11:10:00+08:00"
+        },
+        "purpose": {
+          "zh-CN": "让反转重构已知信息并闭合因果，而非临时制造新事实。",
+          "en": "Make the reversal reframe known information and close causality instead of inventing late facts."
+        },
+        "scope": {
+          "profile_ids": ["zhihu_salt_short"],
+          "operation_ids": ["evaluate_reversal_ending"],
+          "artifact_types": ["ending_draft"]
+        },
+        "priority": "must",
+        "evidence_requirement": {
+          "kind": "source_crosscheck",
+          "description": {
+            "zh-CN": "至少引用两处前文铺垫和一处结尾回收文本。",
+            "en": "Cite at least two earlier setups and one ending payoff span."
+          },
+          "minimum_count": 3,
+          "accepted_sources": ["manuscript", "outline", "review_artifact"]
+        },
+        "value_contract": {
+          "type": "enum",
+          "allowed_values": ["traceable", "strict"],
+          "unknown_value_policy": "reject_explicitly"
+        },
+        "allowed_override_scopes": ["project", "task", "operation_confirmation"]
+      },
+      {
+        "id": "qg.short.causal_closure",
+        "contract": { "kind": "denova.quality-goal", "version": "v1" },
+        "description": {
+          "zh-CN": "反转结尾收束主要因果问题，不以新谜团代替兑现。",
+          "en": "The reversal ending closes the main causal questions instead of replacing payoff with a new mystery."
+        },
+        "source": {
+          "source_id": "profile-zhihu-salt-v1",
+          "source_kind": "profile_contract",
+          "source_ref": "ADR-PROFILE-001#zhihu-salt-style-reversal-ending",
+          "observed_at": "2026-07-21",
+          "effective_from": "2026-07-21",
+          "recorded_at": "2026-07-21T11:10:00+08:00"
+        },
+        "purpose": {
+          "zh-CN": "确保反转重构因果后仍完成故事闭环。",
+          "en": "Ensure the story closes after the reversal reframes its causal chain."
+        },
+        "scope": {
+          "profile_ids": ["zhihu_salt_short"],
+          "operation_ids": ["evaluate_reversal_ending"],
+          "artifact_types": ["ending_draft"]
+        },
+        "priority": "must",
+        "evidence_requirement": {
+          "kind": "structural_check",
+          "description": {
+            "zh-CN": "至少列出一个主要因果问题及其结尾回收证据。",
+            "en": "Identify at least one primary causal question and its ending payoff evidence."
+          },
+          "minimum_count": 1,
+          "accepted_sources": ["manuscript", "outline", "review_artifact"]
+        },
+        "value_contract": {
+          "type": "enum",
+          "allowed_values": ["open", "closed"],
+          "unknown_value_policy": "reject_explicitly"
+        },
+        "allowed_override_scopes": ["project", "task", "operation_confirmation"]
+      }
+    ],
+    "layers": {
+      "profile_defaults": [
+        {
+          "goal_id": "qg.short.reversal_evidence",
+          "value": "traceable",
+          "provenance": {
+            "source_id": "profile-zhihu-salt-v1",
+            "source_kind": "profile_contract",
+            "source_ref": "zhihu_salt_short default",
+            "observed_at": "2026-07-21",
+            "effective_from": "2026-07-21",
+            "recorded_at": "2026-07-21T11:10:00+08:00"
+          },
+          "author_override_policy": {
+            "allowed": true,
+            "allowed_scopes": ["project", "task", "operation_confirmation"],
+            "requires_explicit_confirmation": true,
+            "forbidden_operations": ["delete"],
+            "unsupported_value_policy": "reject_explicitly"
+          }
+        },
+        {
+          "goal_id": "qg.short.causal_closure",
+          "value": "open",
+          "provenance": {
+            "source_id": "profile-zhihu-salt-v1",
+            "source_kind": "profile_contract",
+            "source_ref": "zhihu_salt_short default",
+            "observed_at": "2026-07-21",
+            "effective_from": "2026-07-21",
+            "recorded_at": "2026-07-21T11:10:00+08:00"
+          },
+          "author_override_policy": {
+            "allowed": true,
+            "allowed_scopes": ["project", "task", "operation_confirmation"],
+            "requires_explicit_confirmation": true,
+            "forbidden_operations": ["delete"],
+            "unsupported_value_policy": "reject_explicitly"
+          }
+        }
+      ],
+      "project_overrides": [
+        {
+          "goal_id": "qg.short.reversal_evidence",
+          "operation": "set",
+          "value": "strict",
+          "scope": "project",
+          "provenance": {
+            "source_id": "project-reversal-red-line",
+            "source_kind": "project_contract",
+            "source_ref": "CREATOR.md#reversal-evidence",
+            "observed_at": "2026-07-20",
+            "effective_from": "2026-07-20",
+            "recorded_at": "2026-07-21T11:11:00+08:00"
+          },
+          "authorization": {
+            "actor": "author",
+            "decision": "confirmed",
+            "confirmation_id": "confirm-project-zhihu-reversal",
+            "confirmed_at": "2026-07-21T11:11:00+08:00"
+          }
+        }
+      ],
+      "task_overrides": [
+        {
+          "goal_id": "qg.short.causal_closure",
+          "operation": "set",
+          "value": "closed",
+          "scope": "task",
+          "provenance": {
+            "source_id": "task-reversal-ending-evaluation",
+            "source_kind": "task_contract",
+            "source_ref": "artifact:zhihu-reversal-ending-001",
+            "observed_at": "2026-07-21",
+            "effective_from": "2026-07-21",
+            "recorded_at": "2026-07-21T11:11:30+08:00"
+          },
+          "authorization": {
+            "actor": "author",
+            "decision": "confirmed",
+            "confirmation_id": "confirm-task-zhihu-closure",
+            "confirmed_at": "2026-07-21T11:11:30+08:00"
+          }
+        }
+      ],
+      "operation_confirmation": {
+        "operation_id": "evaluate_reversal_ending",
+        "authorization": {
+          "actor": "author",
+          "decision": "confirmed",
+          "confirmation_id": "confirm-op-zhihu-reversal",
+          "confirmed_at": "2026-07-21T11:12:00+08:00"
+        },
+        "overrides": []
+      }
+    },
+    "candidate_changes": [],
+    "resolution": {
+      "merge_order": ["profile_defaults", "project_overrides", "task_overrides", "operation_confirmation"],
+      "unknown_or_unsupported_value_policy": "reject_explicitly",
+      "validator_contract": "quality-spec-resolution-v1",
+      "validated_at": "2026-07-21T11:13:00+08:00",
+      "resolved_goals": [
+        {
+          "goal_id": "qg.short.reversal_evidence",
+          "value": "strict",
+          "winning_layer": "project_overrides",
+          "provenance_chain": [
+            {
+              "layer": "profile_defaults",
+              "value": "traceable",
+              "provenance": {
+                "source_id": "profile-zhihu-salt-v1",
+                "source_kind": "profile_contract",
+                "source_ref": "zhihu_salt_short default",
+                "observed_at": "2026-07-21",
+                "effective_from": "2026-07-21",
+                "recorded_at": "2026-07-21T11:10:00+08:00"
+              }
+            },
+            {
+              "layer": "project_overrides",
+              "value": "strict",
+              "provenance": {
+                "source_id": "project-reversal-red-line",
+                "source_kind": "project_contract",
+                "source_ref": "CREATOR.md#reversal-evidence",
+                "observed_at": "2026-07-20",
+                "effective_from": "2026-07-20",
+                "recorded_at": "2026-07-21T11:11:00+08:00"
+              }
+            }
+          ],
+          "author_confirmation_id": "confirm-op-zhihu-reversal"
+        },
+        {
+          "goal_id": "qg.short.causal_closure",
+          "value": "closed",
+          "winning_layer": "task_overrides",
+          "provenance_chain": [
+            {
+              "layer": "profile_defaults",
+              "value": "open",
+              "provenance": {
+                "source_id": "profile-zhihu-salt-v1",
+                "source_kind": "profile_contract",
+                "source_ref": "zhihu_salt_short default",
+                "observed_at": "2026-07-21",
+                "effective_from": "2026-07-21",
+                "recorded_at": "2026-07-21T11:10:00+08:00"
+              }
+            },
+            {
+              "layer": "task_overrides",
+              "value": "closed",
+              "provenance": {
+                "source_id": "task-reversal-ending-evaluation",
+                "source_kind": "task_contract",
+                "source_ref": "artifact:zhihu-reversal-ending-001",
+                "observed_at": "2026-07-21",
+                "effective_from": "2026-07-21",
+                "recorded_at": "2026-07-21T11:11:30+08:00"
+              }
+            }
+          ],
+          "author_confirmation_id": "confirm-op-zhihu-reversal"
+        }
+      ]
+    }
+  }
+}
