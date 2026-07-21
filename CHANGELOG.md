@@ -54,6 +54,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评写作能力分类边界：稳定候选只保留已批准的核心能力，提案证据保持内部且须由两份不同 Skill 支持；词典版本、空术语、媒体转写措辞及 Unicode 证据归一化现均受确定性校验。
+- Fixed Xiaping writing-capability boundaries: stable candidates retain approved core capabilities only, proposal evidence stays internal and needs two distinct Skills; lexicon versions, empty terms, media-to-prose phrases, and Unicode evidence normalization are now deterministically validated.
 - Windows 上的自动化、正文评论、资料库和选择性版本恢复不再因原子写入后同步只读目录句柄而报 `Access is denied`；普通文件仍会在重命名前完整落盘，支持目录同步的平台继续刷新目录元数据。
 - Automations, document comments, Lore, and selective version restores on Windows no longer fail with `Access is denied` when atomic writes sync read-only directory handles; regular files are still fully flushed before rename, and platforms with directory-sync support continue flushing namespace metadata.
 - 写作模式现在会隔离参数不是合法 JSON 的工具调用及其结果；已经保存的异常调用链也会在下次请求前被过滤，长参数则使用合法 JSON 回执保留上下文，避免会话被永久冻结。

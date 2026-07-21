@@ -62,18 +62,27 @@ func LoadLexicon(path string) (Lexicon, error) {
 
 // ClassifyWritingCandidates returns sorted recall candidates and non-routable proposals.
 func ClassifyWritingCandidates(records []SkillRecord, lexicon Lexicon) ([]CandidateRecord, []CapabilityProposal) {
+	candidates, provisional := classifyWritingCandidates(records, lexicon)
+	return candidates, buildCapabilityProposals(lexicon, provisional)
+}
+
+func classifyWritingCandidates(records []SkillRecord, lexicon Lexicon) ([]CandidateRecord, map[string][]proposalSignal) {
 	ordered := append([]SkillRecord(nil), records...)
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].ID < ordered[j].ID })
-	rules := append(append([]CapabilityRule(nil), lexicon.CoreCapabilities...), lexicon.ProposalRules...)
 	candidates := make([]CandidateRecord, 0, len(ordered))
+	provisional := make(map[string][]proposalSignal, len(lexicon.ProposalRules))
 	for _, record := range ordered {
 		fields := skillFields(record)
 		includeEvidence := evidenceForTerms(fields, lexicon.IncludeTerms)
 		if isExcludedMediaOnly(fields, lexicon.ExcludeTerms, includeEvidence) {
 			continue
 		}
-		matches := make([]CapabilityMatch, 0, len(rules))
-		for _, rule := range rules {
+		matches := make([]CapabilityMatch, 0, len(lexicon.CoreCapabilities))
+		proposalMatched := false
+		for _, rule := range lexicon.CoreCapabilities {
+			if !isApprovedCoreCapability(rule.CapabilityID) {
+				continue
+			}
 			evidence := evidenceForTerms(fields, rule.Terms)
 			if len(evidence) == 0 {
 				continue
@@ -81,29 +90,28 @@ func ClassifyWritingCandidates(records []SkillRecord, lexicon Lexicon) ([]Candid
 			match := CapabilityMatch{CapabilityID: rule.CapabilityID, Status: matchStatus(evidence), Evidence: evidence}
 			matches = append(matches, match)
 		}
-		if len(includeEvidence) == 0 && len(matches) == 0 {
+		for _, rule := range lexicon.ProposalRules {
+			if evidence := evidenceForTerms(fields, rule.Terms); len(evidence) > 0 {
+				proposalMatched = true
+				provisional[rule.CapabilityID] = append(provisional[rule.CapabilityID], proposalSignal{skillID: record.ID, signature: metadataSignature(fields)})
+			}
+		}
+		if len(includeEvidence) == 0 && len(matches) == 0 && !proposalMatched {
 			continue
 		}
 		sort.Slice(matches, func(i, j int) bool { return matches[i].CapabilityID < matches[j].CapabilityID })
 		candidates = append(candidates, CandidateRecord{Skill: record, Capabilities: matches})
 	}
-	return candidates, BuildCapabilityProposals(candidates, lexicon)
+	return candidates, provisional
 }
 
 // BuildCapabilityProposals emits proposals only when independently described by two skills.
-func BuildCapabilityProposals(candidates []CandidateRecord, lexicon Lexicon) []CapabilityProposal {
-	provisional := make(map[string][]proposalSignal, len(lexicon.ProposalRules))
-	proposalIDs := make(map[string]struct{}, len(lexicon.ProposalRules))
-	for _, rule := range lexicon.ProposalRules {
-		proposalIDs[rule.CapabilityID] = struct{}{}
-	}
-	for _, candidate := range candidates {
-		for _, capability := range candidate.Capabilities {
-			if _, isProposal := proposalIDs[capability.CapabilityID]; isProposal {
-				provisional[capability.CapabilityID] = append(provisional[capability.CapabilityID], proposalSignal{skillID: candidate.Skill.ID, signature: metadataSignature(skillFields(candidate.Skill))})
-			}
-		}
-	}
+func BuildCapabilityProposals(records []SkillRecord, lexicon Lexicon) []CapabilityProposal {
+	_, provisional := classifyWritingCandidates(records, lexicon)
+	return buildCapabilityProposals(lexicon, provisional)
+}
+
+func buildCapabilityProposals(lexicon Lexicon, provisional map[string][]proposalSignal) []CapabilityProposal {
 	proposals := make([]CapabilityProposal, 0, len(lexicon.ProposalRules))
 	for _, rule := range lexicon.ProposalRules {
 		bySignature := make(map[string]string)
@@ -152,6 +160,7 @@ func normalizeText(value string) string {
 
 func evidenceForTerms(fields []normalizedField, terms []string) []FieldEvidence {
 	evidence := make([]FieldEvidence, 0)
+	seen := make(map[string]struct{})
 	for _, field := range fields {
 		if field.value == "" {
 			continue
@@ -159,6 +168,11 @@ func evidenceForTerms(fields []normalizedField, terms []string) []FieldEvidence 
 		for _, term := range terms {
 			normalizedTerm := normalizeText(term)
 			if normalizedTerm != "" && strings.Contains(field.value, normalizedTerm) {
+				key := field.name + "\x00" + normalizedTerm
+				if _, exists := seen[key]; exists {
+					continue
+				}
+				seen[key] = struct{}{}
 				evidence = append(evidence, FieldEvidence{Field: field.name, Term: normalizedTerm})
 			}
 		}
@@ -184,8 +198,16 @@ func isExcludedMediaOnly(fields []normalizedField, excluded []string, includeEvi
 
 func hasExplicitWritingTransformation(fields []normalizedField) bool {
 	for _, field := range fields {
-		if strings.Contains(field.value, "改写") && (strings.Contains(field.value, "小说") || strings.Contains(field.value, "故事")) {
-			return true
+		for _, verb := range []string{"改写", "写成", "写为", "转成", "转换为"} {
+			verbAt := strings.Index(field.value, verb)
+			if verbAt < 0 {
+				continue
+			}
+			for _, target := range []string{"小说", "故事"} {
+				if targetAt := strings.Index(field.value, target); targetAt > verbAt {
+					return true
+				}
+			}
 		}
 	}
 	return false
@@ -214,7 +236,7 @@ func metadataSignature(fields []normalizedField) string {
 }
 
 func validateLexicon(lexicon Lexicon) error {
-	if lexicon.Contract != capabilityLexiconContract || strings.TrimSpace(lexicon.Version) == "" || len(lexicon.IncludeTerms) == 0 {
+	if lexicon.Contract != capabilityLexiconContract || lexicon.Version != "v1" || len(lexicon.IncludeTerms) == 0 {
 		return fmt.Errorf("invalid capability lexicon contract, version, or include terms")
 	}
 	if err := uniqueNonEmptyTerms("include", lexicon.IncludeTerms); err != nil {
@@ -266,6 +288,9 @@ func validateLexicon(lexicon Lexicon) error {
 }
 
 func uniqueNonEmptyTerms(label string, terms []string) error {
+	if len(terms) == 0 {
+		return fmt.Errorf("%s terms are empty", label)
+	}
 	seen := make(map[string]struct{}, len(terms))
 	for _, term := range terms {
 		normalized := normalizeText(term)
@@ -291,4 +316,13 @@ func validateRule(rule CapabilityRule, proposal bool) error {
 		return fmt.Errorf("proposal %q lacks required metadata", rule.CapabilityID)
 	}
 	return nil
+}
+
+func isApprovedCoreCapability(capabilityID string) bool {
+	for _, approvedID := range CoreCapabilityIDs {
+		if capabilityID == approvedID {
+			return true
+		}
+	}
+	return false
 }
