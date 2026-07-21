@@ -56,6 +56,24 @@ func TestCollectCatalogDoesNotReuseCacheAcrossOrigins(t *testing.T) {
 	}
 }
 
+func TestValidateCatalogOptionsRejectsCredentialBearingOrAmbiguousBaseURL(t *testing.T) {
+	for _, rawURL := range []string{
+		"https://example.test?access_token=synthetic-secret",
+		"https://example.test?X-Amz-Signature=synthetic-signature",
+		"https://user:password@example.test",
+		"https://example.test#fragment",
+	} {
+		options := CollectorOptions{BaseURL: rawURL, CacheRoot: t.TempDir(), PageSize: 1, RetryAttempts: 1}
+		if _, err := validateCatalogOptions(options); err == nil {
+			t.Fatalf("validateCatalogOptions(%q) accepted a credential-bearing or ambiguous base URL", rawURL)
+		}
+	}
+	valid := CollectorOptions{BaseURL: "https://example.test", CacheRoot: t.TempDir(), PageSize: 1, RetryAttempts: 1}
+	if _, err := validateCatalogOptions(valid); err != nil {
+		t.Fatalf("validateCatalogOptions(valid root) = %v", err)
+	}
+}
+
 func TestCollectCatalogMarksPartialAfterNonRetryablePage(t *testing.T) {
 	collector, options := failingPageCollector(t, http.StatusBadRequest)
 	got, err := collector.CollectCatalog(context.Background(), options)

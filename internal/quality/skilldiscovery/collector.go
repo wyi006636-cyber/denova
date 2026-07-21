@@ -257,7 +257,7 @@ func (collector *Collector) finishSnapshot(cache Cache, manifest SnapshotManifes
 
 func validateCatalogOptions(options CollectorOptions) (*urlpkg.URL, error) {
 	baseURL, err := urlpkg.Parse(strings.TrimSpace(options.BaseURL))
-	if err != nil || baseURL.Scheme != "https" || baseURL.Hostname() == "" || baseURL.User != nil {
+	if err != nil || baseURL.Scheme != "https" || baseURL.Hostname() == "" || baseURL.User != nil || baseURL.RawQuery != "" || baseURL.ForceQuery || baseURL.Fragment != "" || baseURL.RawFragment != "" || (baseURL.Path != "" && baseURL.Path != "/") || baseURL.RawPath != "" {
 		return nil, fmt.Errorf("catalog base URL must be an absolute https:// URL")
 	}
 	if options.CacheRoot == "" || options.PageSize <= 0 || options.RetryAttempts <= 0 || options.MinInterval < 0 || options.MaxRetryDelay < 0 {

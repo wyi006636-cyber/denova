@@ -24,6 +24,32 @@ func TestValidateSnapshotManifestRejectsFailuresForCompleteSnapshot(t *testing.T
 	}
 }
 
+func TestValidateSnapshotManifestRejectsInvalidRequestFailureReceipt(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		mutate func(*PageReceipt)
+	}{
+		{"missing error", func(receipt *PageReceipt) { receipt.Error = "" }},
+		{"nonzero item count", func(receipt *PageReceipt) { receipt.ItemCount = 1 }},
+		{"arbitrary hash", func(receipt *PageReceipt) { receipt.SHA256 = "sha256:" + strings.Repeat("a", 64) }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			manifest := validSnapshotManifest()
+			manifest.Status = SnapshotPartial
+			manifest.Failures = []SnapshotFailure{{Kind: "catalog", Key: "request", Disposition: "request-failed", Message: "synthetic"}}
+			receipt := &manifest.Pages[0]
+			receipt.HTTPStatus = 0
+			receipt.Error = "synthetic transport failure"
+			receipt.ItemCount = 0
+			receipt.SHA256 = payloadSHA256(nil)
+			test.mutate(receipt)
+			if err := ValidateSnapshotManifest(manifest); err == nil {
+				t.Fatalf("ValidateSnapshotManifest() accepted invalid status-zero receipt: %+v", receipt)
+			}
+		})
+	}
+}
+
 func TestValidateSkillRecordsRejectsDuplicateID(t *testing.T) {
 	records := []SkillRecord{{ID: "skill-1", Name: "甲"}, {ID: "skill-1", Name: "乙"}}
 	if err := ValidateSkillRecords(records); err == nil || !strings.Contains(err.Error(), "duplicate skill id") {

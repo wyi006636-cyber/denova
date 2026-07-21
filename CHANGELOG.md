@@ -810,6 +810,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评采集基础地址边界：仅接受无凭据、无 query/fragment、无子路径的 HTTPS 根地址，并收紧传输失败 receipt 的空响应哈希与零条目校验。
+- Fixed Xiaping collector base-URL boundaries: only credential-free HTTPS roots without query, fragment, or subpaths are accepted, and transport-failure receipts now require the empty-response hash and zero items.
 - 修复虾评目录采集器的缓存来源隔离与所有权校验：页检查点现绑定规范请求 URL，拒绝接管未归属或错误标记的非空目录，并为所有失败页保留真实 receipt。
 - Fixed Xiaping collector cache provenance and ownership checks: page checkpoints now bind to canonical request URLs, unowned or mismatched non-empty roots are rejected, and every failed page retains an honest receipt.
 - 文件删除支持 macOS、Linux 和 Windows 回收站，不再只依赖 macOS。

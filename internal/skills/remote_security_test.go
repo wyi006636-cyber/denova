@@ -28,7 +28,7 @@ func TestRestrictedSkillInstallClientRejectsNonPublicDestinations(t *testing.T) 
 
 func TestNewRestrictedRemoteHTTPClientPreservesDestinationRestrictions(t *testing.T) {
 	client := NewRestrictedRemoteHTTPClient()
-	for _, rawURL := range []string{"https://127.0.0.1/archive.zip", "https://10.0.0.1/archive.zip", "https://169.254.169.254/archive.zip", "https://[::1]/archive.zip", "https://[fe80::1]/archive.zip"} {
+	for _, rawURL := range []string{"https://127.0.0.1/archive.zip", "https://10.0.0.1/archive.zip", "https://169.254.169.254/archive.zip", "https://[::1]/archive.zip", "https://[fe80::1]/archive.zip", "https://[fd00::1]/archive.zip"} {
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, rawURL, nil)
 		if err != nil {
 			t.Fatal(err)
