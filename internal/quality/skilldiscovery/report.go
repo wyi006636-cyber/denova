@@ -18,7 +18,9 @@ const (
 	proposalIndexContract  = "denova.xiaping-capability-proposals"
 	clusterIndexContract   = "denova.xiaping-duplicate-clusters"
 )
-const artifactMaxBytes = 262144
+// artifactMaxBytes bounds every committed discovery artifact while allowing a
+// complete live writing-candidate pool rather than truncating its evidence.
+const artifactMaxBytes = 2 * 1024 * 1024
 
 var artifactNames = []string{"xiaping-snapshot-manifest-v1.json", "xiaping-writing-candidates-v1.json", "xiaping-capability-proposals-v1.json", "xiaping-duplicate-clusters-v1.json", "xiaping-evidence-shortlist-v1.json", "XIAPING_EVIDENCE_REPORT.md"}
 var artifactRename = os.Rename

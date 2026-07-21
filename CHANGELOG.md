@@ -28,6 +28,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Fixed Xiaping public-catalog access on managed networks: only the fixed `xiaping.coze.com` host may use the local transparent 198.18.0.0/15 route; other hosts and remote Skill archive downloads continue to reject non-public addresses.
 - 修复霞萍实时目录字段兼容性：公开 API 的单数/数组 trigger/category、字符串或数组 tags、`avg_stars`、`is_featured` 和 `status` 现被无损规范为稳定发现合同。
 - Fixed live Xiaping catalog field compatibility: singular-or-array trigger/category fields, string-or-array tags, `avg_stars`, `is_featured`, and `status` now normalize into the stable discovery contract.
+- 调整霞萍发现工件的明确大小上限至每项 2 MiB，使完整实时写作候选池可以发布而不截断其元数据证据；上限仍受 Schema 与原子发布事务约束。
+- Raised the explicit Xiaping discovery-artifact limit to 2 MiB per item so the complete live writing pool can publish without truncating metadata evidence; the bound remains enforced by schema and atomic publication.
 - 修复虾评 CLI 失败发布边界：PARTIAL 快照仅保存为可恢复的本地缓存，不再覆盖已发布根工件；详情或评论证据失败会中止排序发布，保持所有根工件逐字节不变。
 - Fixed Xiaping CLI failure publication boundaries: PARTIAL snapshots remain resumable local cache only and never overwrite published root artifacts; detail or comment-evidence failures abort ranking publication and preserve every root artifact byte-for-byte.
 - 修复取消和失败快照的发布边界：预先取消的发现命令不会创建缓存或工件；仅成功的 COMPLETE 快照才能更新根工件，PARTIAL 结果仅保留在本地缓存以便恢复。

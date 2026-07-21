@@ -196,7 +196,7 @@ func TestSchemaRequiresExactProvenanceMaxBytes(t *testing.T) {
 		t.Fatal(err)
 	}
 	schema := filepath.Join("..", "..", "..", "docs", "project-design", "implementation", "skills", "discovery", "xiaping-discovery-v1.schema.json")
-	for _, value := range []any{262143, 262145} {
+	for _, value := range []any{artifactMaxBytes - 1, artifactMaxBytes + 1} {
 		var doc map[string]any
 		b, _ := os.ReadFile(filepath.Join(root, artifactNames[1]))
 		_ = json.Unmarshal(b, &doc)
