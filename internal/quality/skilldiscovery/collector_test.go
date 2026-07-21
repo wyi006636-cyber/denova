@@ -101,6 +101,20 @@ func TestNormalizeCatalogPageDistinguishesDirectAndEnvelopeResponses(t *testing.
 	}
 }
 
+func TestNormalizeCatalogPageSupportsLiveXiapingFieldAliases(t *testing.T) {
+	payload := `{"skills":[{"id":"one","trigger":"小说大纲","category":"writing","tags":"novel","avg_stars":4.25,"is_featured":true,"status":"published"},{"id":"two","triggers":["rewrite"],"categories":["editorial"],"tags":["prose"],"average_stars_x100":490}],"total":2,"hasMore":false}`
+	page, err := normalizeCatalogPage([]byte(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := page.Skills[0]; len(got.Triggers) != 1 || got.Triggers[0] != "小说大纲" || len(got.Categories) != 1 || got.Categories[0] != "writing" || len(got.Tags) != 1 || got.Tags[0] != "novel" || got.AverageStars != 425 || !got.Featured || got.PlatformStatus != "published" {
+		t.Fatalf("normalized live record = %#v", got)
+	}
+	if got := page.Skills[1]; len(got.Triggers) != 1 || got.Triggers[0] != "rewrite" || len(got.Categories) != 1 || got.Categories[0] != "editorial" || len(got.Tags) != 1 || got.Tags[0] != "prose" || got.AverageStars != 490 {
+		t.Fatalf("normalized compatibility record = %#v", got)
+	}
+}
+
 func TestNormalizeCatalogPageRequiresCompleteTypedShape(t *testing.T) {
 	validDirect := `{"skills":[],"total":0,"hasMore":false,"upstream":"ignored"}`
 	validEnvelope := `{"success":true,"data":{"skills":[],"total":0,"hasMore":false,"upstream":"ignored"}}`

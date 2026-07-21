@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	urlpkg "net/url"
 	"os"
@@ -214,10 +215,20 @@ func decodeCatalogFields(fields map[string]json.RawMessage) (catalogPage, error)
 	if !skillsPresent || !totalPresent || !hasMorePresent || isNullJSON(skillsRaw) || isNullJSON(totalRaw) || isNullJSON(hasMoreRaw) {
 		return catalogPage{}, fmt.Errorf("catalog payload requires skills, total, and hasMore")
 	}
-	var page catalogPage
-	if err := json.Unmarshal(skillsRaw, &page.Skills); err != nil || page.Skills == nil {
+	var sourceSkills []apiCatalogSkill
+	if err := json.Unmarshal(skillsRaw, &sourceSkills); err != nil || sourceSkills == nil {
 		return catalogPage{}, fmt.Errorf("catalog skills must be an array")
 	}
+	skills := make([]SkillRecord, 0, len(sourceSkills))
+	for _, source := range sourceSkills {
+		record, err := source.normalized()
+		if err != nil {
+			return catalogPage{}, err
+		}
+		skills = append(skills, record)
+	}
+	var page catalogPage
+	page.Skills = skills
 	if err := json.Unmarshal(totalRaw, &page.Total); err != nil || page.Total < 0 {
 		return catalogPage{}, fmt.Errorf("catalog total must be a non-negative integer")
 	}
@@ -225,6 +236,68 @@ func decodeCatalogFields(fields map[string]json.RawMessage) (catalogPage, error)
 		return catalogPage{}, fmt.Errorf("catalog hasMore must be a boolean")
 	}
 	return page, nil
+}
+
+// apiCatalogSkill accepts the public Xiaping field names while preserving the
+// stable discovery contract used by the classifier and artifact schema.
+type apiCatalogSkill struct {
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	Description    string          `json:"description"`
+	Trigger        string          `json:"trigger"`
+	Triggers       []string        `json:"triggers"`
+	Category       string          `json:"category"`
+	Categories     []string        `json:"categories"`
+	Tags           json.RawMessage `json:"tags"`
+	OwnerID        string          `json:"owner_id"`
+	OwnerName      string          `json:"owner_name"`
+	CurrentVersion string          `json:"current_version"`
+	Downloads      int             `json:"downloads"`
+	AverageStars   int             `json:"average_stars_x100"`
+	AvgStars       float64         `json:"avg_stars"`
+	StarCount      int             `json:"star_count"`
+	CommentCount   int             `json:"comment_count"`
+	Featured       bool            `json:"featured"`
+	IsFeatured     bool            `json:"is_featured"`
+	PlatformStatus string          `json:"platform_status"`
+	Status         string          `json:"status"`
+	SecurityStatus string          `json:"security_status"`
+	VersionCount   int             `json:"version_count"`
+	CreatedAt      string          `json:"created_at"`
+	UpdatedAt      string          `json:"updated_at"`
+	DetailURL      string          `json:"detail_url"`
+}
+
+func (source apiCatalogSkill) normalized() (SkillRecord, error) {
+	tags := []string{}
+	if len(source.Tags) != 0 && !isNullJSON(source.Tags) {
+		if err := json.Unmarshal(source.Tags, &tags); err != nil {
+			var tag string
+			if string(source.Tags) == `""` || json.Unmarshal(source.Tags, &tag) != nil {
+				return SkillRecord{}, fmt.Errorf("catalog skill tags must be an array or string")
+			}
+			if tag != "" {
+				tags = []string{tag}
+			}
+		}
+	}
+	triggers := append([]string(nil), source.Triggers...)
+	if source.Trigger != "" {
+		triggers = append(triggers, source.Trigger)
+	}
+	categories := append([]string(nil), source.Categories...)
+	if source.Category != "" {
+		categories = append(categories, source.Category)
+	}
+	stars := source.AverageStars
+	if stars == 0 && source.AvgStars != 0 {
+		stars = int(math.Round(source.AvgStars * 100))
+	}
+	status := source.PlatformStatus
+	if status == "" {
+		status = source.Status
+	}
+	return SkillRecord{ID: source.ID, Name: source.Name, Description: source.Description, Triggers: triggers, Categories: categories, Tags: tags, OwnerID: source.OwnerID, OwnerName: source.OwnerName, CurrentVersion: source.CurrentVersion, Downloads: source.Downloads, AverageStars: stars, StarCount: source.StarCount, CommentCount: source.CommentCount, Featured: source.Featured || source.IsFeatured, PlatformStatus: status, SecurityStatus: source.SecurityStatus, VersionCount: source.VersionCount, CreatedAt: source.CreatedAt, UpdatedAt: source.UpdatedAt, DetailURL: source.DetailURL}, nil
 }
 
 func isNullJSON(raw json.RawMessage) bool { return bytes.Equal(bytes.TrimSpace(raw), []byte("null")) }
