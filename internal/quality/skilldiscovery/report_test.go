@@ -1,6 +1,7 @@
 package skilldiscovery
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -125,6 +126,28 @@ func TestValidateDiscoveryArtifactsRejectsUnlinkedEvidenceAndEscapesReport(t *te
 	}
 	if strings.Contains(string(report), "<script>") || strings.Contains(string(report), "\n|<script>") {
 		t.Fatalf("unsafe report=%s", report)
+	}
+}
+
+func TestSchemaRejectsNestedCorruptionForEveryArtifactFamily(t *testing.T) {
+	root := t.TempDir()
+	if err := WriteDiscoveryArtifacts(root, artifactFixture(t)); err != nil {
+		t.Fatal(err)
+	}
+	schema := filepath.Join("..", "..", "..", "docs", "project-design", "implementation", "skills", "discovery", "xiaping-discovery-v1.schema.json")
+	for _, name := range artifactNames[:5] {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(root, name)
+			var doc map[string]any
+			b, _ := os.ReadFile(path)
+			_ = json.Unmarshal(b, &doc)
+			doc["unexpected"] = true
+			bad, _ := json.Marshal(doc)
+			_ = os.WriteFile(path, bad, 0o600)
+			if err := ValidateArtifactSchema(schema, []string{path}); err == nil {
+				t.Fatal("accepted unknown root")
+			}
+		})
 	}
 }
 
