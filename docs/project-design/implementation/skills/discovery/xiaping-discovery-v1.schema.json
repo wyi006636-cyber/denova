@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Xiaping discovery artifacts v1",
+  "oneOf": [
+    { "$ref": "#/$defs/manifest" },
+    { "$ref": "#/$defs/candidates" },
+    { "$ref": "#/$defs/proposals" },
+    { "$ref": "#/$defs/clusters" },
+    { "$ref": "#/$defs/shortlist" },
+    { "$ref": "#/$defs/lexicon" }
+  ],
+  "$defs": {
+    "manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["contract", "version", "snapshot_id", "status", "started_at", "completed_at", "base_url", "normalization_version", "reported_total", "unique_skills", "pages", "failures", "skill_records_sha256"],
+      "properties": {
+        "contract": {"const": "denova.xiaping-snapshot-manifest"}, "version": {"const": "v1"}, "snapshot_id": {"type": "string", "minLength": 1}, "status": {"enum": ["COMPLETE", "PARTIAL"]},
+        "started_at": {"type": "string"}, "completed_at": {"type": "string"}, "base_url": {"type": "string"}, "normalization_version": {"type": "string"}, "reported_total": {"type": "integer", "minimum": 0}, "unique_skills": {"type": "integer", "minimum": 0}, "pages": {"type": "array"}, "failures": {"type": "array"}, "previous_snapshot_sha256": {"type": "string"}, "skill_records_sha256": {"type": "string"}
+      }
+    },
+    "candidates": {"type": "object", "additionalProperties": false, "required": ["contract", "version", "snapshot_id", "candidates"], "properties": {"contract": {"const": "denova.xiaping-writing-candidates"}, "version": {"const": "v1"}, "snapshot_id": {"type": "string", "minLength": 1}, "candidates": {"type": "array"}}},
+    "proposals": {"type": "object", "additionalProperties": false, "required": ["contract", "version", "snapshot_id", "proposals"], "properties": {"contract": {"const": "denova.xiaping-capability-proposals"}, "version": {"const": "v1"}, "snapshot_id": {"type": "string", "minLength": 1}, "proposals": {"type": "array"}}},
+    "clusters": {"type": "object", "additionalProperties": false, "required": ["contract", "version", "snapshot_id", "clusters"], "properties": {"contract": {"const": "denova.xiaping-duplicate-clusters"}, "version": {"const": "v1"}, "snapshot_id": {"type": "string", "minLength": 1}, "clusters": {"type": "array"}}},
+    "shortlist": {"type": "object", "additionalProperties": false, "required": ["contract", "version", "snapshot_id", "entries", "gaps"], "properties": {"contract": {"const": "denova.xiaping-evidence-shortlist"}, "version": {"const": "v1"}, "snapshot_id": {"type": "string", "minLength": 1}, "entries": {"type": "array"}, "gaps": {"type": "array"}}},
+    "lexicon": {"type": "object", "additionalProperties": false, "required": ["contract", "version", "include_terms", "exclude_terms", "core_capabilities", "proposal_rules"], "properties": {"contract": {"const": "denova.xiaping-capability-lexicon"}, "version": {"const": "v1"}, "include_terms": {"type": "array"}, "exclude_terms": {"type": "array"}, "core_capabilities": {"type": "array"}, "proposal_rules": {"type": "array"}}}
+  }
+}

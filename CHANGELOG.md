@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增虾评写作 Skill 的确定性双通道短名单与离线、Schema 约束的提交工件：每个 Capability 最多保留 3 个数据充足候选和 2 个探索候选，保留重复簇成员引用与完整证据向量，并明确记录候选不足的缺口；双语报告只陈述平台证据、覆盖、异常与边界，不将其视为写作质量结论。
+- Added deterministic dual-lane Xiaping writing-Skill shortlists and offline, schema-bound committed artifacts: each Capability retains up to three data-rich and two exploration candidates, preserves duplicate-cluster member references and complete evidence vectors, and records explicit shortfalls; the bilingual report states platform evidence, coverage, anomalies, and boundaries without treating them as writing-quality conclusions.
 - 新增虾评写作候选的隐私安全评论证据：仅在本地受限缓存采集详情和分页评论，提交产物仅保留去重后的聚合、异常信号和可用性状态，不包含评论正文、评审身份或签名头像链接。
 - Added privacy-safe Xiaping review evidence for writing candidates: details and paginated comments are collected only into restricted local cache, while committed artifacts retain only de-duplicated aggregates, anomaly signals, and availability state—not review text, reviewer identity, or signed avatar URLs.
 - 新增按能力独立计算的下载分位、冻结贝叶斯星级调整及描述性的 DATA-RICH 分层；平台指标只改变排序优先级，缺失缓存自动进入探索通道而不伪造独立评论证据。
