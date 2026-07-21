@@ -73,7 +73,7 @@ func WriteDiscoveryArtifacts(root string, artifacts DiscoveryArtifacts) error {
 		payloads[write.name] = append(b, '\n')
 	}
 	payloads[artifactNames[5]] = report
-	return publishArtifactTransaction(root, payloads)
+	return publishArtifactTransaction(root, payloads, artifactNames)
 }
 func normalizedCandidates(input []CandidateRecord) []CandidateRecord {
 	out := append([]CandidateRecord(nil), input...)
@@ -118,14 +118,17 @@ func withProvenance[T any](value T, manifest SnapshotManifest, purpose string) T
 	}
 	return value
 }
-func publishArtifactTransaction(root string, payloads map[string][]byte) error {
+func publishArtifactTransaction(root string, payloads map[string][]byte, names []string) error {
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return fmt.Errorf("create artifact root: %w", err)
+	}
 	parent := filepath.Dir(root)
 	stage, err := os.MkdirTemp(parent, "."+filepath.Base(root)+"-xiaping-stage-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(stage)
-	for _, name := range artifactNames {
+	for _, name := range names {
 		b := payloads[name]
 		if len(b) == 0 || len(b) > artifactMaxBytes {
 			return fmt.Errorf("artifact %s exceeds bounded size", name)
@@ -147,7 +150,7 @@ func publishArtifactTransaction(root string, payloads map[string][]byte) error {
 			_ = artifactRename(b, filepath.Join(root, name))
 		}
 	}
-	for _, name := range artifactNames {
+	for _, name := range names {
 		target := filepath.Join(root, name)
 		if _, err := os.Stat(target); err == nil {
 			backup := filepath.Join(stage, "backup-"+name)
@@ -164,6 +167,18 @@ func publishArtifactTransaction(root string, payloads map[string][]byte) error {
 		published = append(published, name)
 	}
 	return nil
+}
+
+func publishJSONTransaction(root string, values map[string]any, names []string) error {
+	payloads := make(map[string][]byte, len(values))
+	for name, value := range values {
+		encoded, err := json.MarshalIndent(value, "", "  ")
+		if err != nil {
+			return err
+		}
+		payloads[name] = append(encoded, '\n')
+	}
+	return publishArtifactTransaction(root, payloads, names)
 }
 
 func validateDiscoveryArtifacts(artifacts DiscoveryArtifacts) error {

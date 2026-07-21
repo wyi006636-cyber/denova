@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -66,8 +67,16 @@ func runXiapingSnapshot(ctx context.Context, args []string, stdout, stderr io.Wr
 	}
 	fmt.Fprintln(stderr, "quality-eval: snapshot-xiaping collecting public catalog")
 	snapshot, err := skilldiscovery.NewCollector(newXiapingHTTPClient(), nil).CollectCatalog(ctx, options)
+	if snapshot.Manifest.SnapshotID != "" {
+		if publishErr := skilldiscovery.WriteSnapshotManifest(*root, snapshot.Manifest); publishErr != nil {
+			return fmt.Errorf("snapshot-xiaping: publish manifest: %w", publishErr)
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("snapshot-xiaping: %w", err)
+	}
+	if snapshot.Manifest.SnapshotID == "" {
+		return errors.New("snapshot-xiaping: collector returned no snapshot identity")
 	}
 	fmt.Fprintf(stdout, "SNAPSHOT id=%s status=%s skills=%d\n", snapshot.Manifest.SnapshotID, snapshot.Manifest.Status, len(snapshot.Skills))
 	return nil
@@ -97,7 +106,12 @@ func runXiapingClassify(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("classify-xiaping: %w", err)
 	}
 	candidates, proposals := skilldiscovery.ClassifyWritingCandidates(snapshot.Skills, vocabulary)
-	fmt.Fprintf(stdout, "CLASSIFIED id=%s candidates=%d proposals=%d\n", snapshot.Manifest.SnapshotID, len(candidates), len(proposals))
+	clusters := skilldiscovery.ClusterCandidates(candidates, .90)
+	if err := skilldiscovery.WriteStagedDiscoveryArtifacts(*root, skilldiscovery.StagedDiscoveryArtifacts{Manifest: snapshot.Manifest, Candidates: candidates, Proposals: proposals, Clusters: clusters}); err != nil {
+		return fmt.Errorf("classify-xiaping: publish staged artifacts: %w", err)
+	}
+	matched, ambiguous := capabilityCounts(candidates)
+	fmt.Fprintf(stdout, "CLASSIFIED snapshot=%s candidates=%d matched=%d ambiguous=%d proposals=%d clusters=%d coverage=%d\n", snapshot.Manifest.SnapshotID, len(candidates), matched, ambiguous, len(proposals), len(clusters), matched+ambiguous)
 	return nil
 }
 
@@ -124,6 +138,13 @@ func runXiapingRank(ctx context.Context, args []string, stdout, stderr io.Writer
 	if err != nil {
 		return err
 	}
+	staged, err := skilldiscovery.LoadStagedDiscoveryArtifacts(*root, defaultSchemaPath())
+	if err != nil {
+		return fmt.Errorf("rank-xiaping: load staged artifacts: %w", err)
+	}
+	if snapshot.Manifest.SnapshotID != staged.Manifest.SnapshotID || snapshot.Manifest.SkillRecordsSHA256 != staged.Manifest.SkillRecordsSHA256 {
+		return errors.New("rank-xiaping: staged artifacts do not match cached snapshot")
+	}
 	options, err := collectorOptions(*baseURL, *cacheRoot, defaultXiapingPageSize, *minInterval, *retryAttempts, *maxRetryDelay)
 	if err != nil {
 		return fmt.Errorf("rank-xiaping: %w", err)
@@ -131,14 +152,8 @@ func runXiapingRank(ctx context.Context, args []string, stdout, stderr io.Writer
 	if *commentPageSize <= 0 {
 		return errors.New("rank-xiaping: comment page size must be positive")
 	}
-	vocabulary, err := skilldiscovery.LoadLexicon(defaultLexiconPath())
-	if err != nil {
-		return fmt.Errorf("rank-xiaping: %w", err)
-	}
-	candidates, proposals := skilldiscovery.ClassifyWritingCandidates(snapshot.Skills, vocabulary)
-	clusters := skilldiscovery.ClusterCandidates(candidates, .90)
 	fmt.Fprintln(stderr, "quality-eval: rank-xiaping collecting bounded candidate evidence")
-	details, comments, failures, err := skilldiscovery.NewCollector(newXiapingHTTPClient(), nil).CollectCandidateEvidence(ctx, skilldiscovery.EvidenceCollectionOptions{CollectorOptions: options, CommentPageSize: *commentPageSize}, candidates)
+	details, comments, failures, err := skilldiscovery.NewCollector(newXiapingHTTPClient(), nil).CollectCandidateEvidence(ctx, skilldiscovery.EvidenceCollectionOptions{CollectorOptions: options, CommentPageSize: *commentPageSize}, staged.Candidates)
 	if err != nil {
 		return fmt.Errorf("rank-xiaping: %w", err)
 	}
@@ -148,16 +163,17 @@ func runXiapingRank(ctx context.Context, args []string, stdout, stderr io.Writer
 		review.EvidenceCacheStatus = "EVIDENCE-CACHE-AVAILABLE"
 		reviews[id] = review
 	}
-	vectors := skilldiscovery.BuildEvidenceVectors(candidates, reviews, clusters)
-	shortlist, err := skilldiscovery.BuildShortlistFromSnapshot(snapshot, candidates, vectors, clusters)
+	vectors := skilldiscovery.BuildEvidenceVectors(staged.Candidates, reviews, staged.Clusters)
+	shortlist, err := skilldiscovery.BuildShortlistFromSnapshot(snapshot, staged.Candidates, vectors, staged.Clusters)
 	if err != nil {
 		return fmt.Errorf("rank-xiaping: %w", err)
 	}
-	artifacts := skilldiscovery.DiscoveryArtifacts{Manifest: snapshot.Manifest, Candidates: candidates, Proposals: proposals, Clusters: clusters, Evidence: vectors, Shortlist: shortlist}
+	artifacts := skilldiscovery.DiscoveryArtifacts{Manifest: snapshot.Manifest, Candidates: staged.Candidates, Proposals: staged.Proposals, Clusters: staged.Clusters, Evidence: vectors, Shortlist: shortlist}
 	if err := skilldiscovery.WriteDiscoveryArtifacts(*root, artifacts); err != nil {
 		return fmt.Errorf("rank-xiaping: %w", err)
 	}
-	fmt.Fprintf(stdout, "RANKED id=%s status=COMPLETE shortlist=%d evidence_failures=%d\n", snapshot.Manifest.SnapshotID, len(shortlist.Entries), len(failures))
+	dataRich, exploration := laneCounts(shortlist)
+	fmt.Fprintf(stdout, "RANKED snapshot=%s candidates=%d clusters=%d data_rich=%d exploration=%d proposals=%d gaps=%d failures=%d\n", snapshot.Manifest.SnapshotID, len(staged.Candidates), len(staged.Clusters), dataRich, exploration, len(staged.Proposals), len(shortlist.Gaps), len(failures))
 	return nil
 }
 
@@ -182,7 +198,7 @@ func runXiapingValidate(args []string, stdout, stderr io.Writer) error {
 	if err := skilldiscovery.ValidateArtifactSchema(*schema, paths); err != nil {
 		return fmt.Errorf("validate-xiaping: %w", err)
 	}
-	fmt.Fprintln(stdout, "VALID discovery=xiaping")
+	fmt.Fprintf(stdout, "VALID discovery=xiaping artifacts=%d\n", len(paths))
 	return nil
 }
 
@@ -237,9 +253,43 @@ func noPositionalArgs(flags *flag.FlagSet) error {
 	return nil
 }
 
+func capabilityCounts(candidates []skilldiscovery.CandidateRecord) (matched, ambiguous int) {
+	for _, candidate := range candidates {
+		for _, capability := range candidate.Capabilities {
+			if capability.Status == skilldiscovery.MatchMatched {
+				matched++
+			}
+			if capability.Status == skilldiscovery.MatchAmbiguous {
+				ambiguous++
+			}
+		}
+	}
+	return
+}
+
+func laneCounts(shortlist skilldiscovery.Shortlist) (dataRich, exploration int) {
+	for _, entry := range shortlist.Entries {
+		if entry.Lane == skilldiscovery.LaneDataRich {
+			dataRich++
+		}
+		if entry.Lane == skilldiscovery.LaneExploration {
+			exploration++
+		}
+	}
+	return
+}
+
 func defaultSchemaPath() string {
-	return filepath.Join(defaultDiscoveryRoot, "xiaping-discovery-v1.schema.json")
+	path := filepath.Join(defaultDiscoveryRoot, "xiaping-discovery-v1.schema.json")
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+	return filepath.Join("..", "..", path)
 }
 func defaultLexiconPath() string {
-	return filepath.Join(defaultDiscoveryRoot, "xiaping-capability-lexicon-v1.json")
+	path := filepath.Join(defaultDiscoveryRoot, "xiaping-capability-lexicon-v1.json")
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+	return filepath.Join("..", "..", path)
 }
