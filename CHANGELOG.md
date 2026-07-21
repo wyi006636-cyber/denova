@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增虾评写作候选的隐私安全评论证据：仅在本地受限缓存采集详情和分页评论，提交产物仅保留去重后的聚合、异常信号和可用性状态，不包含评论正文、评审身份或签名头像链接。
+- Added privacy-safe Xiaping review evidence for writing candidates: details and paginated comments are collected only into restricted local cache, while committed artifacts retain only de-duplicated aggregates, anomaly signals, and availability state—not review text, reviewer identity, or signed avatar URLs.
+- 新增按能力独立计算的下载分位、冻结贝叶斯星级调整及描述性的 DATA-RICH 分层；平台指标只改变排序优先级，缺失缓存自动进入探索通道而不伪造独立评论证据。
+- Added capability-relative download percentiles, frozen Bayesian star adjustment, and descriptive DATA-RICH tiers; platform metrics affect ranking priority only, and unavailable caches fall back to exploration without fabricating independent-review evidence.
 - 新增虾评候选项的可解释重复聚类：以 NFKC 规范化元数据签名和 0.90 Unicode bigram/触发词/标签 Jaccard 阈值识别精确及近似副本，保留全部成员、稳定选择代表项，并记录相同作者仅作为证据而非合并条件。
 - Added explainable Xiaping candidate duplicate clustering: NFKC-normalized metadata signatures and a 0.90 Unicode-bigram/trigger/tag Jaccard threshold identify exact and near copies, retain every member, choose representatives deterministically, and record common authors only as evidence rather than a merge condition.
 - 新增虾评写作能力词典与确定性召回：对名称、描述、触发词、分类和标签分别以 Unicode NFKC 归一化取证，保留 MATCHED/AMBIGUOUS 候选，并仅在两份不同 Skill 元数据独立支持时生成不可路由的能力提案。

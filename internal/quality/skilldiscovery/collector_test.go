@@ -197,6 +197,38 @@ func TestCollectCatalogRecordsHonestReceiptForRequestFailure(t *testing.T) {
 	}
 }
 
+func TestCollectCandidateEvidenceUsesOnlyCandidatesPaginatesAndResumes(t *testing.T) {
+	calls := map[string]int{}
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		calls[request.URL.Path+"?"+request.URL.RawQuery]++
+		w.Header().Set("Content-Type", "application/json")
+		switch request.URL.Path {
+		case "/api/skills/writing":
+			fmt.Fprint(w, `{"code":0,"data":{"id":"writing"}}`)
+		case "/api/skills/writing/comments":
+			if request.URL.Query().Get("page") == "1" {
+				fmt.Fprint(w, `{"success":true,"data":{"items":[{"id":"one","user_id":"reader","stars":5,"content":"续写以后人物说话保持稳定，时间线没有漂移，输出章节可以直接使用。","created_at":"2026-07-02T00:00:00Z"}],"hasMore":true}}`)
+				return
+			}
+			fmt.Fprint(w, `{"items":[{"id":"two","user_id":"reader2","stars":4,"content":"输入大纲之后输出章节完整，人物行为符合设定，比较旧稿没有发生冲突。","created_at":"2026-07-03T00:00:00Z"}],"hasMore":false}`)
+		default:
+			t.Fatalf("unexpected request %s", request.URL)
+		}
+	}))
+	t.Cleanup(server.Close)
+	collector := NewCollector(server.Client(), fixedClock())
+	options := EvidenceCollectionOptions{CollectorOptions: CollectorOptions{BaseURL: server.URL, CacheRoot: t.TempDir(), PageSize: 1, RetryAttempts: 1}, CommentPageSize: 1}
+	candidates := []CandidateRecord{{Skill: SkillRecord{ID: "writing"}}}
+	details, comments, failures, err := collector.CollectCandidateEvidence(context.Background(), options, candidates)
+	if err != nil || len(failures) != 0 || len(details) != 1 || len(comments["writing"]) != 2 {
+		t.Fatalf("details=%v comments=%v failures=%v err=%v", details, comments, failures, err)
+	}
+	before := len(calls)
+	if _, _, failures, err = collector.CollectCandidateEvidence(context.Background(), options, candidates); err != nil || len(failures) != 0 || len(calls) != before {
+		t.Fatalf("resume calls=%v failures=%v err=%v", calls, failures, err)
+	}
+}
+
 func fixedClock() func() time.Time {
 	return func() time.Time { return time.Date(2026, 7, 21, 0, 0, 0, 0, time.UTC) }
 }

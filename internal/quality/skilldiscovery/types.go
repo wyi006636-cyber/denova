@@ -132,6 +132,7 @@ type ReviewEvidence struct {
 	AverageStarsX100    int      `json:"average_stars_x100"`
 	PlatformQualityMean *float64 `json:"platform_quality_mean,omitempty"`
 	AnomalyFlags        []string `json:"anomaly_flags"`
+	EvidenceCacheStatus string   `json:"-"`
 }
 type EvidenceVector struct {
 	SkillID              string         `json:"skill_id"`

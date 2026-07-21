@@ -35,6 +35,19 @@ type CollectorOptions struct {
 	MaxRetryDelay time.Duration
 }
 
+// EvidenceCollectionOptions configures local-only evidence collection for already matched candidates.
+type EvidenceCollectionOptions struct {
+	CollectorOptions
+	CommentPageSize int
+}
+
+// SkillDetail is the non-identity detail used while calculating evidence.
+type SkillDetail struct {
+	SkillRecord
+	WeightedScore  float64 `json:"weighted_score"`
+	SecurityReport string  `json:"security_report"`
+}
+
 // Collector retrieves public catalog pages through a restricted HTTP client.
 type Collector struct {
 	client *http.Client
@@ -314,6 +327,160 @@ func catalogPageURL(base *urlpkg.URL, limit, page int) *urlpkg.URL {
 	query.Set("page", strconv.Itoa(page))
 	target.RawQuery = query.Encode()
 	return &target
+}
+
+// CollectCandidateEvidence checkpoints raw detail and comment responses locally and returns only normalized values.
+func (collector *Collector) CollectCandidateEvidence(ctx context.Context, options EvidenceCollectionOptions, candidates []CandidateRecord) (map[string]SkillDetail, map[string][]ReviewRecord, []SnapshotFailure, error) {
+	if options.CommentPageSize <= 0 {
+		return nil, nil, nil, fmt.Errorf("comment page size must be positive")
+	}
+	base, err := validateCatalogOptions(options.CollectorOptions)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	cache := Cache{Root: options.CacheRoot}
+	if err := cache.Initialize(); err != nil {
+		return nil, nil, nil, err
+	}
+	details, comments, failures := map[string]SkillDetail{}, map[string][]ReviewRecord{}, []SnapshotFailure{}
+	var lastRequest time.Time
+	for _, candidate := range coalesceCandidates(candidates) {
+		if err := ctx.Err(); err != nil {
+			return details, comments, failures, err
+		}
+		detailURL := evidenceDetailURL(base, candidate.Skill.ID)
+		payload, receipt, readErr := cache.ReadPage("skill-detail", detailURL.String())
+		if readErr != nil {
+			payload, receipt, readErr = collector.fetchPage(ctx, detailURL, options.CollectorOptions, &lastRequest)
+			if readErr == nil {
+				receipt.Kind, receipt.Key = "skill-detail", detailURL.String()
+				readErr = cache.WritePage("skill-detail", detailURL.String(), payload, receipt)
+			}
+		}
+		if readErr != nil {
+			failures = append(failures, evidenceFailure("skill-detail", detailURL.String(), readErr))
+			continue
+		}
+		detail, err := normalizeSkillDetail(payload, candidate.Skill)
+		if err != nil {
+			failures = append(failures, evidenceFailure("skill-detail", detailURL.String(), err))
+			continue
+		}
+		details[candidate.Skill.ID] = detail
+		for page := 1; ; page++ {
+			pageURL := evidenceCommentsURL(base, candidate.Skill.ID, options.CommentPageSize, page)
+			payload, receipt, readErr = cache.ReadPage("skill-comments", pageURL.String())
+			if readErr != nil {
+				payload, receipt, readErr = collector.fetchPage(ctx, pageURL, options.CollectorOptions, &lastRequest)
+				if readErr == nil {
+					receipt.Kind, receipt.Key = "skill-comments", pageURL.String()
+					readErr = cache.WritePage("skill-comments", pageURL.String(), payload, receipt)
+				}
+			}
+			if readErr != nil {
+				failures = append(failures, evidenceFailure("skill-comments", pageURL.String(), readErr))
+				break
+			}
+			response, err := normalizeCommentPage(payload)
+			if err != nil {
+				failures = append(failures, evidenceFailure("skill-comments", pageURL.String(), err))
+				break
+			}
+			comments[candidate.Skill.ID] = append(comments[candidate.Skill.ID], response.Reviews...)
+			if !response.HasMore {
+				break
+			}
+		}
+	}
+	return details, comments, failures, nil
+}
+
+func evidenceFailure(kind, key string, err error) SnapshotFailure {
+	return SnapshotFailure{Kind: kind, Key: key, Disposition: "evidence-cache-missing", Message: safeError(err)}
+}
+func evidenceDetailURL(base *urlpkg.URL, id string) *urlpkg.URL {
+	target := *base
+	target.Path = strings.TrimRight(base.Path, "/") + "/api/skills/" + urlpkg.PathEscape(id)
+	return &target
+}
+func evidenceCommentsURL(base *urlpkg.URL, id string, limit, page int) *urlpkg.URL {
+	target := evidenceDetailURL(base, id)
+	target.Path += "/comments"
+	query := target.Query()
+	query.Set("limit", strconv.Itoa(limit))
+	query.Set("page", strconv.Itoa(page))
+	target.RawQuery = query.Encode()
+	return target
+}
+
+func normalizeSkillDetail(payload []byte, fallback SkillRecord) (SkillDetail, error) {
+	fields, err := catalogObjectFields(payload)
+	if err != nil {
+		return SkillDetail{}, err
+	}
+	if success, ok := fields["success"]; ok {
+		var value bool
+		if json.Unmarshal(success, &value) != nil || !value {
+			return SkillDetail{}, fmt.Errorf("detail envelope reports unsuccessful response")
+		}
+		fields, err = catalogObjectFields(fields["data"])
+		if err != nil {
+			return SkillDetail{}, err
+		}
+	}
+	var detail SkillDetail
+	if raw, ok := fields["id"]; ok {
+		_ = json.Unmarshal(raw, &detail.ID)
+	}
+	if detail.ID == "" {
+		detail.ID = fallback.ID
+	}
+	detail.SkillRecord = fallback
+	return detail, nil
+}
+
+type commentPage struct {
+	Reviews []ReviewRecord
+	HasMore bool
+}
+
+func normalizeCommentPage(payload []byte) (commentPage, error) {
+	fields, err := catalogObjectFields(payload)
+	if err != nil {
+		return commentPage{}, err
+	}
+	if success, ok := fields["success"]; ok {
+		var value bool
+		if json.Unmarshal(success, &value) != nil || !value {
+			return commentPage{}, fmt.Errorf("comments envelope reports unsuccessful response")
+		}
+		fields, err = catalogObjectFields(fields["data"])
+		if err != nil {
+			return commentPage{}, err
+		}
+	}
+	raw, ok := fields["items"]
+	if !ok {
+		raw = fields["comments"]
+	}
+	if raw == nil {
+		return commentPage{}, fmt.Errorf("comments payload requires items")
+	}
+	var api []apiReview
+	if err := json.Unmarshal(raw, &api); err != nil {
+		return commentPage{}, fmt.Errorf("comments must be an array")
+	}
+	reviews := make([]ReviewRecord, 0, len(api))
+	for _, review := range api {
+		reviews = append(reviews, normalizeAPIReview(review))
+	}
+	more := false
+	if raw, ok := fields["hasMore"]; ok {
+		if err := json.Unmarshal(raw, &more); err != nil {
+			return commentPage{}, fmt.Errorf("comments hasMore must be boolean")
+		}
+	}
+	return commentPage{Reviews: reviews, HasMore: more}, nil
 }
 func retryableStatus(status int) bool {
 	return status == http.StatusTooManyRequests || status >= 500 && status <= 599
