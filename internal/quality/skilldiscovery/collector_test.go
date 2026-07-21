@@ -74,6 +74,33 @@ func TestValidateCatalogOptionsRejectsCredentialBearingOrAmbiguousBaseURL(t *tes
 	}
 }
 
+func TestNormalizeCatalogPageDistinguishesDirectAndEnvelopeResponses(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		payload string
+		wantErr bool
+	}{
+		{"direct response", `{"skills":[{"id":"direct-skill"}],"total":1,"hasMore":false}`, false},
+		{"valid envelope", `{"success":true,"data":{"skills":[{"id":"enveloped-skill"}],"total":1,"hasMore":false}}`, false},
+		{"failed envelope", `{"success":false,"data":{"skills":[],"total":0,"hasMore":false}}`, true},
+		{"successful envelope without data", `{"success":true}`, true},
+		{"successful envelope with null data", `{"success":true,"data":null}`, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := normalizeCatalogPage([]byte(test.payload))
+			if test.wantErr {
+				if err == nil {
+					t.Fatalf("normalizeCatalogPage(%s) accepted invalid envelope", test.payload)
+				}
+				return
+			}
+			if err != nil || len(got.Skills) != 1 || got.Total != 1 {
+				t.Fatalf("normalizeCatalogPage() = %+v, %v", got, err)
+			}
+		})
+	}
+}
+
 func TestCollectCatalogMarksPartialAfterNonRetryablePage(t *testing.T) {
 	collector, options := failingPageCollector(t, http.StatusBadRequest)
 	got, err := collector.CollectCatalog(context.Background(), options)
@@ -91,6 +118,9 @@ func TestCollectCatalogRecordsReceiptsForResponseFailures(t *testing.T) {
 		body func(page int) string
 	}{
 		{"invalid JSON", func(int) string { return "{" }},
+		{"failed envelope", func(int) string { return `{"success":false,"data":{"skills":[],"total":0,"hasMore":false}}` }},
+		{"successful envelope without data", func(int) string { return `{"success":true}` }},
+		{"successful envelope with null data", func(int) string { return `{"success":true,"data":null}` }},
 		{"invalid record", func(int) string { return `{"skills":[{"id":""}],"total":1,"hasMore":false}` }},
 		{"repeated page", func(int) string { return `{"skills":[{"id":"same-skill"}],"total":2,"hasMore":true}` }},
 	} {

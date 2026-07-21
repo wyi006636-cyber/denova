@@ -156,13 +156,21 @@ type catalogPage struct {
 
 func normalizeCatalogPage(payload []byte) (catalogPage, error) {
 	var envelope struct {
-		Data json.RawMessage `json:"data"`
+		Success *bool           `json:"success"`
+		Data    json.RawMessage `json:"data"`
 	}
 	if err := json.Unmarshal(payload, &envelope); err != nil {
 		return catalogPage{}, fmt.Errorf("decode catalog JSON: %w", err)
 	}
 	decoded := payload
-	if len(envelope.Data) != 0 && string(envelope.Data) != "null" {
+	if envelope.Success != nil {
+		if !*envelope.Success {
+			return catalogPage{}, fmt.Errorf("catalog envelope reports unsuccessful response")
+		}
+		var dataObject map[string]json.RawMessage
+		if len(envelope.Data) == 0 || json.Unmarshal(envelope.Data, &dataObject) != nil || dataObject == nil {
+			return catalogPage{}, fmt.Errorf("successful catalog envelope requires a data object")
+		}
 		decoded = envelope.Data
 	}
 	var page catalogPage
