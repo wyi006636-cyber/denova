@@ -84,17 +84,18 @@ func (collector *Collector) CollectCatalog(ctx context.Context, options Collecto
 		if err := ctx.Err(); err != nil {
 			return LocalSnapshot{}, err
 		}
-		key := strconv.Itoa(page)
+		pageURL := catalogPageURL(baseURL, options.PageSize, page)
+		key := pageURL.String()
 		payload, receipt, readErr := cache.ReadPage(catalogPageKind, key)
 		if readErr != nil {
-			pageURL := catalogPageURL(baseURL, options.PageSize, page)
 			payload, receipt, readErr = collector.fetchPage(ctx, pageURL, options, &lastRequest)
 			if readErr != nil {
+				if receipt.URL == "" {
+					receipt = requestFailureReceipt(pageURL.String(), collector.now(), readErr)
+				}
 				receipt.Kind, receipt.Key, receipt.Error = catalogPageKind, key, safeError(readErr)
 				manifest.Status = SnapshotPartial
-				if receipt.HTTPStatus >= 100 && receipt.HTTPStatus <= 599 {
-					manifest.Pages = append(manifest.Pages, receipt)
-				}
+				manifest.Pages = append(manifest.Pages, receipt)
 				manifest.Failures = append(manifest.Failures, SnapshotFailure{Kind: catalogPageKind, Key: key, Disposition: "request-failed", Message: safeError(readErr)})
 				result, finishErr := collector.finishSnapshot(cache, manifest, records)
 				return result, errors.Join(fmt.Errorf("collect catalog page %d: %w", page, readErr), finishErr)
@@ -106,14 +107,19 @@ func (collector *Collector) CollectCatalog(ctx context.Context, options Collecto
 		}
 		response, err := normalizeCatalogPage(payload)
 		if err != nil {
+			receipt.Error = safeError(err)
 			manifest.Status = SnapshotPartial
+			manifest.Pages = append(manifest.Pages, receipt)
 			manifest.Failures = append(manifest.Failures, SnapshotFailure{Kind: catalogPageKind, Key: key, Disposition: "invalid-response", Message: safeError(err)})
 			result, finishErr := collector.finishSnapshot(cache, manifest, records)
 			return result, errors.Join(fmt.Errorf("normalize catalog page %d: %w", page, err), finishErr)
 		}
 		if len(response.Skills) > 0 {
+			receipt.ItemCount = len(response.Skills)
 			if _, seen := pageHashes[receipt.SHA256]; seen {
+				receipt.Error = "repeated nonempty page hash"
 				manifest.Status = SnapshotPartial
+				manifest.Pages = append(manifest.Pages, receipt)
 				manifest.Failures = append(manifest.Failures, SnapshotFailure{Kind: catalogPageKind, Key: key, Disposition: "repeated-page", Message: "repeated nonempty page hash"})
 				result, finishErr := collector.finishSnapshot(cache, manifest, records)
 				return result, errors.Join(fmt.Errorf("catalog page %d repeats a nonempty page", page), finishErr)
@@ -121,13 +127,18 @@ func (collector *Collector) CollectCatalog(ctx context.Context, options Collecto
 			pageHashes[receipt.SHA256] = struct{}{}
 		}
 		if err := ValidateSkillRecords(response.Skills); err != nil {
+			receipt.Error = safeError(err)
 			manifest.Status = SnapshotPartial
+			manifest.Pages = append(manifest.Pages, receipt)
 			manifest.Failures = append(manifest.Failures, SnapshotFailure{Kind: catalogPageKind, Key: key, Disposition: "invalid-record", Message: safeError(err)})
 			result, finishErr := collector.finishSnapshot(cache, manifest, records)
 			return result, errors.Join(err, finishErr)
 		}
 		for _, record := range response.Skills {
 			records[record.ID] = record
+		}
+		if receipt.ItemCount == 0 {
+			receipt.ItemCount = len(response.Skills)
 		}
 		manifest.Pages = append(manifest.Pages, receipt)
 		manifest.ReportedTotal = response.Total
@@ -162,6 +173,10 @@ func normalizeCatalogPage(payload []byte) (catalogPage, error) {
 		return catalogPage{}, fmt.Errorf("catalog total must not be negative")
 	}
 	return page, nil
+}
+
+func requestFailureReceipt(target string, capturedAt time.Time, err error) PageReceipt {
+	return PageReceipt{URL: target, HTTPStatus: 0, CapturedAt: capturedAt.UTC().Format(time.RFC3339), SHA256: payloadSHA256(nil), ItemCount: 0, Error: safeError(err)}
 }
 
 func (collector *Collector) fetchPage(ctx context.Context, target *urlpkg.URL, options CollectorOptions, lastRequest *time.Time) ([]byte, PageReceipt, error) {

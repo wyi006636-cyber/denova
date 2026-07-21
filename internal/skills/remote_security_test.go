@@ -28,12 +28,22 @@ func TestRestrictedSkillInstallClientRejectsNonPublicDestinations(t *testing.T) 
 
 func TestNewRestrictedRemoteHTTPClientPreservesDestinationRestrictions(t *testing.T) {
 	client := NewRestrictedRemoteHTTPClient()
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://127.0.0.1/archive.zip", nil)
-	if err != nil {
-		t.Fatal(err)
+	for _, rawURL := range []string{"https://127.0.0.1/archive.zip", "https://10.0.0.1/archive.zip", "https://169.254.169.254/archive.zip", "https://[::1]/archive.zip", "https://[fe80::1]/archive.zip"} {
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, rawURL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := client.Do(req); err == nil || !strings.Contains(err.Error(), "non-public") {
+			t.Fatalf("client.Do(%q) error = %v, want non-public rejection", rawURL, err)
+		}
 	}
-	if _, err := client.Do(req); err == nil || !strings.Contains(err.Error(), "non-public") {
-		t.Fatalf("NewRestrictedRemoteHTTPClient() error = %v, want non-public destination rejection", err)
+	redirect, _ := url.Parse("http://example.com/archive.zip")
+	if err := client.CheckRedirect(&http.Request{URL: redirect}, nil); err == nil {
+		t.Fatal("exported client accepted non-HTTPS redirect")
+	}
+	redirect, _ = url.Parse("https://example.com/archive.zip")
+	if err := client.CheckRedirect(&http.Request{URL: redirect}, make([]*http.Request, 10)); err == nil {
+		t.Fatal("exported client accepted excessive redirects")
 	}
 }
 

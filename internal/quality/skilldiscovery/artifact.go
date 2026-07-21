@@ -142,7 +142,10 @@ func ValidateSnapshotManifest(manifest SnapshotManifest) error {
 			return fmt.Errorf("duplicate page receipt %s/%s", page.Kind, page.Key)
 		}
 		seen[pageID] = struct{}{}
-		if page.HTTPStatus < 100 || page.HTTPStatus > 599 || page.ItemCount < 0 {
+		if page.HTTPStatus == 0 && page.Error == "" {
+			return fmt.Errorf("request-failure page receipt requires an error")
+		}
+		if (page.HTTPStatus != 0 && (page.HTTPStatus < 100 || page.HTTPStatus > 599)) || page.ItemCount < 0 {
 			return fmt.Errorf("invalid page receipt %s/%s", page.Kind, page.Key)
 		}
 		if _, err := time.Parse(time.RFC3339, page.CapturedAt); err != nil {

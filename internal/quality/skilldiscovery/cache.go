@@ -34,10 +34,41 @@ func (cache Cache) Initialize() error {
 	if cache.Root == "" {
 		return fmt.Errorf("cache root is required")
 	}
-	if err := os.MkdirAll(filepath.Join(cache.Root, "pages"), 0o700); err != nil {
-		return fmt.Errorf("create cache directories: %w", err)
+	info, err := os.Stat(cache.Root)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("inspect cache root: %w", err)
+		}
+		if err := os.MkdirAll(cache.Root, 0o700); err != nil {
+			return fmt.Errorf("create cache root: %w", err)
+		}
+	} else if !info.IsDir() {
+		return fmt.Errorf("cache root is not a directory")
 	}
-	return writeCacheFile(filepath.Join(cache.Root, "OWNER"), []byte(cacheOwnershipMarker+"\n"))
+	markerPath := filepath.Join(cache.Root, "OWNER")
+	marker, markerErr := os.ReadFile(markerPath)
+	if markerErr == nil {
+		if string(marker) != cacheOwnershipMarker+"\n" {
+			return fmt.Errorf("cache ownership marker mismatch")
+		}
+	} else if !os.IsNotExist(markerErr) {
+		return fmt.Errorf("read cache ownership marker: %w", markerErr)
+	} else {
+		entries, err := os.ReadDir(cache.Root)
+		if err != nil {
+			return fmt.Errorf("inspect cache root contents: %w", err)
+		}
+		if len(entries) != 0 {
+			return fmt.Errorf("cache ownership marker is missing from a non-empty root")
+		}
+		if err := writeCacheFile(markerPath, []byte(cacheOwnershipMarker+"\n")); err != nil {
+			return fmt.Errorf("write cache ownership marker: %w", err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(cache.Root, "pages"), 0o700); err != nil {
+		return fmt.Errorf("create cache pages directory: %w", err)
+	}
+	return nil
 }
 
 // ReadPage loads a checkpointed page and verifies its receipt hash.

@@ -810,6 +810,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评目录采集器的缓存来源隔离与所有权校验：页检查点现绑定规范请求 URL，拒绝接管未归属或错误标记的非空目录，并为所有失败页保留真实 receipt。
+- Fixed Xiaping collector cache provenance and ownership checks: page checkpoints now bind to canonical request URLs, unowned or mismatched non-empty roots are rejected, and every failed page retains an honest receipt.
 - 文件删除支持 macOS、Linux 和 Windows 回收站，不再只依赖 macOS。
 - 书籍管理在纯 Web 形态下收敛为 Nova 数据目录内创建和切换书籍，避免浏览器尝试访问任意本机目录。
 - 互动故事的流式输出、分支切换、页面切换和刷新恢复更稳定，生成中的正文和思考过程不会轻易丢失。
