@@ -1,0 +1,31 @@
+{
+  "contract": "denova.xiaping-capability-lexicon",
+  "version": "v1",
+  "include_terms": ["小说", "网文", "故事", "写作", "短篇", "长篇", "章节", "开篇", "人物", "角色", "对白", "台词", "世界观", "设定", "大纲", "情节", "剧情", "冲突", "节奏", "爽点", "伏笔", "悬念", "反转", "续写", "连续性", "结尾", "审稿", "审校", "修改", "润色", "文风", "去AI味"],
+  "exclude_terms": ["转视频", "视频提示词", "漫画", "分镜", "配图", "插画", "有声书", "配音", "发布运营"],
+  "core_capabilities": [
+    {"capability_id":"ideation.generate-premises","terms":["创意", "选题", "premise", "故事点子"]},
+    {"capability_id":"project.bootstrap-genre","terms":["题材", "类型", "genre", "开书"]},
+    {"capability_id":"outline.build-long-arc","terms":["长篇大纲", "长线", "主线", "长篇"]},
+    {"capability_id":"outline.build-short-structure","terms":["短篇大纲", "短篇", "三幕", "结构"]},
+    {"capability_id":"outline.simulate-multiline","terms":["多线", "支线", "多线程", "剧情线"]},
+    {"capability_id":"outline.build-execution-brief","terms":["创作简报", "写作简报", "执行大纲", "brief"]},
+    {"capability_id":"character.build-profile","terms":["人物设定", "角色设定", "人设", "character profile"]},
+    {"capability_id":"character.build-dialogue-voice","terms":["对白", "台词", "声线", "dialogue"]},
+    {"capability_id":"opening.review-hook","terms":["开篇", "开头", "钩子", "opening hook"]},
+    {"capability_id":"engagement.review-reading-drive","terms":["爽点", "追读", "阅读驱动", "engagement"]},
+    {"capability_id":"plot.manage-foreshadowing","terms":["伏笔", "悬念", "回收", "foreshadowing"]},
+    {"capability_id":"continuity.review-facts","terms":["连续性", "一致性", "设定冲突", "continuity"]},
+    {"capability_id":"editor.review-story","terms":["审稿", "故事审校", "剧情审校", "story review"]},
+    {"capability_id":"editor.review-profile-rubric","terms":["评估量表", "审稿标准", "评分", "rubric"]},
+    {"capability_id":"style.revise-naturalness","terms":["去ai味", "去ai", "自然", "naturalness"]},
+    {"capability_id":"style.revise-prose","terms":["润色", "文风", "改写", "prose"]}
+  ],
+  "proposal_rules": [
+    {"capability_id":"worldbuilding.build-rules","terms":["世界观", "世界规则", "设定", "规则体系"],"name_zh":"世界规则构建","name_en":"Worldbuilding rules","inputs":["premise", "genre constraints"],"outputs":["world_rules", "consistency constraints"],"lifecycle_stage":"planning","minimum_permission":"read-bounded-input","evaluation_method":"rule-consistency paired review"},
+    {"capability_id":"research.verify-story-facts","terms":["考据", "事实核查", "史实", "资料查证"],"name_zh":"故事事实核查","name_en":"Story fact verification","inputs":["story claim", "provided sources"],"outputs":["fact check notes", "source gaps"],"lifecycle_stage":"research","minimum_permission":"read-bounded-input","evaluation_method":"source-attribution spot check"},
+    {"capability_id":"emotion.manage-character-arc","terms":["情感线", "人物弧光", "角色成长", "情绪曲线"],"name_zh":"角色弧光管理","name_en":"Character arc management","inputs":["character profile", "plot beats"],"outputs":["character arc", "emotional beats"],"lifecycle_stage":"planning","minimum_permission":"read-bounded-input","evaluation_method":"arc-beat consistency review"},
+    {"capability_id":"scene.draft-from-brief","terms":["场景写作", "场景草稿", "按大纲写", "scene draft"],"name_zh":"按简报起草场景","name_en":"Draft scene from brief","inputs":["scene brief", "style constraints"],"outputs":["scene draft"],"lifecycle_stage":"drafting","minimum_permission":"read-bounded-input","evaluation_method":"brief-coverage paired review"},
+    {"capability_id":"platform.adapt-writing-style","terms":["平台文风", "平台适配", "番茄风格", "起点风格"],"name_zh":"平台写作风格适配","name_en":"Platform writing style adaptation","inputs":["draft", "platform guidelines"],"outputs":["adapted draft", "style notes"],"lifecycle_stage":"revision","minimum_permission":"read-bounded-input","evaluation_method":"platform-style blind review"}
+  ]
+}

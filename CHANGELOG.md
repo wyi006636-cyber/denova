@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增虾评写作能力词典与确定性召回：对名称、描述、触发词、分类和标签分别以 Unicode NFKC 归一化取证，保留 MATCHED/AMBIGUOUS 候选，并仅在两份不同 Skill 元数据独立支持时生成不可路由的能力提案。
+- Added a Xiaping writing-capability lexicon and deterministic recall: Unicode-NFKC-normalized evidence is captured separately from names, descriptions, triggers, categories, and tags; MATCHED and AMBIGUOUS candidates are retained, while non-routable capability proposals require independent support from two distinct Skill metadata signatures.
 - 新增虾评公开目录的本地可恢复采集器：仅允许受限 HTTPS GET、按页原子检查点、429/5xx 退避与 Retry-After、取消处理、去重排序及 PARTIAL 失败清单，且不记录响应正文或凭据。
 - Added a local resumable Xiaping public-catalog collector with restricted HTTPS GET requests, atomic page checkpoints, Retry-After-aware 429/5xx backoff, cancellation, sorted de-duplication, and PARTIAL failure manifests without logging bodies or credentials.
 - 新增 P0-T08A 虾评公开目录发现的严格 JSON 契约、稳定 SHA-256、快照/Skill 校验与安全写入边界，配套 `example.test` 合成 API/评论 fixture，并在 Phase 0 计划和需求矩阵中追踪其对 P0-T09 Skill 证据闭环的阻断关系。
