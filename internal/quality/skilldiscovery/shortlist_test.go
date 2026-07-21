@@ -64,6 +64,21 @@ func TestBuildShortlistUsesClusterRepresentativeAndRejectsNonWritingMatches(t *t
 	}
 }
 
+func TestBuildShortlistRejectsDuplicateOrUnknownEvidenceAndProducesAllCoreGaps(t *testing.T) {
+	candidates := []CandidateRecord{{Skill: SkillRecord{ID: "a", Name: "prose"}, Capabilities: []CapabilityMatch{{CapabilityID: "style.revise-prose", Status: MatchMatched, Evidence: []FieldEvidence{{Field: "name", Term: "prose"}}}}}}
+	vector := EvidenceVector{SkillID: "a", CapabilityID: "style.revise-prose"}
+	if _, err := BuildShortlist("snapshot", candidates, []EvidenceVector{vector, vector}, nil); err == nil || !strings.Contains(err.Error(), "duplicate evidence") { t.Fatalf("err=%v", err) }
+	got, err := BuildShortlist("snapshot", candidates, []EvidenceVector{vector}, nil)
+	if err != nil { t.Fatal(err) }
+	if len(got.Gaps) != len(CoreCapabilityIDs) { t.Fatalf("gaps=%d", len(got.Gaps)) }
+}
+
+func TestBuildShortlistRejectsMalformedClusters(t *testing.T) {
+	candidates := []CandidateRecord{{Skill: SkillRecord{ID: "a"}}}
+	_, err := BuildShortlist("snapshot", candidates, nil, []DuplicateCluster{{ClusterID: "c", RepresentativeID: "missing", MemberIDs: []string{"a"}}})
+	if err == nil || !strings.Contains(err.Error(), "representative") { t.Fatalf("err=%v", err) }
+}
+
 func shortlistFixture() ([]CandidateRecord, []EvidenceVector) {
 	ids := []string{"rich-a", "rich-b", "rich-c", "cold-but-distinct", "cold-second"}
 	candidates := make([]CandidateRecord, 0, len(ids))

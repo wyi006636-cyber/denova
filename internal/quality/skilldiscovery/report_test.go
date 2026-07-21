@@ -51,6 +51,23 @@ func TestRenderEvidenceReportStatesPlatformEvidenceLimitationInBothLanguages(t *
 	}
 }
 
+func TestWriteDiscoveryArtifactsRollsBackAllFilesWhenMiddlePublishFails(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range artifactNames { if err := os.WriteFile(filepath.Join(root, name), []byte("old-"+name), 0o600); err != nil { t.Fatal(err) } }
+	previous := artifactRename
+	defer func() { artifactRename = previous }()
+	calls := 0
+	artifactRename = func(from, to string) error { calls++; if calls == 3 { return os.ErrPermission }; return os.Rename(from, to) }
+	if err := WriteDiscoveryArtifacts(root, artifactFixture(t)); err == nil { t.Fatal("expected publish failure") }
+	for _, name := range artifactNames { got, err := os.ReadFile(filepath.Join(root, name)); if err != nil || string(got) != "old-"+name { t.Fatalf("%s=%q err=%v", name, got, err) } }
+}
+
+func TestValidateDiscoveryArtifactsRejectsAlteredEmbeddedEvidence(t *testing.T) {
+	artifacts := artifactFixture(t)
+	artifacts.Shortlist.Entries[0].Evidence.BayesianStarsX100++
+	if err := validateDiscoveryArtifacts(artifacts); err == nil || !strings.Contains(err.Error(), "exact") { t.Fatalf("err=%v", err) }
+}
+
 func artifactFixture(t *testing.T) DiscoveryArtifacts {
 	t.Helper()
 	manifest := SnapshotManifest{

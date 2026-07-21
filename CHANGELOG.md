@@ -76,6 +76,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评发现工件的发布一致性与证据边界：六份输出先在同父目录完整暂存、校验并限长后再回滚安全地发布；补齐来源/用途/输入哈希/字节上限、精确向量一致性、簇结构、全核心能力缺口、规范化作者回退及基于元数据距离的探索排序校验。
+- Fixed Xiaping discovery artifact publication consistency and evidence boundaries: all six outputs are staged, validated, and size-bounded in one same-parent directory before rollback-safe publication; provenance, purpose, input hashes, byte limits, exact-vector equality, cluster shape, full core-capability gaps, normalized owner fallback, and metadata-distance exploration ranking are now enforced.
 - 修复虾评写作能力分类边界：稳定候选只保留已批准的核心能力，提案证据保持内部且须由两份不同 Skill 支持；词典版本、空术语、媒体转写措辞及 Unicode 证据归一化现均受确定性校验。
 - Fixed Xiaping writing-capability boundaries: stable candidates retain approved core capabilities only, proposal evidence stays internal and needs two distinct Skills; lexicon versions, empty terms, media-to-prose phrases, and Unicode evidence normalization are now deterministically validated.
 - Windows 上的自动化、正文评论、资料库和选择性版本恢复不再因原子写入后同步只读目录句柄而报 `Access is denied`；普通文件仍会在重命名前完整落盘，支持目录同步的平台继续刷新目录元数据。

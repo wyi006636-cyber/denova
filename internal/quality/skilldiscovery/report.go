@@ -18,8 +18,12 @@ const (
 	proposalIndexContract  = "denova.xiaping-capability-proposals"
 	clusterIndexContract   = "denova.xiaping-duplicate-clusters"
 )
+const artifactMaxBytes = 262144
 
-var forbiddenDiscoveryContent = regexp.MustCompile(`(?i)"(?:reviewer_?id|review_?id|raw_?comments?|comments?|packages?|package_?contents?)"\s*:`)
+var artifactNames = []string{"xiaping-snapshot-manifest-v1.json", "xiaping-writing-candidates-v1.json", "xiaping-capability-proposals-v1.json", "xiaping-duplicate-clusters-v1.json", "xiaping-evidence-shortlist-v1.json", "XIAPING_EVIDENCE_REPORT.md"}
+var artifactRename = os.Rename
+
+var forbiddenDiscoveryContent = regexp.MustCompile(`(?i)(?:"(?:reviewer|user|avatar)[^"\n]{0,32}"\s*:|"(?:raw_?comments?|package_?contents?|packages?)"\s*:|(?:sign|signature|token|credential|private[ _-]?key)=)`)
 
 // DiscoveryArtifacts is the bounded, evidence-only input for offline committed artifacts.
 type DiscoveryArtifacts struct {
@@ -50,23 +54,84 @@ func WriteDiscoveryArtifacts(root string, artifacts DiscoveryArtifacts) error {
 		name  string
 		value any
 	}{
-		{"xiaping-snapshot-manifest-v1.json", manifest},
-		{"xiaping-writing-candidates-v1.json", CandidateIndex{Contract: candidateIndexContract, Version: "v1", SnapshotID: artifacts.Manifest.SnapshotID, Candidates: artifacts.Candidates}},
-		{"xiaping-capability-proposals-v1.json", CapabilityProposalIndex{Contract: proposalIndexContract, Version: "v1", SnapshotID: artifacts.Manifest.SnapshotID, Proposals: artifacts.Proposals}},
-		{"xiaping-duplicate-clusters-v1.json", DuplicateClusterIndex{Contract: clusterIndexContract, Version: "v1", SnapshotID: artifacts.Manifest.SnapshotID, Clusters: artifacts.Clusters}},
-		{"xiaping-evidence-shortlist-v1.json", artifacts.Shortlist},
-	}
-	for _, write := range writes {
-		if err := WriteJSONArtifact(filepath.Join(root, write.name), write.value); err != nil {
-			return fmt.Errorf("write %s: %w", write.name, err)
-		}
+		{"xiaping-snapshot-manifest-v1.json", withProvenance(manifest, artifacts.Manifest, "snapshot manifest")},
+		{"xiaping-writing-candidates-v1.json", CandidateIndex{Contract: candidateIndexContract, Version: "v1", SnapshotID: artifacts.Manifest.SnapshotID, Candidates: artifacts.Candidates, Provenance: artifactProvenance(artifacts.Manifest, "candidate index")}},
+		{"xiaping-capability-proposals-v1.json", CapabilityProposalIndex{Contract: proposalIndexContract, Version: "v1", SnapshotID: artifacts.Manifest.SnapshotID, Proposals: artifacts.Proposals, Provenance: artifactProvenance(artifacts.Manifest, "capability proposals")}},
+		{"xiaping-duplicate-clusters-v1.json", DuplicateClusterIndex{Contract: clusterIndexContract, Version: "v1", SnapshotID: artifacts.Manifest.SnapshotID, Clusters: artifacts.Clusters, Provenance: artifactProvenance(artifacts.Manifest, "duplicate clusters")}},
+		{"xiaping-evidence-shortlist-v1.json", withProvenance(artifacts.Shortlist, artifacts.Manifest, "evidence shortlist")},
 	}
 	report, err := RenderEvidenceReport(artifacts)
 	if err != nil {
 		return err
 	}
-	if err := writeDiscoveryReport(filepath.Join(root, "XIAPING_EVIDENCE_REPORT.md"), report); err != nil {
+	payloads := map[string][]byte{}
+	for _, write := range writes {
+		b, e := json.MarshalIndent(write.value, "", "  ")
+		if e != nil {
+			return e
+		}
+		payloads[write.name] = append(b, '\n')
+	}
+	payloads[artifactNames[5]] = report
+	return publishArtifactTransaction(root, payloads)
+}
+
+func artifactProvenance(manifest SnapshotManifest, purpose string) ArtifactProvenance {
+	return ArtifactProvenance{Source: "completed snapshot manifest receipts", Purpose: purpose, InputSHA256: manifest.SkillRecordsSHA256, MaxBytes: artifactMaxBytes}
+}
+func withProvenance[T any](value T, manifest SnapshotManifest, purpose string) T {
+	switch v := any(&value).(type) {
+	case *SnapshotManifest:
+		v.Provenance = artifactProvenance(manifest, purpose)
+	case *Shortlist:
+		v.Provenance = artifactProvenance(manifest, purpose)
+	}
+	return value
+}
+func publishArtifactTransaction(root string, payloads map[string][]byte) error {
+	parent := filepath.Dir(root)
+	stage, err := os.MkdirTemp(parent, "."+filepath.Base(root)+"-xiaping-stage-")
+	if err != nil {
 		return err
+	}
+	defer os.RemoveAll(stage)
+	for _, name := range artifactNames {
+		b := payloads[name]
+		if len(b) == 0 || len(b) > artifactMaxBytes {
+			return fmt.Errorf("artifact %s exceeds bounded size", name)
+		}
+		if err := rejectDiscoveryBytes(b); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(stage, name), b, 0o600); err != nil {
+			return err
+		}
+	}
+	backups := map[string]string{}
+	published := []string{}
+	rollback := func() {
+		for _, name := range published {
+			_ = os.Remove(filepath.Join(root, name))
+		}
+		for name, b := range backups {
+			_ = artifactRename(b, filepath.Join(root, name))
+		}
+	}
+	for _, name := range artifactNames {
+		target := filepath.Join(root, name)
+		if _, err := os.Stat(target); err == nil {
+			backup := filepath.Join(stage, "backup-"+name)
+			if err := artifactRename(target, backup); err != nil {
+				rollback()
+				return fmt.Errorf("backup %s: %w", name, err)
+			}
+			backups[name] = backup
+		}
+		if err := artifactRename(filepath.Join(stage, name), target); err != nil {
+			rollback()
+			return fmt.Errorf("publish %s: %w", name, err)
+		}
+		published = append(published, name)
 	}
 	return nil
 }
@@ -84,14 +149,33 @@ func validateDiscoveryArtifacts(artifacts DiscoveryArtifacts) error {
 	if err := ValidateSkillRecords(candidateSkills(artifacts.Candidates)); err != nil {
 		return fmt.Errorf("validate candidate source linkage: %w", err)
 	}
+	vectors := map[string]EvidenceVector{}
 	for _, vector := range artifacts.Evidence {
 		if vector.SkillID == "" || vector.CapabilityID == "" {
 			return fmt.Errorf("evidence vector has required empty field")
 		}
+		key := vector.SkillID + "\x00" + vector.CapabilityID
+		if _, ok := vectors[key]; ok {
+			return fmt.Errorf("duplicate evidence vector")
+		}
+		vectors[key] = vector
 	}
+	entries := map[string]struct{}{}
 	for _, entry := range artifacts.Shortlist.Entries {
 		if entry.Evidence.SkillID != entry.SkillID || entry.Evidence.CapabilityID != entry.CapabilityID {
 			return fmt.Errorf("shortlist entry evidence does not match identity")
+		}
+		key := entry.SkillID + "\x00" + entry.CapabilityID
+		if _, ok := entries[key]; ok {
+			return fmt.Errorf("duplicate shortlist entry")
+		}
+		entries[key] = struct{}{}
+		vector, ok := vectors[key]
+		if !ok {
+			return fmt.Errorf("shortlist entry has missing vector")
+		}
+		if !equalEvidence(vector, entry.Evidence) {
+			return fmt.Errorf("shortlist entry evidence is not exact supplied vector")
 		}
 	}
 	encoded, err := json.Marshal(artifacts)
@@ -103,6 +187,20 @@ func validateDiscoveryArtifacts(artifacts DiscoveryArtifacts) error {
 	}
 	if forbiddenDiscoveryContent.Match(encoded) {
 		return fmt.Errorf("refusing artifact containing raw review or package content")
+	}
+	return nil
+}
+func equalEvidence(left, right EvidenceVector) bool {
+	a, _ := json.Marshal(left)
+	b, _ := json.Marshal(right)
+	return bytes.Equal(a, b)
+}
+func rejectDiscoveryBytes(b []byte) error {
+	if err := rejectSensitiveArtifact(string(b)); err != nil {
+		return err
+	}
+	if forbiddenDiscoveryContent.Match(b) {
+		return fmt.Errorf("refusing artifact containing forbidden review/package/identity content")
 	}
 	return nil
 }
@@ -213,6 +311,8 @@ func RenderEvidenceReport(artifacts DiscoveryArtifacts) ([]byte, error) {
 		}
 	}
 	builder.WriteString("\n## Evidence boundaries and limitations / 证据边界与限制\n\n")
+	provenance := artifactProvenance(artifacts.Manifest, "committed discovery artifacts")
+	fmt.Fprintf(&builder, "- Source / 来源: %s / %s\n- Purpose / 用途: %s / %s\n- Input SHA-256 / 输入 SHA-256: `%s` / `%s`\n- Maximum bytes / 最大字节数: %d / %d\n", provenance.Source, provenance.Source, provenance.Purpose, provenance.Purpose, provenance.InputSHA256, provenance.InputSHA256, provenance.MaxBytes, provenance.MaxBytes)
 	builder.WriteString("- Source linkage is the completed snapshot manifest, its page receipts, and existing SHA-256 receipts; no artifact hashes itself. / 来源关联为完整快照清单、页面回执及既有 SHA-256 回执；工件不对自身哈希。\n")
 	builder.WriteString("- Bounded inputs are candidate metadata, proposals, duplicate clusters, evidence vectors, and shortlist entries only; raw review content, reviewer identifiers, signed URLs, and package contents are excluded. / 有界输入仅包括候选元数据、提案、重复簇、证据向量和短名单条目；不包含原始评论、评审者标识、签名 URL 或软件包内容。\n")
 	builder.WriteString("- Platform evidence is not a writing-quality result.\n- 平台证据不是写作质量结果。\n")

@@ -25,20 +25,29 @@ type SnapshotFailure struct {
 	Message     string `json:"message"`
 }
 type SnapshotManifest struct {
-	Contract               string            `json:"contract"`
-	Version                string            `json:"version"`
-	SnapshotID             string            `json:"snapshot_id"`
-	Status                 SnapshotStatus    `json:"status"`
-	StartedAt              string            `json:"started_at"`
-	CompletedAt            string            `json:"completed_at"`
-	BaseURL                string            `json:"base_url"`
-	NormalizationVersion   string            `json:"normalization_version"`
-	ReportedTotal          int               `json:"reported_total"`
-	UniqueSkills           int               `json:"unique_skills"`
-	Pages                  []PageReceipt     `json:"pages"`
-	Failures               []SnapshotFailure `json:"failures"`
-	PreviousSnapshotSHA256 string            `json:"previous_snapshot_sha256,omitempty"`
-	SkillRecordsSHA256     string            `json:"skill_records_sha256"`
+	Contract               string             `json:"contract"`
+	Version                string             `json:"version"`
+	SnapshotID             string             `json:"snapshot_id"`
+	Status                 SnapshotStatus     `json:"status"`
+	StartedAt              string             `json:"started_at"`
+	CompletedAt            string             `json:"completed_at"`
+	BaseURL                string             `json:"base_url"`
+	NormalizationVersion   string             `json:"normalization_version"`
+	ReportedTotal          int                `json:"reported_total"`
+	UniqueSkills           int                `json:"unique_skills"`
+	Pages                  []PageReceipt      `json:"pages"`
+	Failures               []SnapshotFailure  `json:"failures"`
+	PreviousSnapshotSHA256 string             `json:"previous_snapshot_sha256,omitempty"`
+	SkillRecordsSHA256     string             `json:"skill_records_sha256"`
+	Provenance             ArtifactProvenance `json:"provenance"`
+}
+
+// ArtifactProvenance binds an artifact to bounded source inputs, never to itself.
+type ArtifactProvenance struct {
+	Source      string `json:"source"`
+	Purpose     string `json:"purpose"`
+	InputSHA256 string `json:"input_sha256"`
+	MaxBytes    int    `json:"max_bytes"`
 }
 type SkillRecord struct {
 	ID             string   `json:"id"`
@@ -89,10 +98,11 @@ type CandidateRecord struct {
 	Capabilities []CapabilityMatch `json:"capabilities"`
 }
 type CandidateIndex struct {
-	Contract   string            `json:"contract"`
-	Version    string            `json:"version"`
-	SnapshotID string            `json:"snapshot_id"`
-	Candidates []CandidateRecord `json:"candidates"`
+	Contract   string             `json:"contract"`
+	Version    string             `json:"version"`
+	SnapshotID string             `json:"snapshot_id"`
+	Candidates []CandidateRecord  `json:"candidates"`
+	Provenance ArtifactProvenance `json:"provenance"`
 }
 type CapabilityProposal struct {
 	CapabilityID      string   `json:"capability_id"`
@@ -110,6 +120,7 @@ type CapabilityProposalIndex struct {
 	Version    string               `json:"version"`
 	SnapshotID string               `json:"snapshot_id"`
 	Proposals  []CapabilityProposal `json:"proposals"`
+	Provenance ArtifactProvenance   `json:"provenance"`
 }
 type DuplicateCluster struct {
 	ClusterID        string   `json:"cluster_id"`
@@ -123,6 +134,7 @@ type DuplicateClusterIndex struct {
 	Version    string             `json:"version"`
 	SnapshotID string             `json:"snapshot_id"`
 	Clusters   []DuplicateCluster `json:"clusters"`
+	Provenance ArtifactProvenance `json:"provenance"`
 }
 type ReviewEvidence struct {
 	EffectiveRaters     int      `json:"effective_raters"`
@@ -166,11 +178,12 @@ type CapabilityGap struct {
 	Reason       string `json:"reason"`
 }
 type Shortlist struct {
-	Contract   string           `json:"contract"`
-	Version    string           `json:"version"`
-	SnapshotID string           `json:"snapshot_id"`
-	Entries    []ShortlistEntry `json:"entries"`
-	Gaps       []CapabilityGap  `json:"gaps"`
+	Contract   string             `json:"contract"`
+	Version    string             `json:"version"`
+	SnapshotID string             `json:"snapshot_id"`
+	Entries    []ShortlistEntry   `json:"entries"`
+	Gaps       []CapabilityGap    `json:"gaps"`
+	Provenance ArtifactProvenance `json:"provenance"`
 }
 
 // CoreCapabilityIDs is the approved catalog's closed capability set, in catalog order.
