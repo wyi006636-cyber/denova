@@ -3,6 +3,7 @@ package skilldiscovery
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"sort"
 	"strings"
 	"unicode"
@@ -12,15 +13,27 @@ const duplicateSimilarityThreshold = 0.90
 
 // MetadataSignature identifies an exact duplicate after canonical metadata normalization.
 func MetadataSignature(candidate CandidateRecord) string {
-	skill := candidate.Skill
-	parts := []string{
-		"name=" + normalizeText(skill.Name),
-		"description=" + normalizeText(skill.Description),
-		"triggers=" + strings.Join(normalizedTokens(skill.Triggers), ","),
-		"tags=" + strings.Join(normalizedTokens(skill.Tags), ","),
-	}
-	digest := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
+	digest := sha256.Sum256(canonicalMetadata(candidate))
 	return "sha256:" + hex.EncodeToString(digest[:])
+}
+
+type canonicalMetadataRecord struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Triggers    []string `json:"triggers"`
+	Tags        []string `json:"tags"`
+}
+
+func canonicalMetadata(candidate CandidateRecord) []byte {
+	skill := candidate.Skill
+	payload, err := json.Marshal(canonicalMetadataRecord{
+		Name: normalizeText(skill.Name), Description: normalizeText(skill.Description),
+		Triggers: normalizedTokens(skill.Triggers), Tags: normalizedTokens(skill.Tags),
+	})
+	if err != nil {
+		panic("marshal canonical skill metadata: " + err.Error())
+	}
+	return payload
 }
 
 // TokenJaccard compares description bigrams and normalized trigger/tag tokens.
@@ -41,7 +54,7 @@ func TokenJaccard(left, right CandidateRecord) float64 {
 
 // ClusterCandidates returns deterministic, explainable metadata duplicate groups without dropping members.
 func ClusterCandidates(candidates []CandidateRecord, threshold float64) []DuplicateCluster {
-	ordered := append([]CandidateRecord(nil), candidates...)
+	ordered := coalesceCandidates(candidates)
 	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Skill.ID < ordered[j].Skill.ID })
 	groups := newDisjointSet(len(ordered))
 	edges := make([]duplicateEdge, 0)
@@ -53,7 +66,7 @@ func ClusterCandidates(candidates []CandidateRecord, threshold float64) []Duplic
 				continue
 			}
 			groups.union(i, j)
-			edges = append(edges, duplicateEdge{left: i, right: j, exact: exact, sameOwner: ordered[i].Skill.OwnerID != "" && ordered[i].Skill.OwnerID == ordered[j].Skill.OwnerID})
+			edges = append(edges, duplicateEdge{left: i, right: j, exact: exact})
 		}
 	}
 
@@ -73,7 +86,7 @@ func ClusterCandidates(candidates []CandidateRecord, threshold float64) []Duplic
 			memberIDs[i] = ordered[index].Skill.ID
 			memberSet[index] = struct{}{}
 		}
-		reasons, kind := clusterReasons(edges, memberSet)
+		reasons, kind := clusterReasons(edges, memberSet, ordered, memberIndexes)
 		clusters = append(clusters, DuplicateCluster{
 			ClusterID:        "duplicate:" + memberIDs[0],
 			Kind:             kind,
@@ -87,11 +100,11 @@ func ClusterCandidates(candidates []CandidateRecord, threshold float64) []Duplic
 }
 
 type duplicateEdge struct {
-	left, right      int
-	exact, sameOwner bool
+	left, right int
+	exact       bool
 }
 
-func clusterReasons(edges []duplicateEdge, members map[int]struct{}) ([]string, string) {
+func clusterReasons(edges []duplicateEdge, members map[int]struct{}, candidates []CandidateRecord, memberIndexes []int) ([]string, string) {
 	reasonSet := make(map[string]struct{})
 	kind := "near_metadata"
 	for _, edge := range edges {
@@ -107,8 +120,17 @@ func clusterReasons(edges []duplicateEdge, members map[int]struct{}) ([]string, 
 		} else {
 			reasonSet["token_jaccard>=0.90"] = struct{}{}
 		}
-		if edge.sameOwner {
+	}
+	owners := make(map[string]int, len(memberIndexes))
+	for _, index := range memberIndexes {
+		if ownerID := candidates[index].Skill.OwnerID; ownerID != "" {
+			owners[ownerID]++
+		}
+	}
+	for _, count := range owners {
+		if count > 1 {
 			reasonSet["same_author"] = struct{}{}
+			break
 		}
 	}
 	reasons := make([]string, 0, len(reasonSet))
@@ -117,6 +139,46 @@ func clusterReasons(edges []duplicateEdge, members map[int]struct{}) ([]string, 
 	}
 	sort.Strings(reasons)
 	return reasons, kind
+}
+
+// coalesceCandidates treats repeated catalog IDs as one logical candidate without mutating the input.
+func coalesceCandidates(candidates []CandidateRecord) []CandidateRecord {
+	byID := make(map[string]CandidateRecord, len(candidates))
+	for _, candidate := range candidates {
+		existing, found := byID[candidate.Skill.ID]
+		if !found || duplicateIDWinner(candidate, existing) {
+			byID[candidate.Skill.ID] = candidate
+		}
+	}
+	result := make([]CandidateRecord, 0, len(byID))
+	for _, candidate := range byID {
+		result = append(result, candidate)
+	}
+	return result
+}
+
+func duplicateIDWinner(left, right CandidateRecord) bool {
+	if left.Skill.Downloads != right.Skill.Downloads {
+		return left.Skill.Downloads > right.Skill.Downloads
+	}
+	if left.Skill.StarCount != right.Skill.StarCount {
+		return left.Skill.StarCount > right.Skill.StarCount
+	}
+	if left.Skill.VersionCount != right.Skill.VersionCount {
+		return left.Skill.VersionCount > right.Skill.VersionCount
+	}
+	if leftSignature, rightSignature := MetadataSignature(left), MetadataSignature(right); leftSignature != rightSignature {
+		return leftSignature < rightSignature
+	}
+	return canonicalCandidateRecord(left) < canonicalCandidateRecord(right)
+}
+
+func canonicalCandidateRecord(candidate CandidateRecord) string {
+	payload, err := json.Marshal(candidate)
+	if err != nil {
+		panic("marshal canonical candidate record: " + err.Error())
+	}
+	return string(payload)
 }
 
 func representativeID(candidates []CandidateRecord, memberIndexes []int) string {

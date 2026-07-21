@@ -1,6 +1,7 @@
 package skilldiscovery
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -23,6 +24,14 @@ func TestMetadataSignatureNormalizesNFKCAndSortsMetadataTokens(t *testing.T) {
 	right := CandidateRecord{Skill: SkillRecord{Name: "draft", Description: "story plan", Triggers: []string{"plan", "续写"}, Tags: []string{"draft", "人物"}}}
 	if got, want := MetadataSignature(left), MetadataSignature(right); got != want {
 		t.Fatalf("MetadataSignature() = %q, want %q", got, want)
+	}
+}
+
+func TestMetadataSignatureSeparatesCommaDelimitedMetadataValues(t *testing.T) {
+	left := CandidateRecord{Skill: SkillRecord{Triggers: []string{"a,b", "c"}}}
+	right := CandidateRecord{Skill: SkillRecord{Triggers: []string{"a", "b,c"}}}
+	if got, want := MetadataSignature(left), MetadataSignature(right); got == want {
+		t.Fatalf("MetadataSignature collision: both signatures = %q", got)
 	}
 }
 
@@ -63,5 +72,42 @@ func TestClusterCandidatesRepresentativeUsesOrderedTieBreakers(t *testing.T) {
 	clusters := ClusterCandidates(candidates, 0.90)
 	if len(clusters) != 1 || clusters[0].RepresentativeID != "a" {
 		t.Fatalf("clusters = %#v, want representative a", clusters)
+	}
+}
+
+func TestClusterCandidatesCoalescesDuplicateIDsDeterministically(t *testing.T) {
+	inputs := []CandidateRecord{
+		{Skill: SkillRecord{ID: "x", Name: "copy", Description: "same", Downloads: 1}},
+		{Skill: SkillRecord{ID: "y", Name: "copy", Description: "same", Downloads: 5}},
+		{Skill: SkillRecord{ID: "x", Name: "copy", Description: "same", Downloads: 10}},
+	}
+	original := append([]CandidateRecord(nil), inputs...)
+	forward := ClusterCandidates(inputs, duplicateSimilarityThreshold)
+	reversed := ClusterCandidates([]CandidateRecord{inputs[2], inputs[1], inputs[0]}, duplicateSimilarityThreshold)
+	forwardJSON, _ := json.Marshal(forward)
+	reversedJSON, _ := json.Marshal(reversed)
+	if !reflect.DeepEqual(inputs, original) {
+		t.Fatalf("ClusterCandidates mutated input: %#v", inputs)
+	}
+	if string(forwardJSON) != string(reversedJSON) {
+		t.Fatalf("clusters differ after duplicate-ID shuffle: %s != %s", forwardJSON, reversedJSON)
+	}
+	if len(forward) != 1 || !reflect.DeepEqual(forward[0].MemberIDs, []string{"x", "y"}) || forward[0].RepresentativeID != "x" {
+		t.Fatalf("clusters = %#v, want coalesced x,y with x representative", forward)
+	}
+}
+
+func TestClusterCandidatesRecordsSameAuthorAcrossTransitiveCluster(t *testing.T) {
+	candidates := []CandidateRecord{
+		{Skill: SkillRecord{ID: "a", OwnerID: "shared", Triggers: clusterTokens(1, 20)}},
+		{Skill: SkillRecord{ID: "b", OwnerID: "other", Triggers: append(clusterTokens(1, 19), "t21")}},
+		{Skill: SkillRecord{ID: "c", OwnerID: "shared", Triggers: append(clusterTokens(2, 19), "t21", "t22")}},
+	}
+	if got := TokenJaccard(candidates[0], candidates[2]); got >= duplicateSimilarityThreshold {
+		t.Fatalf("A/C similarity = %v, want below %v", got, duplicateSimilarityThreshold)
+	}
+	clusters := ClusterCandidates(candidates, duplicateSimilarityThreshold)
+	if len(clusters) != 1 || !reflect.DeepEqual(clusters[0].MemberIDs, []string{"a", "b", "c"}) || !strings.Contains(strings.Join(clusters[0].Reasons, ","), "same_author") {
+		t.Fatalf("clusters = %#v, want transitive same_author evidence", clusters)
 	}
 }
