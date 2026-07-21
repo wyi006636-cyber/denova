@@ -53,15 +53,14 @@ func BuildEvidenceVectors(candidates []CandidateRecord, reviews map[string]Revie
 	for capability, pool := range members {
 		mean, strength := reviewPrior(pool, reviews)
 		for _, candidate := range pool {
-			review := reviews[candidate.Skill.ID]
+			review, cached := reviews[candidate.Skill.ID]
 			if countMismatch(candidate.Skill.StarCount, candidate.Skill.CommentCount) {
 				review.AnomalyFlags = appendUniqueFlag(review.AnomalyFlags, "RATING-COMMENT-COUNT-MISMATCH")
 			}
-			if review.AverageStarsX100 == 0 {
-				review.AverageStarsX100 = candidate.Skill.AverageStars
-			}
-			vector := EvidenceVector{SkillID: candidate.Skill.ID, CapabilityID: capability, DownloadPercentile: percentiles[capability][candidate.Skill.ID], BayesianStarsX100: BayesianAdjustedStars(review.AverageStarsX100, review.EffectiveRaters, mean, strength), Review: review, PlatformDataRich: review.EffectiveRaters >= 10 && review.SubstantiveComments >= 5 && percentiles[capability][candidate.Skill.ID] >= .75 && !severeFlag(review.AnomalyFlags), MaturityVersionCount: candidate.Skill.VersionCount, EvidenceCacheStatus: review.EvidenceCacheStatus}
-			if vector.EvidenceCacheStatus == "" {
+			vector := EvidenceVector{SkillID: candidate.Skill.ID, CapabilityID: capability, DownloadPercentile: percentiles[capability][candidate.Skill.ID], BayesianStarsX100: BayesianAdjustedStars(review.AverageStarsX100, review.EffectiveRaters, mean, strength), Review: review, PlatformDataRich: candidate.Skill.Downloads >= 50 && review.EffectiveRaters >= 10 && review.SubstantiveComments >= 5 && percentiles[capability][candidate.Skill.ID] >= .75 && !severeFlag(review.AnomalyFlags), MaturityVersionCount: candidate.Skill.VersionCount, EvidenceCacheStatus: review.EvidenceCacheStatus}
+			if !cached {
+				vector.EvidenceCacheStatus = "EVIDENCE-CACHE-MISSING"
+			} else if vector.EvidenceCacheStatus == "" {
 				vector.EvidenceCacheStatus = "EVIDENCE-CACHE-AVAILABLE"
 			}
 			if vector.EvidenceCacheStatus != "EVIDENCE-CACHE-AVAILABLE" {
@@ -81,8 +80,10 @@ func BuildEvidenceVectors(candidates []CandidateRecord, reviews map[string]Revie
 func capabilityMembers(candidates []CandidateRecord, ignored map[string]bool) map[string][]CandidateRecord {
 	out := map[string][]CandidateRecord{}
 	for _, candidate := range candidates {
-		if ignored != nil && !ignored[candidate.Skill.ID] {
-			continue
+		if ignored != nil {
+			if representative, known := ignored[candidate.Skill.ID]; known && !representative {
+				continue
+			}
 		}
 		for _, match := range candidate.Capabilities {
 			if match.Status == MatchMatched {
@@ -98,7 +99,7 @@ func filterRepresentatives(candidates []CandidateRecord, reps map[string]bool) [
 	}
 	out := make([]CandidateRecord, 0, len(candidates))
 	for _, candidate := range candidates {
-		if reps[candidate.Skill.ID] {
+		if representative, known := reps[candidate.Skill.ID]; !known || representative {
 			out = append(out, candidate)
 		}
 	}
@@ -119,6 +120,9 @@ func reviewPrior(pool []CandidateRecord, reviews map[string]ReviewEvidence) (flo
 		return 0, 1
 	}
 	sort.Ints(counts)
+	if len(counts)%2 == 0 {
+		return weighted / float64(total), (counts[len(counts)/2-1] + counts[len(counts)/2]) / 2
+	}
 	return weighted / float64(total), counts[len(counts)/2]
 }
 func severeFlag(flags []string) bool {

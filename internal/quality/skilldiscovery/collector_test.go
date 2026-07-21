@@ -229,6 +229,48 @@ func TestCollectCandidateEvidenceUsesOnlyCandidatesPaginatesAndResumes(t *testin
 	}
 }
 
+func TestNormalizeSkillDetailDecodesAndValidatesReturnedID(t *testing.T) {
+	candidate := SkillRecord{ID: "wanted", Name: "catalog"}
+	got, err := normalizeSkillDetail([]byte(`{"success":true,"data":{"id":"wanted","name":"detail","weighted_score":3.5,"security_report":"clear"}}`), candidate)
+	if err != nil || got.Name != "detail" || got.WeightedScore != 3.5 || got.SecurityReport != "clear" {
+		t.Fatalf("detail=%#v err=%v", got, err)
+	}
+	if _, err := normalizeSkillDetail([]byte(`{"id":"other"}`), candidate); err == nil {
+		t.Fatal("accepted mismatched detail id")
+	}
+}
+
+func TestCollectCandidateEvidenceOmitsPartialCandidateAndRejectsUnsafeID(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/api/skills/good" {
+			fmt.Fprint(w, `{"id":"good"}`)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(server.Close)
+	collector := NewCollector(server.Client(), fixedClock())
+	options := EvidenceCollectionOptions{CollectorOptions: CollectorOptions{BaseURL: server.URL, CacheRoot: t.TempDir(), PageSize: 1, RetryAttempts: 1, MaxRetryDelay: time.Millisecond}, CommentPageSize: 1}
+	details, comments, failures, err := collector.CollectCandidateEvidence(context.Background(), options, []CandidateRecord{{Skill: SkillRecord{ID: "good"}}})
+	if err != nil || len(failures) != 1 || len(details) != 0 {
+		t.Fatalf("details=%v comments=%v failures=%v err=%v", details, comments, failures, err)
+	}
+	if _, ok := comments["good"]; ok {
+		t.Fatalf("partial comments must be omitted: %#v", comments)
+	}
+	if _, _, _, err = collector.CollectCandidateEvidence(context.Background(), options, []CandidateRecord{{Skill: SkillRecord{ID: "bad/id"}}}); err == nil {
+		t.Fatal("accepted unsafe candidate id")
+	}
+}
+
+func TestNormalizeCommentPageRejectsMissingEnvelopeDataAndPaginationFields(t *testing.T) {
+	for _, payload := range []string{`{"success":true}`, `{"success":true,"data":null}`, `{"items":[]}`} {
+		if _, err := normalizeCommentPage([]byte(payload)); err == nil {
+			t.Fatalf("accepted incomplete comments payload %s", payload)
+		}
+	}
+}
+
 func fixedClock() func() time.Time {
 	return func() time.Time { return time.Date(2026, 7, 21, 0, 0, 0, 0, time.UTC) }
 }

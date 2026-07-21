@@ -20,6 +20,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评评论证据完整性：独立评分不再回退到目录聚合星级；重复簇外单例保留；缓存缺失或部分分页强制探索通道；数据强分层现在严格要求下载、分位、有效评审、实质评论和无严重异常。
+- Fixed Xiaping review-evidence integrity: independent ratings no longer fall back to catalog aggregates; cluster-external singletons are retained; missing or partial paginated cache forces exploration; DATA-RICH now strictly requires downloads, percentile, effective raters, substantive comments, and no severe anomaly.
+
 - 修复虾评重复聚类的签名与重复 ID 边界：规范 JSON 元数据编码避免分隔符碰撞；相同目录 ID 按稳定优先级合并为一个逻辑候选；同作者证据按完整聚类成员计算，仍不作为合并条件。
 - Fixed Xiaping duplicate-cluster signature and duplicate-ID boundaries: canonical JSON metadata encoding prevents delimiter collisions; repeated catalog IDs coalesce into one logical candidate using a stable priority order; common-author evidence is calculated from complete cluster membership and remains non-merging.
 - Added a local resumable Xiaping public-catalog collector with restricted HTTPS GET requests, atomic page checkpoints, Retry-After-aware 429/5xx backoff, cancellation, sorted de-duplication, and PARTIAL failure manifests without logging bodies or credentials.

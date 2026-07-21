@@ -345,6 +345,9 @@ func (collector *Collector) CollectCandidateEvidence(ctx context.Context, option
 	details, comments, failures := map[string]SkillDetail{}, map[string][]ReviewRecord{}, []SnapshotFailure{}
 	var lastRequest time.Time
 	for _, candidate := range coalesceCandidates(candidates) {
+		if !safeCandidateID(candidate.Skill.ID) {
+			return details, comments, failures, fmt.Errorf("invalid candidate id")
+		}
 		if err := ctx.Err(); err != nil {
 			return details, comments, failures, err
 		}
@@ -366,7 +369,9 @@ func (collector *Collector) CollectCandidateEvidence(ctx context.Context, option
 			failures = append(failures, evidenceFailure("skill-detail", detailURL.String(), err))
 			continue
 		}
-		details[candidate.Skill.ID] = detail
+		pageHashes := map[string]struct{}{}
+		collected := []ReviewRecord{}
+		complete := true
 		for page := 1; ; page++ {
 			pageURL := evidenceCommentsURL(base, candidate.Skill.ID, options.CommentPageSize, page)
 			payload, receipt, readErr = cache.ReadPage("skill-comments", pageURL.String())
@@ -379,17 +384,39 @@ func (collector *Collector) CollectCandidateEvidence(ctx context.Context, option
 			}
 			if readErr != nil {
 				failures = append(failures, evidenceFailure("skill-comments", pageURL.String(), readErr))
+				complete = false
 				break
 			}
 			response, err := normalizeCommentPage(payload)
 			if err != nil {
 				failures = append(failures, evidenceFailure("skill-comments", pageURL.String(), err))
+				complete = false
 				break
 			}
-			comments[candidate.Skill.ID] = append(comments[candidate.Skill.ID], response.Reviews...)
+			if len(response.Reviews) > 0 {
+				if _, seen := pageHashes[receipt.SHA256]; seen {
+					failures = append(failures, evidenceFailure("skill-comments", pageURL.String(), fmt.Errorf("repeated nonempty comments page")))
+					complete = false
+					break
+				}
+				pageHashes[receipt.SHA256] = struct{}{}
+			}
+			if response.HasMore && len(response.Reviews) == 0 {
+				failures = append(failures, evidenceFailure("skill-comments", pageURL.String(), fmt.Errorf("empty comments page reports hasMore")))
+				complete = false
+				break
+			}
+			collected = append(collected, response.Reviews...)
 			if !response.HasMore {
 				break
 			}
+		}
+		if complete {
+			details[candidate.Skill.ID] = detail
+			comments[candidate.Skill.ID] = collected
+		} else {
+			delete(details, candidate.Skill.ID)
+			delete(comments, candidate.Skill.ID)
 		}
 	}
 	return details, comments, failures, nil
@@ -397,6 +424,17 @@ func (collector *Collector) CollectCandidateEvidence(ctx context.Context, option
 
 func evidenceFailure(kind, key string, err error) SnapshotFailure {
 	return SnapshotFailure{Kind: kind, Key: key, Disposition: "evidence-cache-missing", Message: safeError(err)}
+}
+func safeCandidateID(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '_') {
+			return false
+		}
+	}
+	return true
 }
 func evidenceDetailURL(base *urlpkg.URL, id string) *urlpkg.URL {
 	target := *base
@@ -428,14 +466,34 @@ func normalizeSkillDetail(payload []byte, fallback SkillRecord) (SkillDetail, er
 			return SkillDetail{}, err
 		}
 	}
+	if _, hasID := fields["id"]; !hasID {
+		if data, ok := fields["data"]; ok {
+			fields, err = catalogObjectFields(data)
+			if err != nil {
+				return SkillDetail{}, err
+			}
+		}
+	}
 	var detail SkillDetail
-	if raw, ok := fields["id"]; ok {
-		_ = json.Unmarshal(raw, &detail.ID)
+	encoded, err := json.Marshal(fields)
+	if err != nil {
+		return SkillDetail{}, err
 	}
-	if detail.ID == "" {
-		detail.ID = fallback.ID
+	if err := json.Unmarshal(encoded, &detail); err != nil {
+		return SkillDetail{}, err
 	}
-	detail.SkillRecord = fallback
+	if detail.ID == "" || detail.ID != fallback.ID {
+		return SkillDetail{}, fmt.Errorf("detail id does not match requested candidate")
+	}
+	if detail.Name == "" {
+		detail.Name = fallback.Name
+	}
+	if detail.Description == "" {
+		detail.Description = fallback.Description
+	}
+	if detail.OwnerID == "" {
+		detail.OwnerID = fallback.OwnerID
+	}
 	return detail, nil
 }
 
@@ -474,11 +532,13 @@ func normalizeCommentPage(payload []byte) (commentPage, error) {
 	for _, review := range api {
 		reviews = append(reviews, normalizeAPIReview(review))
 	}
+	rawMore, ok := fields["hasMore"]
+	if !ok || isNullJSON(rawMore) {
+		return commentPage{}, fmt.Errorf("comments payload requires hasMore")
+	}
 	more := false
-	if raw, ok := fields["hasMore"]; ok {
-		if err := json.Unmarshal(raw, &more); err != nil {
-			return commentPage{}, fmt.Errorf("comments hasMore must be boolean")
-		}
+	if err := json.Unmarshal(rawMore, &more); err != nil {
+		return commentPage{}, fmt.Errorf("comments hasMore must be boolean")
 	}
 	return commentPage{Reviews: reviews, HasMore: more}, nil
 }

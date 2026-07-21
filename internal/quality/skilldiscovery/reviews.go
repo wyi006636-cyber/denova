@@ -4,7 +4,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode"
 )
 
 // ReviewRecord is transient review data. It must never be serialized into an evidence artifact.
@@ -64,7 +63,7 @@ func SummarizeReviews(ownerID string, reviews []ReviewRecord, policy ReviewPolic
 		policy.GenericPhrases = defaultReviewPolicy().GenericPhrases
 	}
 	result := ReviewEvidence{AnomalyFlags: []string{}}
-	nonOwner, substantive := make([]ReviewRecord, 0, len(reviews)), make([]ReviewRecord, 0, len(reviews))
+	nonOwner := make([]ReviewRecord, 0, len(reviews))
 	starTotal := 0
 	for _, review := range reviews {
 		if review.UserID != "" && review.UserID == ownerID {
@@ -72,10 +71,30 @@ func SummarizeReviews(ownerID string, reviews []ReviewRecord, policy ReviewPolic
 			continue
 		}
 		nonOwner = append(nonOwner, review)
-		if duplicateReview(review, substantive, policy.NearDuplicateJaccard) {
+	}
+	sort.Slice(nonOwner, func(i, j int) bool {
+		left, right := reviewerKey(nonOwner[i]), reviewerKey(nonOwner[j])
+		if left != right {
+			return left < right
+		}
+		return nonOwner[i].ID < nonOwner[j].ID
+	})
+	unique := make([]ReviewRecord, 0, len(nonOwner))
+	seenReviewers := map[string]struct{}{}
+	for _, review := range nonOwner {
+		key := reviewerKey(review)
+		if _, seen := seenReviewers[key]; seen {
+			continue
+		}
+		seenReviewers[key] = struct{}{}
+		if duplicateReview(review, unique, policy.NearDuplicateJaccard) {
 			result.DuplicateComments++
 			continue
 		}
+		unique = append(unique, review)
+	}
+	substantive := make([]ReviewRecord, 0, len(unique))
+	for _, review := range unique {
 		if reviewSubstantive(review, policy) {
 			substantive = append(substantive, review)
 			starTotal += review.Stars
@@ -101,8 +120,8 @@ func SummarizeReviews(ownerID string, reviews []ReviewRecord, policy ReviewPolic
 func reviewSubstantive(review ReviewRecord, policy ReviewPolicy) bool {
 	text := normalizedComparableText(strings.Join([]string{review.Content, review.Pros, review.Cons, review.UseCase}, " "))
 	minimum := policy.MinimumRunes
-	if minimum > 20 {
-		minimum = 20
+	if minimum < 40 {
+		minimum = 40
 	}
 	if utfRunes(text) < minimum || text == "" {
 		return false
@@ -120,6 +139,12 @@ func reviewSubstantive(review ReviewRecord, policy ReviewPolicy) bool {
 	return false
 }
 func utfRunes(text string) int { return len([]rune(text)) }
+func reviewerKey(review ReviewRecord) string {
+	if review.UserID != "" {
+		return "user:" + review.UserID
+	}
+	return "review:" + review.ID
+}
 func duplicateReview(review ReviewRecord, existing []ReviewRecord, threshold float64) bool {
 	for _, prior := range existing {
 		if reviewJaccard(review, prior) >= threshold {
@@ -189,5 +214,3 @@ func maxInt(left, right int) int {
 	}
 	return right
 }
-
-var _ = unicode.IsLetter
