@@ -657,13 +657,32 @@ func normalizeCommentPage(payload []byte) (commentPage, error) {
 		if err != nil {
 			return commentPage{}, err
 		}
-	}
-	if _, hasItems := fields["items"]; !hasItems {
-		if nested, ok := fields["data"]; ok && !isNullJSON(nested) {
-			fields, err = catalogObjectFields(nested)
-			if err != nil {
-				return commentPage{}, err
+		if raw, nested := fields["data"]; nested {
+			if isNullJSON(raw) {
+				return commentPage{}, fmt.Errorf("nested comments data must be a non-null array")
 			}
+			var api []apiReview
+			if err := json.Unmarshal(raw, &api); err != nil || api == nil {
+				return commentPage{}, fmt.Errorf("nested comments data must be an array")
+			}
+			var total, page, limit int
+			rawTotal, totalExists := fields["total"]
+			if !totalExists || isNullJSON(rawTotal) || json.Unmarshal(rawTotal, &total) != nil || total < 0 {
+				return commentPage{}, fmt.Errorf("nested comments total is invalid")
+			}
+			rawPage, pageExists := fields["page"]
+			if !pageExists || isNullJSON(rawPage) || json.Unmarshal(rawPage, &page) != nil || page < 1 {
+				return commentPage{}, fmt.Errorf("nested comments page is invalid")
+			}
+			rawLimit, limitExists := fields["limit"]
+			if !limitExists || isNullJSON(rawLimit) || json.Unmarshal(rawLimit, &limit) != nil || limit <= 0 {
+				return commentPage{}, fmt.Errorf("nested comments limit is invalid")
+			}
+			reviews := make([]ReviewRecord, 0, len(api))
+			for _, review := range api {
+				reviews = append(reviews, normalizeAPIReview(review))
+			}
+			return commentPage{Reviews: reviews, Total: total, HasMore: page < total/limit || total%limit != 0 && page == total/limit}, nil
 		}
 	}
 	raw, ok := fields["items"]

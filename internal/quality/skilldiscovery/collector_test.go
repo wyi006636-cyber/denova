@@ -334,9 +334,23 @@ func TestNormalizeCommentPageAcceptsDirectShapeAndRejectsFailedEnvelope(t *testi
 	if _, err := normalizeSkillDetail([]byte(`{"success":false,"data":{"id":"wanted"}}`), SkillRecord{ID: "wanted"}); err == nil {
 		t.Fatal("accepted unsuccessful detail envelope")
 	}
-	page, err = normalizeCommentPage([]byte(`{"success":true,"data":{"data":{"items":[],"total":0,"hasMore":false},"total":0,"page":1,"limit":50}}`))
-	if err != nil || page.Total != 0 {
+	page, err = normalizeCommentPage([]byte(`{"success":true,"data":{"data":[],"total":100,"page":1,"limit":50}}`))
+	if err != nil || page.Total != 100 || !page.HasMore {
 		t.Fatalf("nested page=%#v err=%v", page, err)
+	}
+	page, err = normalizeCommentPage([]byte(`{"success":true,"data":{"data":[],"total":100,"page":2,"limit":50}}`))
+	if err != nil || page.HasMore {
+		t.Fatalf("terminal nested page=%#v err=%v", page, err)
+	}
+	for _, payload := range []string{
+		`{"success":true,"data":{"data":null,"total":0,"page":1,"limit":50}}`,
+		`{"success":true,"data":{"data":[],"total":-1,"page":1,"limit":50}}`,
+		`{"success":true,"data":{"data":[],"total":0,"page":0,"limit":50}}`,
+		`{"success":true,"data":{"data":[],"total":0,"page":1,"limit":0}}`,
+	} {
+		if _, err := normalizeCommentPage([]byte(payload)); err == nil {
+			t.Fatalf("accepted invalid nested page %s", payload)
+		}
 	}
 }
 

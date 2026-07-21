@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复霞萍实时评论分页的数组数据封装：成功响应现校验非空数组容器、非负总数、正页码和页大小，并从 `page/limit/total` 推导继续分页状态，不信任可变的远端 `hasMore` 标记。
+- Fixed array-backed Xiaping comment-page envelopes: successful responses now validate the non-null array, non-negative total, and positive page/limit, deriving continuation from `page/limit/total` rather than trusting a mutable remote `hasMore` flag.
 - 修复受管网络中的霞萍公开目录访问：仅固定的 `xiaping.coze.com` 可经本机透明路由使用 198.18.0.0/15，其他主机和远程 Skill 包下载仍拒绝非公网地址。
 - Fixed Xiaping public-catalog access on managed networks: only the fixed `xiaping.coze.com` host may use the local transparent 198.18.0.0/15 route; other hosts and remote Skill archive downloads continue to reject non-public addresses.
 - 修复霞萍实时目录字段兼容性：公开 API 的单数/数组 trigger/category、字符串或数组 tags、`avg_stars`、`is_featured` 和 `status` 现被无损规范为稳定发现合同。
