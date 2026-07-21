@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增已接受的 Workspace Schema v1 架构决策与可解析示例，定义并批准 Denova 正式文件、待审产物、运行恢复、可重建投影、版本保护及 `.nova` 迁移边界的演进基线。
+- Added the accepted Workspace Schema v1 decision and parseable example, defining Denova formal files, review artifacts, runtime recovery, rebuildable projections, version protection, and `.nova` migration boundaries.
 - 新增 Denova Quality Harness 核心安全边界特征测试，覆盖 Task/SSE 重连、会话上下文隔离、工作区 revision 与版本保护，以及桌面和移动端共享导航模式保持。
 - Added Denova Quality Harness safety-boundary characterization tests for Task/SSE reconnects, session context isolation, workspace revisions and version protection, plus desktop and mobile shared-navigation mode preservation.
 - 新增可机器复核的 Quality Harness 工程与来源基线，记录仓库、远端、工具链、测试证据、57 个源码接入点及依赖复用边界。

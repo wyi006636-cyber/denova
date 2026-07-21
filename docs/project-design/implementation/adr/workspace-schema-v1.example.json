@@ -1,0 +1,266 @@
+{
+  "$comment": "Example/contract fixture only; not a runtime truth source.",
+  "contract_kind": "denova.workspace-schema-example",
+  "status": "accepted_v1",
+  "schema_version": 1,
+  "reader": {
+    "min_schema_version": 1,
+    "max_schema_version": 1,
+    "min_denova_version": "1.0.0"
+  },
+  "writer": {
+    "schema_version": 1,
+    "min_denova_version": "1.0.0",
+    "compatibility_range": ">=1.0.0 <2.0.0",
+    "version": "1.0.0"
+  },
+  "application_version_policy": {
+    "comparison": "semver_2_0_0_without_leading_v_build_metadata_ignored_for_ordering",
+    "range_authority": "local_reader_supported_schema_contract_not_writer_self_assertion",
+    "missing_or_unparseable": "safe_read_open_when_possible_and_prohibit_v1_managed_mutation",
+    "outside_writer_compatibility_range": "safe_read_open_when_possible_and_prohibit_v1_managed_mutation",
+    "unknown_newer_writer": "safe_read_open_when_possible_and_prohibit_v1_managed_mutation"
+  },
+  "features": {
+    "quality_harness": {
+      "version": "1.0.0",
+      "required": true
+    },
+    "fts_projection": {
+      "version": "1.0.0",
+      "required": false
+    }
+  },
+  "active_data_root": ".denova",
+  "path_contract": {
+    "base": "workspace",
+    "storage_separator": "/",
+    "unicode_form_for_new_paths": "NFC",
+    "canonical_containment_required": true,
+    "symlink_and_reparse_escape_policy": "reject",
+    "unknown_newer_policy": "safe_read_open_when_possible_and_prohibit_managed_mutation"
+  },
+  "categories": [
+    {
+      "id": "formal_authoritative",
+      "truth_authority": "author_controlled_file_record",
+      "manual_edit_policy": "allowed_preserve_bytes_validate_and_invalidate_dependents",
+      "rebuildability": "not_rebuildable",
+      "version_inclusion": "include",
+      "invalidation": "invalidate_projections_and_dependent_artifacts_decisions_runs",
+      "writer_boundary": "author_editor_dedicated_service_or_explicit_author_finalization"
+    },
+    {
+      "id": "review_artifact",
+      "truth_authority": "pending_or_audit_file_record_not_formal_creative_truth",
+      "manual_edit_policy": "preserve_changed_bytes_and_invalidate_dependent_audit_chain",
+      "rebuildability": "not_assumed_rebuildable",
+      "version_inclusion": "include_all",
+      "invalidation": "invalidate_dependent_decisions_finalizations_preferences_and_runs",
+      "writer_boundary": "harness_may_create_artifact_author_action_creates_decision_services_create_receipts"
+    },
+    {
+      "id": "runtime_recovery",
+      "truth_authority": "runtime_only",
+      "manual_edit_policy": "not_an_authoring_surface",
+      "rebuildability": "recoverable_or_safely_rerunnable_not_projection_rebuildable",
+      "version_inclusion": "exclude",
+      "invalidation": "invalidate_only_owning_run_or_recovery_chain",
+      "writer_boundary": "owning_runtime_or_migration_service"
+    },
+    {
+      "id": "rebuildable_projection",
+      "truth_authority": "none",
+      "manual_edit_policy": "not_author_editable_delete_or_quarantine_if_corrupt",
+      "rebuildability": "fully_rebuildable_from_included_file_records",
+      "version_inclusion": "exclude",
+      "invalidation": "mark_stale_and_rebuild_without_blocking_open_or_edit",
+      "writer_boundary": "projection_service_only_no_reverse_write"
+    }
+  ],
+  "path_entries": [
+    {
+      "path": "ideas.md",
+      "category": "formal_authoritative"
+    },
+    {
+      "path": "setting/",
+      "category": "formal_authoritative"
+    },
+    {
+      "path": "chapters/",
+      "category": "formal_authoritative"
+    },
+    {
+      "path": ".denova/workspace-schema.json",
+      "category": "formal_authoritative"
+    },
+    {
+      "path": ".denova/lore/items.json",
+      "category": "formal_authoritative"
+    },
+    {
+      "path": ".denova/profile-lock.json",
+      "category": "formal_authoritative"
+    },
+    {
+      "path": ".denova/quality/specs/project.json",
+      "category": "formal_authoritative"
+    },
+    {
+      "path": ".denova/quality/preferences.jsonl",
+      "category": "formal_authoritative"
+    },
+    {
+      "path": ".denova/quality/artifacts/run-01/candidate-01.json",
+      "category": "review_artifact"
+    },
+    {
+      "path": ".denova/quality/decisions/decision-01.json",
+      "category": "review_artifact"
+    },
+    {
+      "path": ".denova/quality/finalizations/finalization-01.json",
+      "category": "review_artifact"
+    },
+    {
+      "path": ".denova/quality/migration-receipts/migration-01.json",
+      "category": "review_artifact"
+    },
+    {
+      "path": ".denova/quality/runs/run-01/checkpoint.json",
+      "category": "runtime_recovery"
+    },
+    {
+      "path": ".denova/runs/run-01.jsonl",
+      "category": "runtime_recovery"
+    },
+    {
+      "path": ".denova/checkpoints/ide/checkpoint.json",
+      "category": "runtime_recovery"
+    },
+    {
+      "path": ".denova/changes/ledger.jsonl",
+      "category": "runtime_recovery"
+    },
+    {
+      "path": ".denova/reviews/ledger.jsonl",
+      "category": "runtime_recovery"
+    },
+    {
+      "path": ".denova/interactive/stories/story-01.json",
+      "category": "runtime_recovery"
+    },
+    {
+      "path": ".denova/index.db",
+      "category": "rebuildable_projection"
+    },
+    {
+      "path": ".denova/cache/context-pack-01.json",
+      "category": "rebuildable_projection"
+    },
+    {
+      "path": ".nova/workspace-schema.json",
+      "category": "formal_authoritative",
+      "truth_authority_override": "none_protected_unknown_input",
+      "manual_edit_policy_override": "read_only_to_v1_adapter_preserve_bytes",
+      "version_inclusion_override": "include",
+      "writer_boundary_override": "no_v1_writer_reconcile_or_migrate"
+    },
+    {
+      "path": ".nova/profile-lock.json",
+      "category": "formal_authoritative",
+      "truth_authority_override": "none_protected_unknown_input",
+      "manual_edit_policy_override": "read_only_to_v1_adapter_preserve_bytes",
+      "version_inclusion_override": "include",
+      "writer_boundary_override": "no_v1_writer_reconcile_or_migrate"
+    },
+    {
+      "path": ".nova/quality/specs/legacy-input.json",
+      "category": "formal_authoritative",
+      "truth_authority_override": "none_protected_unknown_input",
+      "manual_edit_policy_override": "read_only_to_v1_adapter_preserve_bytes",
+      "version_inclusion_override": "include",
+      "writer_boundary_override": "no_v1_writer_reconcile_or_migrate"
+    },
+    {
+      "path": ".nova/index.db",
+      "category": "formal_authoritative",
+      "truth_authority_override": "none_protected_unknown_input",
+      "manual_edit_policy_override": "read_only_to_v1_adapter_preserve_bytes",
+      "version_inclusion_override": "include",
+      "writer_boundary_override": "no_v1_writer_reconcile_or_migrate"
+    }
+  ],
+  "version_policy": {
+    "default": "include_to_protect_unknown_files",
+    "include": [
+      "ideas.md",
+      "setting/**",
+      "chapters/**",
+      ".denova/workspace-schema.json",
+      ".denova/lore/**",
+      ".denova/profile-lock.json",
+      ".denova/quality/specs/**",
+      ".denova/quality/preferences.jsonl",
+      ".denova/quality/artifacts/**",
+      ".denova/quality/decisions/**",
+      ".denova/quality/finalizations/**",
+      ".denova/quality/migration-receipts/**"
+    ],
+    "exclude_for_denova_and_legacy_nova_current_paths": [
+      "runs/**",
+      "checkpoints/**",
+      "sessions/**",
+      "backups/**",
+      "messages/**",
+      "changes/**",
+      "reviews/**",
+      "interactive/**",
+      "automations/inbox.json"
+    ],
+    "exclude_for_denova_v1_only": [
+      "quality/runs/**",
+      "index.db",
+      "index.db-*",
+      "cache/**",
+      "quality/projections/**"
+    ],
+    "legacy_nova_v1_named_inputs": {
+      "include": [
+        ".nova/workspace-schema.json",
+        ".nova/profile-lock.json",
+        ".nova/quality/**",
+        ".nova/index.db",
+        ".nova/index.db-*",
+        ".nova/cache/**"
+      ],
+      "authority": "protected_read_only_unknown_input_never_v1_authority",
+      "mutation": "prohibit_until_explicit_reconciliation_or_migration"
+    },
+    "workspace_root_exclude": [
+      ".git/**",
+      ".denova-migration/**",
+      ".nova-migration/**",
+      ".denova-migrate-*.tmp",
+      ".nova-migrate-*.tmp"
+    ],
+    "restore_rule": "restore_included_records_and_preserve_existing_excluded_runtime_projection_records"
+  },
+  "migration": {
+    "id": "migration-01",
+    "state": "completed",
+    "source_schema_version": 0,
+    "target_schema_version": 1,
+    "source_data_root": ".nova",
+    "target_data_root": ".denova",
+    "dry_run_preview_ref": ".denova-migration/migration-01/preview.json",
+    "backup_manifest_ref": ".denova-migration/migration-01/backup/manifest.json",
+    "staging_ref": ".denova-migration/migration-01/stage/.denova/",
+    "receipt_ref": ".denova/quality/migration-receipts/migration-01.json",
+    "switch_boundary": "same_filesystem_namespace_rename",
+    "resume_policy": "idempotent_by_migration_id_step_and_content_hash",
+    "rollback_available": true,
+    "atomicity_claim": "namespace_switch_only_not_cross_filesystem_or_filesystem_plus_git_acid"
+  }
+}
