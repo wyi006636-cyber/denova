@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增已批准的虾评小说 Skill 全站发现与证据漏斗设计：以公开元数据快照、完整写作能力召回、Capability 扩展提案、重复聚类、数据强/探索双通道短名单和基线对照盲测，从数千候选中筛选最小有效组合，同时隔离原始评论、第三方包与保留评测集。
+- Added the approved full-catalog Xiaping novel-Skill discovery and evidence-funnel design, using public metadata snapshots, comprehensive writing-capability recall, Capability extension proposals, duplicate clustering, dual data-rich/exploration shortlists, and baseline-controlled blind evaluation to select a minimum effective portfolio while isolating raw reviews, third-party packages, and held-out evaluation data.
 - 新增 P0-T08 虾评小说 Skills 可审计清单：从当前公开原始来源重新核验固定 9 个候选的版本、archive/manifest/文件清单哈希、许可与权限，建立 16 个 Capability 和三 Profile 初映射、6 个 tuning 任务的 54 条静态适用性证据，以及来源、更新、回滚与执行安全红线；所有质量状态保持待盲评。
 - Added the P0-T08 auditable Xiaping novel-Skill inventory, revalidating nine fixed candidates from current public original sources with version, archive/manifest/file-list hashes, licensing, and permissions; mapping 16 capabilities and three profiles; recording 54 static applicability observations across six tuning tasks; and freezing provenance, update, rollback, and execution-safety red lines. All quality statuses remain pending blind review.
 - 新增 P0-T07 三 Profile 质量评测基线：包含 36 个按题材、任务类型、篇幅与 tuning/regression/release holdout 分层的许可合成任务、冻结的公平单轮模板、严格 manifest/hash 校验、稳定 Run ID、确定性匿名盲包、双人评审/第三人裁决、bootstrap 95% CI、分层质量/事实错误/改稿量/成本汇总，以及不伪造缺失 arm 的本地 CLI；当前无 Provider 凭据的真实 S arm 明确记录为 `ENVIRONMENT-BLOCKED`。
