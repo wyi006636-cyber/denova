@@ -21,7 +21,11 @@ func TestWorkspaceReadFileToolReturnsPartialWindowWithoutRevision(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := base.(tool.InvokableTool).InvokableRun(context.Background(), `{"file_path":"`+path+`","offset":2,"limit":1}`)
+	result, err := base.(tool.InvokableTool).InvokableRun(context.Background(), marshalWorkspaceReadFileInput(t, workspaceReadFileInput{
+		FilePath: path,
+		Offset:   2,
+		Limit:    1,
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +112,7 @@ func TestWorkspaceReadFileToolRejectsPathOutsideWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = base.(tool.InvokableTool).InvokableRun(context.Background(), `{"file_path":"`+outside+`"}`)
+	_, err = base.(tool.InvokableTool).InvokableRun(context.Background(), marshalWorkspaceReadFileInput(t, workspaceReadFileInput{FilePath: outside}))
 	if err == nil || !strings.Contains(err.Error(), "outside the active workspace") {
 		t.Fatalf("outside read should be rejected, got %v", err)
 	}
@@ -124,7 +128,7 @@ func TestWorkspaceReadFileToolBoundsOneVeryLongLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = base.(tool.InvokableTool).InvokableRun(context.Background(), `{"file_path":"`+path+`"}`)
+	_, err = base.(tool.InvokableTool).InvokableRun(context.Background(), marshalWorkspaceReadFileInput(t, workspaceReadFileInput{FilePath: path}))
 	if err == nil || !strings.Contains(err.Error(), "selected read_file window exceeds") {
 		t.Fatalf("oversized selected line should be rejected, got %v", err)
 	}
@@ -144,8 +148,17 @@ func TestWorkspaceReadFileToolRejectsSymlinkEscape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = base.(tool.InvokableTool).InvokableRun(context.Background(), `{"file_path":"`+link+`"}`)
+	_, err = base.(tool.InvokableTool).InvokableRun(context.Background(), marshalWorkspaceReadFileInput(t, workspaceReadFileInput{FilePath: link}))
 	if err == nil {
 		t.Fatal("workspace read must not follow a symlink outside the active workspace")
 	}
+}
+
+func marshalWorkspaceReadFileInput(t *testing.T, input workspaceReadFileInput) string {
+	t.Helper()
+	data, err := json.Marshal(input)
+	if err != nil {
+		t.Fatalf("marshal read_file input: %v", err)
+	}
+	return string(data)
 }

@@ -303,6 +303,7 @@ func TestAutomationMutationCallbackChecksAgentChapterWrites(t *testing.T) {
 	writeTestChapter(t, workspace, 1)
 	app := &App{cfg: &config.Config{NovaDir: filepath.Join(root, "nova"), Workspace: workspace}, workspace: workspace}
 	app.ensureServices()
+	defer app.Close()
 	app.bookService = book.NewService(workspace)
 
 	task, err := app.CreateAutomation(automation.Task{

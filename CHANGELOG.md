@@ -40,6 +40,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Windows 上的自动化、正文评论、资料库和选择性版本恢复不再因原子写入后同步只读目录句柄而报 `Access is denied`；普通文件仍会在重命名前完整落盘，支持目录同步的平台继续刷新目录元数据。
+- Automations, document comments, Lore, and selective version restores on Windows no longer fail with `Access is denied` when atomic writes sync read-only directory handles; regular files are still fully flushed before rename, and platforms with directory-sync support continue flushing namespace metadata.
 - 写作模式现在会隔离参数不是合法 JSON 的工具调用及其结果；已经保存的异常调用链也会在下次请求前被过滤，长参数则使用合法 JSON 回执保留上下文，避免会话被永久冻结。
 - Writing Mode now isolates tool calls with invalid JSON arguments and their results; previously saved malformed pairs are filtered before the next request, while large arguments use a valid JSON receipt so sessions do not become permanently frozen.
 - 设置与 Agents 的分层草稿、自动保存和输入区偏好持久化现在会串行写入，并在 revision 冲突时按原始基线重新拉取、合并和重试；卸载或过期请求不再回写状态。

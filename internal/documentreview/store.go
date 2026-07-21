@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"denova/internal/durablefs"
 	"denova/internal/workspacepath"
 )
 
@@ -234,5 +235,5 @@ func syncRootDirectory(root *os.Root, rel string) error {
 		return err
 	}
 	defer dir.Close()
-	return dir.Sync()
+	return durablefs.SyncDirectory(dir)
 }

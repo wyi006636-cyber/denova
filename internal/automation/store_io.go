@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"denova/internal/durablefs"
 	"denova/internal/keyedlock"
 )
 
@@ -85,7 +86,7 @@ func durableWriteJSON(path string, data []byte, perm os.FileMode) (err error) {
 		return fmt.Errorf("open automation store directory for sync: %w", err)
 	}
 	defer directory.Close()
-	if err := directory.Sync(); err != nil {
+	if err := durablefs.SyncDirectory(directory); err != nil {
 		return fmt.Errorf("sync automation store directory: %w", err)
 	}
 	return nil

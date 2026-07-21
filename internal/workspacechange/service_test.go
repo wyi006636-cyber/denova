@@ -434,12 +434,20 @@ func TestUndoAndRedoCreatedFile(t *testing.T) {
 }
 
 func TestForWorkspaceReturnsSharedService(t *testing.T) {
-	workspace := t.TempDir()
-	first, err := ForWorkspace(workspace)
+	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
-	cwd, err := os.Getwd()
+	workspace, err := os.MkdirTemp(cwd, ".workspacechange-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(workspace); err != nil {
+			t.Errorf("remove workspace: %v", err)
+		}
+	})
+	first, err := ForWorkspace(workspace)
 	if err != nil {
 		t.Fatal(err)
 	}
