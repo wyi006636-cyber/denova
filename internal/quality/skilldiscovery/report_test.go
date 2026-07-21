@@ -53,19 +53,79 @@ func TestRenderEvidenceReportStatesPlatformEvidenceLimitationInBothLanguages(t *
 
 func TestWriteDiscoveryArtifactsRollsBackAllFilesWhenMiddlePublishFails(t *testing.T) {
 	root := t.TempDir()
-	for _, name := range artifactNames { if err := os.WriteFile(filepath.Join(root, name), []byte("old-"+name), 0o600); err != nil { t.Fatal(err) } }
+	for _, name := range artifactNames {
+		if err := os.WriteFile(filepath.Join(root, name), []byte("old-"+name), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	previous := artifactRename
 	defer func() { artifactRename = previous }()
 	calls := 0
-	artifactRename = func(from, to string) error { calls++; if calls == 3 { return os.ErrPermission }; return os.Rename(from, to) }
-	if err := WriteDiscoveryArtifacts(root, artifactFixture(t)); err == nil { t.Fatal("expected publish failure") }
-	for _, name := range artifactNames { got, err := os.ReadFile(filepath.Join(root, name)); if err != nil || string(got) != "old-"+name { t.Fatalf("%s=%q err=%v", name, got, err) } }
+	artifactRename = func(from, to string) error {
+		calls++
+		if calls == 3 {
+			return os.ErrPermission
+		}
+		return os.Rename(from, to)
+	}
+	if err := WriteDiscoveryArtifacts(root, artifactFixture(t)); err == nil {
+		t.Fatal("expected publish failure")
+	}
+	for _, name := range artifactNames {
+		got, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil || string(got) != "old-"+name {
+			t.Fatalf("%s=%q err=%v", name, got, err)
+		}
+	}
 }
 
 func TestValidateDiscoveryArtifactsRejectsAlteredEmbeddedEvidence(t *testing.T) {
 	artifacts := artifactFixture(t)
 	artifacts.Shortlist.Entries[0].Evidence.BayesianStarsX100++
-	if err := validateDiscoveryArtifacts(artifacts); err == nil || !strings.Contains(err.Error(), "exact") { t.Fatalf("err=%v", err) }
+	if err := validateDiscoveryArtifacts(artifacts); err == nil || !strings.Contains(err.Error(), "exact") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestValidateArtifactSchemaRejectsNestedUnknownAndRemoteReference(t *testing.T) {
+	root := t.TempDir()
+	artifacts := artifactFixture(t)
+	if err := WriteDiscoveryArtifacts(root, artifacts); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "xiaping-writing-candidates-v1.json")
+	if err := os.WriteFile(path, []byte(`{"contract":"denova.xiaping-writing-candidates","version":"v1","snapshot_id":"x","candidates":[{"skill":{},"profiles":[],"capabilities":[],"unknown":true}],"provenance":{"source":"x","purpose":"x","input_sha256":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","max_bytes":262144}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	schema := filepath.Join("..", "..", "..", "docs", "project-design", "implementation", "skills", "discovery", "xiaping-discovery-v1.schema.json")
+	if err := ValidateArtifactSchema(schema, []string{path}); err == nil {
+		t.Fatal("expected nested schema rejection")
+	}
+	remote := filepath.Join(root, "remote.json")
+	if err := os.WriteFile(remote, []byte(`{"$ref":"\u0068\u0074\u0074\u0070\u0073://example.test/a"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateArtifactSchema(remote, nil); err == nil || !strings.Contains(err.Error(), "remote") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestValidateDiscoveryArtifactsRejectsUnlinkedEvidenceAndEscapesReport(t *testing.T) {
+	artifacts := artifactFixture(t)
+	artifacts.Evidence[0].CapabilityID = "unknown"
+	if err := validateDiscoveryArtifacts(artifacts); err == nil || !strings.Contains(err.Error(), "credible") {
+		t.Fatalf("err=%v", err)
+	}
+	artifacts = artifactFixture(t)
+	artifacts.Manifest.SnapshotID = "x\n|<script>`"
+	artifacts.Shortlist.SnapshotID = artifacts.Manifest.SnapshotID
+	report, err := RenderEvidenceReport(artifacts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(report), "<script>") || strings.Contains(string(report), "\n|<script>") {
+		t.Fatalf("unsafe report=%s", report)
+	}
 }
 
 func artifactFixture(t *testing.T) DiscoveryArtifacts {

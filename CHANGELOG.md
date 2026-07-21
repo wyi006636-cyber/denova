@@ -76,6 +76,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评发现工件的深层 JSON 契约与报告安全：候选嵌套对象现严格校验，解码后的所有 `$ref` 仅允许本地片段；工件证据必须链接到可信候选能力，报告转义外部文本并统计完整证据集异常。
+- Fixed deep Xiaping discovery JSON contracts and report safety: nested candidate objects are strictly validated, every decoded `$ref` is limited to a local fragment, artifact evidence must link to credible candidate capabilities, and reports escape external text while counting anomalies across the full evidence set.
 - 修复虾评发现工件的发布一致性与证据边界：六份输出先在同父目录完整暂存、校验并限长后再回滚安全地发布；补齐来源/用途/输入哈希/字节上限、精确向量一致性、簇结构、全核心能力缺口、规范化作者回退及基于元数据距离的探索排序校验。
 - Fixed Xiaping discovery artifact publication consistency and evidence boundaries: all six outputs are staged, validated, and size-bounded in one same-parent directory before rollback-safe publication; provenance, purpose, input hashes, byte limits, exact-vector equality, cluster shape, full core-capability gaps, normalized owner fallback, and metadata-distance exploration ranking are now enforced.
 - 修复虾评写作能力分类边界：稳定候选只保留已批准的核心能力，提案证据保持内部且须由两份不同 Skill 支持；词典版本、空术语、媒体转写措辞及 Unicode 证据归一化现均受确定性校验。

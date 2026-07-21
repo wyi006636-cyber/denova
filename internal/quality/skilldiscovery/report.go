@@ -55,7 +55,7 @@ func WriteDiscoveryArtifacts(root string, artifacts DiscoveryArtifacts) error {
 		value any
 	}{
 		{"xiaping-snapshot-manifest-v1.json", withProvenance(manifest, artifacts.Manifest, "snapshot manifest")},
-		{"xiaping-writing-candidates-v1.json", CandidateIndex{Contract: candidateIndexContract, Version: "v1", SnapshotID: artifacts.Manifest.SnapshotID, Candidates: artifacts.Candidates, Provenance: artifactProvenance(artifacts.Manifest, "candidate index")}},
+		{"xiaping-writing-candidates-v1.json", CandidateIndex{Contract: candidateIndexContract, Version: "v1", SnapshotID: artifacts.Manifest.SnapshotID, Candidates: normalizedCandidates(artifacts.Candidates), Provenance: artifactProvenance(artifacts.Manifest, "candidate index")}},
 		{"xiaping-capability-proposals-v1.json", CapabilityProposalIndex{Contract: proposalIndexContract, Version: "v1", SnapshotID: artifacts.Manifest.SnapshotID, Proposals: artifacts.Proposals, Provenance: artifactProvenance(artifacts.Manifest, "capability proposals")}},
 		{"xiaping-duplicate-clusters-v1.json", DuplicateClusterIndex{Contract: clusterIndexContract, Version: "v1", SnapshotID: artifacts.Manifest.SnapshotID, Clusters: artifacts.Clusters, Provenance: artifactProvenance(artifacts.Manifest, "duplicate clusters")}},
 		{"xiaping-evidence-shortlist-v1.json", withProvenance(artifacts.Shortlist, artifacts.Manifest, "evidence shortlist")},
@@ -74,6 +74,33 @@ func WriteDiscoveryArtifacts(root string, artifacts DiscoveryArtifacts) error {
 	}
 	payloads[artifactNames[5]] = report
 	return publishArtifactTransaction(root, payloads)
+}
+func normalizedCandidates(input []CandidateRecord) []CandidateRecord {
+	out := append([]CandidateRecord(nil), input...)
+	for i := range out {
+		s := &out[i].Skill
+		if s.Triggers == nil {
+			s.Triggers = []string{}
+		}
+		if s.Categories == nil {
+			s.Categories = []string{}
+		}
+		if s.Tags == nil {
+			s.Tags = []string{}
+		}
+		if out[i].Profiles == nil {
+			out[i].Profiles = []string{}
+		}
+		if out[i].Capabilities == nil {
+			out[i].Capabilities = []CapabilityMatch{}
+		}
+		for j := range out[i].Capabilities {
+			if out[i].Capabilities[j].Evidence == nil {
+				out[i].Capabilities[j].Evidence = []FieldEvidence{}
+			}
+		}
+	}
+	return out
 }
 
 func artifactProvenance(manifest SnapshotManifest, purpose string) ArtifactProvenance {
@@ -155,6 +182,10 @@ func validateDiscoveryArtifacts(artifacts DiscoveryArtifacts) error {
 			return fmt.Errorf("evidence vector has required empty field")
 		}
 		key := vector.SkillID + "\x00" + vector.CapabilityID
+		candidate, exists := candidateByArtifactID(artifacts.Candidates, vector.SkillID)
+		if !exists || !credibleWritingMatch(candidate, vector.CapabilityID) {
+			return fmt.Errorf("evidence vector capability is not a credible candidate match")
+		}
 		if _, ok := vectors[key]; ok {
 			return fmt.Errorf("duplicate evidence vector")
 		}
@@ -166,6 +197,10 @@ func validateDiscoveryArtifacts(artifacts DiscoveryArtifacts) error {
 			return fmt.Errorf("shortlist entry evidence does not match identity")
 		}
 		key := entry.SkillID + "\x00" + entry.CapabilityID
+		candidate, exists := candidateByArtifactID(artifacts.Candidates, entry.SkillID)
+		if !exists || !credibleWritingMatch(candidate, entry.CapabilityID) {
+			return fmt.Errorf("shortlist entry capability is not a credible candidate match")
+		}
 		if _, ok := entries[key]; ok {
 			return fmt.Errorf("duplicate shortlist entry")
 		}
@@ -189,6 +224,14 @@ func validateDiscoveryArtifacts(artifacts DiscoveryArtifacts) error {
 		return fmt.Errorf("refusing artifact containing raw review or package content")
 	}
 	return nil
+}
+func candidateByArtifactID(candidates []CandidateRecord, id string) (CandidateRecord, bool) {
+	for _, candidate := range candidates {
+		if candidate.Skill.ID == id {
+			return candidate, true
+		}
+	}
+	return CandidateRecord{}, false
 }
 func equalEvidence(left, right EvidenceVector) bool {
 	a, _ := json.Marshal(left)
@@ -246,8 +289,12 @@ func ValidateArtifactSchema(schemaPath string, artifactPaths []string) error {
 	if err != nil {
 		return fmt.Errorf("read schema: %w", err)
 	}
-	if regexp.MustCompile(`"\$ref"\s*:\s*"https?://`).Match(schemaBytes) {
-		return fmt.Errorf("schema must not contain remote refs")
+	var decoded any
+	if err := json.Unmarshal(schemaBytes, &decoded); err != nil {
+		return fmt.Errorf("decode schema: %w", err)
+	}
+	if err := validateLocalRefs(decoded); err != nil {
+		return err
 	}
 	schemaDocument, err := jsonschema.UnmarshalJSON(bytes.NewReader(schemaBytes))
 	if err != nil {
@@ -279,6 +326,29 @@ func ValidateArtifactSchema(schemaPath string, artifactPaths []string) error {
 	}
 	return nil
 }
+func validateLocalRefs(value any) error {
+	switch current := value.(type) {
+	case map[string]any:
+		for key, item := range current {
+			if key == "$ref" {
+				ref, ok := item.(string)
+				if !ok || !strings.HasPrefix(ref, "#") {
+					return fmt.Errorf("schema must not contain remote refs")
+				}
+			}
+			if err := validateLocalRefs(item); err != nil {
+				return err
+			}
+		}
+	case []any:
+		for _, item := range current {
+			if err := validateLocalRefs(item); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
 
 // RenderEvidenceReport returns a deterministic bilingual, evidence-only markdown summary.
 func RenderEvidenceReport(artifacts DiscoveryArtifacts) ([]byte, error) {
@@ -294,20 +364,22 @@ func RenderEvidenceReport(artifacts DiscoveryArtifacts) ([]byte, error) {
 		if entry.Lane == LaneExploration {
 			exploration++
 		}
-		anomalies += len(entry.Evidence.Review.AnomalyFlags)
+	}
+	for _, vector := range artifacts.Evidence {
+		anomalies += len(vector.Review.AnomalyFlags)
 	}
 	var builder strings.Builder
 	builder.WriteString("# Xiaping Evidence Discovery Report / 霞萍证据发现报告\n\n")
-	fmt.Fprintf(&builder, "- Snapshot / 快照: `%s`\n- Completeness / 完整性: `%s`\n- Candidate count / 候选数量: %d\n- Proposal count / 提案数量: %d\n- Duplicate clusters / 重复簇数量: %d\n- Anomaly facts / 异常事实: %d\n- DATA-RICH lane / 数据充足通道: %d\n- EXPLORATION lane / 探索通道: %d\n\n", artifacts.Manifest.SnapshotID, artifacts.Manifest.Status, len(artifacts.Candidates), len(artifacts.Proposals), len(artifacts.Clusters), anomalies, dataRich, exploration)
+	fmt.Fprintf(&builder, "- Snapshot / 快照: `%s`\n- Completeness / 完整性: `%s`\n- Candidate count / 候选数量: %d\n- Proposal count / 提案数量: %d\n- Duplicate clusters / 重复簇数量: %d\n- Anomaly facts / 异常事实: %d\n- DATA-RICH lane / 数据充足通道: %d\n- EXPLORATION lane / 探索通道: %d\n\n", markdownSafe(artifacts.Manifest.SnapshotID), markdownSafe(string(artifacts.Manifest.Status)), len(artifacts.Candidates), len(artifacts.Proposals), len(artifacts.Clusters), anomalies, dataRich, exploration)
 	builder.WriteString("## Coverage and gaps / 覆盖与缺口\n\n")
 	for _, capability := range capabilities {
-		fmt.Fprintf(&builder, "- `%s`: %d selected / 已选 %d\n", capability.id, capability.count, capability.count)
+		fmt.Fprintf(&builder, "- `%s`: %d selected / 已选 %d\n", markdownSafe(capability.id), capability.count, capability.count)
 	}
 	if len(artifacts.Shortlist.Gaps) == 0 {
 		builder.WriteString("- No recorded gaps / 无记录缺口\n")
 	} else {
 		for _, gap := range artifacts.Shortlist.Gaps {
-			fmt.Fprintf(&builder, "- `%s`: %d/%d — %s / %d/%d — %s\n", gap.CapabilityID, gap.Selected, gap.Wanted, gap.Reason, gap.Selected, gap.Wanted, gap.Reason)
+			fmt.Fprintf(&builder, "- `%s`: %d/%d — %s / %d/%d — %s\n", markdownSafe(gap.CapabilityID), gap.Selected, gap.Wanted, markdownSafe(gap.Reason), gap.Selected, gap.Wanted, markdownSafe(gap.Reason))
 		}
 	}
 	builder.WriteString("\n## Evidence boundaries and limitations / 证据边界与限制\n\n")
@@ -317,6 +389,10 @@ func RenderEvidenceReport(artifacts DiscoveryArtifacts) ([]byte, error) {
 	builder.WriteString("- Bounded inputs are candidate metadata, proposals, duplicate clusters, evidence vectors, and shortlist entries only; raw review content, reviewer identifiers, signed URLs, and package contents are excluded. / 有界输入仅包括候选元数据、提案、重复簇、证据向量和短名单条目；不包含原始评论、评审者标识、签名 URL 或软件包内容。\n")
 	builder.WriteString("- Platform evidence is not a writing-quality result.\n- 平台证据不是写作质量结果。\n")
 	return []byte(builder.String()), nil
+}
+func markdownSafe(value string) string {
+	value = strings.NewReplacer("\r", " ", "\n", " ", "|", "\\|", "`", "'", "<", "&lt;", ">", "&gt;", "&", "&amp;").Replace(value)
+	return strings.TrimSpace(value)
 }
 
 type capabilityCount struct {
