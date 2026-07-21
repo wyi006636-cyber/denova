@@ -30,6 +30,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Fixed live Xiaping catalog field compatibility: singular-or-array trigger/category fields, string-or-array tags, `avg_stars`, `is_featured`, and `status` now normalize into the stable discovery contract.
 - 调整霞萍发现工件的明确大小上限至每项 2 MiB，使完整实时写作候选池可以发布而不截断其元数据证据；上限仍受 Schema 与原子发布事务约束。
 - Raised the explicit Xiaping discovery-artifact limit to 2 MiB per item so the complete live writing pool can publish without truncating metadata evidence; the bound remains enforced by schema and atomic publication.
+- 修复霞萍实时详情归一化：详情响应现复用目录字段别名映射，避免字符串 tags 与数组 trigger/category 阻断本地评论证据闭环。
+- Fixed live Xiaping detail normalization: detail responses now reuse catalog field-alias mapping so string tags and array trigger/category values do not block the local review-evidence closure.
 - 修复虾评 CLI 失败发布边界：PARTIAL 快照仅保存为可恢复的本地缓存，不再覆盖已发布根工件；详情或评论证据失败会中止排序发布，保持所有根工件逐字节不变。
 - Fixed Xiaping CLI failure publication boundaries: PARTIAL snapshots remain resumable local cache only and never overwrite published root artifacts; detail or comment-evidence failures abort ranking publication and preserve every root artifact byte-for-byte.
 - 修复取消和失败快照的发布边界：预先取消的发现命令不会创建缓存或工件；仅成功的 COMPLETE 快照才能更新根工件，PARTIAL 结果仅保留在本地缓存以便恢复。

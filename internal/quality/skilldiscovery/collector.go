@@ -591,7 +591,7 @@ func normalizeSkillDetail(payload []byte, fallback SkillRecord) (SkillDetail, er
 			}
 		}
 	}
-	var detail SkillDetail
+	var source apiCatalogSkill
 	rawCommentCount, commentCountPresent := fields["comment_count"]
 	if commentCountPresent {
 		if isNullJSON(rawCommentCount) {
@@ -606,9 +606,21 @@ func normalizeSkillDetail(payload []byte, fallback SkillRecord) (SkillDetail, er
 	if err != nil {
 		return SkillDetail{}, err
 	}
-	if err := json.Unmarshal(encoded, &detail); err != nil {
+	if err := json.Unmarshal(encoded, &source); err != nil {
 		return SkillDetail{}, err
 	}
+	record, err := source.normalized()
+	if err != nil {
+		return SkillDetail{}, err
+	}
+	var metrics struct {
+		WeightedScore  float64 `json:"weighted_score"`
+		SecurityReport string  `json:"security_report"`
+	}
+	if err := json.Unmarshal(encoded, &metrics); err != nil {
+		return SkillDetail{}, err
+	}
+	detail := SkillDetail{SkillRecord: record, WeightedScore: metrics.WeightedScore, SecurityReport: metrics.SecurityReport}
 	if detail.ID == "" || detail.ID != fallback.ID {
 		return SkillDetail{}, fmt.Errorf("detail id does not match requested candidate")
 	}

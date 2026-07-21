@@ -262,6 +262,13 @@ func TestNormalizeSkillDetailDecodesAndValidatesReturnedID(t *testing.T) {
 	}
 }
 
+func TestNormalizeSkillDetailSupportsLiveCatalogAliases(t *testing.T) {
+	detail, err := normalizeSkillDetail([]byte(`{"success":true,"data":{"id":"wanted","trigger":["小说大纲"],"category":["writing"],"tags":"novel","avg_stars":4.2,"is_featured":true,"status":"published","weighted_score":3.5,"security_report":"clear"}}`), SkillRecord{ID: "wanted"})
+	if err != nil || len(detail.Triggers) != 1 || detail.Triggers[0] != "小说大纲" || len(detail.Tags) != 1 || detail.Tags[0] != "novel" || detail.AverageStars != 420 || !detail.Featured || detail.PlatformStatus != "published" || detail.WeightedScore != 3.5 {
+		t.Fatalf("detail=%#v err=%v", detail, err)
+	}
+}
+
 func TestCollectCandidateEvidenceOmitsPartialCandidateAndRejectsUnsafeID(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
 		if request.URL.Path == "/api/skills/good" {
