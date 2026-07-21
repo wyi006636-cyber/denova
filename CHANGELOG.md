@@ -76,6 +76,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评快照与词典 schema 绑定：页面回执、失败记录和核心/提案能力规则现有严格的嵌套定义及数组项约束。
+- Fixed Xiaping manifest and lexicon schema bindings: page receipts, failure records, and core/proposal capability rules now have strict nested definitions and typed array constraints.
 - 修复虾评发现工件 schema 的剩余嵌套对象：提案、重复簇、评论汇总、证据向量、短名单条目和缺口均使用带字段、数组项、枚举和范围约束的定义，不再接受通用对象占位。
 - Fixed the remaining nested Xiaping discovery artifact schema objects: proposals, duplicate clusters, review summaries, evidence vectors, shortlist entries, and gaps now use field, item, enum, and range-constrained definitions instead of generic object placeholders.
 - 修复虾评发现工件的深层 JSON 契约与报告安全：候选嵌套对象现严格校验，解码后的所有 `$ref` 仅允许本地片段；工件证据必须链接到可信候选能力，报告转义外部文本并统计完整证据集异常。
