@@ -43,6 +43,9 @@ func runSkills(ctx context.Context, args []string, stdout, stderr io.Writer) err
 }
 
 func runXiapingSnapshot(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	flags := flag.NewFlagSet("snapshot-xiaping", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	baseURL := flags.String("base-url", defaultXiapingBaseURL, "Xiaping HTTPS base URL")
@@ -116,6 +119,9 @@ func runXiapingClassify(args []string, stdout, stderr io.Writer) error {
 }
 
 func runXiapingRank(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	flags := flag.NewFlagSet("rank-xiaping", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	baseURL := flags.String("base-url", defaultXiapingBaseURL, "Xiaping HTTPS base URL")

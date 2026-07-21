@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复取消和失败快照的发布边界：预先取消的发现命令不会创建缓存或工件；仅成功的 COMPLETE 快照才能更新根工件，PARTIAL 结果仅保留在本地缓存以便恢复。
+- Fixed cancellation and failed-snapshot publication boundaries: pre-cancelled discovery commands create neither cache nor artifacts; only successful COMPLETE snapshots update root artifacts, while PARTIAL results remain local cache checkpoints for resumption.
 - 修复虾评发现阶段 provenance 校验：排序现在拒绝任何 Schema 形式正确但来源、用途、大小上限或输入哈希未绑定到暂存快照的工件；失败快照仍保留本地 PARTIAL 检查点用于恢复，但绝不覆盖已发布的 COMPLETE 工件。
 - Fixed Xiaping discovery-stage provenance validation: ranking now rejects schema-valid artifacts whose source, purpose, size bound, or input hash is not bound to the staged snapshot; failed snapshots retain local PARTIAL checkpoints for resumption but never overwrite published COMPLETE artifacts.
 - 修复 `quality-eval skills` 的虾评发现阶段边界：快照、分类和排序现在通过受校验、原子发布的阶段工件交接；排序只消费已分类的候选、提案和重复簇，并在缓存来源或快照身份不匹配时保持既有工件不变。

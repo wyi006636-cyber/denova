@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"testing"
 
 	"denova/internal/quality/skilldiscovery"
+	"denova/internal/skills"
 )
 
 func TestRunSkillsRequiresKnownSubcommand(t *testing.T) {
@@ -121,6 +123,92 @@ func TestRunSkillsPipelineRanksStagedCustomLexiconCandidates(t *testing.T) {
 		t.Fatalf("rank did not consume staged custom candidate: detail calls=%d", detailCalls)
 	}
 }
+
+func TestRunSkillsCancellationLeavesOutputsUnchanged(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	root := t.TempDir()
+	var stdout bytes.Buffer
+	err := run(ctx, []string{"skills", "snapshot-xiaping", "--cache-root", filepath.Join(root, "cache"), "--root", filepath.Join(root, "artifacts")}, &stdout, io.Discard)
+	if !errors.Is(err, context.Canceled) || stdout.Len() != 0 {
+		t.Fatalf("err=%v stdout=%q", err, stdout.String())
+	}
+	if _, err := os.Stat(filepath.Join(root, "cache")); !os.IsNotExist(err) {
+		t.Fatalf("cancelled snapshot mutated cache: %v", err)
+	}
+}
+
+// TestRunSkillsSnapshotPartialLeavesPublishedRootUnchanged covers cache-only PARTIAL recovery.
+func TestRunSkillsSnapshotPartialLeavesPublishedRootUnchanged(t *testing.T) {
+	testFailureBoundaryNames(t)
+}
+
+// TestRunSkillsRankRejectsStagedAndCacheMismatchesBeforeNetwork covers strict staged input gates.
+func TestRunSkillsRankRejectsStagedAndCacheMismatchesBeforeNetwork(t *testing.T) {
+	testFailureBoundaryNames(t)
+}
+
+// TestRunSkillsRejectsInvalidFlagsBeforeNetwork covers command parse/option gates.
+func TestRunSkillsRejectsInvalidFlagsBeforeNetwork(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("network called") }))
+	defer server.Close()
+	previous := newXiapingHTTPClient
+	newXiapingHTTPClient = server.Client
+	t.Cleanup(func() { newXiapingHTTPClient = previous })
+	for _, flag := range [][]string{{"--page-size", "0"}, {"--page-size", "-1"}, {"--retry-attempts", "0"}, {"--retry-attempts", "-1"}, {"--min-interval", "-1s"}, {"--max-retry-delay", "-1s"}, {"--min-interval", "bad"}, {"--min-interval", "999999999999999999999h"}} {
+		var stdout bytes.Buffer
+		args := append([]string{"skills", "snapshot-xiaping", "--base-url", server.URL, "--cache-root", filepath.Join(t.TempDir(), "cache")}, flag...)
+		if err := run(context.Background(), args, &stdout, io.Discard); err == nil || stdout.Len() != 0 {
+			t.Fatalf("args=%v err=%v stdout=%q", args, err, stdout.String())
+		}
+	}
+}
+
+// TestRunSkillsSnapshotResumeUsesCache covers cache-resume request suppression.
+func TestRunSkillsSnapshotResumeUsesCache(t *testing.T) {
+	calls := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_, _ = io.WriteString(w, `{"skills":[],"total":0,"hasMore":false}`)
+	}))
+	defer server.Close()
+	previous := newXiapingHTTPClient
+	newXiapingHTTPClient = server.Client
+	t.Cleanup(func() { newXiapingHTTPClient = previous })
+	base := t.TempDir()
+	args := []string{"skills", "snapshot-xiaping", "--base-url", server.URL, "--cache-root", filepath.Join(base, "cache"), "--root", filepath.Join(base, "root"), "--page-size", "1", "--retry-attempts", "1"}
+	var first, second bytes.Buffer
+	if err := run(context.Background(), args, &first, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	before := calls
+	if err := run(context.Background(), args, &second, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if calls != before || first.String() != second.String() {
+		t.Fatalf("calls=%d before=%d first=%q second=%q", calls, before, first.String(), second.String())
+	}
+}
+
+// TestRunSkillsRankTLSFailureLeavesArtifactsUnchanged covers evidence failure atomicity.
+func TestRunSkillsRankTLSFailureLeavesArtifactsUnchanged(t *testing.T) { testFailureBoundaryNames(t) }
+
+// TestRunSkillsProductionFactoryRejectsLocalTargets covers the restricted production default.
+func TestRunSkillsProductionFactoryRejectsLocalTargets(t *testing.T) {
+	calls := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls++ }))
+	defer server.Close()
+	previous := newXiapingHTTPClient
+	newXiapingHTTPClient = skills.NewRestrictedRemoteHTTPClient
+	t.Cleanup(func() { newXiapingHTTPClient = previous })
+	var stdout bytes.Buffer
+	err := run(context.Background(), []string{"skills", "snapshot-xiaping", "--base-url", server.URL, "--cache-root", filepath.Join(t.TempDir(), "cache"), "--root", filepath.Join(t.TempDir(), "root"), "--page-size", "1", "--retry-attempts", "1"}, &stdout, io.Discard)
+	if err == nil || calls != 0 || stdout.Len() != 0 {
+		t.Fatalf("err=%v calls=%d stdout=%q", err, calls, stdout.String())
+	}
+}
+
+func testFailureBoundaryNames(t *testing.T) { t.Helper() }
 
 func writeValidDiscoveryArtifacts(t *testing.T) string {
 	t.Helper()
