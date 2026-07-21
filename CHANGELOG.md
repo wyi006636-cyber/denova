@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增虾评小说 Skill 全站发现与证据短名单实施计划：先交付可恢复的公开元数据采集、完整写作能力召回、重复与评论证据治理、数据强/探索双通道短名单，再于独立后续计划执行包审计和基线对照盲测。
+- Added the Xiaping full-catalog novel-Skill discovery and evidence-shortlist implementation plan, delivering resumable public metadata collection, comprehensive writing-capability recall, duplicate/review evidence governance, and dual data-rich/exploration shortlists before a separate package-audit and baseline-controlled blind-evaluation plan.
 - 新增已批准的虾评小说 Skill 全站发现与证据漏斗设计：以公开元数据快照、完整写作能力召回、Capability 扩展提案、重复聚类、数据强/探索双通道短名单和基线对照盲测，从数千候选中筛选最小有效组合，同时隔离原始评论、第三方包与保留评测集。
 - Added the approved full-catalog Xiaping novel-Skill discovery and evidence-funnel design, using public metadata snapshots, comprehensive writing-capability recall, Capability extension proposals, duplicate clustering, dual data-rich/exploration shortlists, and baseline-controlled blind evaluation to select a minimum effective portfolio while isolating raw reviews, third-party packages, and held-out evaluation data.
 - 新增 P0-T08 虾评小说 Skills 可审计清单：从当前公开原始来源重新核验固定 9 个候选的版本、archive/manifest/文件清单哈希、许可与权限，建立 16 个 Capability 和三 Profile 初映射、6 个 tuning 任务的 54 条静态适用性证据，以及来源、更新、回滚与执行安全红线；所有质量状态保持待盲评。
