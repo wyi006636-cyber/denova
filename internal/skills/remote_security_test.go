@@ -26,6 +26,17 @@ func TestRestrictedSkillInstallClientRejectsNonPublicDestinations(t *testing.T) 
 	}
 }
 
+func TestNewRestrictedRemoteHTTPClientPreservesDestinationRestrictions(t *testing.T) {
+	client := NewRestrictedRemoteHTTPClient()
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://127.0.0.1/archive.zip", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Do(req); err == nil || !strings.Contains(err.Error(), "non-public") {
+		t.Fatalf("NewRestrictedRemoteHTTPClient() error = %v, want non-public destination rejection", err)
+	}
+}
+
 func TestSkillInstallRedirectPolicyRevalidatesEveryHop(t *testing.T) {
 	for _, rawURL := range []string{
 		"http://example.com/archive.zip",

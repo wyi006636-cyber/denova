@@ -41,6 +41,12 @@ func newSkillInstallHTTPClient() *http.Client {
 	}
 }
 
+// NewRestrictedRemoteHTTPClient returns the HTTPS-only client used for remote
+// Skill retrieval. It rejects non-public destinations on every redirect hop.
+func NewRestrictedRemoteHTTPClient() *http.Client {
+	return newSkillInstallHTTPClient()
+}
+
 func skillInstallRedirectPolicy(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
 		return fmt.Errorf("remote Skill archive redirect limit exceeded")

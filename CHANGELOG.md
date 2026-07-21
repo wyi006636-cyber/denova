@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增虾评公开目录的本地可恢复采集器：仅允许受限 HTTPS GET、按页原子检查点、429/5xx 退避与 Retry-After、取消处理、去重排序及 PARTIAL 失败清单，且不记录响应正文或凭据。
+- Added a local resumable Xiaping public-catalog collector with restricted HTTPS GET requests, atomic page checkpoints, Retry-After-aware 429/5xx backoff, cancellation, sorted de-duplication, and PARTIAL failure manifests without logging bodies or credentials.
 - 新增 P0-T08A 虾评公开目录发现的严格 JSON 契约、稳定 SHA-256、快照/Skill 校验与安全写入边界，配套 `example.test` 合成 API/评论 fixture，并在 Phase 0 计划和需求矩阵中追踪其对 P0-T09 Skill 证据闭环的阻断关系。
 - Added P0-T08A strict contracts for public Xiaping catalog discovery: stable SHA-256, snapshot/Skill validation, and safe JSON artifact writing, with `example.test` synthetic API/review fixtures and Phase 0/requirements traceability showing its block on P0-T09 Skill-evidence closeout.
 - 新增虾评小说 Skill 全站发现与证据短名单实施计划：先交付可恢复的公开元数据采集、完整写作能力召回、重复与评论证据治理、数据强/探索双通道短名单，再于独立后续计划执行包审计和基线对照盲测。
