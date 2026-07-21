@@ -37,6 +37,30 @@ describe('useWorkspaceStore', () => {
     expect(window.localStorage.getItem('nova:right-panel')).toBeNull()
   })
 
+  it('changes content mode only through explicit writing and game mode actions', () => {
+    useWorkspaceStore.getState().setMode('interactive')
+
+    for (const sharedMode of ['skills', 'agents', 'automations'] as const) {
+      useWorkspaceStore.getState().setMode(sharedMode)
+      expect(window.localStorage.getItem('nova:content-mode')).toBe('interactive')
+    }
+
+    useWorkspaceStore.getState().setMode('ide')
+    expect(window.localStorage.getItem('nova:content-mode')).toBe('ide')
+    useWorkspaceStore.getState().setMode('interactive')
+    expect(window.localStorage.getItem('nova:content-mode')).toBe('interactive')
+  })
+
+  it('restores a shared visible mode separately from its content return mode', async () => {
+    window.localStorage.setItem('nova:mode', 'agents')
+    window.localStorage.setItem('nova:content-mode', 'interactive')
+    vi.resetModules()
+    const { useWorkspaceStore: reloadedStore } = await import('./workspace-store')
+
+    expect(reloadedStore.getInitialState().mode).toBe('agents')
+    expect(window.localStorage.getItem('nova:content-mode')).toBe('interactive')
+  })
+
   it('migrates the legacy change-review right panel back to the Agent panel', async () => {
     window.localStorage.setItem('nova:right-panel', 'review')
     vi.resetModules()

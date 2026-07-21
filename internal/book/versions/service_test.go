@@ -269,6 +269,52 @@ func TestGoGitVersionExcludesInteractiveData(t *testing.T) {
 	}
 }
 
+func TestQualityHarnessVersionSnapshotIncludesFormalFilesAndExcludesRuntimeData(t *testing.T) {
+	dir := t.TempDir()
+	service := NewService(dir)
+	settings := DefaultAutoSettings()
+	formalPaths := []string{
+		"chapters/ch0001.md",
+		"setting/style.md",
+		".denova/lore/items.json",
+	}
+	excludedPaths := []string{
+		".denova/runs/run.jsonl",
+		".nova/runs/run.jsonl",
+		".denova/changes/ledger.jsonl",
+		".nova/changes/ledger.jsonl",
+		".denova/reviews/ledger.jsonl",
+		".nova/reviews/ledger.jsonl",
+		".denova/interactive/story.json",
+		".nova/interactive/story.json",
+	}
+	for _, path := range formalPaths {
+		writeFile(t, dir, path, "formal")
+	}
+	for _, path := range excludedPaths {
+		writeFile(t, dir, path, "runtime")
+	}
+
+	created, err := service.Create("quality harness boundary", VersionSourceManual, settings)
+	if err != nil || created.Version == nil {
+		t.Fatalf("Create failed: result=%#v err=%v", created, err)
+	}
+	files, err := service.commitFiles(created.Version.ID)
+	if err != nil {
+		t.Fatalf("commitFiles failed: %v", err)
+	}
+	for _, path := range formalPaths {
+		if _, ok := files[path]; !ok {
+			t.Fatalf("formal file %s missing from version: %v", path, sortedVersionFilePaths(files))
+		}
+	}
+	for _, path := range excludedPaths {
+		if _, ok := files[path]; ok {
+			t.Fatalf("runtime path %s entered version: %v", path, sortedVersionFilePaths(files))
+		}
+	}
+}
+
 func TestGoGitVersionRestorePathsKeepsCurrentHead(t *testing.T) {
 	dir := t.TempDir()
 	service := NewService(dir)
