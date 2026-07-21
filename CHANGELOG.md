@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增虾评候选项的可解释重复聚类：以 NFKC 规范化元数据签名和 0.90 Unicode bigram/触发词/标签 Jaccard 阈值识别精确及近似副本，保留全部成员、稳定选择代表项，并记录相同作者仅作为证据而非合并条件。
+- Added explainable Xiaping candidate duplicate clustering: NFKC-normalized metadata signatures and a 0.90 Unicode-bigram/trigger/tag Jaccard threshold identify exact and near copies, retain every member, choose representatives deterministically, and record common authors only as evidence rather than a merge condition.
 - 新增虾评写作能力词典与确定性召回：对名称、描述、触发词、分类和标签分别以 Unicode NFKC 归一化取证，保留 MATCHED/AMBIGUOUS 候选，并仅在两份不同 Skill 元数据独立支持时生成不可路由的能力提案。
 - Added a Xiaping writing-capability lexicon and deterministic recall: Unicode-NFKC-normalized evidence is captured separately from names, descriptions, triggers, categories, and tags; MATCHED and AMBIGUOUS candidates are retained, while non-routable capability proposals require independent support from two distinct Skill metadata signatures.
 - 新增虾评公开目录的本地可恢复采集器：仅允许受限 HTTPS GET、按页原子检查点、429/5xx 退避与 Retry-After、取消处理、去重排序及 PARTIAL 失败清单，且不记录响应正文或凭据。
