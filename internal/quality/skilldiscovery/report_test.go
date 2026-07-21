@@ -135,19 +135,78 @@ func TestSchemaRejectsNestedCorruptionForEveryArtifactFamily(t *testing.T) {
 		t.Fatal(err)
 	}
 	schema := filepath.Join("..", "..", "..", "docs", "project-design", "implementation", "skills", "discovery", "xiaping-discovery-v1.schema.json")
-	for _, name := range artifactNames[:5] {
-		t.Run(name, func(t *testing.T) {
-			path := filepath.Join(root, name)
-			var doc map[string]any
-			b, _ := os.ReadFile(path)
-			_ = json.Unmarshal(b, &doc)
-			doc["unexpected"] = true
-			bad, _ := json.Marshal(doc)
-			_ = os.WriteFile(path, bad, 0o600)
-			if err := ValidateArtifactSchema(schema, []string{path}); err == nil {
-				t.Fatal("accepted unknown root")
-			}
-		})
+	load := func(name string) map[string]any {
+		var doc map[string]any
+		b, _ := os.ReadFile(filepath.Join(root, name))
+		if err := json.Unmarshal(b, &doc); err != nil {
+			t.Fatal(err)
+		}
+		return doc
+	}
+	bad := func(name string, doc map[string]any) {
+		p := filepath.Join(t.TempDir(), name)
+		b, _ := json.Marshal(doc)
+		_ = os.WriteFile(p, b, 0o600)
+		if err := ValidateArtifactSchema(schema, []string{p}); err == nil {
+			t.Fatalf("accepted %s mutation", name)
+		}
+	}
+	manifest := load(artifactNames[0])
+	manifest["pages"].([]any)[0].(map[string]any)["unexpected"] = true
+	bad(artifactNames[0], manifest)
+	partial := load(artifactNames[0])
+	partial["status"] = "PARTIAL"
+	partial["failures"] = []any{map[string]any{"kind": "k", "key": "k", "disposition": "d", "message": "m", "unexpected": true}}
+	bad(artifactNames[0], partial)
+	candidates := load(artifactNames[1])
+	candidates["candidates"].([]any)[0].(map[string]any)["skill"].(map[string]any)["unexpected"] = true
+	bad(artifactNames[1], candidates)
+	proposals := load(artifactNames[2])
+	proposals["proposals"] = []any{map[string]any{"capability_id": "x", "name_zh": "x", "name_en": "x", "inputs": []any{"x"}, "outputs": []any{"x"}, "lifecycle_stage": "x", "minimum_permission": "x", "evaluation_method": "x", "candidate_ids": []any{nil}, "unexpected": true}}
+	bad(artifactNames[2], proposals)
+	clusters := load(artifactNames[3])
+	clusters["clusters"] = []any{map[string]any{"cluster_id": "x", "kind": "x", "representative_id": "x", "member_ids": []any{1}, "reasons": []any{}, "unexpected": true}}
+	bad(artifactNames[3], clusters)
+	shortlist := load(artifactNames[4])
+	shortlist["entries"].([]any)[0].(map[string]any)["evidence"].(map[string]any)["review"].(map[string]any)["unexpected"] = true
+	bad(artifactNames[4], shortlist)
+	shortlist = load(artifactNames[4])
+	shortlist["gaps"].([]any)[0].(map[string]any)["unexpected"] = true
+	shortlist["gaps"].([]any)[0].(map[string]any)["wanted"] = "wrong"
+	bad(artifactNames[4], shortlist)
+	lexPath := filepath.Join("..", "..", "..", "docs", "project-design", "implementation", "skills", "discovery", "xiaping-capability-lexicon-v1.json")
+	var lex map[string]any
+	raw, _ := os.ReadFile(lexPath)
+	_ = json.Unmarshal(raw, &lex)
+	if err := ValidateArtifactSchema(schema, []string{lexPath}); err != nil {
+		t.Fatal(err)
+	}
+	lex["core_capabilities"].([]any)[0].(map[string]any)["unexpected"] = true
+	bad("lex.json", lex)
+	_ = json.Unmarshal(raw, &lex)
+	delete(lex["proposal_rules"].([]any)[0].(map[string]any), "name_zh")
+	terms := lex["include_terms"].([]any)
+	lex["include_terms"] = append(terms, nil)
+	bad("lex.json", lex)
+}
+
+func TestSchemaRequiresExactProvenanceMaxBytes(t *testing.T) {
+	root := t.TempDir()
+	if err := WriteDiscoveryArtifacts(root, artifactFixture(t)); err != nil {
+		t.Fatal(err)
+	}
+	schema := filepath.Join("..", "..", "..", "docs", "project-design", "implementation", "skills", "discovery", "xiaping-discovery-v1.schema.json")
+	for _, value := range []any{262143, 262145} {
+		var doc map[string]any
+		b, _ := os.ReadFile(filepath.Join(root, artifactNames[1]))
+		_ = json.Unmarshal(b, &doc)
+		doc["provenance"].(map[string]any)["max_bytes"] = value
+		p := filepath.Join(t.TempDir(), "bad.json")
+		out, _ := json.Marshal(doc)
+		_ = os.WriteFile(p, out, 0o600)
+		if err := ValidateArtifactSchema(schema, []string{p}); err == nil {
+			t.Fatalf("accepted %v", value)
+		}
 	}
 }
 
