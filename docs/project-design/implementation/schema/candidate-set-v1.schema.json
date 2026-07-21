@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://denova.example/schemas/candidate-set-v1.schema.json",
+  "title": "Denova CandidateSet v1",
+  "description": "Normative shape companion to ADR-CS-001; cross-record hashes, history continuity, ranges, and recomposition require semantic validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract", "candidate_set_id", "workspace", "run", "stage", "artifact",
+    "source_manifest", "profile", "quality_spec", "candidate_policy", "candidates",
+    "current_state", "transition_history", "evaluation", "author_decision",
+    "mixed_output", "binding_validation", "finalization_handoff"
+  ],
+  "properties": {
+    "contract": { "$ref": "#/$defs/contract" },
+    "candidate_set_id": { "$ref": "#/$defs/id" },
+    "workspace": { "$ref": "#/$defs/workspaceBinding" },
+    "run": { "$ref": "#/$defs/runBinding" },
+    "stage": { "$ref": "#/$defs/stageBinding" },
+    "artifact": { "$ref": "#/$defs/artifactBinding" },
+    "source_manifest": { "$ref": "#/$defs/versionedHashBinding" },
+    "profile": { "$ref": "#/$defs/profileBinding" },
+    "quality_spec": { "$ref": "#/$defs/qualitySpecBinding" },
+    "candidate_policy": { "$ref": "#/$defs/candidatePolicy" },
+    "candidates": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/candidate" }
+    },
+    "current_state": { "$ref": "#/$defs/state" },
+    "transition_history": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/transition" }
+    },
+    "evaluation": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/evaluation" }]
+    },
+    "author_decision": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/authorDecision" }]
+    },
+    "mixed_output": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/mixedOutput" }]
+    },
+    "binding_validation": {
+      "type": "array",
+      "minItems": 6,
+      "items": { "$ref": "#/$defs/bindingCheck" }
+    },
+    "finalization_handoff": { "$ref": "#/$defs/finalizationHandoff" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "current_state": { "const": "open" } }, "required": ["current_state"] },
+      "then": {
+        "properties": {
+          "transition_history": { "maxItems": 0 },
+          "evaluation": { "type": "null" },
+          "author_decision": { "type": "null" },
+          "mixed_output": { "type": "null" },
+          "finalization_handoff": { "properties": { "status": { "const": "not_ready" } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "current_state": { "enum": ["compared", "author_selected", "mixed", "rejected", "finalized", "archived"] } }, "required": ["current_state"] },
+      "then": { "properties": { "evaluation": { "$ref": "#/$defs/evaluation" } } }
+    },
+    {
+      "if": { "properties": { "current_state": { "const": "compared" } }, "required": ["current_state"] },
+      "then": {
+        "properties": {
+          "author_decision": { "type": "null" },
+          "mixed_output": { "type": "null" },
+          "finalization_handoff": { "properties": { "status": { "const": "not_ready" }, "content_hash": { "type": "null" } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "current_state": { "const": "author_selected" } }, "required": ["current_state"] },
+      "then": {
+        "properties": {
+          "author_decision": { "$ref": "#/$defs/selectedDecision" },
+          "mixed_output": { "type": "null" },
+          "binding_validation": { "items": { "properties": { "status": { "const": "valid" } } } },
+          "finalization_handoff": { "properties": { "status": { "const": "ready" } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "current_state": { "const": "mixed" } }, "required": ["current_state"] },
+      "then": {
+        "properties": {
+          "author_decision": { "$ref": "#/$defs/mixedDecision" },
+          "mixed_output": { "$ref": "#/$defs/mixedOutput" },
+          "binding_validation": { "items": { "properties": { "status": { "const": "valid" } } } },
+          "finalization_handoff": { "properties": { "status": { "const": "ready" } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "current_state": { "const": "rejected" } }, "required": ["current_state"] },
+      "then": {
+        "properties": {
+          "author_decision": { "$ref": "#/$defs/rejectedDecision" },
+          "mixed_output": { "type": "null" },
+          "finalization_handoff": { "properties": { "status": { "const": "not_eligible" }, "content_hash": { "type": "null" } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "current_state": { "const": "finalized" } }, "required": ["current_state"] },
+      "then": {
+        "properties": {
+          "author_decision": { "oneOf": [{ "$ref": "#/$defs/selectedDecision" }, { "$ref": "#/$defs/mixedDecision" }] },
+          "binding_validation": { "items": { "properties": { "status": { "const": "valid" } } } },
+          "finalization_handoff": { "$ref": "#/$defs/handedOff" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "author_decision": { "type": "object", "properties": { "kind": { "const": "mixed" } }, "required": ["kind"] } }, "required": ["author_decision"] },
+      "then": { "properties": { "mixed_output": { "$ref": "#/$defs/mixedOutput" } } }
+    },
+    {
+      "if": { "properties": { "author_decision": { "type": "object", "properties": { "kind": { "enum": ["selected", "rejected"] } }, "required": ["kind"] } }, "required": ["author_decision"] },
+      "then": { "properties": { "mixed_output": { "type": "null" } } }
+    },
+    {
+      "if": { "properties": { "finalization_handoff": { "properties": { "status": { "enum": ["ready", "handed_off"] } }, "required": ["status"] } }, "required": ["finalization_handoff"] },
+      "then": { "properties": { "finalization_handoff": { "properties": { "content_hash": { "$ref": "#/$defs/hash" } } } } }
+    }
+  ],
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{2,127}$" },
+    "hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "contract": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "version", "schema"],
+      "properties": {
+        "kind": { "const": "denova.candidate-set" },
+        "version": { "const": "v1" },
+        "schema": { "const": "candidate-set-v1.schema.json" }
+      }
+    },
+    "workspaceBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["workspace_id", "revision", "hash"],
+      "properties": {
+        "workspace_id": { "$ref": "#/$defs/id" },
+        "revision": { "type": "integer", "minimum": 0 },
+        "hash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "runBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["run_id", "contract_version"],
+      "properties": { "run_id": { "$ref": "#/$defs/id" }, "contract_version": { "type": "string", "minLength": 1 } }
+    },
+    "stageBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["stage_id", "stage_type", "contract_version"],
+      "properties": {
+        "stage_id": { "$ref": "#/$defs/id" },
+        "stage_type": { "type": "string", "minLength": 1 },
+        "contract_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "artifactBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact_id", "artifact_type", "contract_version", "hash"],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/id" },
+        "artifact_type": { "type": "string", "minLength": 1 },
+        "contract_version": { "type": "string", "minLength": 1 },
+        "hash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "versionedHashBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "version", "hash"],
+      "properties": { "id": { "$ref": "#/$defs/id" }, "version": { "type": "string", "minLength": 1 }, "hash": { "$ref": "#/$defs/hash" } }
+    },
+    "profileBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["profile_id", "contract_version", "hash"],
+      "properties": {
+        "profile_id": { "enum": ["long_serial", "fanqie_short", "zhihu_salt_short"] },
+        "contract_version": { "const": "v1" },
+        "hash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "qualitySpecBinding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["spec_id", "revision", "contract_version", "hash"],
+      "properties": {
+        "spec_id": { "$ref": "#/$defs/id" }, "revision": { "type": "integer", "minimum": 1 },
+        "contract_version": { "const": "v1" }, "hash": { "$ref": "#/$defs/hash" }
+      }
+    },
+    "candidatePolicy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["policy_id", "version", "requested_count", "key_node", "rationale"],
+      "properties": {
+        "policy_id": { "$ref": "#/$defs/id" }, "version": { "type": "string", "minLength": 1 },
+        "requested_count": { "type": "integer", "minimum": 1 }, "key_node": { "type": "boolean" },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "candidate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["candidate_id", "artifact", "content_hash", "source_manifest", "model", "skill", "profile", "quality_spec", "created_at"],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/id" }, "artifact": { "$ref": "#/$defs/artifactBinding" },
+        "content_hash": { "$ref": "#/$defs/hash" }, "source_manifest": { "$ref": "#/$defs/versionedHashBinding" },
+        "model": {
+          "type": "object", "additionalProperties": false, "required": ["provider", "model_id", "version"],
+          "properties": { "provider": { "type": "string", "minLength": 1 }, "model_id": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 } }
+        },
+        "skill": {
+          "type": "object", "additionalProperties": false, "required": ["skill_id", "version", "hash", "capability_id"],
+          "properties": { "skill_id": { "$ref": "#/$defs/id" }, "version": { "type": "string", "minLength": 1 }, "hash": { "$ref": "#/$defs/hash" }, "capability_id": { "$ref": "#/$defs/id" } }
+        },
+        "profile": { "$ref": "#/$defs/profileBinding" }, "quality_spec": { "$ref": "#/$defs/qualitySpecBinding" },
+        "created_at": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "state": { "enum": ["open", "compared", "author_selected", "mixed", "rejected", "finalized", "archived"] },
+    "actor": {
+      "type": "object", "additionalProperties": false, "required": ["actor_id", "actor_type"],
+      "properties": { "actor_id": { "$ref": "#/$defs/id" }, "actor_type": { "enum": ["author", "reviewer", "system"] } }
+    },
+    "transition": {
+      "type": "object", "additionalProperties": false,
+      "required": ["transition_id", "from", "to", "actor", "reason", "at"],
+      "properties": {
+        "transition_id": { "$ref": "#/$defs/id" }, "from": { "$ref": "#/$defs/state" }, "to": { "$ref": "#/$defs/state" },
+        "actor": { "$ref": "#/$defs/actor" }, "reason": { "type": "string", "minLength": 1 }, "at": { "$ref": "#/$defs/timestamp" }
+      },
+      "oneOf": [
+        { "properties": { "from": { "const": "open" }, "to": { "const": "compared" } } },
+        { "properties": { "from": { "const": "compared" }, "to": { "enum": ["author_selected", "mixed", "rejected"] } } },
+        { "properties": { "from": { "const": "author_selected" }, "to": { "enum": ["finalized", "archived"] } } },
+        { "properties": { "from": { "const": "mixed" }, "to": { "enum": ["finalized", "archived"] } } },
+        { "properties": { "from": { "const": "rejected" }, "to": { "const": "archived" } } },
+        { "properties": { "from": { "const": "finalized" }, "to": { "const": "archived" } } }
+      ]
+    },
+    "criterionEvidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["criterion_id", "reader_observable_evidence", "source_ref"],
+      "properties": { "criterion_id": { "$ref": "#/$defs/id" }, "reader_observable_evidence": { "type": "string", "minLength": 1 }, "source_ref": { "type": "string", "minLength": 1 }, "score": { "type": "number", "minimum": 0, "maximum": 100 } }
+    },
+    "candidateEvaluation": {
+      "type": "object", "additionalProperties": false, "required": ["candidate_id", "criteria"],
+      "properties": { "candidate_id": { "$ref": "#/$defs/id" }, "criteria": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/criterionEvidence" } } }
+    },
+    "evaluation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evaluation_id", "actor", "at", "candidate_evaluations", "summary"],
+      "properties": { "evaluation_id": { "$ref": "#/$defs/id" }, "actor": { "$ref": "#/$defs/actor" }, "at": { "$ref": "#/$defs/timestamp" }, "candidate_evaluations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/candidateEvaluation" } }, "summary": { "type": "string", "minLength": 1 } }
+    },
+    "decisionBase": {
+      "type": "object", "additionalProperties": false,
+      "required": ["decision_id", "kind", "actor", "at", "reason", "selected_candidate_ids"],
+      "properties": { "decision_id": { "$ref": "#/$defs/id" }, "kind": { "enum": ["selected", "mixed", "rejected"] }, "actor": { "$ref": "#/$defs/actor" }, "at": { "$ref": "#/$defs/timestamp" }, "reason": { "type": "string", "minLength": 1 }, "selected_candidate_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } } }
+    },
+    "selectedDecision": {
+      "allOf": [{ "$ref": "#/$defs/decisionBase" }, { "properties": { "kind": { "const": "selected" }, "actor": { "properties": { "actor_type": { "const": "author" } } }, "selected_candidate_ids": { "minItems": 1, "maxItems": 1 } } }]
+    },
+    "mixedDecision": {
+      "allOf": [{ "$ref": "#/$defs/decisionBase" }, { "properties": { "kind": { "const": "mixed" }, "actor": { "properties": { "actor_type": { "const": "author" } } }, "selected_candidate_ids": { "minItems": 2 } } }]
+    },
+    "rejectedDecision": {
+      "allOf": [{ "$ref": "#/$defs/decisionBase" }, { "properties": { "kind": { "const": "rejected" }, "actor": { "properties": { "actor_type": { "const": "author" } } }, "selected_candidate_ids": { "maxItems": 0 } } }]
+    },
+    "authorDecision": { "oneOf": [{ "$ref": "#/$defs/selectedDecision" }, { "$ref": "#/$defs/mixedDecision" }, { "$ref": "#/$defs/rejectedDecision" }] },
+    "byteRange": {
+      "type": "object", "additionalProperties": false, "required": ["start", "end"],
+      "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 1 } }
+    },
+    "mixedSegment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["segment_id", "parent_candidate_id", "parent_content_hash", "parent_range", "output_range", "segment_content_hash"],
+      "properties": { "segment_id": { "$ref": "#/$defs/id" }, "parent_candidate_id": { "$ref": "#/$defs/id" }, "parent_content_hash": { "$ref": "#/$defs/hash" }, "parent_range": { "$ref": "#/$defs/byteRange" }, "output_range": { "$ref": "#/$defs/byteRange" }, "segment_content_hash": { "$ref": "#/$defs/hash" } }
+    },
+    "mixedOutput": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact_id", "content_hash", "segments"],
+      "properties": { "artifact_id": { "$ref": "#/$defs/id" }, "content_hash": { "$ref": "#/$defs/hash" }, "segments": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/mixedSegment" } } }
+    },
+    "bindingCheck": {
+      "type": "object", "additionalProperties": false,
+      "required": ["binding_kind", "expected_hash", "observed_hash", "status", "checked_at"],
+      "properties": { "binding_kind": { "enum": ["workspace", "artifact", "source_manifest", "candidate", "profile", "quality_spec", "candidate_policy", "finalization_receipt"] }, "expected_hash": { "$ref": "#/$defs/hash" }, "observed_hash": { "$ref": "#/$defs/hash" }, "status": { "enum": ["valid", "stale", "hash_mismatch"] }, "checked_at": { "$ref": "#/$defs/timestamp" }, "reason": { "type": "string", "minLength": 1 } },
+      "allOf": [{ "if": { "properties": { "status": { "enum": ["stale", "hash_mismatch"] } }, "required": ["status"] }, "then": { "required": ["reason"] } }]
+    },
+    "finalizationHandoff": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "content_hash"],
+      "properties": { "status": { "enum": ["not_ready", "ready", "not_eligible", "handed_off"] }, "content_hash": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/hash" }] }, "request_id": { "$ref": "#/$defs/id" }, "receipt_id": { "$ref": "#/$defs/id" }, "receipt_hash": { "$ref": "#/$defs/hash" } }
+    },
+    "handedOff": {
+      "allOf": [{ "$ref": "#/$defs/finalizationHandoff" }, { "properties": { "status": { "const": "handed_off" }, "content_hash": { "$ref": "#/$defs/hash" } }, "required": ["request_id", "receipt_id", "receipt_hash"] }]
+    }
+  }
+}
