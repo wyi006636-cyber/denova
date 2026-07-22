@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增离线 Harness H 的有界请求组装与严格审稿契约：候选、盲审和修订阶段仅接收其允许的规范 JSON 输入，阶段输入哈希可复现，审稿输出拒绝敏感字段、未知/尾随 JSON、超限问题及非 QualitySpec 目标。
+- Added bounded offline Harness H request assembly and a strict review contract: candidate, blinded-review, and revision stages receive only their allowed canonical JSON inputs with reproducible stage hashes, while reviews reject sensitive fields, unknown or trailing JSON, over-limit issues, and goals outside the task QualitySpec.
+
 - 冻结评测专用、离线 Harness H policy：固定为两个候选、盲审和修订四个阶段，仅允许 tuning/regression，禁止持久化 thinking，并校验模板路径、哈希与输出上限。
 - Frozen the evaluation-only offline Harness H policy: two candidates, blinded review, and revision are fixed as four stages; only tuning/regression are allowed, thinking persistence is forbidden, and template paths, hashes, and output limits are verified.
 

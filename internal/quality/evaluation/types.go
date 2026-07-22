@@ -119,6 +119,46 @@ type ModelParameters struct {
 	ThinkingEnabled bool    `json:"thinking_enabled"`
 }
 
+// HarnessRequest is one bounded, offline Harness H model request; it never executes a model call.
+type HarnessRequest struct {
+	TaskID         string
+	Stage          HarnessStage
+	SystemTemplate string
+	UserInput      string
+	InputSHA256    string
+	Model          ModelConfigSnapshot
+}
+
+// HarnessRequestInputs are the frozen task inputs available while assembling one Harness stage.
+type HarnessRequestInputs struct {
+	TaskID         string
+	OriginalInput  string
+	InputSHA256    string
+	QualityGoals   []string
+	CandidateA     string
+	CandidateB     string
+	ReviewJSON     string
+	StagePolicy    HarnessStagePolicy
+	SystemTemplate string
+	Model          ModelConfigSnapshot
+}
+
+// HarnessReviewIssue identifies one actionable QualitySpec concern in a structured review.
+type HarnessReviewIssue struct {
+	GoalID   string `json:"goal_id"`
+	Severity string `json:"severity"`
+	Location string `json:"location"`
+	Evidence string `json:"evidence"`
+	Action   string `json:"action"`
+}
+
+// HarnessReview is the only accepted structured reviewer output passed to a revision stage.
+type HarnessReview struct {
+	PreferredCandidate string               `json:"preferred_candidate"`
+	Issues             []HarnessReviewIssue `json:"issues"`
+	Preserve           []string             `json:"preserve"`
+}
+
 func (snapshot ModelConfigSnapshot) hashPayload() any {
 	return struct {
 		Provider         string          `json:"provider"`
