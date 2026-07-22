@@ -28,3 +28,13 @@ Both arms must keep provider, model, model profile, temperature, output-token ce
 | `zh-workplace-turn-05` | `zhihu_salt_short` | `editor.review-story` | 275 | `MODEL-EVAL-BLOCKED` |
 
 Machine-readable preregistration: [xiaping-evaluation-matrix-v1.json](xiaping-evaluation-matrix-v1.json).
+
+## Closeout verification / 收尾验证
+
+The committed batch, content audit, capability references, and evaluation matrix parse as valid JSON with 15 candidates, 6 audited packages, 11 bounded references, and 6 tuning-only rows. Fresh verification passed `go mod tidy -diff`, focused and full Go tests, `go vet ./...`, the production build, privacy/secret scanning, forbidden-artifact checks, and `git diff --check`; all 214 leaf tests in the affected packages completed within one second.
+
+已提交的候选批次、内容审计、能力参考和评测矩阵均通过 JSON 解析，分别包含 15 个候选、6 个已审计包、11 个有界参考和 6 个仅限 tuning 的评测行。最新验证已通过 `go mod tidy -diff`、聚焦及全量 Go 测试、`go vet ./...`、生产构建、隐私/密钥扫描、禁止工件检查和 `git diff --check`；受影响 package 的 214 个叶子测试均在一秒内完成。
+
+The owned temporary audit root containing 262 files (5,013,616 bytes) was removed after validation. This cleanup is not recoverable, but all retained conclusions are reproducible from stable Skill IDs, versions, archive hashes, and line-span hashes; `C:\Users\yiwan\AppData\Local\Denova\quality-eval\xiaping` was not modified.
+
+验证后已删除包含 262 个文件（5,013,616 字节）的本轮专属临时审计目录。该清理不可恢复，但保留结论可由稳定 Skill ID、版本、归档哈希及行段哈希复现；`C:\Users\yiwan\AppData\Local\Denova\quality-eval\xiaping` 未被修改。

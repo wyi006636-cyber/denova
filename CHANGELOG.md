@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 完成虾评小说 Skill Wave A 内容审计收尾：六个公开包均只做有界静态检查，形成 4 个 `REFERENCE-ONLY`、2 个 `REJECT`、0 个可直接安装结论与 11 个可追溯能力参考；清理 262 个临时审计文件且保留 Denova 共享缓存，模型 S/K 实测继续因缺少提供方凭证而明确阻塞。
+- Closed the Xiaping novel-Skill Wave A content audit: six public packages received bounded static inspection only, yielding four `REFERENCE-ONLY`, two `REJECT`, zero directly installable packages, and 11 traceable capability references; 262 temporary audit files were removed while preserving the Denova shared cache, and model S/K execution remains explicitly blocked by missing provider credentials.
+
 - 预注册六个仅限 tuning 的虾评能力参考 S/K 配对评测：K 只加入一个不足 48 KiB 的规范能力切片，并记录冻结任务/质量规格/模型配置哈希与引用溯源；缺少运行时提供方凭证时明确标为 `MODEL-EVAL-BLOCKED`，不以 Codex 或子代理输出伪造比较结果。
 - Preregistered six tuning-only Xiaping capability-reference S/K comparisons: K adds only one canonical capability slice below 48 KiB and records frozen task, QualitySpec, model-configuration hashes, and reference provenance; missing runtime provider credentials are explicitly `MODEL-EVAL-BLOCKED`, with no Codex or subagent output substituted as a result.
 
