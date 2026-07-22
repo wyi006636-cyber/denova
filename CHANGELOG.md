@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增可续跑的离线 Harness H 执行器：仅对已选的 tuning/regression cohort 按候选 A、候选 B、结构化审稿、修订的固定顺序调用注入式生成器；每阶段输出以私有 `0600` 原子文件与运行记录保存，校验输入、模型、policy、模板和输出哈希后才续跑，最终修订作为 H arm，失败会留下稳定阶段状态且不会生成半成品盲评包。
+- Added a resumable offline Harness H executor: only selected tuning/regression cohorts call an injected generator in the fixed candidate A, candidate B, structured-review, revision order; each stage atomically saves private `0600` output and the run record, resumes only after input/model/policy/template/output hashes match, uses the final revision as the H arm, and records stable failures without producing partial blind packages.
+
 - 新增离线 Harness H 的有界请求组装与严格审稿契约：候选、盲审和修订阶段仅接收其允许的规范 JSON 输入，阶段输入哈希可复现，审稿输出拒绝敏感字段、未知/尾随 JSON、超限问题及非 QualitySpec 目标。
 - Added bounded offline Harness H request assembly and a strict review contract: candidate, blinded-review, and revision stages receive only their allowed canonical JSON inputs with reproducible stage hashes, while reviews reject sensitive fields, unknown or trailing JSON, over-limit issues, and goals outside the task QualitySpec.
 

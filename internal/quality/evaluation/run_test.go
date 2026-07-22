@@ -197,6 +197,38 @@ func TestPackageBlindMarksMissingArmNotReady(t *testing.T) {
 	}
 }
 
+func TestPackageBlindDoesNotWritePartialCandidatePair(t *testing.T) {
+	path, manifest := writeValidManifest(t)
+	runRoot := filepath.Join(filepath.Dir(path), manifest.RunRoot)
+	run := newTestRun(t, path, manifest, runRoot, false)
+	for i := range run.Tasks {
+		taskDir := filepath.Join(runRoot, run.RunID, "private", "outputs", run.Tasks[i].TaskID)
+		if err := os.MkdirAll(taskDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		candidate := filepath.Join(taskDir, "candidate_a.txt")
+		if err := os.WriteFile(candidate, []byte("unfinalized candidate"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		h := run.Tasks[i].Arms["H"]
+		h.Stages = []HarnessStageRecord{{Stage: HarnessStageCandidateA, Status: StatusReady, OutputFile: filepath.ToSlash(filepath.Join("private", "outputs", run.Tasks[i].TaskID, "candidate_a.txt")), OutputSHA256: testFileHash(t, candidate)}}
+		run.Tasks[i].Arms["H"] = h
+	}
+	if err := SaveRun(runRoot, run); err != nil {
+		t.Fatal(err)
+	}
+	index, err := PackageBlind(runRoot, run.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if index.Status != StatusNotReady {
+		t.Fatalf("blind status=%s", index.Status)
+	}
+	if _, err := os.Stat(filepath.Join(runRoot, run.RunID, "blind", "samples")); !os.IsNotExist(err) {
+		t.Fatalf("partial blind samples were written: %v", err)
+	}
+}
+
 func newTestRun(t *testing.T, manifestPath string, manifest CorpusManifest, runRoot string, ready bool) RunRecord {
 	t.Helper()
 	run, err := CreateRun(manifestPath, CreateRunOptions{RunRoot: runRoot, BaselineStatus: StatusEnvironmentBlocked, HarnessStatus: StatusNotReady})

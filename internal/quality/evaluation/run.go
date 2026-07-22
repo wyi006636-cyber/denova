@@ -54,20 +54,36 @@ type RunTask struct {
 }
 
 type ArmRecord struct {
-	Arm            string          `json:"arm"`
-	Status         ResultStatus    `json:"status"`
-	Provider       string          `json:"provider,omitempty"`
-	BaseURL        string          `json:"base_url,omitempty"`
-	ModelProfileID string          `json:"model_profile_id,omitempty"`
-	Model          string          `json:"model,omitempty"`
-	Parameters     ModelParameters `json:"parameters"`
-	InputSHA256    string          `json:"input_sha256"`
-	OutputSHA256   string          `json:"output_sha256,omitempty"`
-	OutputFile     string          `json:"output_file,omitempty"`
-	Usage          UsageRecord     `json:"usage"`
-	Cost           CostRecord      `json:"cost"`
-	FailureType    string          `json:"failure_type,omitempty"`
-	FailureDetail  string          `json:"failure_detail,omitempty"`
+	Arm            string               `json:"arm"`
+	Status         ResultStatus         `json:"status"`
+	Provider       string               `json:"provider,omitempty"`
+	BaseURL        string               `json:"base_url,omitempty"`
+	ModelProfileID string               `json:"model_profile_id,omitempty"`
+	Model          string               `json:"model,omitempty"`
+	Parameters     ModelParameters      `json:"parameters"`
+	InputSHA256    string               `json:"input_sha256"`
+	OutputSHA256   string               `json:"output_sha256,omitempty"`
+	OutputFile     string               `json:"output_file,omitempty"`
+	Usage          UsageRecord          `json:"usage"`
+	Cost           CostRecord           `json:"cost"`
+	FailureType    string               `json:"failure_type,omitempty"`
+	FailureDetail  string               `json:"failure_detail,omitempty"`
+	Stages         []HarnessStageRecord `json:"stages,omitempty"`
+}
+
+// HarnessStageRecord is the private, resumable evidence for one fixed Harness stage.
+type HarnessStageRecord struct {
+	Stage               HarnessStage `json:"stage"`
+	Status              ResultStatus `json:"status"`
+	InputSHA256         string       `json:"input_sha256"`
+	OutputSHA256        string       `json:"output_sha256,omitempty"`
+	OutputFile          string       `json:"output_file,omitempty"`
+	ModelConfigSHA256   string       `json:"model_config_sha256"`
+	HarnessPolicySHA256 string       `json:"harness_policy_sha256"`
+	TemplateSHA256      string       `json:"template_sha256"`
+	Usage               UsageRecord  `json:"usage"`
+	Cost                CostRecord   `json:"cost"`
+	FailureType         string       `json:"failure_type,omitempty"`
 }
 
 func StableRunID(manifest CorpusManifest) string {
