@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 批准 P0-T09 评测专用离线 Harness 设计：在不接入产品运行时、正式工作区或第三方脚本的边界内，以同模型双候选、结构化审稿和修订流程生成真实 H arm，并保持 tuning/regression/release holdout 分离、运行时凭证与可复算盲评证据。
+- Approved the P0-T09 evaluation-only offline Harness design: within boundaries excluding product runtime, formal workspaces, and third-party scripts, it produces a real H arm through same-model dual candidates, structured review, and revision while preserving tuning/regression/release-holdout separation, runtime-only credentials, and reproducible blind-review evidence.
+
 - 完成虾评小说 Skill Wave A 内容审计收尾：六个公开包均只做有界静态检查，形成 4 个 `REFERENCE-ONLY`、2 个 `REJECT`、0 个可直接安装结论与 11 个可追溯能力参考；清理 262 个临时审计文件且保留 Denova 共享缓存，模型 S/K 实测继续因缺少提供方凭证而明确阻塞。
 - Closed the Xiaping novel-Skill Wave A content audit: six public packages received bounded static inspection only, yielding four `REFERENCE-ONLY`, two `REJECT`, zero directly installable packages, and 11 traceable capability references; 262 temporary audit files were removed while preserving the Denova shared cache, and model S/K execution remains explicitly blocked by missing provider credentials.
 
