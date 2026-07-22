@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 冻结首批 15 个虾评小说 Skill 内容审计候选（Wave A/B），将 65 项自动短名单与原始九候选目录按封闭能力集和三类小说画像交叉核验；提交仅保留稳定 ID、平台聚合数据、选择依据与可审计的误报排除理由，不将平台数据表述为写作质量结论。
+- Froze the first 15 Xiaping novel-Skill content-audit candidates (Waves A/B), cross-checking the 65-entry automated shortlist and original nine-candidate catalog against a closed capability set and three fiction profiles; committed artifacts retain only stable IDs, platform aggregates, selection grounds, and auditable false-positive exclusions, without presenting platform data as writing quality.
 - 发布虾评完整公开写作 Skill 发现短名单：`snapshot-18d24eb4d408a116` 覆盖 46 页（报告总数 2,251、去重 2,237），产出 1,072 个写作候选、4 个提案、1 个重复簇及 65 项双通道短名单（34 DATA-RICH、31 EXPLORATION）；平台证据不构成写作质量结论，10 个无法闭合的公开评论来源限制保持失败记录。
 - Published the Xiaping complete-public writing-Skill discovery shortlist: `snapshot-18d24eb4d408a116` covers 46 pages (reported total 2,251 and 2,237 de-duplicated records), producing 1,072 writing candidates, 4 proposals, 1 duplicate cluster, and a 65-entry dual-lane shortlist (34 DATA-RICH and 31 EXPLORATION); platform evidence is not a writing-quality result, and 10 uncloseable public-review source limitations remain recorded as failures.
 - 新增 `quality-eval skills` 离线可验证的虾评发现命令：支持受限 HTTPS 快照、确定性写作候选分类、带本地缓存证据的双通道排序，以及本地 Schema 校验；所有网络节流和重试参数均可显式配置，部分快照不能进入排序。
