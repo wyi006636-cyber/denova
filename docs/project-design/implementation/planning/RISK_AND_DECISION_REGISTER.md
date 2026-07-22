@@ -37,7 +37,7 @@
 
 | ADR ID | 对象 | 状态 | 决定期限 | 阻塞 Task | 建议方案 |
 |---|---|---|---|---|---|
-| ADR-PROJECTION-001 | SQLite/FTS driver 与投影 schema | Proposed | P0-T09 完成前 | P1-T03、P1-T07、P5-T03 | 选择成熟依赖；优先纯 Go/可跨平台方案或明确 CGO 代价；数据库仅投影；schema/rebuild/version/损坏恢复完整；不引入向量依赖 |
+| ADR-PROJECTION-001 | SQLite/FTS driver 与投影 schema | Accepted | 2026-07-22 | P1-T03、P1-T07、P5-T03 | 选定 `modernc.org/sqlite` + `database/sql` 的纯 Go family；DB 仅为可重建投影，schema/rebuild/损坏恢复不得阻塞 open/edit；P1 仍须精确版本与匹配 `modernc.org/libc`、许可证/`govulncheck`、`CGO_ENABLED=0` 五平台（含 Windows amd64/未来 Tauri triples），并在 fresh activation/rebuild/损坏或外部内容不一致检查执行 `INSERT INTO <fts_table>(<fts_table>, rank) VALUES ('integrity-check', 1)` 的运行时 FTS5 一致性门禁；不引入 vector 或 Tauri 实现 |
 | ADR-SSE-001 | Quality event envelope、持久状态与重连 | Proposed | P1-T05 开始前 | P1-T05、P2-T03、P2-T08、P5-T02 | domain event 保持 transport-neutral，App 转 `agent.Event`；SSE 只发稳定 ID/摘要；Run repository 为状态真源，Task snapshot/live 只恢复显示 |
 | ADR-CAP-001 | Capability 与 Skill Manifest | Proposed | P2-T02 开始前 | P2-T02、P2-T04–P2-T06、P3-T04–P3-T06 | workflow 只依赖 Capability ID；manifest 记录来源/hash/许可/权限/schema/model/cost/eval；router 选最少必要实现并保存选择证据 |
 | ADR-AUTO-001 | Automation/Batch 与 Harness 边界 | Proposed | P2-T03 开始前 | P2-T03、P2-T07、P3-T07 | Automation 只创建/继续 Job 或写待审 Artifact；`auto_write` 不对正式区生效；批次确认可上移粒度但不能取消 hash/revision 校验 |

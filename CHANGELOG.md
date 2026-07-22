@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 接受 `ADR-PROJECTION-001`：为 P1-T03 冻结 `modernc.org/sqlite` 的纯 Go SQLite/FTS 投影驱动 family、文件/Artifact 单向真源、FTS5 external-content schema、trigram 短词 fallback，以及可重建/隔离/回滚边界；fresh activation、rebuild 完成和损坏/不一致检查必须运行带 `rank = 1` 的 external-content integrity-check，依赖安装、精确版本 pin、Tauri、vector 和 Phase 1 实现仍须通过后续门禁。
+- Accepted `ADR-PROJECTION-001`: freezes the `modernc.org/sqlite` pure-Go SQLite/FTS projection driver family for P1-T03, file/Artifact one-way authority, FTS5 external-content schema, trigram short-query fallback, and rebuild/quarantine/rollback boundaries; fresh activation, rebuild completion, and corruption/inconsistency checks must use the `rank = 1` external-content integrity-check, while dependency installation, exact version pinning, Tauri, vector search, and Phase 1 implementation remain gated.
+
 - `quality-eval export-run-index` exports only bounded cohort reproducibility metadata from an explicit private run root: selection, policy/template/model hashes, S/H status counts, aggregate usage/cost, local-evidence availability, and blind-package hash. Blind packages and summaries now carry the same non-secret reproducibility metadata, package only complete selected S/H pairs, and reject committed credential, reasoning, reviewer-identity, and raw-comment fields; review records remain private.
 - `quality-eval export-run-index` 从显式私有运行根目录仅导出有界 cohort 可复现元数据：选择条件、policy/template/model 哈希、S/H 状态计数、聚合用量/成本、本地证据可用性和盲包哈希。盲包与汇总现保存同样的非秘密复现元数据，只打包完整的选中 S/H 对，并拒绝提交凭据、推理、评审身份和原始评论字段；ReviewRecord 继续仅存于私有目录。
 
