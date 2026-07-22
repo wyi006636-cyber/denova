@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -239,16 +238,17 @@ func extractZipData(data []byte) (string, func(), error) {
 	var total int64
 	files := 0
 	for _, f := range reader.File {
-		target, err := safeInstallJoin(root, f.Name)
+		entryPath, err := validateArchiveEntry(f.Name, f.FileInfo().Mode())
+		if err != nil {
+			cleanup()
+			return "", nil, err
+		}
+		target, err := safeInstallJoin(root, entryPath)
 		if err != nil {
 			cleanup()
 			return "", nil, err
 		}
 		mode := f.FileInfo().Mode()
-		if mode&os.ModeSymlink != 0 {
-			cleanup()
-			return "", nil, fmt.Errorf("Skill ZIP contains symlink: %s", f.Name)
-		}
 		if f.FileInfo().IsDir() {
 			if err := os.MkdirAll(target, 0o755); err != nil {
 				cleanup()
@@ -549,12 +549,12 @@ func writeLimitedInstallFile(target string, reader io.Reader, mode os.FileMode, 
 
 func safeInstallJoin(root, name string) (string, error) {
 	root = filepath.Clean(root)
-	cleaned := path.Clean(strings.ReplaceAll(strings.TrimSpace(name), "\\", "/"))
-	if cleaned == "." || cleaned == "/" {
+	if strings.TrimSpace(name) == "." || strings.TrimSpace(name) == "" {
 		return root, nil
 	}
-	if path.IsAbs(cleaned) || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
-		return "", fmt.Errorf("Skill archive contains invalid path: %s", name)
+	cleaned, err := normalizedArchivePath(name)
+	if err != nil {
+		return "", err
 	}
 	target := filepath.Join(root, filepath.FromSlash(cleaned))
 	rel, err := filepath.Rel(root, target)
