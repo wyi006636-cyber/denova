@@ -664,7 +664,7 @@ git diff --check
 - 版本化快照 manifest、标准化 SkillRecord、Capability 候选/提案、重复簇、评论证据向量与短名单 JSON 合同。
 - 严格 JSON 解码、稳定 SHA-256、唯一 Skill ID、部分/完整快照一致性和敏感数据拒绝测试；所有 fixture 使用 `example.test` 与虚构评论。
 - 后续采集、证据评分和短名单任务必须复用这些合同，P0-T09 只在该证据链完成后冻结 Gate Manifest。
-- 已发布的 COMPLETE 快照为 `snapshot-18d24eb4d408a116`（45 页、报告总数 2,251、去重 2,237）；分类结果为 1,072 个写作候选、4 个提案、1 个重复簇，短名单 65 项（DATA-RICH 34、EXPLORATION 31），16 个核心 Capability 均有条目，但 `character.build-dialogue-voice` 为 1/5、`outline.simulate-multiline` 为 2/5。
+- 已发布的 COMPLETE 快照为 `snapshot-18d24eb4d408a116`（由 manifest 的 46 条 catalog 回执派生为 46 页；报告总数 2,251、去重 2,237）；分类结果为 1,072 个写作候选、4 个提案、1 个重复簇，短名单 65 项（DATA-RICH 34、EXPLORATION 31），16 个核心 Capability 均有条目，但 `character.build-dialogue-voice` 为 1/5、`outline.simulate-multiline` 为 2/5。
 - 公开评论证据有 10 个不可闭合来源限制（4 个详情/首页总数不一致，6 个在 limit=50 的空第 21 页前仍声明 1,159–4,628 总数）；这些候选保持失败记录，不放宽分页/总数校验、不使用部分评论，且不得声明为质量结论或 DATA-RICH。约 1,594 个评论检查点和 1,072 个详情均保留在仓库外的受限本地缓存；本轮无 live 429/retry。
 
 **Commit 边界**

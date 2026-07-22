@@ -2,10 +2,15 @@
 
 - Snapshot / 快照: `snapshot-18d24eb4d408a116`
 - Completeness / 完整性: `COMPLETE`
+- Catalog page count / 目录页数: 46
+- Reported total / 来源报告总数: 2251
+- Unique records / 去重记录数: 2237
 - Candidate count / 候选数量: 1072
 - Proposal count / 提案数量: 4
 - Duplicate clusters / 重复簇数量: 1
-- Anomaly facts / 异常事实: 506
+- Gap count / 缺口数量: 2
+- Evidence-cache failures / 证据缓存失败数: 10
+- Anomaly facts / 异常事实: 663
 - DATA-RICH lane / 数据充足通道: 34
 - EXPLORATION lane / 探索通道: 31
 
@@ -38,5 +43,6 @@
 - Maximum bytes / 最大字节数: 2097152 / 2097152
 - Source linkage is the completed snapshot manifest, its page receipts, and existing SHA-256 receipts; no artifact hashes itself. / 来源关联为完整快照清单、页面回执及既有 SHA-256 回执；工件不对自身哈希。
 - Bounded inputs are candidate metadata, proposals, duplicate clusters, evidence vectors, and shortlist entries only; raw review content, reviewer identifiers, signed URLs, and package contents are excluded. / 有界输入仅包括候选元数据、提案、重复簇、证据向量和短名单条目；不包含原始评论、评审者标识、签名 URL 或软件包内容。
+- Candidates with EVIDENCE-CACHE-MISSING cannot be DATA-RICH, and partial comments are not used. / 标记为 EVIDENCE-CACHE-MISSING 的候选不得成为 DATA-RICH，且不会使用部分评论。
 - Platform evidence is not a writing-quality result.
 - 平台证据不是写作质量结果。
