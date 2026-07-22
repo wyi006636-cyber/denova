@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 建立 P0-T09 Windows upstream failure allowlist 合同文件，初始值严格为 `[]`；只有同时具备精确测试名、稳定失败签名、feature/upstream 双复现 SHA、owner 与 expiry 的失败才允许登记。
+- Added the P0-T09 Windows upstream failure allowlist contract with an exact initial value of `[]`; entries require an exact test name, stable failure signature, feature/upstream reproduction SHAs, owner, and expiry.
+
 - 接受 `ADR-PROJECTION-001`：为 P1-T03 冻结 `modernc.org/sqlite` 的纯 Go SQLite/FTS 投影驱动 family、文件/Artifact 单向真源、FTS5 external-content schema、trigram 短词 fallback，以及可重建/隔离/回滚边界；fresh activation、rebuild 完成和损坏/不一致检查必须运行带 `rank = 1` 的 external-content integrity-check，依赖安装、精确版本 pin、Tauri、vector 和 Phase 1 实现仍须通过后续门禁。
 - Accepted `ADR-PROJECTION-001`: freezes the `modernc.org/sqlite` pure-Go SQLite/FTS projection driver family for P1-T03, file/Artifact one-way authority, FTS5 external-content schema, trigram short-query fallback, and rebuild/quarantine/rollback boundaries; fresh activation, rebuild completion, and corruption/inconsistency checks must use the `rank = 1` external-content integrity-check, while dependency installation, exact version pinning, Tauri, vector search, and Phase 1 implementation remain gated.
 

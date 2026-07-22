@@ -357,7 +357,7 @@ scripts/build-github-release.sh "$(git describe --tags --exact-match)"
 
 ### 7.3 Allowlist 规则
 
-- 文件：`docs/project-design/implementation/baseline/windows-upstream-failure-allowlist.json`（P0-T09 计划新增）。
+- 文件：`docs/project-design/implementation/baseline/windows-upstream-failure-allowlist.json`（P0-T09 已建立，初始值为空数组）。
 - 默认值是 `[]`。
 - 只能在 targeted 汇总中显示已知失败；全量命令仍运行并保留原始退出码。
 - 到期条目自动使 Gate 失败；上游修复后立即删除。

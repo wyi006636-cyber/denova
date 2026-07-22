@@ -689,7 +689,7 @@ P0-T01–P0-T08、P0-T08A 全部产物和当前 CI/release 命令，以及 P0-T0
 
 - `docs/project-design/implementation/evaluation/quality-gate-v1.json`（计划新增）。
 - `docs/project-design/implementation/evaluation/PHASE_0_BASELINE_REPORT.md`（计划新增）。
-- `docs/project-design/implementation/baseline/windows-upstream-failure-allowlist.json`（计划新增，默认空数组）。
+- `docs/project-design/implementation/baseline/windows-upstream-failure-allowlist.json`（已建立，初始值为空数组）。
 - `docs/project-design/implementation/adr/ADR-PROJECTION-001-sqlite-fts-driver.md`（计划新增，决定 Phase 1 使用的成熟驱动和 CGO/Tauri 约束）。
 
 **产物**
