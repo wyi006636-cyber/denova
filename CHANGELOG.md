@@ -8,8 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- 新增有界、纯静态的 Skill ZIP 归档审计：在不落盘、不解压、不执行第三方内容的前提下，输出稳定 SHA-256、排序文件清单和文本/脚本元数据；审计限制为 4 MiB 压缩包、8 MiB 展开内容、5,000 个文件及单个文本文件 512 KiB，并拒绝路径穿越、绝对/盘符路径、重复规范化路径、符号链接和脚本。
-- Added bounded, static Skill ZIP archive auditing: without writing, extracting, or executing third-party content, it returns stable SHA-256 values, a sorted file inventory, and text/script metadata; audits are limited to 4 MiB archives, 8 MiB expanded content, 5,000 files, and 512 KiB per text file, while rejecting traversal, absolute/drive paths, duplicate normalized paths, symlinks, and scripts.
+- 新增有界、纯静态的 Skill ZIP 归档审计：在不落盘、不解压、不执行第三方内容的前提下，输出稳定 SHA-256、排序文件清单并显式标记脚本；审计限制为 4 MiB 压缩包、8 MiB 展开内容、5,000 个文件及单个文本文件 512 KiB，并拒绝路径穿越、绝对/盘符路径、重复规范化路径和符号链接。
+- Added bounded, static Skill ZIP archive auditing: without writing, extracting, or executing third-party content, it returns stable SHA-256 values, a sorted file inventory, and explicit script flags; audits are limited to 4 MiB archives, 8 MiB expanded content, 5,000 files, and 512 KiB per text file, while rejecting traversal, absolute/drive paths, duplicate normalized paths, and symlinks.
 - 冻结首批 15 个虾评小说 Skill 内容审计候选（Wave A/B），将 65 项自动短名单与原始九候选目录按封闭能力集和三类小说画像交叉核验；提交仅保留稳定 ID、平台聚合数据、选择依据与可审计的误报排除理由，不将平台数据表述为写作质量结论。
 - Froze the first 15 Xiaping novel-Skill content-audit candidates (Waves A/B), cross-checking the 65-entry automated shortlist and original nine-candidate catalog against a closed capability set and three fiction profiles; committed artifacts retain only stable IDs, platform aggregates, selection grounds, and auditable false-positive exclusions, without presenting platform data as writing quality.
 - 发布虾评完整公开写作 Skill 发现短名单：`snapshot-18d24eb4d408a116` 覆盖 46 页（报告总数 2,251、去重 2,237），产出 1,072 个写作候选、4 个提案、1 个重复簇及 65 项双通道短名单（34 DATA-RICH、31 EXPLORATION）；平台证据不构成写作质量结论，10 个无法闭合的公开评论来源限制保持失败记录。

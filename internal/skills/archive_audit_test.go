@@ -69,7 +69,7 @@ func TestInspectArchiveRejectsDuplicateNormalizedPaths(t *testing.T) {
 	}
 }
 
-func TestInspectArchiveEnforcesBoundsAndRejectsScripts(t *testing.T) {
+func TestInspectArchiveEnforcesBounds(t *testing.T) {
 	base := DefaultArchiveAuditLimits()
 	tests := []struct {
 		name   string
@@ -80,7 +80,6 @@ func TestInspectArchiveEnforcesBoundsAndRejectsScripts(t *testing.T) {
 		{name: "expanded bytes", data: makeAuditZip(t, []auditZipEntry{{name: "skill/a.md", body: "12345"}}), limits: ArchiveAuditLimits{MaxArchiveBytes: base.MaxArchiveBytes, MaxExpandedBytes: 4, MaxFiles: base.MaxFiles, MaxTextFileBytes: base.MaxTextFileBytes}},
 		{name: "file count", data: makeAuditZip(t, []auditZipEntry{{name: "skill/a.md", body: "a"}, {name: "skill/b.md", body: "b"}}), limits: ArchiveAuditLimits{MaxArchiveBytes: base.MaxArchiveBytes, MaxExpandedBytes: base.MaxExpandedBytes, MaxFiles: 1, MaxTextFileBytes: base.MaxTextFileBytes}},
 		{name: "text file bytes", data: makeAuditZip(t, []auditZipEntry{{name: "skill/a.md", body: "12345"}}), limits: ArchiveAuditLimits{MaxArchiveBytes: base.MaxArchiveBytes, MaxExpandedBytes: base.MaxExpandedBytes, MaxFiles: base.MaxFiles, MaxTextFileBytes: 4}},
-		{name: "script", data: makeAuditZip(t, []auditZipEntry{{name: "skill/install.sh", body: "echo unsafe"}}), limits: base},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -88,6 +87,16 @@ func TestInspectArchiveEnforcesBoundsAndRejectsScripts(t *testing.T) {
 				t.Fatalf("InspectArchive() accepted %s", tt.name)
 			}
 		})
+	}
+}
+
+func TestInspectArchiveFlagsScriptsWithoutExecutingOrRejectingThem(t *testing.T) {
+	audit, err := InspectArchive(makeAuditZip(t, []auditZipEntry{{name: "skill/install.sh", body: "echo unsafe"}}), DefaultArchiveAuditLimits())
+	if err != nil {
+		t.Fatalf("InspectArchive() rejected inert script metadata: %v", err)
+	}
+	if len(audit.Files) != 1 || !audit.Files[0].Script || audit.Files[0].Text {
+		t.Fatalf("script metadata = %#v", audit.Files)
 	}
 }
 

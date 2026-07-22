@@ -97,9 +97,6 @@ func InspectArchive(data []byte, limits ArchiveAuditLimits) (ArchiveAudit, error
 			return ArchiveAudit{}, fmt.Errorf("Skill ZIP contains too many files")
 		}
 		isScript := archiveScriptPath(entryPath)
-		if isScript {
-			return ArchiveAudit{}, fmt.Errorf("Skill ZIP contains script: %s", entry.Name)
-		}
 		isText := archiveTextPath(entryPath)
 		if entry.UncompressedSize64 > uint64(limits.MaxExpandedBytes-audit.ExpandedBytes) {
 			return ArchiveAudit{}, fmt.Errorf("Skill ZIP expanded content is too large")
