@@ -131,6 +131,31 @@ func TestExecuteHarnessExecutesFourCallsForSelectedTask(t *testing.T) {
 	}
 }
 
+func TestEvaluationThinkingFieldsUseDeepSeekV4NestedContract(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		enabled bool
+		want    string
+	}{
+		{name: "frozen disabled", enabled: false, want: "disabled"},
+		{name: "frozen enabled", enabled: true, want: "enabled"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fields := evaluationThinkingFields(evaluation.ModelConfigSnapshot{
+				Provider: "deepseek", Model: "deepseek-v4-pro",
+				Parameters: evaluation.ModelParameters{ThinkingEnabled: test.enabled},
+			})
+			thinking, ok := fields["thinking"].(map[string]any)
+			if !ok || thinking["type"] != test.want {
+				t.Fatalf("thinking = %#v, want nested type %q", fields["thinking"], test.want)
+			}
+			if _, legacy := fields["enable_thinking"]; legacy {
+				t.Fatalf("DeepSeek V4 request includes legacy enable_thinking: %#v", fields)
+			}
+		})
+	}
+}
+
 func TestPackageBlindAndSummarizeAcceptExplicitRunRoot(t *testing.T) {
 	root := testRunRoot(t)
 	for _, command := range []string{"package-blind", "summarize"} {

@@ -41,6 +41,7 @@ type HarnessPolicy struct {
 	AllowedSplits  []DataSplit          `json:"allowed_splits"`
 	CandidateCount int                  `json:"candidate_count"`
 	ThinkingStored bool                 `json:"thinking_persisted"`
+	ThinkingMode   string               `json:"thinking_mode"`
 	Stages         []HarnessStagePolicy `json:"stages"`
 }
 
@@ -87,6 +88,9 @@ func validateHarnessPolicy(path string, policy HarnessPolicy) error {
 	if policy.ThinkingStored {
 		return fmt.Errorf("harness policy cannot persist thinking")
 	}
+	if policy.ThinkingMode != "disabled" {
+		return fmt.Errorf("harness thinking_mode must be disabled")
+	}
 	expectedStages := []HarnessStage{HarnessStageCandidateA, HarnessStageCandidateB, HarnessStageReview, HarnessStageRevision}
 	if len(policy.Stages) != len(expectedStages) {
 		return fmt.Errorf("harness stages must be exactly candidate_a, candidate_b, review, revision")
@@ -105,6 +109,20 @@ func validateHarnessPolicy(path string, policy HarnessPolicy) error {
 		}
 		if err := validateHarnessStage(baseDir, index, stage); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// ValidateHarnessPolicyModelAgreement prevents an H cohort from using a snapshot
+// whose transport thinking mode conflicts with the frozen evaluation policy.
+func ValidateHarnessPolicyModelAgreement(policy HarnessPolicy, tasks []EvaluationTask) error {
+	if policy.ThinkingMode != "disabled" {
+		return fmt.Errorf("harness thinking_mode must be disabled")
+	}
+	for _, task := range tasks {
+		if task.ModelConfigSnapshot.Parameters.ThinkingEnabled {
+			return fmt.Errorf("task %s model thinking_enabled conflicts with harness thinking_mode disabled", task.ID)
 		}
 	}
 	return nil

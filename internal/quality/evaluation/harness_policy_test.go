@@ -26,6 +26,9 @@ func TestLoadHarnessPolicyAcceptsFrozenPolicy(t *testing.T) {
 	}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("stages = %#v, want %#v", got, want)
 	}
+	if policy.ThinkingMode != "disabled" {
+		t.Fatalf("thinking mode = %q, want disabled", policy.ThinkingMode)
+	}
 	if got := HarnessPolicySHA256(policy); !strings.HasPrefix(got, "sha256:") || len(got) != len("sha256:")+64 {
 		t.Fatalf("HarnessPolicySHA256() = %q", got)
 	}
@@ -37,8 +40,43 @@ func TestLoadHarnessPolicyAcceptsFrozenRepositoryPolicy(t *testing.T) {
 		t.Fatal("resolve test source path")
 	}
 	path := filepath.Join(filepath.Dir(source), "..", "..", "..", "docs", "project-design", "implementation", "evaluation", "harness-policy-v1.json")
-	if _, err := LoadHarnessPolicy(path); err != nil {
+	policy, err := LoadHarnessPolicy(path)
+	if err != nil {
 		t.Fatalf("LoadHarnessPolicy(frozen repository policy) error = %v", err)
+	}
+	if policy.ThinkingMode != "disabled" || policy.PolicyID == "p0-offline-harness-v1" {
+		t.Fatalf("repository policy must freeze disabled thinking with a new identity: %#v", policy)
+	}
+	wantTemplateHashes := []string{
+		"sha256:c73b2a7ae645c7c5b3b067fb41316a6d035945685fc92eeff1542c8f6b47db51",
+		"sha256:c73b2a7ae645c7c5b3b067fb41316a6d035945685fc92eeff1542c8f6b47db51",
+		"sha256:be4c6142b14a149f5c625360122849403979795e345dc97289aefc1b3d4a8073",
+		"sha256:28de666b55001e40fc859d327e9c5edbd79ba4c5439488a23aa0e2f843a5a2c8",
+	}
+	for index, want := range wantTemplateHashes {
+		if got := policy.Stages[index].TemplateSHA256; got != want {
+			t.Fatalf("stage %s template hash = %q, want unchanged %q", policy.Stages[index].Stage, got, want)
+		}
+	}
+	manifestPath := filepath.Join(filepath.Dir(source), "..", "..", "..", "docs", "project-design", "implementation", "evaluation", "corpus-manifest-v1.json")
+	manifest, err := LoadManifest(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection, err := NewRunSelection([]DataSplit{SplitTuning}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policyHash := HarnessPolicySHA256(policy)
+	newRunID := StableCohortRunID(manifest, selection, policyHash)
+	if policyHash != "sha256:10a70d3ae7cc9f4e3c3dbeaaaf28b62835db0e165ce887a995a4e010dd7a8ea5" {
+		t.Fatalf("policy hash = %s, want frozen thinking policy hash", policyHash)
+	}
+	if newRunID != "run-2f9cce8a71c485df0881cdbb" {
+		t.Fatalf("tuning run identity = %s, want stable thinking policy identity", newRunID)
+	}
+	if newRunID == "run-598b2c33eba7f255bd88eaec" {
+		t.Fatalf("new policy must produce a new stable run identity, got preserved run %s", newRunID)
 	}
 }
 
@@ -169,6 +207,21 @@ func TestLoadHarnessPolicyRejectsThinkingAndStageOrderDrift(t *testing.T) {
 	}
 }
 
+func TestLoadHarnessPolicyRequiresDisabledThinkingMode(t *testing.T) {
+	for _, mode := range []any{nil, "enabled", "unknown"} {
+		path := writeHarnessPolicyFixture(t, func(policy map[string]any) {
+			if mode == nil {
+				delete(policy, "thinking_mode")
+				return
+			}
+			policy["thinking_mode"] = mode
+		})
+		if _, err := LoadHarnessPolicy(path); err == nil || !strings.Contains(err.Error(), "thinking_mode") {
+			t.Fatalf("thinking_mode=%v error=%v, want rejection", mode, err)
+		}
+	}
+}
+
 func writeHarnessPolicyFixture(t *testing.T, mutate func(map[string]any)) string {
 	t.Helper()
 	root := t.TempDir()
@@ -188,7 +241,7 @@ func writeHarnessPolicyFixture(t *testing.T, mutate func(map[string]any)) string
 	}
 	policy := map[string]any{
 		"contract": "denova.quality-harness-policy", "version": "v1", "policy_id": "test-harness-v1",
-		"allowed_splits": []any{"tuning", "regression"}, "candidate_count": 2, "thinking_persisted": false,
+		"allowed_splits": []any{"tuning", "regression"}, "candidate_count": 2, "thinking_persisted": false, "thinking_mode": "disabled",
 		"stages": []any{
 			map[string]any{"stage": "candidate_a", "template_file": "runs/templates/candidate.md", "template_sha256": hashes["candidate.md"], "max_output_tokens": 4096, "max_output_bytes": 49152},
 			map[string]any{"stage": "candidate_b", "template_file": "runs/templates/candidate.md", "template_sha256": hashes["candidate.md"], "max_output_tokens": 4096, "max_output_bytes": 49152},

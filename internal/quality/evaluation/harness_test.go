@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -28,6 +29,16 @@ func TestExecuteOfflineHarnessRunsFourStagesAndProducesFinalH(t *testing.T) {
 		if got := h.Stages[3].Stage; got != HarnessStageRevision {
 			t.Fatalf("task %s final stage=%q", task.TaskID, got)
 		}
+	}
+}
+
+func TestValidateHarnessPolicyModelAgreementRejectsEnabledThinkingBeforeProviderCall(t *testing.T) {
+	policy := HarnessPolicy{ThinkingMode: "disabled"}
+	tasks := []EvaluationTask{{ID: "task.opening.001", ModelConfigSnapshot: ModelConfigSnapshot{
+		Parameters: ModelParameters{ThinkingEnabled: true},
+	}}}
+	if err := ValidateHarnessPolicyModelAgreement(policy, tasks); err == nil || !strings.Contains(err.Error(), "thinking") {
+		t.Fatalf("error=%v, want thinking policy mismatch", err)
 	}
 }
 

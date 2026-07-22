@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- 质量评测 / Quality evaluation：冻结 DeepSeek V4 的 S/H thinking 传输为嵌套 `thinking.type=disabled`，移除评测请求中的 legacy `enable_thinking`，并让 H policy 以新身份拒绝与 frozen model snapshot 不一致的 thinking 模式；4096 token 边界、模板和解析规则不变。
+- Quality evaluation: froze DeepSeek V4 S/H thinking transport to nested `thinking.type=disabled`, removed legacy `enable_thinking` from evaluation requests, and versioned H policy identity to reject thinking-mode disagreement with the frozen model snapshot; the 4096-token boundary, templates, and parsing rules are unchanged.
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).

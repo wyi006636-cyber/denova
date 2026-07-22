@@ -53,6 +53,9 @@ func ExecuteOfflineHarness(ctx context.Context, manifestPath, runRoot, runID, po
 	if err != nil {
 		return RunRecord{}, err
 	}
+	if err := ValidateHarnessPolicyModelAgreement(policy, selected); err != nil {
+		return RunRecord{}, err
+	}
 	if len(selected) != len(run.Tasks) {
 		return RunRecord{}, fmt.Errorf("run %s task set does not match selected cohort", runID)
 	}

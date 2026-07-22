@@ -1,7 +1,7 @@
 # P0-T07 三 Profile 质量评测协议 / Three-profile quality evaluation protocol
 
 > Contract: `denova.quality-evaluation-protocol/v1`
-> Status: P0-T07 offline tooling complete; committed legacy S arm is `ENVIRONMENT-BLOCKED`; H arm is `NOT-READY`. The P0-T09 evaluation-only offline H runner is implemented; its failed smoke is diagnosed, and the structured-review schema remediation is frozen. No successful completed live cohort or quality PASS exists.
+> Status: P0-T07 offline tooling complete; committed legacy S arm is `ENVIRONMENT-BLOCKED`; H arm is `NOT-READY`. The P0-T09 evaluation-only offline H runner is implemented. Its failed smoke is diagnosed: the frozen snapshot disabled thinking, but the old legacy transport field was ignored by DeepSeek V4, whose default thinking consumed the 4096 shared completion-token boundary. The evaluation policy now freezes the current V4 nested thinking transport. No successful completed live cohort or quality PASS exists.
 > Date: 2026-07-21
 > Scope: baseline and evaluation infrastructure plus the approved P0-T09 runner boundary; no product Harness workflow, runtime integration, P0-T09 success claim, Phase 1 implementation, or quality-gate PASS.
 
@@ -83,6 +83,10 @@ The S arm receives exactly the manifest-authorized input and task QualitySpec go
 该输出上限是两 arm 的公平参数边界，不是运行超时。CLI 不设置固定模型超时或最大运行时间。
 
 The output limit is a shared comparison boundary, not a runtime timeout. The CLI sets no fixed model timeout or maximum execution duration.
+
+冻结快照中的 `thinking_enabled: false` 是评测传输不变量：对于 DeepSeek V4，S 与 H 的共享评测生成器必须发送且仅发送 `"thinking":{"type":"disabled"}`，不得同时发送 legacy `enable_thinking`。若将来冻结快照明确为 `true`，同一路径发送 `"thinking":{"type":"enabled"}`。DeepSeek V4 默认启用 thinking，且 `max_tokens` 同时包含 reasoning 与最终回答；因此该 4096 边界不增加、不重试、不改变解析或输出上限。非 DeepSeek-V4 provider 保持既有兼容字段行为。
+
+`thinking_enabled: false` in the frozen snapshot is an evaluation transport invariant: for DeepSeek V4, the shared S/H evaluation generator sends only `"thinking":{"type":"disabled"}`, never the legacy `enable_thinking` field. If a future frozen snapshot explicitly sets it to `true`, the same path sends `"thinking":{"type":"enabled"}`. DeepSeek V4 enables thinking by default and includes reasoning plus final answer in `max_tokens`; this does not increase the 4096 boundary, add retries, or alter parsing/output limits. Non-DeepSeek-V4 providers retain their existing compatibility fields.
 
 ### 3.2 用量、成本与失败 / Usage, cost, and failure
 
@@ -203,9 +207,9 @@ Errors retain enough run/task/Profile context for diagnosis without credentials,
 - Summary: `NOT-READY`, paired samples `0`, missing arms `36`
 - Quality claim: none
 
-当前配置存在 DeepSeek Provider、`default` model profile 和 `deepseek-v4-pro` 标识，但当前有效配置与进程环境没有 API Key。此分类是环境事实，不是模型或项目质量失败。P0-T09 的评测专用离线 runner 与 CLI 已实现；一次失败的 smoke 已诊断为严格审稿 schema 不匹配（传输 JSON 有效，但 `preserve` 不是要求的字符串数组），且该 schema 修复现已冻结。当前仍没有成功完成的真实 live S/H cohort，不能改变历史 H 状态、伪造结果或宣称质量 PASS。
+当前配置存在 DeepSeek Provider、`default` model profile 和 `deepseek-v4-pro` 标识，但当前有效配置与进程环境没有 API Key。此分类是环境事实，不是模型或项目质量失败。P0-T09 的评测专用离线 runner 与 CLI 已实现；两次失败审稿调用均记录 `completion_tokens=4096`、`reasoning_tokens=4096`、最终回答 token 为 `0` 和 `empty_output`。根因不是审稿 schema：冻结 snapshot 已要求 `thinking_enabled:false`，但旧 `enable_thinking:false` 字段不符合 DeepSeek V4 的 `thinking.type` 合同，V4 默认 thinking 吞掉了共享上限。修复将 H policy 身份升级为 `p0-offline-harness-v1-thinking-disabled` 并冻结嵌套禁用传输；没有触发 live 调用、读取私有输出、改变历史运行状态或质量结论。
 
-The Provider/model identifiers exist, but no API key is available in the effective configuration or process environment. This is an environment fact, not a model or product quality result. The P0-T09 evaluation-only offline runner and CLI are implemented; one failed smoke is diagnosed as a strict review-schema mismatch (transport-valid JSON supplied preserve in the wrong string-array shape), and that remediation is now frozen. No successful completed live S/H cohort exists yet, so this cannot alter legacy H state, fabricate results, or claim a quality PASS.
+The Provider/model identifiers exist, but no API key is available in the effective configuration or process environment. This is an environment fact, not a model or product quality result. The P0-T09 evaluation-only offline runner and CLI are implemented; two failed review calls each recorded `completion_tokens=4096`, `reasoning_tokens=4096`, zero final-answer tokens, and `empty_output`. The root cause was not the review schema: the frozen snapshot already required `thinking_enabled:false`, but the legacy `enable_thinking:false` field did not satisfy DeepSeek V4's `thinking.type` contract, so V4's default thinking consumed the shared bound. The remediation versions H policy identity as `p0-offline-harness-v1-thinking-disabled` and freezes nested disabled transport; it made no live call, accessed no private output, and changes neither historical run status nor quality conclusions.
 
 ## 13. 命令 / Commands
 

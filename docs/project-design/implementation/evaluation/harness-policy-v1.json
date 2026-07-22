@@ -1,10 +1,11 @@
 {
   "contract": "denova.quality-harness-policy",
   "version": "v1",
-  "policy_id": "p0-offline-harness-v1",
+  "policy_id": "p0-offline-harness-v1-thinking-disabled",
   "allowed_splits": ["tuning", "regression"],
   "candidate_count": 2,
   "thinking_persisted": false,
+  "thinking_mode": "disabled",
   "stages": [
     {
       "stage": "candidate_a",

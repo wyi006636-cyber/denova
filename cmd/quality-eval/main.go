@@ -236,6 +236,9 @@ func createCohortRun(ctx context.Context, manifestPath, splitsValue, tasksValue,
 	if err != nil {
 		return err
 	}
+	if err := evaluation.ValidateHarnessPolicyModelAgreement(policy, selectedTasks); err != nil {
+		return err
+	}
 	selectedManifest := manifest
 	selectedManifest.Tasks = selectedTasks
 	cfg, _, err := config.LoadWithWorkspace("")
@@ -468,9 +471,8 @@ func (generator *einoGenerator) generate(ctx context.Context, model evaluation.M
 		APIKey: generator.apiKey, BaseURL: model.BaseURL, Model: model.Model,
 		Temperature: &temperature, MaxTokens: &maxTokens, HTTPClient: providercompat.WrapHTTPClient(nil),
 	}
-	thinking := false
 	extraFields := map[string]any{}
-	for key, value := range providercompat.ThinkingExtraFields(modelConfig, &thinking) {
+	for key, value := range evaluationThinkingFields(model) {
 		extraFields[key] = value
 	}
 	for key, value := range providercompat.ExtraRequestFields(modelConfig) {
@@ -507,4 +509,16 @@ func (generator *einoGenerator) generate(ctx context.Context, model evaluation.M
 		result.Usage.TotalTokens = usage.TotalTokens
 	}
 	return result, nil
+}
+
+func evaluationThinkingFields(model evaluation.ModelConfigSnapshot) map[string]any {
+	if strings.EqualFold(strings.TrimSpace(model.Provider), "deepseek") && strings.HasPrefix(strings.ToLower(strings.TrimSpace(model.Model)), "deepseek-v4") {
+		mode := "disabled"
+		if model.Parameters.ThinkingEnabled {
+			mode = "enabled"
+		}
+		return map[string]any{"thinking": map[string]any{"type": mode}}
+	}
+	thinking := model.Parameters.ThinkingEnabled
+	return providercompat.ThinkingExtraFields(openai.ChatModelConfig{BaseURL: model.BaseURL, Model: model.Model}, &thinking)
 }
