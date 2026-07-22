@@ -66,6 +66,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复离线 Harness H 的失败调用证据与成本核算：真实 Provider 调用（包括错误、空输出、超限和结构化审稿失败）现保留私有 attempt 历史、真实可用用量/成本和安全诊断类别；请求构建和既有输出读取等调用前失败明确记录但不伪造付费调用。含字节的失败响应以原子私有文件及哈希保存；非 Windows 使用 `0600`，Windows 使用当前 owner 的受保护单一 ACE ACL。失败调用计入聚合与有界运行索引，但不会泄露到盲包、汇总或索引。恢复运行不会覆盖已付费失败尝试，且只有四个成功阶段与恰好四次真实 H Provider 调用才能进入 READY。
+- Fixed failed-call evidence and accounting for offline Harness H: real Provider calls—including errors, empty or oversized output, and structured-review failures—now retain private attempt history, available actual usage/cost, and a safe diagnostic category; pre-call request-build and prior-output-read failures are recorded without fabricating paid calls. Failed responses with bytes are atomically saved with hashes: `0600` on non-Windows and a protected single-ACE ACL for the current owner on Windows. Failed calls count in aggregates and bounded run indexes without leaking into blind packages, summaries, or indexes. Resume no longer overwrites paid failed attempts, and READY requires four successful stages and exactly four actual H Provider calls.
+
 - 重新生成虾评实时证据报告：其 10 个失败数现在明确表示采集器失败总数，不再错误表述为正式 EvidenceVector 的计数。
 - Regenerated the Xiaping live evidence report: its count of 10 explicitly denotes collector failures and is no longer misrepresented as a formal EvidenceVector count.
 - 修复虾评正式 EvidenceVector 的资格边界：正式向量和报告校验现在严格复用 `credibleWritingMatch`，媒体专用及未映射候选不会进入发布向量；远端证据采集失败数作为仅运行时的非持久化计数独立传递给报告。

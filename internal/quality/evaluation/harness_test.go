@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -38,14 +39,19 @@ func TestExecuteOfflineHarnessResumesMatchingStagesWithoutPaidRepeats(t *testing
 	}
 	second := &recordingHarnessGenerator{}
 	run, err := ExecuteOfflineHarness(context.Background(), fixture.ManifestPath, fixture.RunRoot, fixture.RunID, fixture.PolicyPath, second)
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatal("a resumed paid failed call must prevent a four-call READY sample")
 	}
 	if second.Count(HarnessStageCandidateA) != 0 || second.Count(HarnessStageCandidateB) != 0 {
 		t.Fatal("valid persisted candidates were repeated")
 	}
 	if got, want := len(second.Requests), 2*len(run.Tasks); got != want {
 		t.Fatalf("resume calls=%d want=%d", got, want)
+	}
+	for _, task := range run.Tasks {
+		if task.Arms["H"].Status == StatusReady {
+			t.Fatalf("task %s unexpectedly became READY", task.TaskID)
+		}
 	}
 }
 
@@ -64,8 +70,8 @@ func TestExecuteOfflineHarnessInvalidatesMismatchedStageHash(t *testing.T) {
 		t.Fatal(err)
 	}
 	second := &recordingHarnessGenerator{}
-	if _, err := ExecuteOfflineHarness(context.Background(), fixture.ManifestPath, fixture.RunRoot, fixture.RunID, fixture.PolicyPath, second); err != nil {
-		t.Fatal(err)
+	if _, err := ExecuteOfflineHarness(context.Background(), fixture.ManifestPath, fixture.RunRoot, fixture.RunID, fixture.PolicyPath, second); err == nil {
+		t.Fatal("replacement attempt must prevent a five-call H sample from becoming ready")
 	}
 	if second.Count(HarnessStageCandidateA) != 1 || second.Count(HarnessStageCandidateB) != 0 {
 		t.Fatalf("hash invalidation calls: A=%d B=%d", second.Count(HarnessStageCandidateA), second.Count(HarnessStageCandidateB))
@@ -74,7 +80,12 @@ func TestExecuteOfflineHarnessInvalidatesMismatchedStageHash(t *testing.T) {
 
 func TestExecuteOfflineHarnessRecordsStructuredReviewFailure(t *testing.T) {
 	fixture := newHarnessExecutionFixture(t)
-	generator := &recordingHarnessGenerator{InvalidReview: true}
+	amount := 0.42
+	generator := &recordingHarnessGenerator{InvalidReview: true, ReviewResult: GenerationResult{
+		Output: `{"preferred_candidate":"A","issues":[],"preserve":[],"unexpected":true}`,
+		Usage:  UsageRecord{PromptTokens: 11, CompletionTokens: 7, TotalTokens: 18},
+		Cost:   CostRecord{Status: "recorded", Currency: "USD", Amount: &amount},
+	}}
 	_, err := ExecuteOfflineHarness(context.Background(), fixture.ManifestPath, fixture.RunRoot, fixture.RunID, fixture.PolicyPath, generator)
 	if err == nil {
 		t.Fatal("invalid structured review must fail")
@@ -85,8 +96,88 @@ func TestExecuteOfflineHarnessRecordsStructuredReviewFailure(t *testing.T) {
 	}
 	for _, task := range run.Tasks {
 		h := task.Arms["H"]
-		if h.Status != StatusFailed || h.FailureType != "harness_review_failed" || h.OutputFile != "" || len(h.Stages) != 3 || h.Stages[2].Status != StatusFailed {
+		if h.Status != StatusFailed || h.FailureType != "harness_review_failed" || h.OutputFile != "" || len(h.Stages) != 3 || h.Stages[2].Status != StatusFailed || h.Usage.ModelCalls != 3 {
 			t.Fatalf("task %s failed H=%#v", task.TaskID, h)
+		}
+		failed := h.Stages[2]
+		if failed.FailureDetail != "contract_mismatch" || failed.FailureOutputSHA256 == "" || failed.FailureOutputFile == "" || len(failed.Attempts) != 1 || failed.Attempts[0].Usage.TotalTokens != 18 {
+			t.Fatalf("task %s failed review evidence=%#v", task.TaskID, failed)
+		}
+		failurePath := filepath.Join(fixture.RunRoot, fixture.RunID, filepath.FromSlash(failed.FailureOutputFile))
+		info, err := os.Stat(failurePath)
+		if err != nil {
+			t.Fatalf("task %s private failure evidence mode: info=%v err=%v", task.TaskID, info, err)
+		}
+		if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
+			t.Fatalf("task %s private failure evidence mode=%#o want=0600", task.TaskID, info.Mode().Perm())
+		}
+	}
+	blind, err := PackageBlind(fixture.RunRoot, fixture.RunID)
+	if err != nil || blind.Status != StatusNotReady || len(blind.Samples) != 0 {
+		t.Fatalf("blind package=%#v err=%v", blind, err)
+	}
+}
+
+func TestExecuteOfflineHarnessGeneratorErrorRecordsAttemptWithoutOutput(t *testing.T) {
+	fixture := newHarnessExecutionFixture(t)
+	generator := &recordingHarnessGenerator{FailStage: HarnessStageCandidateA}
+	_, err := ExecuteOfflineHarness(context.Background(), fixture.ManifestPath, fixture.RunRoot, fixture.RunID, fixture.PolicyPath, generator)
+	if err == nil {
+		t.Fatal("generator error must fail")
+	}
+	run, err := LoadRun(fixture.RunRoot, fixture.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed := run.Tasks[0].Arms["H"].Stages[0]
+	if failed.Usage.ModelCalls != 1 || len(failed.Attempts) != 1 || !failed.Attempts[0].ProviderAttempted || failed.FailureOutputFile != "" || failed.FailureOutputSHA256 != "" || failed.Cost.Status != "NOT-AVAILABLE" {
+		t.Fatalf("failed generator evidence=%#v", failed)
+	}
+}
+
+func TestPersistHarnessPreProviderFailuresDoNotFabricateModelCalls(t *testing.T) {
+	for _, failureType := range []string{"request_build_failed", "prior_output_unreadable"} {
+		t.Run(failureType, func(t *testing.T) {
+			fixture := newHarnessExecutionFixture(t)
+			run, err := LoadRun(fixture.RunRoot, fixture.RunID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			runTask := &run.Tasks[0]
+			if err := persistHarnessStageFailure(fixture.RunRoot, &run, runTask, runTask.Arms["H"], 0, HarnessStageCandidateA, GenerationResult{}, false, "harness_candidate_a_failed", failureType); err != nil {
+				t.Fatal(err)
+			}
+			stored, err := LoadRun(fixture.RunRoot, fixture.RunID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			failed := stored.Tasks[0].Arms["H"].Stages[0]
+			if failed.Usage.ModelCalls != 0 || len(failed.Attempts) != 1 || failed.Attempts[0].ProviderAttempted || failed.Attempts[0].FailureDetail != failureType {
+				t.Fatalf("pre-provider failure=%#v", failed)
+			}
+		})
+	}
+}
+
+func TestExecuteOfflineHarnessResumePreservesFailedAttemptAndBlocksFourCallReady(t *testing.T) {
+	fixture := newHarnessExecutionFixture(t)
+	first := &recordingHarnessGenerator{InvalidReview: true}
+	if _, err := ExecuteOfflineHarness(context.Background(), fixture.ManifestPath, fixture.RunRoot, fixture.RunID, fixture.PolicyPath, first); err == nil {
+		t.Fatal("first invalid review must fail")
+	}
+	second := &recordingHarnessGenerator{}
+	_, err := ExecuteOfflineHarness(context.Background(), fixture.ManifestPath, fixture.RunRoot, fixture.RunID, fixture.PolicyPath, second)
+	if err == nil {
+		t.Fatal("five-call resumed sample must not become ready")
+	}
+	run, err := LoadRun(fixture.RunRoot, fixture.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, task := range run.Tasks {
+		h := task.Arms["H"]
+		if h.Status == StatusReady || h.Usage.ModelCalls != 5 || len(h.Stages[2].Attempts) != 2 {
+			t.Fatalf("task %s resumed H=%#v", task.TaskID, h)
 		}
 	}
 }
@@ -185,6 +276,8 @@ type recordingHarnessGenerator struct {
 	Requests      []HarnessRequest
 	FailStage     HarnessStage
 	InvalidReview bool
+	ErrorResult   GenerationResult
+	ReviewResult  GenerationResult
 	BeforeResult  func(HarnessRequest)
 }
 
@@ -194,9 +287,12 @@ func (g *recordingHarnessGenerator) GenerateHarness(_ context.Context, request H
 		g.BeforeResult(request)
 	}
 	if request.Stage == g.FailStage {
-		return GenerationResult{}, fmt.Errorf("injected %s failure", request.Stage)
+		return g.ErrorResult, fmt.Errorf("injected %s failure", request.Stage)
 	}
 	if request.Stage == HarnessStageReview {
+		if g.ReviewResult.Output != "" {
+			return g.ReviewResult, nil
+		}
 		if g.InvalidReview {
 			return GenerationResult{Output: `{"preferred_candidate":"A","issues":[],"preserve":[],"unexpected":true}`}, nil
 		}

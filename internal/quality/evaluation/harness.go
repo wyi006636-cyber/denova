@@ -136,34 +136,34 @@ func executeHarnessTask(ctx context.Context, runRoot string, run *RunRecord, run
 			StagePolicy: stagePolicy, SystemTemplate: templates[stage], Model: task.ModelConfigSnapshot,
 		})
 		if err != nil {
-			return failHarnessStage(runRoot, run, runTask, h, index, stage, "harness_"+string(stage)+"_failed", err.Error())
+			return failHarnessStage(runRoot, run, runTask, h, index, stage, GenerationResult{}, false, "harness_"+string(stage)+"_failed", "request_build_failed")
 		}
 		if index < len(h.Stages) && validHarnessStageOutput(filepath.Join(runRoot, run.RunID), h.Stages[index], request, stagePolicy, task.ModelConfigSnapshot.SHA256, policyHash) {
 			payload, err := os.ReadFile(filepath.Join(runRoot, run.RunID, filepath.FromSlash(h.Stages[index].OutputFile)))
 			if err != nil {
-				return failHarnessStage(runRoot, run, runTask, h, index, stage, "harness_"+string(stage)+"_failed", err.Error())
+				return failHarnessStage(runRoot, run, runTask, h, index, stage, GenerationResult{}, false, "harness_"+string(stage)+"_failed", "prior_output_unreadable")
 			}
 			outputs[stage] = string(payload)
 			continue
 		}
 		result, err := generator.GenerateHarness(ctx, request)
 		if err != nil {
-			return failHarnessStage(runRoot, run, runTask, h, index, stage, "harness_"+string(stage)+"_failed", "generator failed")
+			return failHarnessStage(runRoot, run, runTask, h, index, stage, result, true, "harness_"+string(stage)+"_failed", "provider_error")
 		}
 		if strings.TrimSpace(result.Output) == "" {
-			return failHarnessStage(runRoot, run, runTask, h, index, stage, "harness_"+string(stage)+"_failed", "generator returned empty output")
+			return failHarnessStage(runRoot, run, runTask, h, index, stage, result, true, "harness_"+string(stage)+"_failed", "empty_output")
 		}
 		if len([]byte(result.Output)) > stagePolicy.MaxOutputBytes {
-			return failHarnessStage(runRoot, run, runTask, h, index, stage, "harness_"+string(stage)+"_failed", "generator output exceeds frozen stage byte limit")
+			return failHarnessStage(runRoot, run, runTask, h, index, stage, result, true, "harness_"+string(stage)+"_failed", "oversize_output")
 		}
 		if stage == HarnessStageReview {
 			if _, err := ParseHarnessReview([]byte(result.Output), stagePolicy.MaxOutputBytes, task.QualitySpec.Goals); err != nil {
-				return failHarnessStage(runRoot, run, runTask, h, index, stage, "harness_review_failed", "structured review validation failed")
+				return failHarnessStage(runRoot, run, runTask, h, index, stage, result, true, "harness_review_failed", harnessReviewFailureDetail(err))
 			}
 		}
 		outputRel := filepath.ToSlash(filepath.Join("private", "outputs", task.ID, "h", string(stage)+".txt"))
 		if err := writePrivateHarnessOutput(filepath.Join(runRoot, run.RunID, filepath.FromSlash(outputRel)), []byte(result.Output)); err != nil {
-			return failHarnessOutputPersistence(runRoot, run, runTask, h, index, stage, err)
+			return failHarnessOutputPersistence(runRoot, run, runTask, h, index, stage, result, err)
 		}
 		record := HarnessStageRecord{
 			Stage: stage, Status: StatusReady, InputSHA256: request.InputSHA256, OutputSHA256: OutputSHA256(result.Output), OutputFile: outputRel,
@@ -171,8 +171,10 @@ func executeHarnessTask(ctx context.Context, runRoot string, run *RunRecord, run
 			Usage: normalizedHarnessUsage(result.Usage), Cost: normalizedHarnessCost(result.Cost),
 		}
 		if index < len(h.Stages) {
+			record.Attempts = append(h.Stages[index].Attempts, HarnessCallAttempt{ProviderAttempted: true, Status: StatusReady, Usage: record.Usage, Cost: record.Cost})
 			h.Stages[index] = record
 		} else {
+			record.Attempts = []HarnessCallAttempt{{ProviderAttempted: true, Status: StatusReady, Usage: record.Usage, Cost: record.Cost}}
 			h.Stages = append(h.Stages, record)
 		}
 		outputs[stage] = result.Output
@@ -184,6 +186,9 @@ func executeHarnessTask(ctx context.Context, runRoot string, run *RunRecord, run
 	}
 	h = readyHarnessArm(h)
 	runTask.Arms["H"] = h
+	if h.Status != StatusReady {
+		return fmt.Errorf("run %s task %s Harness does not have exactly four attempted calls", run.RunID, runTask.TaskID)
+	}
 	return nil
 }
 
@@ -199,25 +204,46 @@ func validHarnessStageOutput(runDir string, record HarnessStageRecord, request H
 	return err == nil && hash == record.OutputSHA256
 }
 
-func failHarnessStage(runRoot string, run *RunRecord, runTask *RunTask, h ArmRecord, index int, stage HarnessStage, failureType, detail string) error {
-	if err := persistHarnessStageFailure(runRoot, run, runTask, h, index, stage, failureType, detail); err != nil {
+func failHarnessStage(runRoot string, run *RunRecord, runTask *RunTask, h ArmRecord, index int, stage HarnessStage, result GenerationResult, providerAttempted bool, failureType, detail string) error {
+	if err := persistHarnessStageFailure(runRoot, run, runTask, h, index, stage, result, providerAttempted, failureType, detail); err != nil {
 		return err
 	}
 	return fmt.Errorf("run %s task %s Harness %s failed: %s", run.RunID, runTask.TaskID, stage, detail)
 }
 
-func failHarnessOutputPersistence(runRoot string, run *RunRecord, runTask *RunTask, h ArmRecord, index int, stage HarnessStage, cause error) error {
-	if err := persistHarnessStageFailure(runRoot, run, runTask, h, index, stage, "harness_"+string(stage)+"_failed", "output persistence failed"); err != nil {
+func failHarnessOutputPersistence(runRoot string, run *RunRecord, runTask *RunTask, h ArmRecord, index int, stage HarnessStage, result GenerationResult, cause error) error {
+	if err := persistHarnessStageFailure(runRoot, run, runTask, h, index, stage, result, true, "harness_"+string(stage)+"_failed", "output_persistence_failed"); err != nil {
 		return err
 	}
 	return harnessRecordError(run.RunID, runTask.TaskID, stage, cause)
 }
 
-func persistHarnessStageFailure(runRoot string, run *RunRecord, runTask *RunTask, h ArmRecord, index int, stage HarnessStage, failureType, detail string) error {
-	if index < len(h.Stages) {
-		h.Stages = append([]HarnessStageRecord(nil), h.Stages[:index]...)
+func persistHarnessStageFailure(runRoot string, run *RunRecord, runTask *RunTask, h ArmRecord, index int, stage HarnessStage, result GenerationResult, providerAttempted bool, failureType, detail string) error {
+	usage, cost := normalizedHarnessAttempt(result, providerAttempted)
+	attempt := HarnessCallAttempt{ProviderAttempted: providerAttempted, Status: StatusFailed, Usage: usage, Cost: cost, FailureType: failureType, FailureDetail: detail}
+	if result.Output != "" {
+		attemptNumber := 1
+		if index < len(h.Stages) {
+			attemptNumber = len(h.Stages[index].Attempts) + 1
+		}
+		outputRel := filepath.ToSlash(filepath.Join("private", "failures", runTask.TaskID, "h", string(stage)+fmt.Sprintf("-%d.txt", attemptNumber)))
+		if err := writePrivateHarnessOutput(filepath.Join(runRoot, run.RunID, filepath.FromSlash(outputRel)), []byte(result.Output)); err != nil {
+			return harnessRecordError(run.RunID, runTask.TaskID, stage, err)
+		}
+		attempt.FailureOutputFile = outputRel
+		attempt.FailureOutputSHA256 = OutputSHA256(result.Output)
 	}
-	h.Stages = append(h.Stages, HarnessStageRecord{Stage: stage, Status: StatusFailed, FailureType: failureType})
+	record := HarnessStageRecord{Stage: stage, Status: StatusFailed, Usage: usage, Cost: cost, FailureType: failureType, FailureDetail: detail, FailureOutputFile: attempt.FailureOutputFile, FailureOutputSHA256: attempt.FailureOutputSHA256, Attempts: []HarnessCallAttempt{attempt}}
+	if index < len(h.Stages) {
+		record.InputSHA256 = h.Stages[index].InputSHA256
+		record.ModelConfigSHA256 = h.Stages[index].ModelConfigSHA256
+		record.HarnessPolicySHA256 = h.Stages[index].HarnessPolicySHA256
+		record.TemplateSHA256 = h.Stages[index].TemplateSHA256
+		record.Attempts = append(h.Stages[index].Attempts, attempt)
+		h.Stages = append(append([]HarnessStageRecord(nil), h.Stages[:index]...), record)
+	} else {
+		h.Stages = append(h.Stages, record)
+	}
 	h.Status = StatusFailed
 	h.FailureType = failureType
 	h.FailureDetail = detail
@@ -237,7 +263,7 @@ func readyHarnessArm(h ArmRecord) ArmRecord {
 	h.FailureType, h.FailureDetail = "", ""
 	h.OutputFile, h.OutputSHA256 = "", ""
 	h.Usage, h.Cost = aggregateHarnessStages(h.Stages)
-	if len(h.Stages) == 4 && h.Stages[3].Stage == HarnessStageRevision && h.Stages[3].Status == StatusReady {
+	if hasFourReadyHarnessStages(h.Stages) && h.Usage.ModelCalls == 4 {
 		h.Status = StatusReady
 		h.OutputFile = h.Stages[3].OutputFile
 		h.OutputSHA256 = h.Stages[3].OutputSHA256
@@ -245,35 +271,86 @@ func readyHarnessArm(h ArmRecord) ArmRecord {
 	return h
 }
 
+func hasFourReadyHarnessStages(stages []HarnessStageRecord) bool {
+	expected := []HarnessStage{HarnessStageCandidateA, HarnessStageCandidateB, HarnessStageReview, HarnessStageRevision}
+	if len(stages) != len(expected) {
+		return false
+	}
+	for index, stage := range stages {
+		if stage.Stage != expected[index] || stage.Status != StatusReady {
+			return false
+		}
+	}
+	return true
+}
+
 func aggregateHarnessStages(stages []HarnessStageRecord) (UsageRecord, CostRecord) {
 	usage := UsageRecord{}
 	for _, stage := range stages {
-		if stage.Status != StatusReady {
-			continue
+		for _, attempt := range harnessStageAttempts(stage) {
+			if !attempt.ProviderAttempted {
+				continue
+			}
+			usage.PromptTokens += attempt.Usage.PromptTokens
+			usage.CompletionTokens += attempt.Usage.CompletionTokens
+			usage.ReasoningTokens += attempt.Usage.ReasoningTokens
+			usage.TotalTokens += attempt.Usage.TotalTokens
+			usage.ModelCalls += attempt.Usage.ModelCalls
 		}
-		usage.PromptTokens += stage.Usage.PromptTokens
-		usage.CompletionTokens += stage.Usage.CompletionTokens
-		usage.ReasoningTokens += stage.Usage.ReasoningTokens
-		usage.TotalTokens += stage.Usage.TotalTokens
-		usage.ModelCalls += stage.Usage.ModelCalls
 	}
 	if len(stages) == 0 {
 		return usage, CostRecord{Status: "not_recorded", Note: "No successful Harness stage response was recorded."}
 	}
 	var amount float64
 	currency := ""
+	providerAttempts := 0
 	for _, stage := range stages {
-		if stage.Status != StatusReady || stage.Cost.Status != "recorded" || stage.Cost.Amount == nil || strings.TrimSpace(stage.Cost.Currency) == "" {
-			return usage, CostRecord{Status: "NOT-AVAILABLE", Note: "Harness stage pricing was not fully recorded."}
+		for _, attempt := range harnessStageAttempts(stage) {
+			if !attempt.ProviderAttempted {
+				continue
+			}
+			providerAttempts++
+			if attempt.Cost.Status != "recorded" || attempt.Cost.Amount == nil || strings.TrimSpace(attempt.Cost.Currency) == "" {
+				return usage, CostRecord{Status: "NOT-AVAILABLE", Note: "Harness stage pricing was not fully recorded."}
+			}
+			if currency == "" {
+				currency = attempt.Cost.Currency
+			} else if currency != attempt.Cost.Currency {
+				return usage, CostRecord{Status: "NOT-AVAILABLE", Note: "Harness stage prices use different currencies."}
+			}
+			amount += *attempt.Cost.Amount
 		}
-		if currency == "" {
-			currency = stage.Cost.Currency
-		} else if currency != stage.Cost.Currency {
-			return usage, CostRecord{Status: "NOT-AVAILABLE", Note: "Harness stage prices use different currencies."}
-		}
-		amount += *stage.Cost.Amount
+	}
+	if providerAttempts == 0 {
+		return usage, CostRecord{Status: "not_recorded", Note: "No Harness Provider call was attempted."}
 	}
 	return usage, CostRecord{Status: "recorded", Currency: currency, Amount: &amount}
+}
+
+func harnessStageAttempts(stage HarnessStageRecord) []HarnessCallAttempt {
+	if len(stage.Attempts) != 0 {
+		return stage.Attempts
+	}
+	return []HarnessCallAttempt{{ProviderAttempted: stage.Status == StatusReady, Status: stage.Status, Usage: stage.Usage, Cost: stage.Cost}}
+}
+
+func normalizedHarnessAttempt(result GenerationResult, providerAttempted bool) (UsageRecord, CostRecord) {
+	if !providerAttempted {
+		return UsageRecord{}, CostRecord{Status: "not_recorded", Note: "Provider was not called."}
+	}
+	return normalizedHarnessUsage(result.Usage), normalizedHarnessCost(result.Cost)
+}
+
+func harnessReviewFailureDetail(err error) string {
+	message := err.Error()
+	switch {
+	case strings.Contains(message, "sensitive"):
+		return "sensitive_field"
+	case strings.Contains(message, "decode") || strings.Contains(message, "JSON"):
+		return "invalid_json"
+	default:
+		return "contract_mismatch"
+	}
 }
 
 func normalizedHarnessUsage(usage UsageRecord) UsageRecord {
@@ -292,13 +369,16 @@ func writePrivateHarnessOutput(path string, payload []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
+	if err := protectPrivateEvidence(filepath.Dir(path), true); err != nil {
+		return err
+	}
 	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp-*")
 	if err != nil {
 		return err
 	}
 	tmpPath := tmp.Name()
 	defer os.Remove(tmpPath)
-	if err := tmp.Chmod(0o600); err != nil {
+	if err := protectPrivateEvidence(tmpPath, false); err != nil {
 		_ = tmp.Close()
 		return err
 	}
@@ -313,7 +393,14 @@ func writePrivateHarnessOutput(path string, payload []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpPath, path)
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	if err := protectPrivateEvidence(path, false); err != nil {
+		_ = os.Remove(path)
+		return err
+	}
+	return nil
 }
 
 func harnessRecordError(runID, taskID string, stage HarnessStage, err error) error {

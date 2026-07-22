@@ -75,17 +75,33 @@ type ArmRecord struct {
 
 // HarnessStageRecord is the private, resumable evidence for one fixed Harness stage.
 type HarnessStageRecord struct {
-	Stage               HarnessStage `json:"stage"`
+	Stage               HarnessStage         `json:"stage"`
+	Status              ResultStatus         `json:"status"`
+	InputSHA256         string               `json:"input_sha256"`
+	OutputSHA256        string               `json:"output_sha256,omitempty"`
+	OutputFile          string               `json:"output_file,omitempty"`
+	ModelConfigSHA256   string               `json:"model_config_sha256"`
+	HarnessPolicySHA256 string               `json:"harness_policy_sha256"`
+	TemplateSHA256      string               `json:"template_sha256"`
+	Usage               UsageRecord          `json:"usage"`
+	Cost                CostRecord           `json:"cost"`
+	FailureType         string               `json:"failure_type,omitempty"`
+	FailureDetail       string               `json:"failure_detail,omitempty"`
+	FailureOutputSHA256 string               `json:"failure_output_sha256,omitempty"`
+	FailureOutputFile   string               `json:"failure_output_file,omitempty"`
+	Attempts            []HarnessCallAttempt `json:"attempts,omitempty"`
+}
+
+// HarnessCallAttempt preserves accounting for every provider call without exposing failed response bytes.
+type HarnessCallAttempt struct {
+	ProviderAttempted   bool         `json:"provider_attempted"`
 	Status              ResultStatus `json:"status"`
-	InputSHA256         string       `json:"input_sha256"`
-	OutputSHA256        string       `json:"output_sha256,omitempty"`
-	OutputFile          string       `json:"output_file,omitempty"`
-	ModelConfigSHA256   string       `json:"model_config_sha256"`
-	HarnessPolicySHA256 string       `json:"harness_policy_sha256"`
-	TemplateSHA256      string       `json:"template_sha256"`
 	Usage               UsageRecord  `json:"usage"`
 	Cost                CostRecord   `json:"cost"`
 	FailureType         string       `json:"failure_type,omitempty"`
+	FailureDetail       string       `json:"failure_detail,omitempty"`
+	FailureOutputSHA256 string       `json:"failure_output_sha256,omitempty"`
+	FailureOutputFile   string       `json:"failure_output_file,omitempty"`
 }
 
 func StableRunID(manifest CorpusManifest) string {
