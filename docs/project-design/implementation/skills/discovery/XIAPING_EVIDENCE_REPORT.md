@@ -9,8 +9,8 @@
 - Proposal count / 提案数量: 4
 - Duplicate clusters / 重复簇数量: 1
 - Gap count / 缺口数量: 2
-- Evidence-cache failures / 证据缓存失败数: 10
-- Anomaly facts / 异常事实: 663
+- Evidence-collection failures / 证据采集失败数: 10
+- Anomaly facts / 异常事实: 506
 - DATA-RICH lane / 数据充足通道: 34
 - EXPLORATION lane / 探索通道: 31
 
