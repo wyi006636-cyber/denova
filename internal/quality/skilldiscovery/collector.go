@@ -448,13 +448,21 @@ func (collector *Collector) CollectCandidateEvidence(ctx context.Context, option
 		detailURL := evidenceDetailURL(base, candidate.Skill.ID)
 		payload, receipt, readErr := cache.ReadPage("skill-detail", detailURL.String())
 		if readErr != nil {
+			if !errors.Is(readErr, os.ErrNotExist) {
+				return details, comments, failures, fmt.Errorf("read candidate detail cache: %w", readErr)
+			}
 			payload, receipt, readErr = collector.fetchPage(ctx, detailURL, options.CollectorOptions, &lastRequest)
 			if readErr == nil {
 				receipt.Kind, receipt.Key = "skill-detail", detailURL.String()
-				readErr = cache.WritePage("skill-detail", detailURL.String(), payload, receipt)
+				if err := cache.WritePage("skill-detail", detailURL.String(), payload, receipt); err != nil {
+					return details, comments, failures, fmt.Errorf("write candidate detail cache: %w", err)
+				}
 			}
 		}
 		if readErr != nil {
+			if isFatalEvidenceError(readErr) {
+				return details, comments, failures, readErr
+			}
 			failures = append(failures, evidenceFailure("skill-detail", detailURL.String(), readErr))
 			continue
 		}
@@ -469,16 +477,27 @@ func (collector *Collector) CollectCandidateEvidence(ctx context.Context, option
 		expectedTotal := detail.CommentCount
 		expectedSet := detail.CommentCountPresent
 		for page := 1; ; page++ {
+			if err := ctx.Err(); err != nil {
+				return details, comments, failures, err
+			}
 			pageURL := evidenceCommentsURL(base, candidate.Skill.ID, options.CommentPageSize, page)
 			payload, receipt, readErr = cache.ReadPage("skill-comments", pageURL.String())
 			if readErr != nil {
+				if !errors.Is(readErr, os.ErrNotExist) {
+					return details, comments, failures, fmt.Errorf("read candidate comments cache: %w", readErr)
+				}
 				payload, receipt, readErr = collector.fetchPage(ctx, pageURL, options.CollectorOptions, &lastRequest)
 				if readErr == nil {
 					receipt.Kind, receipt.Key = "skill-comments", pageURL.String()
-					readErr = cache.WritePage("skill-comments", pageURL.String(), payload, receipt)
+					if err := cache.WritePage("skill-comments", pageURL.String(), payload, receipt); err != nil {
+						return details, comments, failures, fmt.Errorf("write candidate comments cache: %w", err)
+					}
 				}
 			}
 			if readErr != nil {
+				if isFatalEvidenceError(readErr) {
+					return details, comments, failures, readErr
+				}
 				failures = append(failures, evidenceFailure("skill-comments", pageURL.String(), readErr))
 				complete = false
 				break
@@ -537,6 +556,10 @@ func (collector *Collector) CollectCandidateEvidence(ctx context.Context, option
 		}
 	}
 	return details, comments, failures, nil
+}
+
+func isFatalEvidenceError(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 func evidenceFailure(kind, key string, err error) SnapshotFailure {

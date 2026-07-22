@@ -203,7 +203,7 @@ func validateDiscoveryArtifacts(artifacts DiscoveryArtifacts) error {
 		}
 		key := vector.SkillID + "\x00" + vector.CapabilityID
 		candidate, exists := candidateByArtifactID(artifacts.Candidates, vector.SkillID)
-		if !exists || !credibleWritingMatch(candidate, vector.CapabilityID) {
+		if !exists || !evidenceVectorMatch(candidate, vector.CapabilityID) {
 			return fmt.Errorf("evidence vector capability is not a credible candidate match")
 		}
 		if _, ok := vectors[key]; ok {
@@ -245,6 +245,19 @@ func validateDiscoveryArtifacts(artifacts DiscoveryArtifacts) error {
 	}
 	return nil
 }
+
+func evidenceVectorMatch(candidate CandidateRecord, capabilityID string) bool {
+	if capabilityID == auditUnmappedCapability {
+		return !hasEvidenceCapability(candidate)
+	}
+	for _, match := range candidate.Capabilities {
+		if match.CapabilityID == capabilityID && (match.Status == MatchMatched || (match.Status == MatchAmbiguous && len(match.Evidence) > 0)) {
+			return true
+		}
+	}
+	return false
+}
+
 func candidateByArtifactID(candidates []CandidateRecord, id string) (CandidateRecord, bool) {
 	for _, candidate := range candidates {
 		if candidate.Skill.ID == id {
@@ -376,7 +389,13 @@ func RenderEvidenceReport(artifacts DiscoveryArtifacts) ([]byte, error) {
 		return nil, err
 	}
 	capabilities := reportCapabilities(artifacts)
-	dataRich, exploration, anomalies := 0, 0, 0
+	dataRich, exploration, anomalies, catalogPages := 0, 0, 0, 0
+	missingEvidenceSkills := map[string]struct{}{}
+	for _, receipt := range artifacts.Manifest.Pages {
+		if receipt.Kind == catalogPageKind {
+			catalogPages++
+		}
+	}
 	for _, entry := range artifacts.Shortlist.Entries {
 		if entry.Lane == LaneDataRich {
 			dataRich++
@@ -387,10 +406,13 @@ func RenderEvidenceReport(artifacts DiscoveryArtifacts) ([]byte, error) {
 	}
 	for _, vector := range artifacts.Evidence {
 		anomalies += len(vector.Review.AnomalyFlags)
+		if vector.EvidenceCacheStatus == "EVIDENCE-CACHE-MISSING" {
+			missingEvidenceSkills[vector.SkillID] = struct{}{}
+		}
 	}
 	var builder strings.Builder
 	builder.WriteString("# Xiaping Evidence Discovery Report / 霞萍证据发现报告\n\n")
-	fmt.Fprintf(&builder, "- Snapshot / 快照: `%s`\n- Completeness / 完整性: `%s`\n- Candidate count / 候选数量: %d\n- Proposal count / 提案数量: %d\n- Duplicate clusters / 重复簇数量: %d\n- Anomaly facts / 异常事实: %d\n- DATA-RICH lane / 数据充足通道: %d\n- EXPLORATION lane / 探索通道: %d\n\n", markdownSafe(artifacts.Manifest.SnapshotID), markdownSafe(string(artifacts.Manifest.Status)), len(artifacts.Candidates), len(artifacts.Proposals), len(artifacts.Clusters), anomalies, dataRich, exploration)
+	fmt.Fprintf(&builder, "- Snapshot / 快照: `%s`\n- Completeness / 完整性: `%s`\n- Catalog page count / 目录页数: %d\n- Reported total / 来源报告总数: %d\n- Unique records / 去重记录数: %d\n- Candidate count / 候选数量: %d\n- Proposal count / 提案数量: %d\n- Duplicate clusters / 重复簇数量: %d\n- Gap count / 缺口数量: %d\n- Evidence-cache failures / 证据缓存失败数: %d\n- Anomaly facts / 异常事实: %d\n- DATA-RICH lane / 数据充足通道: %d\n- EXPLORATION lane / 探索通道: %d\n\n", markdownSafe(artifacts.Manifest.SnapshotID), markdownSafe(string(artifacts.Manifest.Status)), catalogPages, artifacts.Manifest.ReportedTotal, artifacts.Manifest.UniqueSkills, len(artifacts.Candidates), len(artifacts.Proposals), len(artifacts.Clusters), len(artifacts.Shortlist.Gaps), len(missingEvidenceSkills), anomalies, dataRich, exploration)
 	builder.WriteString("## Coverage and gaps / 覆盖与缺口\n\n")
 	for _, capability := range capabilities {
 		fmt.Fprintf(&builder, "- `%s`: %d selected / 已选 %d\n", markdownSafe(capability.id), capability.count, capability.count)
@@ -407,6 +429,7 @@ func RenderEvidenceReport(artifacts DiscoveryArtifacts) ([]byte, error) {
 	fmt.Fprintf(&builder, "- Source / 来源: %s / %s\n- Purpose / 用途: %s / %s\n- Input SHA-256 / 输入 SHA-256: `%s` / `%s`\n- Maximum bytes / 最大字节数: %d / %d\n", provenance.Source, provenance.Source, provenance.Purpose, provenance.Purpose, provenance.InputSHA256, provenance.InputSHA256, provenance.MaxBytes, provenance.MaxBytes)
 	builder.WriteString("- Source linkage is the completed snapshot manifest, its page receipts, and existing SHA-256 receipts; no artifact hashes itself. / 来源关联为完整快照清单、页面回执及既有 SHA-256 回执；工件不对自身哈希。\n")
 	builder.WriteString("- Bounded inputs are candidate metadata, proposals, duplicate clusters, evidence vectors, and shortlist entries only; raw review content, reviewer identifiers, signed URLs, and package contents are excluded. / 有界输入仅包括候选元数据、提案、重复簇、证据向量和短名单条目；不包含原始评论、评审者标识、签名 URL 或软件包内容。\n")
+	builder.WriteString("- Candidates with EVIDENCE-CACHE-MISSING cannot be DATA-RICH, and partial comments are not used. / 标记为 EVIDENCE-CACHE-MISSING 的候选不得成为 DATA-RICH，且不会使用部分评论。\n")
 	builder.WriteString("- Platform evidence is not a writing-quality result.\n- 平台证据不是写作质量结果。\n")
 	return []byte(builder.String()), nil
 }

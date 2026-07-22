@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
@@ -342,14 +344,47 @@ func TestRunSkillsRankCandidateEvidenceFailurePublishesExploration(t *testing.T)
 	}
 }
 
-func TestRunSkillsRankCancellationLeavesArtifactsUnchanged(t *testing.T) {
+func TestRunSkillsRankMidFetchCancellationLeavesArtifactsUnchanged(t *testing.T) {
 	cache, root, _ := writeRankInputs(t)
 	before := artifactBytes(t, root)
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	defer cancel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cancel()
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+	previous := newXiapingHTTPClient
+	newXiapingHTTPClient = server.Client
+	t.Cleanup(func() { newXiapingHTTPClient = previous })
 	var stdout bytes.Buffer
-	err := run(ctx, []string{"skills", "rank-xiaping", "--cache-root", cache.Root, "--root", root}, &stdout, io.Discard)
+	err := run(ctx, []string{"skills", "rank-xiaping", "--base-url", server.URL, "--cache-root", cache.Root, "--root", root, "--comment-page-size", "1", "--retry-attempts", "1", "--max-retry-delay", "0s"}, &stdout, io.Discard)
 	if !errors.Is(err, context.Canceled) || stdout.Len() != 0 {
+		t.Fatalf("err=%v stdout=%q", err, stdout.String())
+	}
+	assertArtifactBytes(t, root, before)
+}
+
+func TestRunSkillsRankCacheWriteFailureLeavesArtifactsUnchanged(t *testing.T) {
+	cache, root, _ := writeRankInputs(t)
+	before := artifactBytes(t, root)
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/skills/candidate-1" {
+			t.Fatalf("path=%q", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"id":"candidate-1"}`))
+	}))
+	defer server.Close()
+	digest := sha256.Sum256([]byte("skill-detail\n" + server.URL + "/api/skills/candidate-1"))
+	if err := os.Mkdir(filepath.Join(cache.Root, "pages", hex.EncodeToString(digest[:])+".json"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	previous := newXiapingHTTPClient
+	newXiapingHTTPClient = server.Client
+	t.Cleanup(func() { newXiapingHTTPClient = previous })
+	var stdout bytes.Buffer
+	err := run(context.Background(), []string{"skills", "rank-xiaping", "--base-url", server.URL, "--cache-root", cache.Root, "--root", root, "--comment-page-size", "1", "--retry-attempts", "1", "--max-retry-delay", "0s"}, &stdout, io.Discard)
+	if err == nil || stdout.Len() != 0 {
 		t.Fatalf("err=%v stdout=%q", err, stdout.String())
 	}
 	assertArtifactBytes(t, root, before)

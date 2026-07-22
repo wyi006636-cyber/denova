@@ -42,13 +42,30 @@ func TestRenderEvidenceReportStatesPlatformEvidenceLimitationInBothLanguages(t *
 		t.Fatal(err)
 	}
 	text := string(report)
-	for _, wanted := range []string{"Platform evidence is not a writing-quality result.", "平台证据不是写作质量结果。", "COMPLETE", "DATA-RICH", "EXPLORATION"} {
+	for _, wanted := range []string{"Platform evidence is not a writing-quality result.", "平台证据不是写作质量结果。", "COMPLETE", "Catalog page count / 目录页数: 1", "Reported total / 来源报告总数: 1", "Unique records / 去重记录数: 1", "Gap count / 缺口数量: 16", "Evidence-cache failures / 证据缓存失败数: 0", "DATA-RICH", "EXPLORATION", "partial comments are not used"} {
 		if !strings.Contains(text, wanted) {
 			t.Fatalf("report missing %q:\n%s", wanted, text)
 		}
 	}
 	if strings.Contains(text, "reviewer-") || strings.Contains(text, "https://") {
 		t.Fatalf("report leaks forbidden content: %s", text)
+	}
+}
+
+func TestRenderEvidenceReportCountsMissingEvidenceFromVectors(t *testing.T) {
+	artifacts := artifactFixture(t)
+	artifacts.Evidence[0].EvidenceCacheStatus = "EVIDENCE-CACHE-MISSING"
+	artifacts.Evidence[0].PlatformDataRich = false
+	for index := range artifacts.Shortlist.Entries {
+		artifacts.Shortlist.Entries[index].Evidence = artifacts.Evidence[0]
+		artifacts.Shortlist.Entries[index].Lane = LaneExploration
+	}
+	report, err := RenderEvidenceReport(artifacts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(report), "Evidence-cache failures / 证据缓存失败数: 1") {
+		t.Fatalf("report=%s", report)
 	}
 }
 

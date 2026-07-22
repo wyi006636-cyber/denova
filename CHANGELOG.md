@@ -8,8 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- 发布虾评完整公开写作 Skill 发现短名单：`snapshot-18d24eb4d408a116` 覆盖 45 页（报告总数 2,251、去重 2,237），产出 1,072 个写作候选、4 个提案、1 个重复簇及 65 项双通道短名单（34 DATA-RICH、31 EXPLORATION）；平台证据不构成写作质量结论，10 个无法闭合的公开评论来源限制保持失败记录。
-- Published the Xiaping complete-public writing-Skill discovery shortlist: `snapshot-18d24eb4d408a116` covers 45 pages (reported total 2,251 and 2,237 de-duplicated records), producing 1,072 writing candidates, 4 proposals, 1 duplicate cluster, and a 65-entry dual-lane shortlist (34 DATA-RICH and 31 EXPLORATION); platform evidence is not a writing-quality result, and 10 uncloseable public-review source limitations remain recorded as failures.
+- 发布虾评完整公开写作 Skill 发现短名单：`snapshot-18d24eb4d408a116` 覆盖 46 页（报告总数 2,251、去重 2,237），产出 1,072 个写作候选、4 个提案、1 个重复簇及 65 项双通道短名单（34 DATA-RICH、31 EXPLORATION）；平台证据不构成写作质量结论，10 个无法闭合的公开评论来源限制保持失败记录。
+- Published the Xiaping complete-public writing-Skill discovery shortlist: `snapshot-18d24eb4d408a116` covers 46 pages (reported total 2,251 and 2,237 de-duplicated records), producing 1,072 writing candidates, 4 proposals, 1 duplicate cluster, and a 65-entry dual-lane shortlist (34 DATA-RICH and 31 EXPLORATION); platform evidence is not a writing-quality result, and 10 uncloseable public-review source limitations remain recorded as failures.
 - 新增 `quality-eval skills` 离线可验证的虾评发现命令：支持受限 HTTPS 快照、确定性写作候选分类、带本地缓存证据的双通道排序，以及本地 Schema 校验；所有网络节流和重试参数均可显式配置，部分快照不能进入排序。
 - Added offline-validatable `quality-eval skills` Xiaping discovery commands for restricted HTTPS snapshots, deterministic writing-candidate classification, local-cache evidence ranking, and local Schema validation; request pacing and retry settings are explicit, and partial snapshots cannot be ranked.
 - 新增虾评写作 Skill 的确定性双通道短名单与离线、Schema 约束的提交工件：每个 Capability 最多保留 3 个数据充足候选和 2 个探索候选，保留重复簇成员引用与完整证据向量，并明确记录候选不足的缺口；双语报告只陈述平台证据、覆盖、异常与边界，不将其视为写作质量结论。
@@ -26,6 +26,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修正虾评实时发现审计：页数现由快照 manifest 的 catalog 回执派生为 46，生成的双语报告同时记录完整证据向量中的 10 个缓存失败、且不让缺失或部分评论候选成为 DATA-RICH。
+- Corrected the Xiaping live-discovery audit: the page count is now derived from 46 catalog receipts in the snapshot manifest, and the generated bilingual report records all 10 cache failures from complete evidence vectors while preventing missing or partial-review candidates from becoming DATA-RICH.
+- 修复虾评证据排序的致命错误边界：上下文取消或超时、缓存读取、完整性、写入和所有权错误现在会中止并保持已发布工件不变；仅远端重试耗尽及有效公开来源协议错误可降级为探索证据缺失。
+- Fixed fatal-error boundaries for Xiaping evidence ranking: context cancellation or deadline, cache reads, integrity, writes, and ownership errors now abort while leaving published artifacts unchanged; only exhausted remote retries and valid public-source protocol failures can downgrade to missing exploration evidence.
 - 修复虾评证据向量与短名单的媒体排除边界：证据层现复用可信写作匹配条件，媒体专用候选不会生成无法通过发布校验的向量。
 - Fixed the Xiaping evidence-vector and shortlist media-exclusion boundary: evidence generation now reuses the credible-writing match so media-only candidates cannot produce vectors rejected during publication.
 - 修复霞萍发现排序在单个候选评论证据不可用时的发布边界：保持分页和计数完整性校验，但将失败候选明确降级为 `EVIDENCE-CACHE-MISSING` 探索项，不再阻断其他完整候选的事务性短名单发布。
