@@ -1,10 +1,10 @@
 # Harness Novel 总体开发计划
 
-> 状态：待评审规划稿
+> 状态：部分实施；截至 2026-07-22，P0-T09 有受限 live cohort 和工程门禁证据，但真实 regression 人工评审为 0/24，Phase 0 与 Phase 1 均为 `NOT-ENOUGH-DATA / BLOCKED`，详见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。
 > 制定日期：2026-07-21
 > 唯一工程仓库：`D:\vibe\harness novel`
 > 当前分支：`feat/quality-harness-foundation`
-> 当前 HEAD：`91c6e509a6beea98e8d025777c97b34b2bc6ac9f`
+> 本报告证据 HEAD：`08c0694a8ac26f4b2a0dce815945c46107a0572a`
 > Denova 上游基线：`upstream/master@eb5e4ee53ad158fe88dfb7148408edc6558e481a`
 > 最高优先级产品基线：`docs/project-design/final/小说写作工具-最终融合最优方案.md` v1.1
 

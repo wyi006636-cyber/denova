@@ -1,5 +1,7 @@
 # 需求追踪矩阵
 
+> 执行状态（2026-07-22）：P0-T09 的受限 offline runner cohort 与工程门禁已有证据，但不能满足 EVAL-001/EVAL-002 的人工质量验收；真实 regression 评审为 0/24，Gate Manifest 尚未创建，Phase 0 与 Phase 1 为 `NOT-ENOUGH-DATA / BLOCKED`。详见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。
+
 > 基线：`docs/project-design/final/小说写作工具-最终融合最优方案.md` v1.1。
 > 规则：最终方案是需求真源；Kimi、WorkBuddy、竞品和虾评资料只提供论据、候选方法或来源证据。
 > 本矩阵追踪到 `MASTER_DEVELOPMENT_PLAN.md` 与 `PHASE_0_DETAILED_PLAN.md` 的稳定 Task ID。

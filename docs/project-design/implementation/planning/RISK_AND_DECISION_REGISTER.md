@@ -1,6 +1,6 @@
 # 风险与架构决策登记册
 
-> 状态：规划阶段开放登记。
+> 状态：规划阶段开放登记；截至 2026-07-22，P0-T09 的工程证据已部分取得，但人工质量证据不足，Phase 0 与 Phase 1 为 `NOT-ENOUGH-DATA / BLOCKED`。详见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。
 > 规则：最终融合方案已经冻结的产品方向不在实现 PR 中重新投票；本登记册只决策物理 Schema、类型合同、事务语义、依赖和迁移等实现细节。
 > 风险 owner 是职责，不是具体姓名；排期时必须落实到人。
 
@@ -113,7 +113,7 @@
 |---|---|---|---|---|---|
 | UP-001 | Denova 上游持续变化与质量模块冲突 | 高/高 | merge conflicts、接口漂移、回归 | quality package 增量、现有 package 不反向依赖；每 Phase 同步演练和核心特征测试 | Tech Lead；P5-T05 |
 | UP-002 | 把本机/当前分支问题误标为 Windows 上游失败 | 中/高 | 无 upstream 双复现就 allowlist | 精确 test/signature/SHA/owner/expiry；环境缺失为 NOT-RUN | QA；P0-T09 onward |
-| UP-003 | 当前机器缺 Go，后端门禁长期未运行 | 当前/高 | `go` 不在 PATH | 安装 `go.mod` 指定版本或用标准 CI；P0-T09 前必须在 Windows 实跑 | Environment Owner；P0-T02/P0-T09 |
+| UP-003 | Windows 后端门禁长期未运行 | 已缓解/高 | repo-local Go 1.26.5 已完成 Windows 全量 test/vet 与 Git Bash build；仍有 tidy 分类失败 | 保持 Windows 实跑；对 `go.mod` 分类修正须获批准后重跑 tidy/final gates | Environment Owner；P0-T09 |
 | UP-004 | 新依赖破坏五平台或 release `CGO_ENABLED=0` | 中/高 | SQLite/Tauri/Skill 依赖引入 | ADR dependency matrix；五平台 build；必要时调整发行设计而非跳过平台 | Release；P1-T03/P4-T03/P5-T06 |
 | UP-005 | README/CHANGELOG/package/tag/notes 版本不一致 | 中/高 | release script metadata validation 失败 | 使用现有 `build-github-release.sh`；单 release commit；tag 指向同 commit | Release；P5-T06 |
 | UP-006 | 业务提交夹带规划、依赖、重构或无关用户修改 | 中/高 | diff 跨 Task/dirty baseline | 一 Task 一 commit、G0 scope audit、保留用户改动、必要时独立 worktree | Tech Lead；全部 Task |

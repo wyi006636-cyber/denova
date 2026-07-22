@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- 新增 Phase 0 双语事实基线报告：区分受限 cohort 和工程门禁的已验证结果与尚缺的真实人工盲评；明确 P0-T09/Phase 0 为 `NOT-ENOUGH-DATA / BLOCKED`，不创建 `quality-gate-v1.json`，也不作质量结论。
+- Added a bilingual Phase 0 factual baseline report that separates verified bounded-cohort and engineering-gate results from missing real human blind reviews; P0-T09/Phase 0 remain `NOT-ENOUGH-DATA / BLOCKED`, no `quality-gate-v1.json` is created, and no quality conclusion is made.
+
 ### Fixed
 
 - 优化质量评测与 CLI 单测夹具：Harness 默认选择一个真实 regression 任务，仅“后续任务不得执行”断言保留双任务 cohort；分层汇总、盲包拒绝和 Skills rank 失配测试复用最小、可恢复的输入状态。因此不改变生产私有证据写入或 Windows owner-only ACL。Windows 集成测试现通过一个最小 READY 盲包成功执行 `SaveReview`，并验证 Harness 证据、已接受评审和评审锁目录/文件 ACL。

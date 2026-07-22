@@ -10,7 +10,7 @@
 2. P0-T02 与 P0-T03 可并行；P0-T02 是推荐的第一个编码任务。
 3. P0-T04 在 Workspace Schema 边界明确后开始；P0-T05、P0-T07、P0-T08 可在其后并行。
 4. P0-T06 依赖 CandidateSet/ReviewIssue 的状态与定稿写入边界。
-5. P0-T09 汇总全部证据并冻结 Phase 1/2 使用的 Gate Manifest。
+5. P0-T09 汇总全部证据；只有真实 regression 人工评审方差足够时才冻结 Phase 1/2 使用的 Gate Manifest。
 
 每项任务独立提交。进入下一项前，前一提交必须通过该项的目标测试；不得把多个 ADR、测试修复和功能原型混成一个提交。
 
@@ -676,6 +676,8 @@ git diff --check
 **目标**
 
 汇总工程、ADR、质量和 Skills 证据，执行 Phase 0 全门禁，并基于真实 regression paired pilot 与人工评审方差冻结未来 MVP/v1 的质量、成本和安全阈值。为取得该 pilot 的真实 H 证据，P0-T09 允许实现版本化、评测专用、离线 Harness runner；该 runner 是本 Task 的内部执行机械，不是新 Phase、里程碑或独立产品目标。
+
+**当前状态（2026-07-22）**：受限 smoke、tuning 和 regression S/H cohort 已成功，但 regression 的真实人工独立评审为 0/24，尚无冲突可裁决；因此 P0-T09 和 Phase 0 为 `NOT-ENOUGH-DATA / BLOCKED`。`quality-gate-v1.json` 仍不存在，且不得因现有工程证据或模型输出创建阈值。详见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。
 
 **业务理由**
 

@@ -1,8 +1,8 @@
 # P0-T07 三 Profile 质量评测协议 / Three-profile quality evaluation protocol
 
 > Contract: `denova.quality-evaluation-protocol/v1`
-> Status: P0-T07 offline tooling complete; committed legacy S arm is `ENVIRONMENT-BLOCKED`; H arm is `NOT-READY`. The P0-T09 evaluation-only offline H runner is implemented. Its failed smoke is diagnosed: the frozen snapshot disabled thinking, but the old legacy transport field was ignored by DeepSeek V4, whose default thinking consumed the 4096 shared completion-token boundary. The evaluation policy now freezes the current V4 nested thinking transport. No successful completed live cohort or quality PASS exists.
-> Date: 2026-07-21
+> Status: P0-T07 offline tooling complete; the committed legacy S arm is `ENVIRONMENT-BLOCKED` and H arm is `NOT-READY`. P0-T09's evaluation-only offline H runner has successful bounded smoke, tuning, and regression cohorts (see §12), but real regression reviews are 0/24 and adjudications are not yet applicable. The quality summary, P0-T09, and Phase 0 remain `NOT-ENOUGH-DATA / BLOCKED`; no `quality-gate-v1.json` or quality PASS exists.
+> Date: 2026-07-22
 > Scope: baseline and evaluation infrastructure plus the approved P0-T09 runner boundary; no product Harness workflow, runtime integration, P0-T09 success claim, Phase 1 implementation, or quality-gate PASS.
 
 ## 1. 目的与非结论 / Purpose and non-conclusion

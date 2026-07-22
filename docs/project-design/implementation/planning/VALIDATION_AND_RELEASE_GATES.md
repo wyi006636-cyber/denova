@@ -4,20 +4,23 @@
 > 禁止通过 skip、删除测试、降低断言、扩大通配 allowlist 或把 NOT-RUN 写成 PASS 制造绿灯。
 > 所有模型运行不设置写死超时；允许作者取消，成本/安全/空转限制使用明确配置。
 
-## 1. 当前可复核基线（2026-07-21）
+## 1. 当前可复核基线（2026-07-22，HEAD `08c0694a8ac26f4b2a0dce815945c46107a0572a`）
 
 | 检查 | 当前结果 | 说明 |
 |---|---|---|
 | Git branch | PASS | `feat/quality-harness-foundation` |
-| HEAD / merge-base | PASS | HEAD `91c6e509a6beea98e8d025777c97b34b2bc6ac9f`，merge-base 与 `upstream/master` 均为 `eb5e4ee53ad158fe88dfb7148408edc6558e481a` |
-| 工作区 | PASS | 开始时 `git status --short --untracked-files=all` 无输出 |
+| HEAD / merge-base | PASS | HEAD `08c0694a8ac26f4b2a0dce815945c46107a0572a`；历史 merge-base 记录为 `eb5e4ee53ad158fe88dfb7148408edc6558e481a` |
+| 工作区 | PASS | 基线执行的差异检查通过；本工作包提交前仍须复查预期文档范围 |
 | 前端双语 key | PASS | 2987 keys，zh-CN/en-US 对齐 |
-| 前端 Vitest | PASS | 124 test files、645 tests 全通过；jsdom 输出 `Window.scrollTo` 未实现提示，不是失败 |
+| 前端 Vitest | PASS | 125 test files、651 tests 全通过；既有 chunk warning 不是失败 |
 | 前端 production build | PASS | TypeScript + Vite 完成；存在单个 500 kB 以上 chunk warning，登记为性能观察项而非失败 |
-| Go 测试 | NOT-RUN | 本机 PATH 没有 `go`；`go.mod` 要求 Go 1.26.5。分类为 `ENV-GO-MISSING`，不是 Windows 上游失败 |
-| 本机工具 | INFO | Node v24.16.0、pnpm 11.12.0、Git 2.52.0.windows.1、Git Bash 5.2.37；正式 CI 仍以 `.github/workflows/ci.yml` 的 Node 22/pnpm 10/go.mod 为准 |
+| Windows Go test / vet | PASS | repo-local Go 1.26.5：`go test ./... -count=1`、`go vet ./...` 均通过 |
+| Windows eval + CLI JSON audit | PASS | 124 leaves，0 个超过 1s，最大 0.82s |
+| Git Bash build | PASS | `scripts/build.sh` 通过 |
+| Windows `go mod tidy -diff` | FAIL | 仅因既有 P0-T09 Windows ACL import 使 `golang.org/x/sys v0.46.0` 应由 indirect 改为 direct；无版本或 `go.sum` 变化。未经批准不得改依赖文件 |
+| Linux native CI-equivalent | FAIL | 全量 Go、web test/i18n/build/distribution build 通过；`govulncheck` 发现可达 `GO-2026-5970`（`golang.org/x/text v0.38.0`），修复需 v0.39.0，未经批准不得升级 |
 
-Phase 0 完成前必须在具备 `go.mod` 指定 Go 的 Windows 环境补跑所有 Go 门禁。当前 NOT-RUN 不阻止编写计划，但阻止 P0-T09 宣布完成。
+工程门禁的完整逐项事实、质量缺口和后续批准项见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。P0-T09/Phase 0 仍为 `NOT-ENOUGH-DATA / BLOCKED`：regression 真实人工独立评审为 0/24，`quality-gate-v1.json` 不存在；Phase 1 不得开始。
 
 ## 2. 通用门禁层级
 
