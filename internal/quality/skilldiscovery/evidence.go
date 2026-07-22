@@ -2,8 +2,6 @@ package skilldiscovery
 
 import "sort"
 
-const auditUnmappedCapability = "audit.unmapped-candidate"
-
 func DownloadPercentiles(candidates []CandidateRecord) map[string]map[string]float64 {
 	result := map[string]map[string]float64{}
 	for capability, members := range capabilityMembers(candidates, nil) {
@@ -51,7 +49,7 @@ func BuildEvidenceVectors(candidates []CandidateRecord, reviews map[string]Revie
 	}
 	representativeCandidates := filterRepresentatives(candidates, representatives)
 	percentiles := DownloadPercentiles(representativeCandidates)
-	members := evidenceCapabilityMembers(candidates, nil)
+	members := capabilityMembers(representativeCandidates, nil)
 	scoringMembers := capabilityMembers(representativeCandidates, nil)
 	result := make([]EvidenceVector, 0)
 	for capability, pool := range members {
@@ -73,19 +71,6 @@ func BuildEvidenceVectors(candidates []CandidateRecord, reviews map[string]Revie
 			result = append(result, vector)
 		}
 	}
-	for _, candidate := range candidates {
-		if hasEvidenceCapability(candidate) {
-			continue
-		}
-		review, cached := reviews[candidate.Skill.ID]
-		vector := EvidenceVector{SkillID: candidate.Skill.ID, CapabilityID: auditUnmappedCapability, Review: review, MaturityVersionCount: candidate.Skill.VersionCount, EvidenceCacheStatus: review.EvidenceCacheStatus}
-		if !cached {
-			vector.EvidenceCacheStatus = "EVIDENCE-CACHE-MISSING"
-		} else if vector.EvidenceCacheStatus == "" {
-			vector.EvidenceCacheStatus = "EVIDENCE-CACHE-AVAILABLE"
-		}
-		result = append(result, vector)
-	}
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].CapabilityID != result[j].CapabilityID {
 			return result[i].CapabilityID < result[j].CapabilityID
@@ -93,15 +78,6 @@ func BuildEvidenceVectors(candidates []CandidateRecord, reviews map[string]Revie
 		return result[i].SkillID < result[j].SkillID
 	})
 	return result
-}
-
-func hasEvidenceCapability(candidate CandidateRecord) bool {
-	for _, match := range candidate.Capabilities {
-		if match.Status == MatchMatched || (match.Status == MatchAmbiguous && len(match.Evidence) > 0) {
-			return true
-		}
-	}
-	return false
 }
 
 func capabilityMembers(candidates []CandidateRecord, ignored map[string]bool) map[string][]CandidateRecord {
@@ -121,22 +97,6 @@ func capabilityMembers(candidates []CandidateRecord, ignored map[string]bool) ma
 	return out
 }
 
-func evidenceCapabilityMembers(candidates []CandidateRecord, ignored map[string]bool) map[string][]CandidateRecord {
-	out := map[string][]CandidateRecord{}
-	for _, candidate := range candidates {
-		if ignored != nil {
-			if representative, known := ignored[candidate.Skill.ID]; known && !representative {
-				continue
-			}
-		}
-		for _, match := range candidate.Capabilities {
-			if match.Status == MatchMatched || (match.Status == MatchAmbiguous && len(match.Evidence) > 0) {
-				out[match.CapabilityID] = append(out[match.CapabilityID], candidate)
-			}
-		}
-	}
-	return out
-}
 func filterRepresentatives(candidates []CandidateRecord, reps map[string]bool) []CandidateRecord {
 	if len(reps) == 0 {
 		return candidates

@@ -175,7 +175,7 @@ func runXiapingRank(ctx context.Context, args []string, stdout, stderr io.Writer
 	if err != nil {
 		return fmt.Errorf("rank-xiaping: %w", err)
 	}
-	artifacts := skilldiscovery.DiscoveryArtifacts{Manifest: snapshot.Manifest, Candidates: staged.Candidates, Proposals: staged.Proposals, Clusters: staged.Clusters, Evidence: vectors, Shortlist: shortlist}
+	artifacts := skilldiscovery.DiscoveryArtifacts{Manifest: snapshot.Manifest, Candidates: staged.Candidates, Proposals: staged.Proposals, Clusters: staged.Clusters, Evidence: vectors, Shortlist: shortlist, EvidenceFailureCount: len(failures)}
 	if err := skilldiscovery.WriteDiscoveryArtifacts(*root, artifacts); err != nil {
 		return fmt.Errorf("rank-xiaping: %w", err)
 	}

@@ -26,6 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评正式 EvidenceVector 的资格边界：正式向量和报告校验现在严格复用 `credibleWritingMatch`，媒体专用及未映射候选不会进入发布向量；远端证据采集失败数作为仅运行时的非持久化计数独立传递给报告。
+- Fixed the Xiaping formal EvidenceVector eligibility boundary: formal vectors and report validation now strictly reuse `credibleWritingMatch`, so media-only and unmapped candidates cannot enter published vectors; the remote evidence-collection failure count is passed to the report separately as a runtime-only, non-persisted value.
 - 修正虾评实时发现审计：页数现由快照 manifest 的 catalog 回执派生为 46，生成的双语报告同时记录完整证据向量中的 10 个缓存失败、且不让缺失或部分评论候选成为 DATA-RICH。
 - Corrected the Xiaping live-discovery audit: the page count is now derived from 46 catalog receipts in the snapshot manifest, and the generated bilingual report records all 10 cache failures from complete evidence vectors while preventing missing or partial-review candidates from becoming DATA-RICH.
 - 修复虾评证据排序的致命错误边界：上下文取消或超时、缓存读取、完整性、写入和所有权错误现在会中止并保持已发布工件不变；仅远端重试耗尽及有效公开来源协议错误可降级为探索证据缺失。

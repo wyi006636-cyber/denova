@@ -35,6 +35,7 @@ type DiscoveryArtifacts struct {
 	Clusters   []DuplicateCluster
 	Evidence   []EvidenceVector
 	Shortlist  Shortlist
+	EvidenceFailureCount int `json:"-"`
 }
 
 // WriteDiscoveryArtifacts validates and atomically writes the six Xiaping discovery outputs.
@@ -190,6 +191,9 @@ func validateDiscoveryArtifacts(artifacts DiscoveryArtifacts) error {
 	if artifacts.Manifest.Status != SnapshotComplete {
 		return fmt.Errorf("complete snapshot required for artifacts")
 	}
+	if artifacts.EvidenceFailureCount < 0 {
+		return fmt.Errorf("evidence failure count must be non-negative")
+	}
 	if artifacts.Shortlist.Contract != shortlistContract || artifacts.Shortlist.Version != "v1" || artifacts.Shortlist.SnapshotID != artifacts.Manifest.SnapshotID {
 		return fmt.Errorf("shortlist snapshot identity does not match manifest")
 	}
@@ -203,7 +207,7 @@ func validateDiscoveryArtifacts(artifacts DiscoveryArtifacts) error {
 		}
 		key := vector.SkillID + "\x00" + vector.CapabilityID
 		candidate, exists := candidateByArtifactID(artifacts.Candidates, vector.SkillID)
-		if !exists || !evidenceVectorMatch(candidate, vector.CapabilityID) {
+		if !exists || !credibleWritingMatch(candidate, vector.CapabilityID) {
 			return fmt.Errorf("evidence vector capability is not a credible candidate match")
 		}
 		if _, ok := vectors[key]; ok {
@@ -244,18 +248,6 @@ func validateDiscoveryArtifacts(artifacts DiscoveryArtifacts) error {
 		return fmt.Errorf("refusing artifact containing raw review or package content")
 	}
 	return nil
-}
-
-func evidenceVectorMatch(candidate CandidateRecord, capabilityID string) bool {
-	if capabilityID == auditUnmappedCapability {
-		return !hasEvidenceCapability(candidate)
-	}
-	for _, match := range candidate.Capabilities {
-		if match.CapabilityID == capabilityID && (match.Status == MatchMatched || (match.Status == MatchAmbiguous && len(match.Evidence) > 0)) {
-			return true
-		}
-	}
-	return false
 }
 
 func candidateByArtifactID(candidates []CandidateRecord, id string) (CandidateRecord, bool) {
@@ -390,7 +382,6 @@ func RenderEvidenceReport(artifacts DiscoveryArtifacts) ([]byte, error) {
 	}
 	capabilities := reportCapabilities(artifacts)
 	dataRich, exploration, anomalies, catalogPages := 0, 0, 0, 0
-	missingEvidenceSkills := map[string]struct{}{}
 	for _, receipt := range artifacts.Manifest.Pages {
 		if receipt.Kind == catalogPageKind {
 			catalogPages++
@@ -406,13 +397,10 @@ func RenderEvidenceReport(artifacts DiscoveryArtifacts) ([]byte, error) {
 	}
 	for _, vector := range artifacts.Evidence {
 		anomalies += len(vector.Review.AnomalyFlags)
-		if vector.EvidenceCacheStatus == "EVIDENCE-CACHE-MISSING" {
-			missingEvidenceSkills[vector.SkillID] = struct{}{}
-		}
 	}
 	var builder strings.Builder
 	builder.WriteString("# Xiaping Evidence Discovery Report / 霞萍证据发现报告\n\n")
-	fmt.Fprintf(&builder, "- Snapshot / 快照: `%s`\n- Completeness / 完整性: `%s`\n- Catalog page count / 目录页数: %d\n- Reported total / 来源报告总数: %d\n- Unique records / 去重记录数: %d\n- Candidate count / 候选数量: %d\n- Proposal count / 提案数量: %d\n- Duplicate clusters / 重复簇数量: %d\n- Gap count / 缺口数量: %d\n- Evidence-cache failures / 证据缓存失败数: %d\n- Anomaly facts / 异常事实: %d\n- DATA-RICH lane / 数据充足通道: %d\n- EXPLORATION lane / 探索通道: %d\n\n", markdownSafe(artifacts.Manifest.SnapshotID), markdownSafe(string(artifacts.Manifest.Status)), catalogPages, artifacts.Manifest.ReportedTotal, artifacts.Manifest.UniqueSkills, len(artifacts.Candidates), len(artifacts.Proposals), len(artifacts.Clusters), len(artifacts.Shortlist.Gaps), len(missingEvidenceSkills), anomalies, dataRich, exploration)
+	fmt.Fprintf(&builder, "- Snapshot / 快照: `%s`\n- Completeness / 完整性: `%s`\n- Catalog page count / 目录页数: %d\n- Reported total / 来源报告总数: %d\n- Unique records / 去重记录数: %d\n- Candidate count / 候选数量: %d\n- Proposal count / 提案数量: %d\n- Duplicate clusters / 重复簇数量: %d\n- Gap count / 缺口数量: %d\n- Evidence-collection failures / 证据采集失败数: %d\n- Anomaly facts / 异常事实: %d\n- DATA-RICH lane / 数据充足通道: %d\n- EXPLORATION lane / 探索通道: %d\n\n", markdownSafe(artifacts.Manifest.SnapshotID), markdownSafe(string(artifacts.Manifest.Status)), catalogPages, artifacts.Manifest.ReportedTotal, artifacts.Manifest.UniqueSkills, len(artifacts.Candidates), len(artifacts.Proposals), len(artifacts.Clusters), len(artifacts.Shortlist.Gaps), artifacts.EvidenceFailureCount, anomalies, dataRich, exploration)
 	builder.WriteString("## Coverage and gaps / 覆盖与缺口\n\n")
 	for _, capability := range capabilities {
 		fmt.Fprintf(&builder, "- `%s`: %d selected / 已选 %d\n", markdownSafe(capability.id), capability.count, capability.count)

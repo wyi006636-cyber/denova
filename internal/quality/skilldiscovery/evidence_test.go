@@ -29,7 +29,7 @@ func TestBuildEvidenceVectorsUsesExplorationForMissingEvidence(t *testing.T) {
 	}
 }
 
-func TestBuildEvidenceVectorsRetainsMediaOnlyCandidateForAudit(t *testing.T) {
+func TestBuildEvidenceVectorsExcludesMediaOnlyCandidate(t *testing.T) {
 	candidate := CandidateRecord{
 		Skill: SkillRecord{ID: "media", Name: "video storyboard", Downloads: 100},
 		Capabilities: []CapabilityMatch{{
@@ -38,12 +38,12 @@ func TestBuildEvidenceVectorsRetainsMediaOnlyCandidateForAudit(t *testing.T) {
 			Evidence:     []FieldEvidence{{Field: "name", Term: "storyboard"}},
 		}},
 	}
-	if vectors := BuildEvidenceVectors([]CandidateRecord{candidate}, nil, nil); len(vectors) != 1 || vectors[0].EvidenceCacheStatus != "EVIDENCE-CACHE-MISSING" {
+	if vectors := BuildEvidenceVectors([]CandidateRecord{candidate}, nil, nil); len(vectors) != 0 {
 		t.Fatalf("media-only candidate vectors: %#v", vectors)
 	}
 }
 
-func TestBuildEvidenceVectorsKeepsMediaOnlyAuditOutOfScoringPool(t *testing.T) {
+func TestBuildEvidenceVectorsExcludesMediaOnlyCandidateFromFormalVectors(t *testing.T) {
 	writing := CandidateRecord{Skill: SkillRecord{ID: "writing", Name: "prose", Downloads: 100}, Capabilities: []CapabilityMatch{{CapabilityID: "style.revise-prose", Status: MatchMatched}}}
 	media := CandidateRecord{Skill: SkillRecord{ID: "media", Name: "video storyboard", Downloads: 1000}, Capabilities: []CapabilityMatch{{CapabilityID: "style.revise-prose", Status: MatchMatched}}}
 	reviews := map[string]ReviewEvidence{
@@ -52,15 +52,15 @@ func TestBuildEvidenceVectorsKeepsMediaOnlyAuditOutOfScoringPool(t *testing.T) {
 	}
 	base := BuildEvidenceVectors([]CandidateRecord{writing}, reviews, nil)[0]
 	withMedia := BuildEvidenceVectors([]CandidateRecord{writing, media}, reviews, nil)
-	if len(withMedia) != 2 || withMedia[0].SkillID != "media" || withMedia[1].SkillID != "writing" || withMedia[1].DownloadPercentile != base.DownloadPercentile || withMedia[1].BayesianStarsX100 != base.BayesianStarsX100 {
+	if len(withMedia) != 1 || withMedia[0].SkillID != "writing" || withMedia[0].DownloadPercentile != base.DownloadPercentile || withMedia[0].BayesianStarsX100 != base.BayesianStarsX100 {
 		t.Fatalf("base=%#v withMedia=%#v", base, withMedia)
 	}
 }
 
-func TestBuildEvidenceVectorsAddsUnmappedCandidateAuditVector(t *testing.T) {
+func TestBuildEvidenceVectorsExcludesUnmappedCandidate(t *testing.T) {
 	candidate := CandidateRecord{Skill: SkillRecord{ID: "unmapped"}}
 	vectors := BuildEvidenceVectors([]CandidateRecord{candidate}, nil, nil)
-	if len(vectors) != 1 || vectors[0].SkillID != "unmapped" || vectors[0].CapabilityID != auditUnmappedCapability || vectors[0].EvidenceCacheStatus != "EVIDENCE-CACHE-MISSING" || vectors[0].PlatformDataRich {
+	if len(vectors) != 0 {
 		t.Fatalf("vectors=%#v", vectors)
 	}
 }
@@ -72,15 +72,12 @@ func TestBuildEvidenceVectorsKeepsSingletonsAndNeverUsesCatalogStars(t *testing.
 		{Skill: SkillRecord{ID: "copy", Downloads: 80}, Capabilities: []CapabilityMatch{{CapabilityID: "cap", Status: MatchMatched}}},
 	}
 	vectors := BuildEvidenceVectors(candidates, map[string]ReviewEvidence{"representative": {EffectiveRaters: 10, SubstantiveComments: 5, AverageStarsX100: 400}}, []DuplicateCluster{{RepresentativeID: "representative", MemberIDs: []string{"representative", "copy"}}})
-	if len(vectors) != 3 {
+	if len(vectors) != 2 {
 		t.Fatalf("vectors = %#v", vectors)
 	}
 	for _, vector := range vectors {
 		if vector.SkillID == "single" && (vector.Review.AverageStarsX100 != 0 || vector.BayesianStarsX100 != 400 || vector.EvidenceCacheStatus != "EVIDENCE-CACHE-MISSING") {
 			t.Fatalf("singleton vector = %#v", vector)
-		}
-		if vector.SkillID == "copy" && vector.EvidenceCacheStatus != "EVIDENCE-CACHE-MISSING" {
-			t.Fatalf("duplicate audit vector = %#v", vector)
 		}
 	}
 }
