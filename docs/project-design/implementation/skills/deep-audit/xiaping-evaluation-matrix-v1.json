@@ -1,0 +1,83 @@
+{
+  "contract": "harness-novel.xiaping-evaluation-matrix",
+  "version": "v1",
+  "purpose": "Tuning-only preregistration for a fair paired comparison; it records no quality result.",
+  "scope": {
+    "allowed_data_split": "tuning",
+    "excluded_data_splits": ["regression", "release_holdout"],
+    "evaluation_state": "MODEL-EVAL-BLOCKED",
+    "block_reason": "provider_credentials_missing",
+    "paired_outputs": 0,
+    "blind_review": "NOT-READY",
+    "human_review": "NOT-READY"
+  },
+  "arm_contract": {
+    "S": "Frozen P0-T07 single-turn baseline using only the task's allowed project-owned inputs and QualitySpec.",
+    "K": "Capability-reference isolation arm, not an official future Harness (H): identical to S except for one canonical serialized summary+inputs+outputs+constraints slice from exactly one capability reference.",
+    "shared_controls": ["same provider", "same model", "same model profile", "same model-config hash", "same temperature", "same output-token ceiling", "same task facts", "same QualitySpec"],
+    "excluded_from_K": ["raw third-party text", "full Skills", "scripts", "references beyond the one canonical slice", "prior outputs", "reviewer feedback"],
+    "capability_slice_max_bytes": 49152
+  },
+  "rows": [
+    {
+      "task_id": "ls-mystery-dialogue-03",
+      "data_split": "tuning",
+      "profile_id": "long_serial",
+      "task_input_sha256": "sha256:bc145ded1bfa318fca92965a33f7a7f30fda3852ee119b10e815c70642e22221",
+      "quality_spec": {"contract_file": "long_serial.json", "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23", "goals": ["qg.serial.continuity", "qg.serial.chapter_end_momentum", "eval.dialogue.identity_relationship_interest"]},
+      "model_config": {"provider": "deepseek", "model_profile_id": "default", "model": "deepseek-v4-pro", "temperature": 0.7, "max_output_tokens": 4096, "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"},
+      "reference": {"capability_id": "editor.review-profile-rubric", "status": "REFERENCE-ONLY", "source_skill_id": "f47e299c-3861-421d-9f1d-971de45bf622", "version": "1.48.0", "archive_sha256": "ab96990fcaf65dcea8d2da293f8ca9d449e6ece3a5313845b80609a963e5112c", "line_span_sha256": "65b5398c53690d7cd5039ef81644a6113f1ff23a0079e5f540249ffa8ba1bd4f", "canonical_slice_sha256": "584ded6e085c615552612ba25d5cbd9713936d183cbaf23fc71ec9fcf0fdf488", "canonical_slice_bytes": 272},
+      "status": "MODEL-EVAL-BLOCKED"
+    },
+    {
+      "task_id": "ls-mystery-turn-05",
+      "data_split": "tuning",
+      "profile_id": "long_serial",
+      "task_input_sha256": "sha256:52b2a56d9d7f126f5e46ac755f062fd4fcdf5b85c467de5468c9826229e307ab",
+      "quality_spec": {"contract_file": "long_serial.json", "contract_sha256": "sha256:47761b8de3b05a29e67475b2eff0d611f50c1f9379c35be28570305cdbbe2b23", "goals": ["qg.serial.continuity", "qg.serial.chapter_end_momentum", "eval.structure.causal_turn"]},
+      "model_config": {"provider": "deepseek", "model_profile_id": "default", "model": "deepseek-v4-pro", "temperature": 0.7, "max_output_tokens": 4096, "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"},
+      "reference": {"capability_id": "outline.build-long-arc", "status": "REFERENCE-ONLY", "source_skill_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9", "version": "1.0.1", "archive_sha256": "96459babf584b3a248885583cdbe236e5f8d47ae8b906d3f6cbfc7650815bb18", "line_span_sha256": "3015527cc3ea89641e6a7c6a9d93d9217cfe1a15c0de68a2d2200b00051d6546", "canonical_slice_sha256": "71748a70f71826a61c458f92f477f8aa6c80a82414bd17dade8c823eecca45c9", "canonical_slice_bytes": 262},
+      "status": "MODEL-EVAL-BLOCKED"
+    },
+    {
+      "task_id": "fq-urban-opening-01",
+      "data_split": "tuning",
+      "profile_id": "fanqie_short",
+      "task_input_sha256": "sha256:f94c3fd656992831b1be5b32136533aa4704175ab794b1451e4c07ba468ee0c7",
+      "quality_spec": {"contract_file": "fanqie_short.json", "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d", "goals": ["qg.short.opening_clarity", "qg.short.hook_intensity", "eval.opening.clarity_and_pressure"]},
+      "model_config": {"provider": "deepseek", "model_profile_id": "default", "model": "deepseek-v4-pro", "temperature": 0.7, "max_output_tokens": 4096, "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"},
+      "reference": {"capability_id": "engagement.review-reading-drive", "status": "REFERENCE-ONLY", "source_skill_id": "56ed7d78-5636-4c78-83cc-0aee4802b0b7", "version": "5.3.0", "archive_sha256": "7cff5ac590ae47c19f3fc4a666dcc435c4b478aede034f89af21590b6b66d512", "line_span_sha256": "4650dda2e8192407af45f604f67506b6ff4ecf531732cea428aac86cb6c406c4", "canonical_slice_sha256": "77b4eaa2a9505e6a714527bad5b82db71bae29ef5443c68a59de7a78ea1865de", "canonical_slice_bytes": 271},
+      "status": "MODEL-EVAL-BLOCKED"
+    },
+    {
+      "task_id": "fq-urban-dialogue-03",
+      "data_split": "tuning",
+      "profile_id": "fanqie_short",
+      "task_input_sha256": "sha256:2d6ef623f0f05731e5c0fdc50e5bd1d8ab130f1ae82193f3aa830796daea21b0",
+      "quality_spec": {"contract_file": "fanqie_short.json", "contract_sha256": "sha256:6db51f1971529d5b68246417aa4555b4ab1fa754113332923e883093a599208d", "goals": ["qg.short.opening_clarity", "qg.short.hook_intensity", "eval.dialogue.identity_relationship_interest"]},
+      "model_config": {"provider": "deepseek", "model_profile_id": "default", "model": "deepseek-v4-pro", "temperature": 0.7, "max_output_tokens": 4096, "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"},
+      "reference": {"capability_id": "style.revise-naturalness", "status": "REFERENCE-ONLY", "source_skill_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff", "version": "1.0.1", "archive_sha256": "2d5f8aac4c968dec341f8741531b044b72a5b7cd82d98f78122933d77422fa5d", "line_span_sha256": "437f5135c17ad97cd779fddab0b4a5ca94b8118876dd6d32ce8240a11f3e1537", "canonical_slice_sha256": "4d44a336f58d47ace8f34e12e397ac6002c8aa9a47695b454d3f851f9d781498", "canonical_slice_bytes": 294},
+      "status": "MODEL-EVAL-BLOCKED"
+    },
+    {
+      "task_id": "zh-marriage-opening-01",
+      "data_split": "tuning",
+      "profile_id": "zhihu_salt_short",
+      "task_input_sha256": "sha256:1b1b6ba07737adac7e469ef2bb36cf132e3fc4b6dde10340ce1d966ad87a75db",
+      "quality_spec": {"contract_file": "zhihu_salt_short.json", "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663", "goals": ["qg.short.reversal_evidence", "qg.short.causal_closure", "eval.opening.clarity_and_pressure"]},
+      "model_config": {"provider": "deepseek", "model_profile_id": "default", "model": "deepseek-v4-pro", "temperature": 0.7, "max_output_tokens": 4096, "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"},
+      "reference": {"capability_id": "engagement.review-reading-drive", "status": "REFERENCE-ONLY", "source_skill_id": "56ed7d78-5636-4c78-83cc-0aee4802b0b7", "version": "5.3.0", "archive_sha256": "7cff5ac590ae47c19f3fc4a666dcc435c4b478aede034f89af21590b6b66d512", "line_span_sha256": "4650dda2e8192407af45f604f67506b6ff4ecf531732cea428aac86cb6c406c4", "canonical_slice_sha256": "77b4eaa2a9505e6a714527bad5b82db71bae29ef5443c68a59de7a78ea1865de", "canonical_slice_bytes": 271},
+      "status": "MODEL-EVAL-BLOCKED"
+    },
+    {
+      "task_id": "zh-workplace-turn-05",
+      "data_split": "tuning",
+      "profile_id": "zhihu_salt_short",
+      "task_input_sha256": "sha256:77d9f78758b9de48b730ce7f208c512510ab71fe1b87fd6ed2f377d4857e000d",
+      "quality_spec": {"contract_file": "zhihu_salt_short.json", "contract_sha256": "sha256:ef780b82470d97d27675455f963e4a3ee4aa67b7c31aad3eca506d595bbc3663", "goals": ["qg.short.reversal_evidence", "qg.short.causal_closure", "eval.structure.causal_turn"]},
+      "model_config": {"provider": "deepseek", "model_profile_id": "default", "model": "deepseek-v4-pro", "temperature": 0.7, "max_output_tokens": 4096, "sha256": "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"},
+      "reference": {"capability_id": "editor.review-story", "status": "REFERENCE-ONLY", "source_skill_id": "f47e299c-3861-421d-9f1d-971de45bf622", "version": "1.48.0", "archive_sha256": "ab96990fcaf65dcea8d2da293f8ca9d449e6ece3a5313845b80609a963e5112c", "line_span_sha256": "6ff7efefa7a8025ab01921bb50db76abee7a937004c0f6f4fea6609fe8fe6b9f", "canonical_slice_sha256": "0e512cf0c26cdd3f79c5cafb550718528e0f7200a08ed10b453180fec284e87b", "canonical_slice_bytes": 275},
+      "status": "MODEL-EVAL-BLOCKED"
+    }
+  ]
+}

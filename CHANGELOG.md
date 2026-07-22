@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 预注册六个仅限 tuning 的虾评能力参考 S/K 配对评测：K 只加入一个不足 48 KiB 的规范能力切片，并记录冻结任务/质量规格/模型配置哈希与引用溯源；缺少运行时提供方凭证时明确标为 `MODEL-EVAL-BLOCKED`，不以 Codex 或子代理输出伪造比较结果。
+- Preregistered six tuning-only Xiaping capability-reference S/K comparisons: K adds only one canonical capability slice below 48 KiB and records frozen task, QualitySpec, model-configuration hashes, and reference provenance; missing runtime provider credentials are explicitly `MODEL-EVAL-BLOCKED`, with no Codex or subagent output substituted as a result.
+
 - 记录 Wave A 虾评小说 Skill 的双审计内容结论与能力级、行段哈希可追溯参考单元；原始包没有被安装或执行，四项仅可作有界参考，两项因内容完整性或安全/状态边界被拒绝。
 - Recorded dual-auditor Wave A Xiaping novel-Skill conclusions and capability-level, line-span-hash traceable reference units; no raw package was installed or executed, four are bounded reference-only, and two are rejected for content-integrity or safety/state-boundary reasons.
 
