@@ -1,0 +1,175 @@
+{
+  "contract": "denova.xiaping-capability-proposals",
+  "version": "v1",
+  "snapshot_id": "snapshot-18d24eb4d408a116",
+  "proposals": [
+    {
+      "capability_id": "emotion.manage-character-arc",
+      "name_zh": "角色弧光管理",
+      "name_en": "Character arc management",
+      "inputs": [
+        "character profile",
+        "plot beats"
+      ],
+      "outputs": [
+        "character arc",
+        "emotional beats"
+      ],
+      "lifecycle_stage": "planning",
+      "minimum_permission": "read-bounded-input",
+      "evaluation_method": "arc-beat consistency review",
+      "candidate_ids": [
+        "233fe180-1cc6-4aa2-ad4c-75e31dc3892a",
+        "40164618-9125-4b02-909d-3f1c98d35296",
+        "494b63d8-4235-4954-ad69-2b360a3445f4",
+        "95687260-d5ad-43d3-b083-008d00a9dfa3",
+        "9bc5f80d-b34a-46cc-b7e6-35454f4c39cd",
+        "c1056dbc-31a3-4cb4-af37-c9011482cb2e",
+        "d3accb8e-91ac-4aed-afba-88ad39543884",
+        "f4b6f5b7-c284-4df3-a252-f4ce301a221c"
+      ]
+    },
+    {
+      "capability_id": "platform.adapt-writing-style",
+      "name_zh": "平台写作风格适配",
+      "name_en": "Platform writing style adaptation",
+      "inputs": [
+        "draft",
+        "platform guidelines"
+      ],
+      "outputs": [
+        "adapted draft",
+        "style notes"
+      ],
+      "lifecycle_stage": "revision",
+      "minimum_permission": "read-bounded-input",
+      "evaluation_method": "platform-style blind review",
+      "candidate_ids": [
+        "00cc3229-5d6a-46dd-a5dc-d9ce71619efd",
+        "070b9d25-80a0-421f-b7b2-27c400b57128",
+        "0eebe52d-5c62-4867-9da6-c255dd535910",
+        "2c961aa3-4999-4ca3-b4f6-77b5574a6d13",
+        "33f997fe-b208-4826-81ec-8dc8aa531006",
+        "4a5aaf84-fca5-483c-8a52-da61318db8f6",
+        "6c5c4b2f-74b1-4092-965b-b28152e7b396",
+        "6d2be3fd-9d02-4b76-b06b-0e850e1e2452",
+        "748fac7b-5160-4cad-a142-549d201f01ad",
+        "89dd7c39-f2bb-4370-adf7-14294419383c",
+        "b5486886-2efc-42de-b3a0-3584534996ab",
+        "c03ed8bd-50f4-4568-8479-90f313d11764",
+        "ca086444-9fb8-4641-9f90-522f213fe4e1",
+        "d7e89284-b625-4d26-942b-4c7bf47d6cee",
+        "ea232bcd-0d00-4194-ad84-68695cad159c",
+        "f124f136-ceee-4e6f-a050-7644846f136d"
+      ]
+    },
+    {
+      "capability_id": "research.verify-story-facts",
+      "name_zh": "故事事实核查",
+      "name_en": "Story fact verification",
+      "inputs": [
+        "story claim",
+        "provided sources"
+      ],
+      "outputs": [
+        "fact check notes",
+        "source gaps"
+      ],
+      "lifecycle_stage": "research",
+      "minimum_permission": "read-bounded-input",
+      "evaluation_method": "source-attribution spot check",
+      "candidate_ids": [
+        "165cf57c-aedc-4894-84e3-2c9db0cec668",
+        "21d7d614-58d2-44dd-a7e1-0ff37881053a",
+        "310542c0-711d-40d6-abf3-da75ff5d63cb",
+        "3ff47664-ed9b-48e9-a0fd-e736f7b26441",
+        "687e802a-353d-44e7-8730-af6042e007dd",
+        "697525af-14c3-4df9-8eda-8f651918ec2d",
+        "809292a7-ba0b-46b2-aba7-ffdec4d4d6f8",
+        "82f677f0-06e9-430d-93be-9f81b198a5fd",
+        "841b8784-9d51-401c-b3d7-d1f397721b5c",
+        "d653d2ae-7f0e-4c12-a06d-7d3f18d73400",
+        "ebc60ce0-3250-4280-ba24-740cdb78e0ae",
+        "f93504dc-bd55-442d-a087-232976962473"
+      ]
+    },
+    {
+      "capability_id": "worldbuilding.build-rules",
+      "name_zh": "世界规则构建",
+      "name_en": "Worldbuilding rules",
+      "inputs": [
+        "premise",
+        "genre constraints"
+      ],
+      "outputs": [
+        "world_rules",
+        "consistency constraints"
+      ],
+      "lifecycle_stage": "planning",
+      "minimum_permission": "read-bounded-input",
+      "evaluation_method": "rule-consistency paired review",
+      "candidate_ids": [
+        "01098084-f7df-4d79-90ca-112ef057ca47",
+        "04cdcafa-5ba1-4c22-821e-4550d908052e",
+        "0dab7654-82a0-48f6-a612-59033abc45a8",
+        "107a5d36-b152-4cf3-9384-10ec23b0dd69",
+        "15b43b18-70a5-4a1f-b4a8-a235d1bd7a0e",
+        "162399b4-e103-48e1-840e-eb042f63bf50",
+        "165cf57c-aedc-4894-84e3-2c9db0cec668",
+        "1924944f-6e45-4f4c-ad06-6c7ac2b20717",
+        "1efd2981-8f52-4e1c-9c31-30934cc39004",
+        "233fe180-1cc6-4aa2-ad4c-75e31dc3892a",
+        "25f35a25-aa89-45fd-baf5-74e120c4eea9",
+        "2b882f09-2ce4-47b4-86d2-040b27fbab53",
+        "2e89969f-519e-4f8d-a753-4d89458da26b",
+        "3505bb5f-4fc3-4542-b247-a4ba43c86a03",
+        "4037c647-d1c7-4c69-8d0c-d76073e87525",
+        "41197471-6a36-42a7-9354-c309dc2e9412",
+        "4148ee1a-c834-414b-9e4f-f894a6edfe01",
+        "47eb6fea-bf3e-4854-b890-c7b7c400ac00",
+        "490081f8-a867-45ab-abd4-0c9dd8b9010e",
+        "49ddbc70-ce9a-4d29-a3bd-2a28aa518694",
+        "510ca63f-bfba-497c-82a6-958ab913752d",
+        "56b2bbbb-7611-4f4e-87a8-9a854ff0c586",
+        "585435d4-390f-4257-88c0-cf9ea41a5b3b",
+        "5ad03950-1f04-4147-82ed-3a84e91f47f8",
+        "6157e4bf-c64b-4e19-a48d-747de9820766",
+        "6a0ec944-b187-43d2-8cba-2c1d91bcd033",
+        "6f71c3e1-89e6-4b4d-9199-fe6fbb070a5e",
+        "72e1d839-4767-4206-af4b-7ddc2a309ed4",
+        "73b90ebf-0da4-4d38-b3e5-6826cfc6e9b3",
+        "794d7d20-b562-44de-b502-c18607c73cc2",
+        "7a2ecc5a-2f13-4e3f-a690-a9deb0665715",
+        "83476d14-6a33-4f57-94bf-e23cccc1e0b5",
+        "84de24e6-80fb-4b1e-999b-18b6854f9b89",
+        "8538d22a-99ce-45b8-93a8-f420e674cada",
+        "95687260-d5ad-43d3-b083-008d00a9dfa3",
+        "998f4fb9-b5f9-4be4-87be-af608eb2ce61",
+        "9c1c7c39-a8c5-45e5-98e2-46f8ccc0c581",
+        "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+        "a377a35b-476a-40f4-9a2e-8b60ce0d210a",
+        "a861bb35-be27-4732-8d56-57c3962e8fc8",
+        "aa93cf1a-925c-4b51-b15f-132f48fff3b0",
+        "afa8ab08-f9a1-4b4a-9ddc-ada4e4d8e046",
+        "c97fb305-d6bb-439a-9460-45126991dc9e",
+        "d3fdf2ce-bb9f-45e1-b91b-78039d7520cb",
+        "d99f52ed-dd28-4c35-ac3d-0dd84ec37a28",
+        "d9fbf086-f19c-4825-85da-67de68ea0746",
+        "dd34697a-be8e-4705-be81-c855d493ecd3",
+        "df197c6d-fe4c-4a5a-958d-bd65920e1872",
+        "e11ad4be-b879-4998-9f9f-1df404d21dd7",
+        "e443cd7b-7a97-4886-a8aa-872acf5d437c",
+        "ecdb9563-b5a3-43d6-9708-8b312d2e2357",
+        "f09ed62f-87c4-49c4-bd3d-f5cbc7f9c1ab",
+        "f2ea64e0-df11-45a8-9b14-b23e9933b3bb",
+        "ff953e3a-1a2a-49fe-b891-ce5f923c39e8"
+      ]
+    }
+  ],
+  "provenance": {
+    "source": "completed snapshot manifest receipts",
+    "purpose": "capability proposals",
+    "input_sha256": "sha256:b188e5867bbaf931fce43dcba4f24374788afa32e17c8d26c3129bac1ca3aa44",
+    "max_bytes": 2097152
+  }
+}

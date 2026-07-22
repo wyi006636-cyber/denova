@@ -1,0 +1,26 @@
+{
+  "contract": "denova.xiaping-duplicate-clusters",
+  "version": "v1",
+  "snapshot_id": "snapshot-18d24eb4d408a116",
+  "clusters": [
+    {
+      "cluster_id": "duplicate:ac35256f-6686-4696-8324-0944bd2705b5",
+      "kind": "near_metadata",
+      "representative_id": "f3e4fbbb-023c-48e3-bafe-26949bc86a99",
+      "member_ids": [
+        "ac35256f-6686-4696-8324-0944bd2705b5",
+        "f3e4fbbb-023c-48e3-bafe-26949bc86a99"
+      ],
+      "reasons": [
+        "same_author",
+        "token_jaccard\u003e=0.90"
+      ]
+    }
+  ],
+  "provenance": {
+    "source": "completed snapshot manifest receipts",
+    "purpose": "duplicate clusters",
+    "input_sha256": "sha256:b188e5867bbaf931fce43dcba4f24374788afa32e17c8d26c3129bac1ca3aa44",
+    "max_bytes": 2097152
+  }
+}

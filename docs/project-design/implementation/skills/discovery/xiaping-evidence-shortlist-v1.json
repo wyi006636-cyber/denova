@@ -1,0 +1,1858 @@
+{
+  "contract": "denova.xiaping-evidence-shortlist",
+  "version": "v1",
+  "snapshot_id": "snapshot-18d24eb4d408a116",
+  "entries": [
+    {
+      "skill_id": "638f81e5-e4fb-4090-a59c-06c81c341db5",
+      "capability_id": "character.build-dialogue-voice",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "638f81e5-e4fb-4090-a59c-06c81c341db5",
+        "capability_id": "character.build-dialogue-voice",
+        "download_percentile": 1,
+        "bayesian_stars_x100": 400,
+        "review": {
+          "effective_raters": 1,
+          "substantive_comments": 1,
+          "duplicate_comments": 1,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 400,
+          "anomaly_flags": [
+            "DUPLICATE-COMMENT-CONCENTRATION"
+          ]
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 2,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+      "capability_id": "character.build-profile",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+        "capability_id": "character.build-profile",
+        "download_percentile": 0.7777777777777778,
+        "bayesian_stars_x100": 462.38975966562174,
+        "review": {
+          "effective_raters": 10,
+          "substantive_comments": 10,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 470,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 2,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+      "capability_id": "character.build-profile",
+      "lane": "DATA-RICH",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "capability_id": "character.build-profile",
+        "download_percentile": 0.9629629629629629,
+        "bayesian_stars_x100": 458.68196986550714,
+        "review": {
+          "effective_raters": 181,
+          "substantive_comments": 181,
+          "duplicate_comments": 4,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 459,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 2,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "d99f52ed-dd28-4c35-ac3d-0dd84ec37a28",
+      "capability_id": "character.build-profile",
+      "lane": "DATA-RICH",
+      "rank": 3,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "d99f52ed-dd28-4c35-ac3d-0dd84ec37a28",
+        "capability_id": "character.build-profile",
+        "download_percentile": 0.8518518518518519,
+        "bayesian_stars_x100": 454.8144938226074,
+        "review": {
+          "effective_raters": 12,
+          "substantive_comments": 12,
+          "duplicate_comments": 2,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 458,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 4,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "f0abe330-2b79-4898-a48e-a45fdf3c15b6",
+      "capability_id": "character.build-profile",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "f0abe330-2b79-4898-a48e-a45fdf3c15b6",
+        "capability_id": "character.build-profile",
+        "download_percentile": 0.018518518518518517,
+        "bayesian_stars_x100": 447.1692789968653,
+        "review": {
+          "effective_raters": 0,
+          "substantive_comments": 0,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 1,
+          "average_stars_x100": 0,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 4,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8e9fbce1-c688-4c83-8fff-4f1ee7418611",
+      "capability_id": "character.build-profile",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8e9fbce1-c688-4c83-8fff-4f1ee7418611",
+        "capability_id": "character.build-profile",
+        "download_percentile": 0.3333333333333333,
+        "bayesian_stars_x100": 447.97805642633233,
+        "review": {
+          "effective_raters": 2,
+          "substantive_comments": 2,
+          "duplicate_comments": 1,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 450,
+          "anomaly_flags": [
+            "LOW-SUBSTANTIVE-RATIO",
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "1924944f-6e45-4f4c-ad06-6c7ac2b20717",
+      "capability_id": "continuity.review-facts",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "1924944f-6e45-4f4c-ad06-6c7ac2b20717",
+        "capability_id": "continuity.review-facts",
+        "download_percentile": 0.9459459459459459,
+        "bayesian_stars_x100": 452.87259281318245,
+        "review": {
+          "effective_raters": 66,
+          "substantive_comments": 66,
+          "duplicate_comments": 4,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 454,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 2,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+      "capability_id": "continuity.review-facts",
+      "lane": "DATA-RICH",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+        "capability_id": "continuity.review-facts",
+        "download_percentile": 0.972972972972973,
+        "bayesian_stars_x100": 450.72755233494365,
+        "review": {
+          "effective_raters": 218,
+          "substantive_comments": 218,
+          "duplicate_comments": 108,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 451,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 4,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "f47e299c-3861-421d-9f1d-971de45bf622",
+      "capability_id": "continuity.review-facts",
+      "lane": "DATA-RICH",
+      "rank": 3,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "f47e299c-3861-421d-9f1d-971de45bf622",
+        "capability_id": "continuity.review-facts",
+        "download_percentile": 0.7567567567567568,
+        "bayesian_stars_x100": 447.63909892879644,
+        "review": {
+          "effective_raters": 16,
+          "substantive_comments": 16,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 450,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 59,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "245a4eec-21c1-48de-bd83-be3f97161076",
+      "capability_id": "continuity.review-facts",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "245a4eec-21c1-48de-bd83-be3f97161076",
+        "capability_id": "continuity.review-facts",
+        "download_percentile": 0.5135135135135135,
+        "bayesian_stars_x100": 436.44855072463764,
+        "review": {
+          "effective_raters": 28,
+          "substantive_comments": 28,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 435,
+          "anomaly_flags": [
+            "REVIEW-BURST"
+          ]
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "b9460eb7-1a0d-4e21-8545-fdc591092783",
+      "capability_id": "continuity.review-facts",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "b9460eb7-1a0d-4e21-8545-fdc591092783",
+        "capability_id": "continuity.review-facts",
+        "download_percentile": 0.8918918918918919,
+        "bayesian_stars_x100": 439.44661835748786,
+        "review": {
+          "effective_raters": 8,
+          "substantive_comments": 8,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 437,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 2,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "45cfc35c-95c4-4377-ab15-899d476c03e5",
+      "capability_id": "editor.review-profile-rubric",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "45cfc35c-95c4-4377-ab15-899d476c03e5",
+        "capability_id": "editor.review-profile-rubric",
+        "download_percentile": 0.9878048780487805,
+        "bayesian_stars_x100": 469.18183172002983,
+        "review": {
+          "effective_raters": 73,
+          "substantive_comments": 73,
+          "duplicate_comments": 3,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 472,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8bf2a1d3-8ad1-45d7-8708-766c7a6b1124",
+      "capability_id": "editor.review-profile-rubric",
+      "lane": "DATA-RICH",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8bf2a1d3-8ad1-45d7-8708-766c7a6b1124",
+        "capability_id": "editor.review-profile-rubric",
+        "download_percentile": 1,
+        "bayesian_stars_x100": 452.1770053475936,
+        "review": {
+          "effective_raters": 126,
+          "substantive_comments": 126,
+          "duplicate_comments": 119,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 453,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 25,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "aee3dcad-7080-4a00-82ed-4f7291ce32c8",
+      "capability_id": "editor.review-profile-rubric",
+      "lane": "DATA-RICH",
+      "rank": 3,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "aee3dcad-7080-4a00-82ed-4f7291ce32c8",
+        "capability_id": "editor.review-profile-rubric",
+        "download_percentile": 0.8963414634146342,
+        "bayesian_stars_x100": 451.55327731092433,
+        "review": {
+          "effective_raters": 29,
+          "substantive_comments": 29,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 455,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "7fee05ce-81e0-4046-a62d-d2fa10d32908",
+      "capability_id": "editor.review-profile-rubric",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "7fee05ce-81e0-4046-a62d-d2fa10d32908",
+        "capability_id": "editor.review-profile-rubric",
+        "download_percentile": 0.21646341463414634,
+        "bayesian_stars_x100": 420.93647058823524,
+        "review": {
+          "effective_raters": 4,
+          "substantive_comments": 4,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 400,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "f705a76c-c9c5-4e41-b934-a8a47996992e",
+      "capability_id": "editor.review-profile-rubric",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "f705a76c-c9c5-4e41-b934-a8a47996992e",
+        "capability_id": "editor.review-profile-rubric",
+        "download_percentile": 0.7012195121951219,
+        "bayesian_stars_x100": 421.81176470588235,
+        "review": {
+          "effective_raters": 8,
+          "substantive_comments": 8,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 1,
+          "average_stars_x100": 412,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 9,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "568be137-29fa-485c-8763-41f1f4a0d1c7",
+      "capability_id": "editor.review-story",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "568be137-29fa-485c-8763-41f1f4a0d1c7",
+        "capability_id": "editor.review-story",
+        "download_percentile": 0.75,
+        "bayesian_stars_x100": 420.6818181818182,
+        "review": {
+          "effective_raters": 7,
+          "substantive_comments": 7,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 414,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "b71b0d23-9bb4-4e45-9328-8f596efc67cf",
+      "capability_id": "editor.review-story",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "b71b0d23-9bb4-4e45-9328-8f596efc67cf",
+        "capability_id": "editor.review-story",
+        "download_percentile": 0,
+        "bayesian_stars_x100": 421.7636363636364,
+        "review": {
+          "effective_raters": 2,
+          "substantive_comments": 2,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 400,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+      "capability_id": "engagement.review-reading-drive",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "56ed7d78-5636-4c78-83cc-0aee4802b0b7",
+        "capability_id": "engagement.review-reading-drive",
+        "download_percentile": 0.9444444444444444,
+        "bayesian_stars_x100": 439.10712174940903,
+        "review": {
+          "effective_raters": 43,
+          "substantive_comments": 43,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 1,
+          "average_stars_x100": 439,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 70,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "b42663ba-5409-4843-89c6-3b51746b5c8e",
+      "capability_id": "engagement.review-reading-drive",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "b42663ba-5409-4843-89c6-3b51746b5c8e",
+        "capability_id": "engagement.review-reading-drive",
+        "download_percentile": 1,
+        "bayesian_stars_x100": 436.3232549458753,
+        "review": {
+          "effective_raters": 14,
+          "substantive_comments": 14,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 435,
+          "anomaly_flags": [
+            "LOW-SUBSTANTIVE-RATIO",
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 13,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "fb86cc77-eae1-41cf-8332-352649626db1",
+      "capability_id": "engagement.review-reading-drive",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "fb86cc77-eae1-41cf-8332-352649626db1",
+        "capability_id": "engagement.review-reading-drive",
+        "download_percentile": 0.6666666666666666,
+        "bayesian_stars_x100": 449.7677304964539,
+        "review": {
+          "effective_raters": 3,
+          "substantive_comments": 3,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 466,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 3,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8f2aeb09-5135-489f-9d40-b57cb07cb18a",
+      "capability_id": "ideation.generate-premises",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8f2aeb09-5135-489f-9d40-b57cb07cb18a",
+        "capability_id": "ideation.generate-premises",
+        "download_percentile": 0.7786069651741293,
+        "bayesian_stars_x100": 470.7003382533825,
+        "review": {
+          "effective_raters": 10,
+          "substantive_comments": 10,
+          "duplicate_comments": 1,
+          "owner_self_reviews": 1,
+          "average_stars_x100": 490,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 17,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+      "capability_id": "ideation.generate-premises",
+      "lane": "DATA-RICH",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "capability_id": "ideation.generate-premises",
+        "download_percentile": 0.9850746268656716,
+        "bayesian_stars_x100": 458.2769089989287,
+        "review": {
+          "effective_raters": 181,
+          "substantive_comments": 181,
+          "duplicate_comments": 4,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 459,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 2,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+      "capability_id": "ideation.generate-premises",
+      "lane": "DATA-RICH",
+      "rank": 3,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+        "capability_id": "ideation.generate-premises",
+        "download_percentile": 0.845771144278607,
+        "bayesian_stars_x100": 457.36700492004917,
+        "review": {
+          "effective_raters": 10,
+          "substantive_comments": 10,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 470,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 2,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "6e1d94d0-d03a-4583-9aaf-99e9f04b5520",
+      "capability_id": "ideation.generate-premises",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "6e1d94d0-d03a-4583-9aaf-99e9f04b5520",
+        "capability_id": "ideation.generate-premises",
+        "download_percentile": 0.7064676616915423,
+        "bayesian_stars_x100": 412.34654413851825,
+        "review": {
+          "effective_raters": 8,
+          "substantive_comments": 8,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 400,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "6356c7fe-12ec-4036-9e8f-f349c0a0aed4",
+      "capability_id": "ideation.generate-premises",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "6356c7fe-12ec-4036-9e8f-f349c0a0aed4",
+        "capability_id": "ideation.generate-premises",
+        "download_percentile": 0.6517412935323383,
+        "bayesian_stars_x100": 417.8338970889709,
+        "review": {
+          "effective_raters": 4,
+          "substantive_comments": 4,
+          "duplicate_comments": 1,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 400,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8bf2a1d3-8ad1-45d7-8708-766c7a6b1124",
+      "capability_id": "opening.review-hook",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8bf2a1d3-8ad1-45d7-8708-766c7a6b1124",
+        "capability_id": "opening.review-hook",
+        "download_percentile": 1,
+        "bayesian_stars_x100": 452.48330331875485,
+        "review": {
+          "effective_raters": 126,
+          "substantive_comments": 126,
+          "duplicate_comments": 119,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 453,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 25,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "74bb44aa-022c-4690-95dd-51b81fd222b3",
+      "capability_id": "opening.review-hook",
+      "lane": "DATA-RICH",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "74bb44aa-022c-4690-95dd-51b81fd222b3",
+        "capability_id": "opening.review-hook",
+        "download_percentile": 0.967741935483871,
+        "bayesian_stars_x100": 424.1857473630049,
+        "review": {
+          "effective_raters": 22,
+          "substantive_comments": 22,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 422,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 27,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "ea80da9e-7196-4e7a-9e95-d1c0a8d6353a",
+      "capability_id": "opening.review-hook",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "ea80da9e-7196-4e7a-9e95-d1c0a8d6353a",
+        "capability_id": "opening.review-hook",
+        "download_percentile": 0.25806451612903225,
+        "bayesian_stars_x100": 434.83277591973246,
+        "review": {
+          "effective_raters": 3,
+          "substantive_comments": 3,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 433,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "4a5aaf84-fca5-483c-8a52-da61318db8f6",
+      "capability_id": "opening.review-hook",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "4a5aaf84-fca5-483c-8a52-da61318db8f6",
+        "capability_id": "opening.review-hook",
+        "download_percentile": 0,
+        "bayesian_stars_x100": 430.6036789297659,
+        "review": {
+          "effective_raters": 4,
+          "substantive_comments": 4,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 425,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8d24564b-58c3-4bdc-ab0b-2423fd6dd2ad",
+      "capability_id": "outline.build-execution-brief",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8d24564b-58c3-4bdc-ab0b-2423fd6dd2ad",
+        "capability_id": "outline.build-execution-brief",
+        "download_percentile": 0.75,
+        "bayesian_stars_x100": 436.84769230769234,
+        "review": {
+          "effective_raters": 18,
+          "substantive_comments": 18,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 1,
+          "average_stars_x100": 438,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "76143503-d81c-46cc-8cef-1ea2129bd4da",
+      "capability_id": "outline.build-execution-brief",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "76143503-d81c-46cc-8cef-1ea2129bd4da",
+        "capability_id": "outline.build-execution-brief",
+        "download_percentile": 0,
+        "bayesian_stars_x100": 423.71923076923076,
+        "review": {
+          "effective_raters": 3,
+          "substantive_comments": 3,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 400,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "976a4a25-74b2-4852-8db7-e615ff098fc9",
+      "capability_id": "outline.build-execution-brief",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "976a4a25-74b2-4852-8db7-e615ff098fc9",
+        "capability_id": "outline.build-execution-brief",
+        "download_percentile": 0.25,
+        "bayesian_stars_x100": 428.9276923076923,
+        "review": {
+          "effective_raters": 18,
+          "substantive_comments": 18,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 427,
+          "anomaly_flags": [
+            "REVIEW-BURST"
+          ]
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8f2aeb09-5135-489f-9d40-b57cb07cb18a",
+      "capability_id": "outline.build-long-arc",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8f2aeb09-5135-489f-9d40-b57cb07cb18a",
+        "capability_id": "outline.build-long-arc",
+        "download_percentile": 0.8333333333333334,
+        "bayesian_stars_x100": 477.78220745662605,
+        "review": {
+          "effective_raters": 10,
+          "substantive_comments": 10,
+          "duplicate_comments": 1,
+          "owner_self_reviews": 1,
+          "average_stars_x100": 490,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 17,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+      "capability_id": "outline.build-long-arc",
+      "lane": "DATA-RICH",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+        "capability_id": "outline.build-long-arc",
+        "download_percentile": 1,
+        "bayesian_stars_x100": 450.9322112810485,
+        "review": {
+          "effective_raters": 218,
+          "substantive_comments": 218,
+          "duplicate_comments": 108,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 451,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 4,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "f47e299c-3861-421d-9f1d-971de45bf622",
+      "capability_id": "outline.build-long-arc",
+      "lane": "DATA-RICH",
+      "rank": 3,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "f47e299c-3861-421d-9f1d-971de45bf622",
+        "capability_id": "outline.build-long-arc",
+        "download_percentile": 0.9666666666666667,
+        "bayesian_stars_x100": 449.44754521963824,
+        "review": {
+          "effective_raters": 16,
+          "substantive_comments": 16,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 450,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 59,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "4df2d104-49c7-4e40-a82b-8b845943982f",
+      "capability_id": "outline.build-long-arc",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "4df2d104-49c7-4e40-a82b-8b845943982f",
+        "capability_id": "outline.build-long-arc",
+        "download_percentile": 0.7666666666666667,
+        "bayesian_stars_x100": 438.69509043927644,
+        "review": {
+          "effective_raters": 6,
+          "substantive_comments": 6,
+          "duplicate_comments": 1,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 433,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "07480ade-0087-4fe0-8b50-02e20b94d9ac",
+      "capability_id": "outline.build-long-arc",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "07480ade-0087-4fe0-8b50-02e20b94d9ac",
+        "capability_id": "outline.build-long-arc",
+        "download_percentile": 0.5333333333333333,
+        "bayesian_stars_x100": 462.35917312661496,
+        "review": {
+          "effective_raters": 7,
+          "substantive_comments": 7,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 471,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 9,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8f2aeb09-5135-489f-9d40-b57cb07cb18a",
+      "capability_id": "outline.build-short-structure",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8f2aeb09-5135-489f-9d40-b57cb07cb18a",
+        "capability_id": "outline.build-short-structure",
+        "download_percentile": 0.7854984894259819,
+        "bayesian_stars_x100": 471.8294412731362,
+        "review": {
+          "effective_raters": 10,
+          "substantive_comments": 10,
+          "duplicate_comments": 1,
+          "owner_self_reviews": 1,
+          "average_stars_x100": 490,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 17,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "23051889-089c-42a0-819b-fe894de45963",
+      "capability_id": "outline.build-short-structure",
+      "lane": "DATA-RICH",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "23051889-089c-42a0-819b-fe894de45963",
+        "capability_id": "outline.build-short-structure",
+        "download_percentile": 0.9969788519637462,
+        "bayesian_stars_x100": 466.47828350694385,
+        "review": {
+          "effective_raters": 297,
+          "substantive_comments": 297,
+          "duplicate_comments": 109,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 467,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 2,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "e40a47b2-178d-4f23-be06-0497523cc86e",
+      "capability_id": "outline.build-short-structure",
+      "lane": "DATA-RICH",
+      "rank": 3,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "e40a47b2-178d-4f23-be06-0497523cc86e",
+        "capability_id": "outline.build-short-structure",
+        "download_percentile": 0.8821752265861027,
+        "bayesian_stars_x100": 455.45398343900183,
+        "review": {
+          "effective_raters": 18,
+          "substantive_comments": 18,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 461,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "b708f427-6503-4a6b-a338-6e46cd1a4bda",
+      "capability_id": "outline.build-short-structure",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "b708f427-6503-4a6b-a338-6e46cd1a4bda",
+        "capability_id": "outline.build-short-structure",
+        "download_percentile": 0.554380664652568,
+        "bayesian_stars_x100": 444.60173412904345,
+        "review": {
+          "effective_raters": 19,
+          "substantive_comments": 19,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 447,
+          "anomaly_flags": [
+            "REVIEW-BURST"
+          ]
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "3a433283-b8a5-41c9-80d0-4d38a6ca10df",
+      "capability_id": "outline.build-short-structure",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "3a433283-b8a5-41c9-80d0-4d38a6ca10df",
+        "capability_id": "outline.build-short-structure",
+        "download_percentile": 0.5211480362537765,
+        "bayesian_stars_x100": 417.74416190970425,
+        "review": {
+          "effective_raters": 5,
+          "substantive_comments": 5,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 400,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "3742382e-0a12-4ecc-a4f1-fad439e462f8",
+      "capability_id": "outline.simulate-multiline",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "3742382e-0a12-4ecc-a4f1-fad439e462f8",
+        "capability_id": "outline.simulate-multiline",
+        "download_percentile": 1,
+        "bayesian_stars_x100": 413.2,
+        "review": {
+          "effective_raters": 2,
+          "substantive_comments": 2,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 400,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "3a5d8b5d-c319-41b8-8a3f-3c7c87ff83ce",
+      "capability_id": "outline.simulate-multiline",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "3a5d8b5d-c319-41b8-8a3f-3c7c87ff83ce",
+        "capability_id": "outline.simulate-multiline",
+        "download_percentile": 0.5,
+        "bayesian_stars_x100": 444,
+        "review": {
+          "effective_raters": 3,
+          "substantive_comments": 3,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 466,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 2,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8f2aeb09-5135-489f-9d40-b57cb07cb18a",
+      "capability_id": "plot.manage-foreshadowing",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8f2aeb09-5135-489f-9d40-b57cb07cb18a",
+        "capability_id": "plot.manage-foreshadowing",
+        "download_percentile": 0.8125,
+        "bayesian_stars_x100": 473.3216456287985,
+        "review": {
+          "effective_raters": 10,
+          "substantive_comments": 10,
+          "duplicate_comments": 1,
+          "owner_self_reviews": 1,
+          "average_stars_x100": 490,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 17,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+      "capability_id": "plot.manage-foreshadowing",
+      "lane": "DATA-RICH",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "5a7d600a-1ff2-4d11-818c-e080f405deb9",
+        "capability_id": "plot.manage-foreshadowing",
+        "download_percentile": 0.96875,
+        "bayesian_stars_x100": 458.48830475501063,
+        "review": {
+          "effective_raters": 181,
+          "substantive_comments": 181,
+          "duplicate_comments": 4,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 459,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 2,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+      "capability_id": "plot.manage-foreshadowing",
+      "lane": "DATA-RICH",
+      "rank": 3,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "a3504d81-736d-49b3-9a98-2a4a3cd3aaf1",
+        "capability_id": "plot.manage-foreshadowing",
+        "download_percentile": 1,
+        "bayesian_stars_x100": 450.7525770602331,
+        "review": {
+          "effective_raters": 218,
+          "substantive_comments": 218,
+          "duplicate_comments": 108,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 451,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 4,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "f323f0d2-2a93-40da-bda2-f7a9f771c265",
+      "capability_id": "plot.manage-foreshadowing",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "f323f0d2-2a93-40da-bda2-f7a9f771c265",
+        "capability_id": "plot.manage-foreshadowing",
+        "download_percentile": 0.171875,
+        "bayesian_stars_x100": 437.3530855539972,
+        "review": {
+          "effective_raters": 3,
+          "substantive_comments": 3,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 433,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "e03452b0-aa43-48d2-bc39-6ef6d386864f",
+      "capability_id": "plot.manage-foreshadowing",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "e03452b0-aa43-48d2-bc39-6ef6d386864f",
+        "capability_id": "plot.manage-foreshadowing",
+        "download_percentile": 0.875,
+        "bayesian_stars_x100": 401.9959228937669,
+        "review": {
+          "effective_raters": 38,
+          "substantive_comments": 38,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 397,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH",
+            "REVIEW-BURST"
+          ]
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "52196eb5-d68c-4d74-aee4-79d125bcaa59",
+      "capability_id": "project.bootstrap-genre",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "52196eb5-d68c-4d74-aee4-79d125bcaa59",
+        "capability_id": "project.bootstrap-genre",
+        "download_percentile": 1,
+        "bayesian_stars_x100": 474.10543408729313,
+        "review": {
+          "effective_raters": 200,
+          "substantive_comments": 200,
+          "duplicate_comments": 152,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 475,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "e3ccb282-5c81-42ab-a811-d88791eb8178",
+      "capability_id": "project.bootstrap-genre",
+      "lane": "DATA-RICH",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "e3ccb282-5c81-42ab-a811-d88791eb8178",
+        "capability_id": "project.bootstrap-genre",
+        "download_percentile": 0.927007299270073,
+        "bayesian_stars_x100": 462.80063581341324,
+        "review": {
+          "effective_raters": 17,
+          "substantive_comments": 17,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 470,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "806e3dbc-dc8a-431f-843d-a91383deff35",
+      "capability_id": "project.bootstrap-genre",
+      "lane": "DATA-RICH",
+      "rank": 3,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "806e3dbc-dc8a-431f-843d-a91383deff35",
+        "capability_id": "project.bootstrap-genre",
+        "download_percentile": 0.9781021897810219,
+        "bayesian_stars_x100": 449.0732379030967,
+        "review": {
+          "effective_raters": 58,
+          "substantive_comments": 58,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 450,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 3,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "f0abe330-2b79-4898-a48e-a45fdf3c15b6",
+      "capability_id": "project.bootstrap-genre",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "f0abe330-2b79-4898-a48e-a45fdf3c15b6",
+        "capability_id": "project.bootstrap-genre",
+        "download_percentile": 0.072992700729927,
+        "bayesian_stars_x100": 438.32279757901813,
+        "review": {
+          "effective_raters": 0,
+          "substantive_comments": 0,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 1,
+          "average_stars_x100": 0,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 4,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "4dac3dfc-b8bd-4bde-8578-938b2f9cf3a0",
+      "capability_id": "project.bootstrap-genre",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "4dac3dfc-b8bd-4bde-8578-938b2f9cf3a0",
+        "capability_id": "project.bootstrap-genre",
+        "download_percentile": 0.7226277372262774,
+        "bayesian_stars_x100": 427.8295705639351,
+        "review": {
+          "effective_raters": 9,
+          "substantive_comments": 9,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 422,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+      "capability_id": "style.revise-naturalness",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+        "capability_id": "style.revise-naturalness",
+        "download_percentile": 0.7945205479452054,
+        "bayesian_stars_x100": 459.6975222717149,
+        "review": {
+          "effective_raters": 10,
+          "substantive_comments": 10,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 470,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 2,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "c3046817-cbed-4c63-a7bc-88c95066eb7e",
+      "capability_id": "style.revise-naturalness",
+      "lane": "DATA-RICH",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "c3046817-cbed-4c63-a7bc-88c95066eb7e",
+        "capability_id": "style.revise-naturalness",
+        "download_percentile": 0.821917808219178,
+        "bayesian_stars_x100": 455.77413860867284,
+        "review": {
+          "effective_raters": 11,
+          "substantive_comments": 11,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 463,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "ef98e945-6e0d-4a58-8c9c-c6bbe3dab4ea",
+      "capability_id": "style.revise-naturalness",
+      "lane": "DATA-RICH",
+      "rank": 3,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "ef98e945-6e0d-4a58-8c9c-c6bbe3dab4ea",
+        "capability_id": "style.revise-naturalness",
+        "download_percentile": 0.9863013698630136,
+        "bayesian_stars_x100": 452.6168314411429,
+        "review": {
+          "effective_raters": 158,
+          "substantive_comments": 158,
+          "duplicate_comments": 98,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 453,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 36,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "bca59879-292c-45bf-8b0b-c6eb5a77d86c",
+      "capability_id": "style.revise-naturalness",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "bca59879-292c-45bf-8b0b-c6eb5a77d86c",
+        "capability_id": "style.revise-naturalness",
+        "download_percentile": 0.0136986301369863,
+        "bayesian_stars_x100": 442.52672605790644,
+        "review": {
+          "effective_raters": 0,
+          "substantive_comments": 0,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 0,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "3ea7d696-1806-4021-92e0-3439860d0855",
+      "capability_id": "style.revise-naturalness",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "3ea7d696-1806-4021-92e0-3439860d0855",
+        "capability_id": "style.revise-naturalness",
+        "download_percentile": 0.726027397260274,
+        "bayesian_stars_x100": 406.89504454342983,
+        "review": {
+          "effective_raters": 2,
+          "substantive_comments": 2,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 300,
+          "anomaly_flags": [
+            "LOW-SUBSTANTIVE-RATIO",
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8f2aeb09-5135-489f-9d40-b57cb07cb18a",
+      "capability_id": "style.revise-prose",
+      "lane": "DATA-RICH",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8f2aeb09-5135-489f-9d40-b57cb07cb18a",
+        "capability_id": "style.revise-prose",
+        "download_percentile": 0.7922077922077922,
+        "bayesian_stars_x100": 468.93461538461537,
+        "review": {
+          "effective_raters": 10,
+          "substantive_comments": 10,
+          "duplicate_comments": 1,
+          "owner_self_reviews": 1,
+          "average_stars_x100": 490,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 17,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+      "capability_id": "style.revise-prose",
+      "lane": "DATA-RICH",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "8643f73c-7eeb-4409-9136-09c9a125c2ff",
+        "capability_id": "style.revise-prose",
+        "download_percentile": 0.8571428571428571,
+        "bayesian_stars_x100": 455.60128205128206,
+        "review": {
+          "effective_raters": 10,
+          "substantive_comments": 10,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 470,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 2,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "6a436d60-f180-4d09-8d23-87666fc2ea2b",
+      "capability_id": "style.revise-prose",
+      "lane": "DATA-RICH",
+      "rank": 3,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "6a436d60-f180-4d09-8d23-87666fc2ea2b",
+        "capability_id": "style.revise-prose",
+        "download_percentile": 0.935064935064935,
+        "bayesian_stars_x100": 436.82466063348414,
+        "review": {
+          "effective_raters": 12,
+          "substantive_comments": 12,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 441,
+          "anomaly_flags": [
+            "RATING-COMMENT-COUNT-MISMATCH"
+          ]
+        },
+        "platform_data_rich": true,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "572b33b4-828f-4d5e-abc5-788f015af538",
+      "capability_id": "style.revise-prose",
+      "lane": "EXPLORATION",
+      "rank": 1,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "572b33b4-828f-4d5e-abc5-788f015af538",
+        "capability_id": "style.revise-prose",
+        "download_percentile": 0.36363636363636365,
+        "bayesian_stars_x100": 433.401923076923,
+        "review": {
+          "effective_raters": 5,
+          "substantive_comments": 5,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 440,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    },
+    {
+      "skill_id": "4a5aaf84-fca5-483c-8a52-da61318db8f6",
+      "capability_id": "style.revise-prose",
+      "lane": "EXPLORATION",
+      "rank": 2,
+      "reasons": [
+        "capability evidence retained",
+        "selection evidence vector embedded"
+      ],
+      "evidence": {
+        "skill_id": "4a5aaf84-fca5-483c-8a52-da61318db8f6",
+        "capability_id": "style.revise-prose",
+        "download_percentile": 0.025974025974025976,
+        "bayesian_stars_x100": 426.0021367521368,
+        "review": {
+          "effective_raters": 4,
+          "substantive_comments": 4,
+          "duplicate_comments": 0,
+          "owner_self_reviews": 0,
+          "average_stars_x100": 425,
+          "anomaly_flags": []
+        },
+        "platform_data_rich": false,
+        "maturity_version_count": 1,
+        "evidence_cache_status": "EVIDENCE-CACHE-AVAILABLE"
+      }
+    }
+  ],
+  "gaps": [
+    {
+      "capability_id": "character.build-dialogue-voice",
+      "wanted": 5,
+      "selected": 1,
+      "reason": "fewer than five credible writing candidates"
+    },
+    {
+      "capability_id": "outline.simulate-multiline",
+      "wanted": 5,
+      "selected": 2,
+      "reason": "fewer than five credible writing candidates"
+    }
+  ],
+  "provenance": {
+    "source": "completed snapshot manifest receipts",
+    "purpose": "evidence shortlist",
+    "input_sha256": "sha256:b188e5867bbaf931fce43dcba4f24374788afa32e17c8d26c3129bac1ca3aa44",
+    "max_bytes": 2097152
+  }
+}

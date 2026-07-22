@@ -1,0 +1,437 @@
+{
+  "contract": "denova.xiaping-snapshot-manifest",
+  "version": "v1",
+  "snapshot_id": "snapshot-18d24eb4d408a116",
+  "status": "COMPLETE",
+  "started_at": "2026-07-21T14:43:23Z",
+  "completed_at": "2026-07-21T14:43:40Z",
+  "base_url": "https://xiaping.coze.com",
+  "normalization_version": "v1",
+  "reported_total": 2251,
+  "unique_skills": 2237,
+  "pages": [
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=1",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=1",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:37:49Z",
+      "sha256": "sha256:4a1390b1ed6242565758cfef1fd1a5f054c67f24609c78dd88e364a11639e2c2",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=2",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=2",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:37:52Z",
+      "sha256": "sha256:562e3bb269d8267aa99ceabc37b2d337a94b4542d10eb7eec535d03b977e4093",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=3",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=3",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:37:53Z",
+      "sha256": "sha256:4d0040646f7f9a883a13293768fefcc59cedd0df5f64b0ec9f7b39b469e80790",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=4",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=4",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:37:54Z",
+      "sha256": "sha256:677c6dde46c674d191d481c82d09c826670d7f80c6a407776130390e4addd531",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=5",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=5",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:37:55Z",
+      "sha256": "sha256:6037dd07c0cbb95fbd8d3c037ba2cc8732cd9a0091d1294a428b2d9b08384788",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=6",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=6",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:37:59Z",
+      "sha256": "sha256:7d153c6f11a8d11ff7cf34d9b7e3d67e1b6b54848799e28e54a6c602974bd4a2",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=7",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=7",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:00Z",
+      "sha256": "sha256:fa8d80d6a25c58d86aba8de60d3626bfbb600badff94940ab57bec4df89274e7",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=8",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=8",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:01Z",
+      "sha256": "sha256:04ddce4dfca13f8da4eb429ef2c2a39d9fe83f60533705fec3eee6927f7223fa",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=9",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=9",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:02Z",
+      "sha256": "sha256:2fff0b656d1a76d20d6e86b455637a8f04b4f4d44229691f1ad7d758d012e53a",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=10",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=10",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:03Z",
+      "sha256": "sha256:5458468545eb9000b24bc6814594a53f163be556743b7957e91ba34e496116eb",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=11",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=11",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:04Z",
+      "sha256": "sha256:ed3aa4783f7140edf988f7a01491d4d3f01b632c79c32f4d0c68bd581135354e",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=12",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=12",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:07Z",
+      "sha256": "sha256:b997ba70855452187ed129e977aac5d9e6a43a252cfcb883ad3ab400bb1170f2",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=13",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=13",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:08Z",
+      "sha256": "sha256:9efe6dc6959c7e7b703a65031ca085eb76f61f6b7999f72c299a74516f963ec0",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=14",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=14",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:09Z",
+      "sha256": "sha256:a5c95aacf11566dde8c2d6ac261abb002f335b0f7bd25c663b7da8e50e548f5a",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=15",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=15",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:09Z",
+      "sha256": "sha256:0c232d725ac410992960d780bdf74f7dd8232c81af8ef8d9b98fb60443ae7629",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=16",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=16",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:10Z",
+      "sha256": "sha256:f4c70bd3004ebf50bba7ae89ad817b31afe2041d582510fc310a8c01a3f81f6a",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=17",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=17",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:11Z",
+      "sha256": "sha256:65645cba3bfebe521ab69493544f38574ae1f60930305793d96096f936b87e5a",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=18",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=18",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:12Z",
+      "sha256": "sha256:e87a2715d1afa9fcaee91902cdfc9440897e9fc186e8790f88ebe258205aa199",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=19",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=19",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:13Z",
+      "sha256": "sha256:f35d1b3f593768970177cbec2abb510799d5f1e2fc43b8b15acaa933d45ec372",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=20",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=20",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:14Z",
+      "sha256": "sha256:eeceb1a26cf9ba283cca8e2a76617fde5d34d17473c07f492538f649641b6ee1",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=21",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=21",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:15Z",
+      "sha256": "sha256:d86c6519d6128884004c8481598ab167a1a45d76bc0e2436bd598d2ed5a3ae0d",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=22",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=22",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:18Z",
+      "sha256": "sha256:b40b36ca28e73036bc29bd481ad2b2d768ae87834d5ab6e36dc0c094444611da",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=23",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=23",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:19Z",
+      "sha256": "sha256:a065b0015588204ac3e407b5d5c39ab4e740acea3e67c7066b32f770ec01af6a",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=24",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=24",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:20Z",
+      "sha256": "sha256:e1a484c2fa15f7612b507331f998062f7d8260f64b0ef37607d5b9690b2884cc",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=25",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=25",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:21Z",
+      "sha256": "sha256:1c5520270b05c4aa874ad6a52f9d8674eaa7799afba46bdebba3bc8bc5687624",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=26",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=26",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:22Z",
+      "sha256": "sha256:d832bc7f4410cc528677d1786703285c8c4205f3b00eb763aaf6029c42312a03",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=27",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=27",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:23Z",
+      "sha256": "sha256:e0129f99b64e278e6f83c0270be32dac4a2f29192104c7ff8314b60780844e52",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=28",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=28",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:38:24Z",
+      "sha256": "sha256:6dd9154ddbc419f51c1353dc4e5663831bf2f46635bf2834a45bc3d1b4cfe30e",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=29",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=29",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:25Z",
+      "sha256": "sha256:b16498a16e8495d178c8284b91424de01eb493c89ab18dd005800ecf399dd9d7",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=30",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=30",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:26Z",
+      "sha256": "sha256:f4d382cecd9b44c441fa3b0d8078cad438350dbf823c2b4e949beeb780be2109",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=31",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=31",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:27Z",
+      "sha256": "sha256:b8f59101c76f42258e93f9b7f102ee77b34d4f30d8ac90071dc1a10fad6bf2cb",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=32",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=32",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:28Z",
+      "sha256": "sha256:4dc014ed7c2b8e4ab8af069076f7080e042358f4a81fa42e881bc8877e52a665",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=33",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=33",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:29Z",
+      "sha256": "sha256:9e2e17367a8b0504942c5aa98f78f3c3c5e8025ebac5d1e54f88c779a68bd671",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=34",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=34",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:30Z",
+      "sha256": "sha256:f2b7dd8066aa0400ba063548d5e0d431225e751bb7ffcc12c7a7c952208c10fb",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=35",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=35",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:31Z",
+      "sha256": "sha256:0f02194cbae89c460da064219b095a69052e542ca24774083860596da0dfe171",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=36",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=36",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:32Z",
+      "sha256": "sha256:96663d7547a01048320a6c423cc35a2396d701d4579e1d18176947d9b56b4d6e",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=37",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=37",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:33Z",
+      "sha256": "sha256:4c77001b43a95357932a9f58650eb0420a58e8d052e145ac2793b34e61a8ec8c",
+      "item_count": 48
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=38",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=38",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:33Z",
+      "sha256": "sha256:c3d266d9409930372ce95116dd8ae864e84f8f27095de3dcc1789182713eed6c",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=39",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=39",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:34Z",
+      "sha256": "sha256:f7a25c827314cee81710f117d47750e9c898082d5813a0521785b1cce0a2a52e",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=40",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=40",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:35Z",
+      "sha256": "sha256:669b708049bd46b7a5a73d0e4656b91b961cd05920e30d4f032b78cfccbfe5b3",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=41",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=41",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:36Z",
+      "sha256": "sha256:d0f70585e872e683e64be170be392f4ad7c6d53af9972368de3cfa72ae57bc2c",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=42",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=42",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:37Z",
+      "sha256": "sha256:bcd6dd7305c47d512b4d7affbc9d74fbd6515099d641f085ce6d85f763cb69fc",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=43",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=43",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:38Z",
+      "sha256": "sha256:871aa980e524cf42c17c7faee60a35a6b53c48485c64bc5041d13cc9f99eaec0",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=44",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=44",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:38Z",
+      "sha256": "sha256:25dcc7d71c6bbd3910f975340a610937737ce26d6ea60de50b458613b34ee51d",
+      "item_count": 50
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=45",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=45",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:39Z",
+      "sha256": "sha256:b168f406ebe7e2129fbf74f5f4b63e353fc448f17e8f097dd6ad7fa616d094fb",
+      "item_count": 49
+    },
+    {
+      "kind": "catalog",
+      "key": "https://xiaping.coze.com/api/skills?limit=50\u0026page=46",
+      "url": "https://xiaping.coze.com/api/skills?limit=50\u0026page=46",
+      "http_status": 200,
+      "captured_at": "2026-07-21T14:43:40Z",
+      "sha256": "sha256:6cf50512c1cefba68d3751859abe2b0edd3997955515c77f0816ece6cc86225c",
+      "item_count": 1
+    }
+  ],
+  "failures": [],
+  "previous_snapshot_sha256": "sha256:3ba6a646cac5b95db03169f0be96734b1fda78a98b12b88aa4f35f12c6f27d59",
+  "skill_records_sha256": "sha256:b188e5867bbaf931fce43dcba4f24374788afa32e17c8d26c3129bac1ca3aa44",
+  "provenance": {
+    "source": "completed snapshot manifest receipts",
+    "purpose": "snapshot manifest",
+    "input_sha256": "sha256:b188e5867bbaf931fce43dcba4f24374788afa32e17c8d26c3129bac1ca3aa44",
+    "max_bytes": 2097152
+  }
+}
