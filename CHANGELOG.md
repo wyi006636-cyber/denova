@@ -66,6 +66,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 冻结离线 Harness 结构化审稿 JSON 合同：模板现明确 `preferred_candidate`、最多 64 项的全字符串 `issues` 对象，以及字符串数组 `preserve` 的精确形状，并以可验证示例防止审稿输出产生可传输但不可解析的 schema 漂移；严格解析器保持不做强制转换、修复或重试。
+- Froze the offline Harness structured-review JSON contract: the template now declares the exact `preferred_candidate`, up-to-64 all-string `issues` object, and string-array `preserve` shapes, with a verifiable example preventing transport-valid but unparseable schema drift; the strict parser remains without coercion, repair, or retry.
+
 - 修复离线 Harness H 的失败调用证据与成本核算：真实 Provider 调用（包括错误、空输出、超限和结构化审稿失败）现保留私有 attempt 历史、真实可用用量/成本和安全诊断类别；请求构建和既有输出读取等调用前失败明确记录但不伪造付费调用。含字节的失败响应以原子私有文件及哈希保存；非 Windows 使用 `0600`，Windows 使用当前 owner 的受保护单一 ACE ACL。失败调用计入聚合与有界运行索引，但不会泄露到盲包、汇总或索引。恢复运行不会覆盖已付费失败尝试，且只有四个成功阶段与恰好四次真实 H Provider 调用才能进入 READY。
 - Fixed failed-call evidence and accounting for offline Harness H: real Provider calls—including errors, empty or oversized output, and structured-review failures—now retain private attempt history, available actual usage/cost, and a safe diagnostic category; pre-call request-build and prior-output-read failures are recorded without fabricating paid calls. Failed responses with bytes are atomically saved with hashes: `0600` on non-Windows and a protected single-ACE ACL for the current owner on Windows. Failed calls count in aggregates and bounded run indexes without leaking into blind packages, summaries, or indexes. Resume no longer overwrites paid failed attempts, and READY requires four successful stages and exactly four actual H Provider calls.
 

@@ -42,6 +42,49 @@ func TestLoadHarnessPolicyAcceptsFrozenRepositoryPolicy(t *testing.T) {
 	}
 }
 
+func TestFrozenRepositoryReviewTemplateRequiresExactJSONShapes(t *testing.T) {
+	_, source, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve test source path")
+	}
+	path := filepath.Join(filepath.Dir(source), "..", "..", "..", "docs", "project-design", "implementation", "evaluation", "runs", "templates", "harness-review-v1.md")
+	template, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read frozen review template: %v", err)
+	}
+	content := string(template)
+	for _, requirement := range []string{
+		"exactly one JSON object",
+		"preferred_candidate must be a JSON string enum: \"A\" or \"B\"",
+		"issues must be a JSON array with at most 64 items",
+		"Each issue object must contain exactly goal_id, severity, location, evidence, and action, and every value must be a JSON string",
+		"goal_id must copy one exact string from the supplied quality_goals JSON array",
+		"preserve must be a JSON array of JSON strings",
+		"No extra root or issue fields",
+		"This example demonstrates shape only; do not copy its content blindly.",
+	} {
+		if !strings.Contains(content, requirement) {
+			t.Fatalf("frozen review template must state %q", requirement)
+		}
+	}
+
+	const example = "{\"preferred_candidate\":\"A\",\"issues\":[],\"preserve\":[\"Keep the causal turn clear.\"]}"
+	if !strings.Contains(content, example) {
+		t.Fatalf("frozen review template must contain compact valid example %s", example)
+	}
+	var decoded struct {
+		PreferredCandidate string            `json:"preferred_candidate"`
+		Issues             []json.RawMessage `json:"issues"`
+		Preserve           []string          `json:"preserve"`
+	}
+	if err := json.Unmarshal([]byte(example), &decoded); err != nil {
+		t.Fatalf("decode compact review example: %v", err)
+	}
+	if decoded.PreferredCandidate != "A" || len(decoded.Issues) != 0 || !reflect.DeepEqual(decoded.Preserve, []string{"Keep the causal turn clear."}) {
+		t.Fatalf("compact review example has wrong shape: %#v", decoded)
+	}
+}
+
 func TestLoadHarnessPolicyRequiresFourFrozenStages(t *testing.T) {
 	path := writeHarnessPolicyFixture(t, func(policy map[string]any) {
 		policy["stages"] = []any{}

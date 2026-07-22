@@ -1,7 +1,7 @@
 # P0-T07 三 Profile 质量评测协议 / Three-profile quality evaluation protocol
 
 > Contract: `denova.quality-evaluation-protocol/v1`
-> Status: P0-T07 offline tooling complete; committed legacy S arm is `ENVIRONMENT-BLOCKED`; H arm is `NOT-READY`. A P0-T09 evaluation-only offline H runner is approved/planned here, not implemented or successful.
+> Status: P0-T07 offline tooling complete; committed legacy S arm is `ENVIRONMENT-BLOCKED`; H arm is `NOT-READY`. The P0-T09 evaluation-only offline H runner is implemented; its failed smoke is diagnosed, and the structured-review schema remediation is frozen. No successful completed live cohort or quality PASS exists.
 > Date: 2026-07-21
 > Scope: baseline and evaluation infrastructure plus the approved P0-T09 runner boundary; no product Harness workflow, runtime integration, P0-T09 success claim, Phase 1 implementation, or quality-gate PASS.
 
@@ -203,9 +203,9 @@ Errors retain enough run/task/Profile context for diagnosis without credentials,
 - Summary: `NOT-READY`, paired samples `0`, missing arms `36`
 - Quality claim: none
 
-当前配置存在 DeepSeek Provider、`default` model profile 和 `deepseek-v4-pro` 标识，但当前有效配置与进程环境没有 API Key。此分类是环境事实，不是模型或项目质量失败。P0-T09 的评测专用离线 runner 与 CLI 已实现，可在凭据可用时产生新的真实 S/H cohort 记录、私有证据和有界复现元数据；当前尚未有真实 live S/H cohort，不能改变历史 H 状态、伪造结果或宣称质量 PASS。
+当前配置存在 DeepSeek Provider、`default` model profile 和 `deepseek-v4-pro` 标识，但当前有效配置与进程环境没有 API Key。此分类是环境事实，不是模型或项目质量失败。P0-T09 的评测专用离线 runner 与 CLI 已实现；一次失败的 smoke 已诊断为严格审稿 schema 不匹配（传输 JSON 有效，但 `preserve` 不是要求的字符串数组），且该 schema 修复现已冻结。当前仍没有成功完成的真实 live S/H cohort，不能改变历史 H 状态、伪造结果或宣称质量 PASS。
 
-The Provider/model identifiers exist, but no API key is available in the effective configuration or process environment. This is an environment fact, not a model or product quality result. The P0-T09 evaluation-only offline runner and CLI are implemented and can create real S/H cohort records, private evidence, and bounded reproducibility metadata when credentials are available; no real live S/H cohort exists yet, so this cannot alter legacy H state, fabricate results, or claim a quality PASS.
+The Provider/model identifiers exist, but no API key is available in the effective configuration or process environment. This is an environment fact, not a model or product quality result. The P0-T09 evaluation-only offline runner and CLI are implemented; one failed smoke is diagnosed as a strict review-schema mismatch (transport-valid JSON supplied preserve in the wrong string-array shape), and that remediation is now frozen. No successful completed live S/H cohort exists yet, so this cannot alter legacy H state, fabricate results, or claim a quality PASS.
 
 ## 13. 命令 / Commands
 

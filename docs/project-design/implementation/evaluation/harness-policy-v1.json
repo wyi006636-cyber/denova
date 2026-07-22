@@ -23,7 +23,7 @@
     {
       "stage": "review",
       "template_file": "runs/templates/harness-review-v1.md",
-      "template_sha256": "sha256:5f42ab2ba44021d9481fe36538424d04f5d2d06a71f91d307493bea98d767b80",
+      "template_sha256": "sha256:be4c6142b14a149f5c625360122849403979795e345dc97289aefc1b3d4a8073",
       "max_output_tokens": 4096,
       "max_output_bytes": 49152
     },
