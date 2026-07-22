@@ -40,7 +40,7 @@ func main() {
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("expected validate, create-run, execute-harness, package-blind, summarize, or skills")
+		return errors.New("expected validate, create-run, execute-harness, package-blind, summarize, export-run-index, or skills")
 	}
 	switch args[0] {
 	case "skills":
@@ -135,6 +135,32 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stdout, "SUMMARY run=%s status=%s pairs=%d missing_arms=%d missing_reviews=%d pending_adjudications=%d\n",
 			runID, summary.Status, summary.Paired.Total, summary.MissingArms, summary.MissingReviews, summary.PendingAdjudications)
 		return nil
+	case "export-run-index":
+		flags := flag.NewFlagSet("export-run-index", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		runRootValue := flags.String("run-root", "", "absolute private run root outside the repository")
+		runsValue := flags.String("runs", "", "comma-separated unique stable run IDs")
+		output := flags.String("output", "", "bounded run index output path")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if strings.TrimSpace(*runRootValue) == "" || strings.TrimSpace(*runsValue) == "" || strings.TrimSpace(*output) == "" {
+			return errors.New("export-run-index requires --run-root, --runs, and --output")
+		}
+		runRoot, err := privateRunRoot(*runRootValue)
+		if err != nil {
+			return err
+		}
+		runIDs, err := parseCSV(*runsValue, "run ID")
+		if err != nil {
+			return err
+		}
+		index, err := evaluation.ExportRunIndex(runRoot, runIDs, *output)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "EXPORTED runs=%d output=%s\n", len(index.Runs), filepath.Base(*output))
+		return nil
 	default:
 		return fmt.Errorf("unknown command %q", args[0])
 	}
@@ -222,7 +248,7 @@ func createCohortRun(ctx context.Context, manifestPath, splitsValue, tasksValue,
 	}
 	runRecord, err := evaluation.CreateRun(manifestPath, evaluation.CreateRunOptions{
 		RunRoot: runRoot, BaselineStatus: evaluation.StatusNotReady, HarnessStatus: evaluation.StatusNotReady,
-		Selection: &selection, HarnessPolicySHA256: evaluation.HarnessPolicySHA256(policy),
+		Selection: &selection, HarnessPolicyID: policy.PolicyID, HarnessPolicySHA256: evaluation.HarnessPolicySHA256(policy),
 	})
 	if err != nil {
 		return err

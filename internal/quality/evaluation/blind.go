@@ -12,12 +12,17 @@ import (
 )
 
 type BlindIndex struct {
-	Contract    string        `json:"contract"`
-	Version     string        `json:"version"`
-	RunID       string        `json:"run_id"`
-	GeneratedAt string        `json:"generated_at"`
-	Status      ResultStatus  `json:"status"`
-	Samples     []BlindSample `json:"samples"`
+	Contract               string        `json:"contract"`
+	Version                string        `json:"version"`
+	RunID                  string        `json:"run_id"`
+	GeneratedAt            string        `json:"generated_at"`
+	Status                 ResultStatus  `json:"status"`
+	Selection              *RunSelection `json:"selection,omitempty"`
+	HarnessPolicyID        string        `json:"harness_policy_id,omitempty"`
+	HarnessPolicySHA256    string        `json:"harness_policy_sha256,omitempty"`
+	BaselineTemplateSHA256 string        `json:"baseline_template_sha256"`
+	ModelConfigSHA256      []string      `json:"model_config_sha256"`
+	Samples                []BlindSample `json:"samples"`
 }
 
 type BlindSample struct {
@@ -94,6 +99,9 @@ func PackageBlind(runRoot, runID string) (BlindIndex, error) {
 	index := BlindIndex{
 		Contract: "denova.quality-evaluation-blind-index", Version: "v1", RunID: runID,
 		GeneratedAt: time.Now().UTC().Format(time.RFC3339Nano), Status: StatusReady,
+		Selection: run.Selection, HarnessPolicyID: run.HarnessPolicyID,
+		HarnessPolicySHA256: run.HarnessPolicySHA256, BaselineTemplateSHA256: run.TemplateSHA256,
+		ModelConfigSHA256: runModelConfigHashes(run),
 	}
 	mapping := blindMap{Contract: "denova.quality-evaluation-blind-map", Version: "v1", RunID: runID}
 	for _, task := range run.Tasks {
@@ -108,9 +116,7 @@ func PackageBlind(runRoot, runID string) (BlindIndex, error) {
 			}
 		}
 		if len(sample.MissingArms) > 0 {
-			sample.Status = StatusNotReady
 			index.Status = StatusNotReady
-			index.Samples = append(index.Samples, sample)
 			continue
 		}
 		order := BlindOrder(task.TaskHash)

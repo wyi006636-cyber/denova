@@ -77,7 +77,7 @@ func SaveReview(runRoot, runID string, review ReviewRecord) error {
 	if err := validateReview(review, existing); err != nil {
 		return err
 	}
-	return writeJSONFile(filepath.Join(runRoot, runID, "blind", "reviews", review.ReviewID+".json"), review)
+	return writeJSONFile(filepath.Join(runRoot, runID, "private", "reviews", review.ReviewID+".json"), review)
 }
 
 func validateReview(review ReviewRecord, existing []ReviewRecord) error {
@@ -160,7 +160,7 @@ func validateReview(review ReviewRecord, existing []ReviewRecord) error {
 }
 
 func loadReviews(runRoot, runID string) ([]ReviewRecord, error) {
-	dir := filepath.Join(runRoot, runID, "blind", "reviews")
+	dir := filepath.Join(runRoot, runID, "private", "reviews")
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
 		return nil, nil

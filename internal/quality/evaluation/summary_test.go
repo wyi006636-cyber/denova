@@ -1,10 +1,52 @@
 package evaluation
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestBlindPackageContainsOnlySelectedCompletePairs(t *testing.T) {
+	fixture := writeReadyCohortRun(t, SplitRegression)
+	index, err := PackageBlind(fixture.RunRoot, fixture.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(index.Samples) != 12 {
+		t.Fatalf("samples=%d want=12", len(index.Samples))
+	}
+	if index.Selection == nil || index.HarnessPolicyID == "" || index.HarnessPolicySHA256 == "" || index.BaselineTemplateSHA256 == "" || len(index.ModelConfigSHA256) == 0 {
+		t.Fatalf("blind reproducibility metadata=%#v", index)
+	}
+	for _, sample := range index.Samples {
+		if sample.DataSplit != SplitRegression || sample.Status != StatusReady {
+			t.Fatalf("unexpected sample=%#v", sample)
+		}
+	}
+}
+
+func TestCommittedMetadataRejectsHarnessSecretsAndReasoning(t *testing.T) {
+	for _, field := range []string{"api_key", "authorization", "thinking_content", "reasoning_content", "reviewer_id", "raw_comments"} {
+		if err := rejectSensitiveJSON([]byte(`{"` + field + `":"not-allowed"}`)); err == nil {
+			t.Fatalf("field %s was accepted", field)
+		}
+	}
+}
+
+func TestReviewRecordsRemainInPrivateEvidence(t *testing.T) {
+	runRoot, run := readyPackagedRun(t)
+	review := validReview(firstReadySample(t, runRoot, run.RunID), "private-reviewer", "A")
+	if err := SaveReview(runRoot, run.RunID, review); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(runRoot, run.RunID, "private", "reviews", review.ReviewID+".json")); err != nil {
+		t.Fatalf("private review record: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(runRoot, run.RunID, "blind", "reviews", review.ReviewID+".json")); !os.IsNotExist(err) {
+		t.Fatalf("reviewer identity escaped private evidence: %v", err)
+	}
+}
 
 func TestSummarizeRejectsDuplicateIndependentReviewer(t *testing.T) {
 	runRoot, run := readyPackagedRun(t)
@@ -61,7 +103,7 @@ func TestSummarizeReportsStrataAndValidPairedResults(t *testing.T) {
 	for _, sample := range index.Samples {
 		for n := 1; n <= 2; n++ {
 			review := validReview(sample, sample.SampleID+"-reviewer-"+string(rune('0'+n)), "A")
-			if err := writeJSONFile(filepath.Join(runRoot, run.RunID, "blind", "reviews", review.ReviewID+".json"), review); err != nil {
+			if err := writeJSONFile(filepath.Join(runRoot, run.RunID, "private", "reviews", review.ReviewID+".json"), review); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -112,6 +154,57 @@ func readyPackagedRun(t *testing.T) (string, RunRecord) {
 		t.Fatal(err)
 	}
 	return runRoot, run
+}
+
+type readyCohortFixture struct {
+	RunRoot string
+	RunID   string
+}
+
+func writeReadyCohortRun(t *testing.T, split DataSplit) readyCohortFixture {
+	t.Helper()
+	manifestPath, manifest := writeValidManifest(t)
+	policyPath := writeHarnessPolicyFixture(t, nil)
+	policy, err := LoadHarnessPolicy(policyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection, err := NewRunSelection([]DataSplit{split}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runRoot := filepath.Join(filepath.Dir(manifestPath), manifest.RunRoot)
+	run, err := CreateRun(manifestPath, CreateRunOptions{
+		RunRoot: runRoot, Selection: &selection, HarnessPolicyID: policy.PolicyID,
+		HarnessPolicySHA256: HarnessPolicySHA256(policy),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range run.Tasks {
+		taskDir := filepath.Join(runRoot, run.RunID, "private", "outputs", run.Tasks[i].TaskID)
+		if err := os.MkdirAll(taskDir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		for _, arm := range []string{"S", "H"} {
+			path := filepath.Join(taskDir, strings.ToLower(arm)+".txt")
+			payload := []byte("fiction output " + arm + " for " + run.Tasks[i].TaskID)
+			if err := os.WriteFile(path, payload, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			record := run.Tasks[i].Arms[arm]
+			record.Status = StatusReady
+			record.OutputFile = filepath.ToSlash(filepath.Join("private", "outputs", run.Tasks[i].TaskID, strings.ToLower(arm)+".txt"))
+			record.OutputSHA256 = bytesSHA256(payload)
+			record.Usage = UsageRecord{PromptTokens: 100, CompletionTokens: 50, TotalTokens: 150, ModelCalls: 1}
+			record.Cost = CostRecord{Status: "recorded", Currency: "USD", Amount: floatPtr64(0.01)}
+			run.Tasks[i].Arms[arm] = record
+		}
+	}
+	if err := SaveRun(runRoot, run); err != nil {
+		t.Fatal(err)
+	}
+	return readyCohortFixture{RunRoot: runRoot, RunID: run.RunID}
 }
 
 func firstReadySample(t *testing.T, runRoot, runID string) BlindSample {

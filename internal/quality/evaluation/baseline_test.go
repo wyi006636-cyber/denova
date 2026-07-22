@@ -49,7 +49,7 @@ func TestExecuteSingleTurnBaselineSupportsSelectedCohort(t *testing.T) {
 	policyHash := "sha256:" + strings.Repeat("1", 64)
 	run, err := CreateRun(manifestPath, CreateRunOptions{
 		RunRoot: runRoot, BaselineStatus: StatusNotReady, HarnessStatus: StatusNotReady,
-		Selection: &selection, HarnessPolicySHA256: policyHash,
+		Selection: &selection, HarnessPolicyID: "test-harness-v1", HarnessPolicySHA256: policyHash,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -78,7 +78,7 @@ func TestExecuteSingleTurnBaselineRejectsMismatchedCohortSelection(t *testing.T)
 		t.Fatal(err)
 	}
 	policyHash := "sha256:" + strings.Repeat("1", 64)
-	run, err := CreateRun(manifestPath, CreateRunOptions{RunRoot: runRoot, Selection: &selection, HarnessPolicySHA256: policyHash})
+	run, err := CreateRun(manifestPath, CreateRunOptions{RunRoot: runRoot, Selection: &selection, HarnessPolicyID: "test-harness-v1", HarnessPolicySHA256: policyHash})
 	if err != nil {
 		t.Fatal(err)
 	}

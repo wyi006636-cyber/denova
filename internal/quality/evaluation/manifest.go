@@ -230,7 +230,7 @@ func rejectSensitiveJSON(payload []byte) error {
 			for _, key := range keys {
 				normalized := strings.ToLower(strings.TrimSpace(key))
 				switch normalized {
-				case "api_key", "authorization", "authorization_header", "password", "secret", "credentials", "full_prompt", "thinking_content", "reasoning_content":
+				case "api_key", "authorization", "authorization_header", "password", "secret", "credentials", "full_prompt", "thinking_content", "reasoning_content", "reviewer_id", "raw_comments":
 					return fmt.Errorf("sensitive field %q is forbidden in corpus manifest", key)
 				}
 				if err := walk(typed[key]); err != nil {

@@ -141,6 +141,49 @@ func TestPackageBlindAndSummarizeAcceptExplicitRunRoot(t *testing.T) {
 	}
 }
 
+func TestExportRunIndexRequiresExplicitPrivateArguments(t *testing.T) {
+	for _, args := range [][]string{
+		{"export-run-index", "--runs", "run-one", "--output", "index.json"},
+		{"export-run-index", "--run-root", testRunRoot(t), "--output", "index.json"},
+		{"export-run-index", "--run-root", testRunRoot(t), "--runs", "run-one"},
+		{"export-run-index", "--run-root", testRunRoot(t), "--runs", "run-one,run-one", "--output", "index.json"},
+	} {
+		if err := run(context.Background(), args, io.Discard, io.Discard); err == nil {
+			t.Fatalf("args=%q accepted", args)
+		}
+	}
+}
+
+func TestExportRunIndexWritesBoundedIndexFromExplicitPrivateRoot(t *testing.T) {
+	runRoot := testRunRoot(t)
+	policy, err := evaluation.LoadHarnessPolicy(testPolicyPath(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection, err := evaluation.NewRunSelection([]evaluation.DataSplit{evaluation.SplitTuning}, []string{"ls-mystery-opening-01"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := evaluation.CreateRun(testManifestPath(t), evaluation.CreateRunOptions{
+		RunRoot: runRoot, Selection: &selection, HarnessPolicyID: policy.PolicyID, HarnessPolicySHA256: evaluation.HarnessPolicySHA256(policy),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(t.TempDir(), "bounded-index.json")
+	var stdout bytes.Buffer
+	if err := run(context.Background(), []string{"export-run-index", "--run-root", runRoot, "--runs", created.RunID, "--output", output}, &stdout, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	payload, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(payload), runRoot) || !strings.Contains(stdout.String(), "runs=1") || strings.Contains(stdout.String(), runRoot) {
+		t.Fatalf("payload=%q stdout=%q", payload, stdout.String())
+	}
+}
+
 type fakeGenerator struct {
 	baseline []evaluation.BaselineRequest
 	harness  []evaluation.HarnessRequest

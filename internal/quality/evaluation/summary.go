@@ -10,22 +10,27 @@ import (
 )
 
 type Summary struct {
-	Contract             string                  `json:"contract"`
-	Version              string                  `json:"version"`
-	RunID                string                  `json:"run_id"`
-	Status               ResultStatus            `json:"status"`
-	MissingArms          int                     `json:"missing_arms"`
-	MissingReviews       int                     `json:"missing_reviews"`
-	PendingAdjudications int                     `json:"pending_adjudications"`
-	Paired               PairedMetric            `json:"paired"`
-	ByProfile            map[string]PairedMetric `json:"by_profile"`
-	ByGenre              map[string]PairedMetric `json:"by_genre"`
-	ByTaskType           map[string]PairedMetric `json:"by_task_type"`
-	ByLengthBucket       map[string]PairedMetric `json:"by_length_bucket"`
-	FactErrors           ComparativeMetric       `json:"fact_errors"`
-	AuthorEditRatio      ComparativeMetric       `json:"author_edit_ratio"`
-	Cost                 CostSummary             `json:"cost"`
-	Interpretation       string                  `json:"interpretation"`
+	Contract               string                  `json:"contract"`
+	Version                string                  `json:"version"`
+	RunID                  string                  `json:"run_id"`
+	Selection              *RunSelection           `json:"selection,omitempty"`
+	HarnessPolicyID        string                  `json:"harness_policy_id,omitempty"`
+	HarnessPolicySHA256    string                  `json:"harness_policy_sha256,omitempty"`
+	BaselineTemplateSHA256 string                  `json:"baseline_template_sha256"`
+	ModelConfigSHA256      []string                `json:"model_config_sha256"`
+	Status                 ResultStatus            `json:"status"`
+	MissingArms            int                     `json:"missing_arms"`
+	MissingReviews         int                     `json:"missing_reviews"`
+	PendingAdjudications   int                     `json:"pending_adjudications"`
+	Paired                 PairedMetric            `json:"paired"`
+	ByProfile              map[string]PairedMetric `json:"by_profile"`
+	ByGenre                map[string]PairedMetric `json:"by_genre"`
+	ByTaskType             map[string]PairedMetric `json:"by_task_type"`
+	ByLengthBucket         map[string]PairedMetric `json:"by_length_bucket"`
+	FactErrors             ComparativeMetric       `json:"fact_errors"`
+	AuthorEditRatio        ComparativeMetric       `json:"author_edit_ratio"`
+	Cost                   CostSummary             `json:"cost"`
+	Interpretation         string                  `json:"interpretation"`
 }
 
 type PairedMetric struct {
@@ -87,7 +92,10 @@ func Summarize(runRoot, runID string) (Summary, error) {
 	}
 	summary := Summary{
 		Contract: "denova.quality-evaluation-summary", Version: "v1", RunID: runID,
-		ByProfile: map[string]PairedMetric{}, ByGenre: map[string]PairedMetric{},
+		Selection: run.Selection, HarnessPolicyID: run.HarnessPolicyID,
+		HarnessPolicySHA256: run.HarnessPolicySHA256, BaselineTemplateSHA256: run.TemplateSHA256,
+		ModelConfigSHA256: runModelConfigHashes(run),
+		ByProfile:         map[string]PairedMetric{}, ByGenre: map[string]PairedMetric{},
 		ByTaskType: map[string]PairedMetric{}, ByLengthBucket: map[string]PairedMetric{},
 		Cost: summarizeCosts(run),
 	}
@@ -100,11 +108,12 @@ func Summarize(runRoot, runID string) (Summary, error) {
 		reviewsBySample[review.SampleID] = append(reviewsBySample[review.SampleID], review)
 	}
 	var evaluated []evaluatedSample
-	for _, sample := range index.Samples {
-		if sample.Status != StatusReady {
+	for _, task := range run.Tasks {
+		if task.Arms["S"].Status != StatusReady || task.Arms["H"].Status != StatusReady || task.Arms["S"].OutputFile == "" || task.Arms["H"].OutputFile == "" {
 			summary.MissingArms++
-			continue
 		}
+	}
+	for _, sample := range index.Samples {
 		item, ok := mapBySample[sample.SampleID]
 		if !ok {
 			return Summary{}, fmt.Errorf("sample %s missing private blind mapping", sample.SampleID)

@@ -174,7 +174,7 @@ func newHarnessExecutionFixture(t *testing.T) harnessExecutionFixture {
 		t.Fatal(err)
 	}
 	runRoot := filepath.Join(filepath.Dir(manifestPath), manifest.RunRoot)
-	run, err := CreateRun(manifestPath, CreateRunOptions{RunRoot: runRoot, Selection: &selection, HarnessPolicySHA256: HarnessPolicySHA256(policy)})
+	run, err := CreateRun(manifestPath, CreateRunOptions{RunRoot: runRoot, Selection: &selection, HarnessPolicyID: policy.PolicyID, HarnessPolicySHA256: HarnessPolicySHA256(policy)})
 	if err != nil {
 		t.Fatal(err)
 	}

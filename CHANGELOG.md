@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `quality-eval export-run-index` exports only bounded cohort reproducibility metadata from an explicit private run root: selection, policy/template/model hashes, S/H status counts, aggregate usage/cost, local-evidence availability, and blind-package hash. Blind packages and summaries now carry the same non-secret reproducibility metadata, package only complete selected S/H pairs, and reject committed credential, reasoning, reviewer-identity, and raw-comment fields; review records remain private.
+- `quality-eval export-run-index` 从显式私有运行根目录仅导出有界 cohort 可复现元数据：选择条件、policy/template/model 哈希、S/H 状态计数、聚合用量/成本、本地证据可用性和盲包哈希。盲包与汇总现保存同样的非秘密复现元数据，只打包完整的选中 S/H 对，并拒绝提交凭据、推理、评审身份和原始评论字段；ReviewRecord 继续仅存于私有目录。
+
 - `quality-eval` 新增 cohort 安全命令面：`create-run` 仅允许显式 tuning/regression 选择、仓库外的绝对私有运行根目录和冻结 Harness policy，并以每个选中任务恰好一次的 S 调用生成 cohort；`execute-harness` 按固定四阶段运行 H，`package-blind` 与 `summarize` 可接收显式私有运行根目录。Provider 适配统一为可注入生成器，不向 CLI 输出凭据、授权头、提示词、推理或原始响应。
 - Added secure cohort commands to `quality-eval`: `create-run` accepts only explicit tuning/regression selections, an absolute private run root outside the repository, and a frozen Harness policy, then generates S with exactly one call per selected task; `execute-harness` runs the fixed four-stage H sequence, while `package-blind` and `summarize` accept an explicit private run root. The Provider adapter now uses one injectable generator and never emits credentials, authorization headers, prompts, reasoning, or raw responses to CLI output.
 

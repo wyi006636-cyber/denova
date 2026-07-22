@@ -203,9 +203,9 @@ Errors retain enough run/task/Profile context for diagnosis without credentials,
 - Summary: `NOT-READY`, paired samples `0`, missing arms `36`
 - Quality claim: none
 
-当前配置存在 DeepSeek Provider、`default` model profile 和 `deepseek-v4-pro` 标识，但当前有效配置与进程环境没有 API Key。此分类是环境事实，不是模型或项目质量失败。配置凭据后应产生新的真实 S 输出记录；P0-T09 的评测专用离线 runner 在本提交仅获批准/规划，尚未实现或成功，不能改变该历史 H 状态或在 P0-T07 伪造。
+当前配置存在 DeepSeek Provider、`default` model profile 和 `deepseek-v4-pro` 标识，但当前有效配置与进程环境没有 API Key。此分类是环境事实，不是模型或项目质量失败。P0-T09 的评测专用离线 runner 与 CLI 已实现，可在凭据可用时产生新的真实 S/H cohort 记录、私有证据和有界复现元数据；当前尚未有真实 live S/H cohort，不能改变历史 H 状态、伪造结果或宣称质量 PASS。
 
-The Provider/model identifiers exist, but no API key is available in the effective configuration or process environment. This is an environment fact, not a model or product quality result. Supplying runtime credentials can produce real S outputs; the P0-T09 evaluation-only offline runner is approved/planned at this commit, not implemented or successful, and cannot alter the legacy H state.
+The Provider/model identifiers exist, but no API key is available in the effective configuration or process environment. This is an environment fact, not a model or product quality result. The P0-T09 evaluation-only offline runner and CLI are implemented and can create real S/H cohort records, private evidence, and bounded reproducibility metadata when credentials are available; no real live S/H cohort exists yet, so this cannot alter legacy H state, fabricate results, or claim a quality PASS.
 
 ## 13. 命令 / Commands
 

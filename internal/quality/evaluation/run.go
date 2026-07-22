@@ -16,6 +16,7 @@ type CreateRunOptions struct {
 	HarnessStatus       ResultStatus
 	BaselineFailureType string
 	Selection           *RunSelection
+	HarnessPolicyID     string
 	HarnessPolicySHA256 string
 }
 
@@ -31,6 +32,7 @@ type RunRecord struct {
 	BaselineStatus      ResultStatus  `json:"baseline_status"`
 	HarnessStatus       ResultStatus  `json:"harness_status"`
 	Selection           *RunSelection `json:"selection,omitempty"`
+	HarnessPolicyID     string        `json:"harness_policy_id,omitempty"`
 	HarnessPolicySHA256 string        `json:"harness_policy_sha256,omitempty"`
 	Tasks               []RunTask     `json:"tasks"`
 }
@@ -221,6 +223,9 @@ func CreateRun(manifestPath string, options CreateRunOptions) (RunRecord, error)
 		if !sha256Pattern.MatchString(options.HarnessPolicySHA256) {
 			return RunRecord{}, fmt.Errorf("invalid harness policy sha256 %q", options.HarnessPolicySHA256)
 		}
+		if !idPattern.MatchString(options.HarnessPolicyID) {
+			return RunRecord{}, fmt.Errorf("invalid harness policy id %q", options.HarnessPolicyID)
+		}
 		selectedTasks, err = SelectTasks(manifest, normalized)
 		if err != nil {
 			return RunRecord{}, err
@@ -251,7 +256,7 @@ func CreateRun(manifestPath string, options CreateRunOptions) (RunRecord, error)
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), ManifestFile: filepath.Base(manifestPath),
 		ManifestSHA256: manifestHash, TemplateVersion: manifest.Baseline.TemplateVersion,
 		TemplateSHA256: manifest.Baseline.TemplateSHA256, BaselineStatus: baselineStatus, HarnessStatus: harnessStatus,
-		Selection: selection, HarnessPolicySHA256: policySHA256,
+		Selection: selection, HarnessPolicyID: options.HarnessPolicyID, HarnessPolicySHA256: policySHA256,
 	}
 	for _, task := range selectedTasks {
 		model := task.ModelConfigSnapshot

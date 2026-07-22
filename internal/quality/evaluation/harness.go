@@ -46,7 +46,7 @@ func ExecuteOfflineHarness(ctx context.Context, manifestPath, runRoot, runID, po
 	if err != nil {
 		return RunRecord{}, err
 	}
-	if run.Selection == nil || run.HarnessPolicySHA256 != policyHash || run.RunID != StableCohortRunID(manifest, *run.Selection, policyHash) {
+	if run.Selection == nil || run.HarnessPolicyID != policy.PolicyID || run.HarnessPolicySHA256 != policyHash || run.RunID != StableCohortRunID(manifest, *run.Selection, policyHash) {
 		return RunRecord{}, fmt.Errorf("run %s does not match selected cohort and frozen Harness policy", runID)
 	}
 	selected, err := SelectTasks(manifest, *run.Selection)

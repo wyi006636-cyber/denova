@@ -144,7 +144,7 @@ func TestCreateRunWithSelectionUsesCohortIdentityAndTasks(t *testing.T) {
 	policy := "sha256:" + strings.Repeat("1", 64)
 	run, err := CreateRun(path, CreateRunOptions{
 		RunRoot: filepath.Join(filepath.Dir(path), manifest.RunRoot), Selection: &selection,
-		HarnessPolicySHA256: policy,
+		HarnessPolicyID: "test-harness-v1", HarnessPolicySHA256: policy,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -187,13 +187,23 @@ func TestPackageBlindMarksMissingArmNotReady(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PackageBlind() error = %v", err)
 	}
-	if index.Status != StatusNotReady || len(index.Samples) != len(manifest.Tasks) {
+	if index.Status != StatusNotReady || len(index.Samples) != 0 {
 		t.Fatalf("blind index = %#v", index)
 	}
-	for _, sample := range index.Samples {
-		if sample.Status != StatusNotReady || sample.OptionAFile != "" || sample.OptionBFile != "" {
-			t.Fatalf("missing-arm sample = %#v", sample)
-		}
+}
+
+func TestCreateCohortRunRequiresPolicyID(t *testing.T) {
+	manifestPath, manifest := writeValidManifest(t)
+	selection, err := NewRunSelection([]DataSplit{SplitTuning}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = CreateRun(manifestPath, CreateRunOptions{
+		RunRoot: filepath.Join(filepath.Dir(manifestPath), manifest.RunRoot), Selection: &selection,
+		HarnessPolicySHA256: "sha256:" + strings.Repeat("1", 64),
+	})
+	if err == nil || !strings.Contains(err.Error(), "policy id") {
+		t.Fatalf("CreateRun() error = %v, want missing policy ID", err)
 	}
 }
 
