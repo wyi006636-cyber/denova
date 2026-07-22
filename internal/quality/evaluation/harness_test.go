@@ -275,7 +275,7 @@ func TestExecuteOfflineHarnessResumePreservesFailedAttemptAndBlocksFourCallReady
 }
 
 func TestExecuteOfflineHarnessStopsAfterOutputPersistenceFailure(t *testing.T) {
-	fixture := newHarnessExecutionFixture(t)
+	fixture := newHarnessExecutionFixtureWithTaskIDs(t, []string{"long_serial-02", "long_serial-05"})
 	run, err := LoadRun(fixture.RunRoot, fixture.RunID)
 	if err != nil {
 		t.Fatal(err)
@@ -312,7 +312,7 @@ func TestExecuteOfflineHarnessStopsAfterOutputPersistenceFailure(t *testing.T) {
 }
 
 func TestExecuteOfflineHarnessStopsAfterRunRecordPersistenceFailure(t *testing.T) {
-	fixture := newHarnessExecutionFixture(t)
+	fixture := newHarnessExecutionFixtureWithTaskIDs(t, []string{"long_serial-02", "long_serial-05"})
 	runRecord := filepath.Join(fixture.RunRoot, fixture.RunID, "run.json")
 	generator := &recordingHarnessGenerator{BeforeResult: func(request HarnessRequest) {
 		if request.Stage != HarnessStageCandidateA {
@@ -350,13 +350,18 @@ type harnessExecutionFixture struct {
 
 func newHarnessExecutionFixture(t *testing.T) harnessExecutionFixture {
 	t.Helper()
+	return newHarnessExecutionFixtureWithTaskIDs(t, []string{"long_serial-02"})
+}
+
+func newHarnessExecutionFixtureWithTaskIDs(t *testing.T, taskIDs []string) harnessExecutionFixture {
+	t.Helper()
 	manifestPath, manifest := writeValidManifest(t)
 	policyPath := writeHarnessPolicyFixture(t, nil)
 	policy, err := LoadHarnessPolicy(policyPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	selection, err := NewRunSelection([]DataSplit{SplitRegression}, nil)
+	selection, err := NewRunSelection([]DataSplit{SplitRegression}, taskIDs)
 	if err != nil {
 		t.Fatal(err)
 	}

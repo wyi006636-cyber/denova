@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- 优化质量评测与 CLI 单测夹具：Harness 默认选择一个真实 regression 任务，仅“后续任务不得执行”断言保留双任务 cohort；分层汇总、盲包拒绝和 Skills rank 失配测试复用最小、可恢复的输入状态。因此不改变生产私有证据写入或 Windows owner-only ACL。Windows 集成测试现通过一个最小 READY 盲包成功执行 `SaveReview`，并验证 Harness 证据、已接受评审和评审锁目录/文件 ACL。
+- Optimized quality-evaluation and CLI test fixtures: Harness defaults to one real regression task, while only assertions that later work must not run retain a two-task cohort; stratified summary, blind-package rejection, and Skills-rank mismatch tests reuse minimal, restorable input state. This does not change production private-evidence writes or Windows owner-only ACLs. The Windows integration test now successfully executes `SaveReview` through a minimal READY blind package and verifies ACLs for Harness evidence, accepted reviews, and review lock directories/files.
+
 - 记录成功的 P0-T09 offline Harness smoke、tuning 和 regression cohort 的受限可复现索引；提交内容仅含选择、哈希、状态计数、聚合用量/成本、本地证据可用性和盲包哈希，不含私有正文、盲测映射、评审记录、身份或凭据。评估协议现将旧 credential-blocked 快照与当前 live cohort 区分开，并明确缺少真实人工评审时为 `NOT-ENOUGH-DATA`，不构成质量 `PASS`。
 - Recorded the successful P0-T09 offline Harness smoke, tuning, and regression cohorts in a bounded reproducibility index; committed data includes only selection, hashes, status counts, aggregate usage/cost, local-evidence availability, and blind-package hashes, never private prose, blind mappings, review records, identities, or credentials. The protocol now distinguishes the legacy credential-blocked snapshot from current live cohorts and states that missing real human reviews result in `NOT-ENOUGH-DATA`, not a quality `PASS`.
 

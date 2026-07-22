@@ -256,20 +256,25 @@ func TestSummarizeRequiresAdjudicationForConflict(t *testing.T) {
 }
 
 func TestSummarizeReportsStrataAndValidPairedResults(t *testing.T) {
-	runRoot, run := readyPackagedRun(t)
-	index, err := LoadBlindIndex(runRoot, run.RunID)
+	fixture := writeReadyCohortRunForSelection(t, []DataSplit{SplitTuning, SplitRegression}, []string{
+		"long_serial-01", "long_serial-02", "fanqie_short-04", "zhihu_salt_short-05",
+	})
+	if _, err := PackageBlind(fixture.RunRoot, fixture.RunID); err != nil {
+		t.Fatal(err)
+	}
+	index, err := LoadBlindIndex(fixture.RunRoot, fixture.RunID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, sample := range index.Samples {
 		for n := 1; n <= 2; n++ {
 			review := validReview(sample, sample.SampleID+"-reviewer-"+string(rune('0'+n)), "A")
-			if err := writeJSONFile(filepath.Join(runRoot, run.RunID, "private", "reviews", review.ReviewID+".json"), review); err != nil {
+			if err := writeJSONFile(filepath.Join(fixture.RunRoot, fixture.RunID, "private", "reviews", review.ReviewID+".json"), review); err != nil {
 				t.Fatal(err)
 			}
 		}
 	}
-	summary, err := Summarize(runRoot, run.RunID)
+	summary, err := Summarize(fixture.RunRoot, fixture.RunID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -324,13 +329,18 @@ type readyCohortFixture struct {
 
 func writeReadyCohortRun(t *testing.T, split DataSplit) readyCohortFixture {
 	t.Helper()
+	return writeReadyCohortRunForSelection(t, []DataSplit{split}, nil)
+}
+
+func writeReadyCohortRunForSelection(t *testing.T, dataSplits []DataSplit, taskIDs []string) readyCohortFixture {
+	t.Helper()
 	manifestPath, manifest := writeValidManifest(t)
 	policyPath := writeHarnessPolicyFixture(t, nil)
 	policy, err := LoadHarnessPolicy(policyPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	selection, err := NewRunSelection([]DataSplit{split}, nil)
+	selection, err := NewRunSelection(dataSplits, taskIDs)
 	if err != nil {
 		t.Fatal(err)
 	}

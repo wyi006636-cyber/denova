@@ -23,21 +23,38 @@ func TestPrivateEvidenceWritersUseOwnerOnlyWindowsACL(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := t.TempDir()
-	for _, test := range []struct {
-		name  string
-		path  string
-		write func(string) error
-	}{
-		{name: "harness output", path: filepath.Join(root, "private", "failures", "evidence.txt"), write: func(path string) error { return writePrivateHarnessOutput(path, []byte("private failure response")) }},
-		{name: "review", path: filepath.Join(root, "private", "reviews", "review.json"), write: func(path string) error { return writePrivateReview(path, ReviewRecord{ReviewID: "review-private"}) }},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			if err := test.write(test.path); err != nil {
-				t.Fatal(err)
-			}
-			assertOwnerOnlyWindowsACL(t, user.User.Sid, test.path)
-		})
+	harnessPath := filepath.Join(root, "private", "failures", "evidence.txt")
+	if err := writePrivateHarnessOutput(harnessPath, []byte("private failure response")); err != nil {
+		t.Fatal(err)
 	}
+	assertOwnerOnlyWindowsACL(t, user.User.Sid, harnessPath)
+
+	runID := "run-private-review"
+	sample := writeReadyBlindReviewFixture(t, root, runID)
+	review := validReview(sample, "private-reviewer", "A")
+	if err := SaveReview(root, runID, review); err != nil {
+		t.Fatal(err)
+	}
+	reviews, err := loadReviews(root, runID)
+	if err != nil || len(reviews) != 1 || reviews[0].ReviewID != review.ReviewID {
+		t.Fatalf("accepted reviews=%#v err=%v", reviews, err)
+	}
+	reviewPath := filepath.Join(root, runID, "private", "reviews", review.ReviewID+".json")
+	assertOwnerOnlyWindowsACL(t, user.User.Sid, reviewPath)
+	assertOwnerOnlyWindowsACL(t, user.User.Sid, filepath.Join(root, runID, "private", "reviews", ".review.lock"))
+}
+
+func writeReadyBlindReviewFixture(t *testing.T, runRoot, runID string) BlindSample {
+	t.Helper()
+	sample := BlindSample{SampleID: "sample-private-review", Status: StatusReady}
+	index := BlindIndex{
+		Contract: "denova.quality-evaluation-blind-index", Version: "v1", RunID: runID,
+		Status: StatusReady, Samples: []BlindSample{sample},
+	}
+	if err := writeJSONFile(filepath.Join(runRoot, runID, "blind", "package.json"), index); err != nil {
+		t.Fatal(err)
+	}
+	return sample
 }
 
 func assertOwnerOnlyWindowsACL(t *testing.T, userSID *windows.SID, path string) {

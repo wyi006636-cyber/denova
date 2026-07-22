@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -244,14 +244,27 @@ func TestRunSkillsRankRejectsStagedAndCacheMismatchesBeforeNetwork(t *testing.T)
 			}
 		}},
 	}
+	cache, root, _ := writeRankInputs(t)
+	baselineArtifacts := artifactBytes(t, root)
+	baselineSnapshot, err := cache.LoadLocalSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			cache, root, snapshot := writeRankInputs(t)
+			restoreArtifactBytes(t, root, baselineArtifacts)
+			if err := cache.WriteLocalSnapshot(baselineSnapshot); err != nil {
+				t.Fatal(err)
+			}
+			snapshot, err := cache.LoadLocalSnapshot()
+			if err != nil {
+				t.Fatal(err)
+			}
 			tc.mutate(t, cache, root, snapshot)
 			before := artifactBytes(t, root)
 			callsBefore := calls
 			var stdout bytes.Buffer
-			err := run(context.Background(), []string{"skills", "rank-xiaping", "--base-url", server.URL, "--cache-root", cache.Root, "--root", root, "--retry-attempts", "1", "--max-retry-delay", "0s"}, &stdout, io.Discard)
+			err = run(context.Background(), []string{"skills", "rank-xiaping", "--base-url", server.URL, "--cache-root", cache.Root, "--root", root, "--retry-attempts", "1", "--max-retry-delay", "0s"}, &stdout, io.Discard)
 			if err == nil || calls != callsBefore || stdout.Len() != 0 {
 				t.Fatalf("err=%v calls=%d calls_before=%d stdout=%q", err, calls, callsBefore, stdout.String())
 			}
@@ -459,6 +472,19 @@ func assertArtifactBytes(t *testing.T, root string, want map[string][]byte) {
 	t.Helper()
 	if got := artifactBytes(t, root); !reflect.DeepEqual(got, want) {
 		t.Fatalf("artifact bytes changed: got=%v want=%v", got, want)
+	}
+}
+
+func restoreArtifactBytes(t *testing.T, root string, files map[string][]byte) {
+	t.Helper()
+	for name, data := range files {
+		path := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

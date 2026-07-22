@@ -211,7 +211,7 @@ func TestPackageBlindDoesNotWritePartialCandidatePair(t *testing.T) {
 	path, manifest := writeValidManifest(t)
 	runRoot := filepath.Join(filepath.Dir(path), manifest.RunRoot)
 	run := newTestRun(t, path, manifest, runRoot, false)
-	for i := range run.Tasks {
+	for i := range run.Tasks[:1] {
 		taskDir := filepath.Join(runRoot, run.RunID, "private", "outputs", run.Tasks[i].TaskID)
 		if err := os.MkdirAll(taskDir, 0o755); err != nil {
 			t.Fatal(err)
