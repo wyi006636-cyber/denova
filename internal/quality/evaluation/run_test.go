@@ -35,6 +35,130 @@ func TestStableRunIDIsRepeatableAndFrozenInputsSensitive(t *testing.T) {
 	}
 }
 
+func TestNewRunSelectionNormalizesAndRejectsReleaseHoldout(t *testing.T) {
+	selection, err := NewRunSelection(
+		[]DataSplit{SplitRegression, SplitTuning, SplitTuning},
+		[]string{"task-b", "task-a", "task-a"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual([]DataSplit{SplitRegression, SplitTuning}, selection.DataSplits) {
+		t.Fatalf("splits=%v", selection.DataSplits)
+	}
+	if !reflect.DeepEqual([]string{"task-a", "task-b"}, selection.TaskIDs) {
+		t.Fatalf("task IDs=%v", selection.TaskIDs)
+	}
+	if _, err := NewRunSelection([]DataSplit{SplitReleaseHoldout}, nil); err == nil {
+		t.Fatal("release holdout selection must fail in Phase 0")
+	}
+}
+
+func TestNewRunSelectionRejectsInvalidInputs(t *testing.T) {
+	for _, selection := range []struct {
+		name    string
+		splits  []DataSplit
+		taskIDs []string
+	}{
+		{name: "empty splits"},
+		{name: "unknown split", splits: []DataSplit{"unknown"}},
+		{name: "invalid task ID", splits: []DataSplit{SplitTuning}, taskIDs: []string{"invalid task id"}},
+	} {
+		t.Run(selection.name, func(t *testing.T) {
+			if _, err := NewRunSelection(selection.splits, selection.taskIDs); err == nil {
+				t.Fatal("NewRunSelection() error = nil")
+			}
+		})
+	}
+}
+
+func TestSelectTasksFiltersManifestOrderAndRejectsSplitMismatch(t *testing.T) {
+	_, manifest := writeValidManifest(t)
+	selection, err := NewRunSelection(
+		[]DataSplit{SplitRegression, SplitTuning},
+		[]string{"long_serial-02", "long_serial-01"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tasks, err := SelectTasks(manifest, selection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := []string{tasks[0].ID, tasks[1].ID}, []string{"long_serial-01", "long_serial-02"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("selected tasks=%v, want %v", got, want)
+	}
+	mismatch, err := NewRunSelection([]DataSplit{SplitTuning}, []string{"long_serial-02"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := SelectTasks(manifest, mismatch); err == nil {
+		t.Fatal("selection task outside selected split must fail")
+	}
+	missing, err := NewRunSelection([]DataSplit{SplitTuning}, []string{"missing-task"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := SelectTasks(manifest, missing); err == nil {
+		t.Fatal("missing selected task must fail")
+	}
+}
+
+func TestStableCohortRunIDIncludesSelectionAndHarnessPolicy(t *testing.T) {
+	_, manifest := writeValidManifest(t)
+	tuning, _ := NewRunSelection([]DataSplit{SplitTuning}, nil)
+	regression, _ := NewRunSelection([]DataSplit{SplitRegression}, nil)
+	left := StableCohortRunID(manifest, tuning, "sha256:"+strings.Repeat("1", 64))
+	right := StableCohortRunID(manifest, regression, "sha256:"+strings.Repeat("1", 64))
+	changedPolicy := StableCohortRunID(manifest, tuning, "sha256:"+strings.Repeat("2", 64))
+	if left == right || left == changedPolicy || !strings.HasPrefix(left, "run-") {
+		t.Fatalf("cohort identities are not isolated: %q %q %q", left, right, changedPolicy)
+	}
+}
+
+func TestStableCohortRunIDNormalizesSelectionBeforeHashing(t *testing.T) {
+	_, manifest := writeValidManifest(t)
+	normalized, err := NewRunSelection(
+		[]DataSplit{SplitRegression, SplitTuning},
+		[]string{"long_serial-01", "long_serial-02"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	literal := RunSelection{
+		DataSplits: []DataSplit{SplitTuning, SplitRegression, SplitTuning},
+		TaskIDs:    []string{"long_serial-02", "long_serial-01", "long_serial-02"},
+	}
+	policy := "sha256:" + strings.Repeat("1", 64)
+	if got, want := StableCohortRunID(manifest, literal, policy), StableCohortRunID(manifest, normalized, policy); got != want {
+		t.Fatalf("equivalent selections produced IDs %q and %q", got, want)
+	}
+}
+
+func TestCreateRunWithSelectionUsesCohortIdentityAndTasks(t *testing.T) {
+	path, manifest := writeValidManifest(t)
+	selection, err := NewRunSelection([]DataSplit{SplitRegression}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy := "sha256:" + strings.Repeat("1", 64)
+	run, err := CreateRun(path, CreateRunOptions{
+		RunRoot: filepath.Join(filepath.Dir(path), manifest.RunRoot), Selection: &selection,
+		HarnessPolicySHA256: policy,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.RunID != StableCohortRunID(manifest, selection, policy) || !reflect.DeepEqual(run.Selection, &selection) || run.HarnessPolicySHA256 != policy {
+		t.Fatalf("cohort run=%#v", run)
+	}
+	for _, task := range run.Tasks {
+		if task.DataSplit != SplitRegression {
+			t.Fatalf("unexpected task outside cohort: %#v", task)
+		}
+	}
+}
+
 func TestBlindOrderIsDeterministic(t *testing.T) {
 	taskHash := "sha256:" + strings.Repeat("a", 64)
 	first := BlindOrder(taskHash)

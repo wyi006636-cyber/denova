@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增 cohort 感知的质量评测运行选择：运行可规范化 tuning/regression 切分和任务 ID、拒绝 Phase 0 的 `release_holdout`，并将选择结果与 Harness policy SHA-256 纳入稳定运行身份；未选择 cohort 的既有 P0-T07 运行 ID 与记录保持不变。
+- Added cohort-aware quality-evaluation run selection: runs normalize tuning/regression splits and task IDs, reject Phase 0 `release_holdout`, and include the selection and Harness policy SHA-256 in their stable identities; existing P0-T07 runs without a cohort retain their IDs and records.
+
 - 澄清 Phase 0 Harness 边界：P0-T09 仅可实现版本化、评测专用、离线 runner，用于 tuning shakeout 后的冻结 regression S/H 配对 pilot；它不接入产品运行时、正式工作区、Author Finalization、自动发布或第三方脚本，六个 `release_holdout` 任务继续仅保留元数据/hash。
 - Clarified the Phase 0 Harness boundary: P0-T09 may implement only a versioned, evaluation-only offline runner for a frozen regression S/H paired pilot after tuning shakeout; it excludes product runtime, formal workspaces, Author Finalization, automatic publication, and third-party scripts, while all six `release_holdout` tasks remain metadata/hash-only.
 

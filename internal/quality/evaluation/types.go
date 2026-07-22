@@ -37,6 +37,11 @@ const (
 	SplitReleaseHoldout DataSplit = "release_holdout"
 )
 
+type RunSelection struct {
+	DataSplits []DataSplit `json:"data_splits"`
+	TaskIDs    []string    `json:"task_ids,omitempty"`
+}
+
 type ResultStatus string
 
 const (

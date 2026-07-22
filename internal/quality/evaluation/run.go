@@ -15,20 +15,29 @@ type CreateRunOptions struct {
 	BaselineStatus      ResultStatus
 	HarnessStatus       ResultStatus
 	BaselineFailureType string
+	Selection           *RunSelection
+	HarnessPolicySHA256 string
 }
 
 type RunRecord struct {
-	Contract        string       `json:"contract"`
-	Version         string       `json:"version"`
-	RunID           string       `json:"run_id"`
-	CreatedAt       string       `json:"created_at"`
-	ManifestFile    string       `json:"manifest_file"`
-	ManifestSHA256  string       `json:"manifest_sha256"`
-	TemplateVersion string       `json:"template_version"`
-	TemplateSHA256  string       `json:"template_sha256"`
-	BaselineStatus  ResultStatus `json:"baseline_status"`
-	HarnessStatus   ResultStatus `json:"harness_status"`
-	Tasks           []RunTask    `json:"tasks"`
+	Contract            string        `json:"contract"`
+	Version             string        `json:"version"`
+	RunID               string        `json:"run_id"`
+	CreatedAt           string        `json:"created_at"`
+	ManifestFile        string        `json:"manifest_file"`
+	ManifestSHA256      string        `json:"manifest_sha256"`
+	TemplateVersion     string        `json:"template_version"`
+	TemplateSHA256      string        `json:"template_sha256"`
+	BaselineStatus      ResultStatus  `json:"baseline_status"`
+	HarnessStatus       ResultStatus  `json:"harness_status"`
+	Selection           *RunSelection `json:"selection,omitempty"`
+	HarnessPolicySHA256 string        `json:"harness_policy_sha256,omitempty"`
+	Tasks               []RunTask     `json:"tasks"`
+}
+
+type taskIdentity struct {
+	ID         string `json:"task_id"`
+	TaskSHA256 string `json:"task_sha256"`
 }
 
 type RunTask struct {
@@ -64,10 +73,6 @@ type ArmRecord struct {
 func StableRunID(manifest CorpusManifest) string {
 	tasks := append([]EvaluationTask(nil), manifest.Tasks...)
 	sort.Slice(tasks, func(i, j int) bool { return tasks[i].ID < tasks[j].ID })
-	type taskIdentity struct {
-		ID         string `json:"task_id"`
-		TaskSHA256 string `json:"task_sha256"`
-	}
 	identities := make([]taskIdentity, 0, len(tasks))
 	for _, task := range tasks {
 		identities = append(identities, taskIdentity{ID: task.ID, TaskSHA256: StableTaskHash(task)})
@@ -78,6 +83,92 @@ func StableRunID(manifest CorpusManifest) string {
 		Baseline BaselineProtocol `json:"baseline"`
 		Tasks    []taskIdentity   `json:"tasks"`
 	}{manifest.Contract, manifest.Version, manifest.Baseline, identities}
+	hash := StableSHA256(payload)
+	if len(hash) < len("sha256:")+24 {
+		return "run-invalid"
+	}
+	return "run-" + hash[len("sha256:"):len("sha256:")+24]
+}
+
+func NewRunSelection(dataSplits []DataSplit, taskIDs []string) (RunSelection, error) {
+	if len(dataSplits) == 0 {
+		return RunSelection{}, fmt.Errorf("run selection requires at least one data split")
+	}
+	selection := RunSelection{
+		DataSplits: append([]DataSplit(nil), dataSplits...),
+		TaskIDs:    append([]string(nil), taskIDs...),
+	}
+	sort.Slice(selection.DataSplits, func(i, j int) bool { return selection.DataSplits[i] < selection.DataSplits[j] })
+	selection.DataSplits = deduplicateDataSplits(selection.DataSplits)
+	for _, split := range selection.DataSplits {
+		if !knownDataSplit(split) || split == SplitReleaseHoldout {
+			return RunSelection{}, fmt.Errorf("data split %q is not selectable in Phase 0", split)
+		}
+	}
+	sort.Strings(selection.TaskIDs)
+	selection.TaskIDs = deduplicateStrings(selection.TaskIDs)
+	for _, taskID := range selection.TaskIDs {
+		if !idPattern.MatchString(taskID) {
+			return RunSelection{}, fmt.Errorf("invalid selected task id %q", taskID)
+		}
+	}
+	return selection, nil
+}
+
+func SelectTasks(manifest CorpusManifest, selection RunSelection) ([]EvaluationTask, error) {
+	normalized, err := NewRunSelection(selection.DataSplits, selection.TaskIDs)
+	if err != nil {
+		return nil, err
+	}
+	selectedSplits := make(map[DataSplit]bool, len(normalized.DataSplits))
+	for _, split := range normalized.DataSplits {
+		selectedSplits[split] = true
+	}
+	requestedTasks := make(map[string]bool, len(normalized.TaskIDs))
+	for _, taskID := range normalized.TaskIDs {
+		requestedTasks[taskID] = true
+	}
+	foundTasks := make(map[string]bool, len(normalized.TaskIDs))
+	tasks := make([]EvaluationTask, 0, len(manifest.Tasks))
+	for _, task := range manifest.Tasks {
+		if !selectedSplits[task.DataSplit] {
+			continue
+		}
+		if len(requestedTasks) != 0 && !requestedTasks[task.ID] {
+			continue
+		}
+		tasks = append(tasks, task)
+		foundTasks[task.ID] = true
+	}
+	for _, taskID := range normalized.TaskIDs {
+		if !foundTasks[taskID] {
+			return nil, fmt.Errorf("selected task %q is absent or outside selected data splits", taskID)
+		}
+	}
+	return tasks, nil
+}
+
+func StableCohortRunID(manifest CorpusManifest, selection RunSelection, policySHA256 string) string {
+	normalized, err := NewRunSelection(selection.DataSplits, selection.TaskIDs)
+	if err != nil {
+		return "run-invalid"
+	}
+	tasks, err := SelectTasks(manifest, normalized)
+	if err != nil {
+		return "run-invalid"
+	}
+	identities := make([]taskIdentity, 0, len(tasks))
+	for _, task := range tasks {
+		identities = append(identities, taskIdentity{ID: task.ID, TaskSHA256: StableTaskHash(task)})
+	}
+	payload := struct {
+		Contract            string           `json:"contract"`
+		Version             string           `json:"version"`
+		Baseline            BaselineProtocol `json:"baseline"`
+		Selection           RunSelection     `json:"selection"`
+		HarnessPolicySHA256 string           `json:"harness_policy_sha256"`
+		Tasks               []taskIdentity   `json:"tasks"`
+	}{manifest.Contract, manifest.Version, manifest.Baseline, normalized, policySHA256, identities}
 	hash := StableSHA256(payload)
 	if len(hash) < len("sha256:")+24 {
 		return "run-invalid"
@@ -102,7 +193,26 @@ func CreateRun(manifestPath string, options CreateRunOptions) (RunRecord, error)
 	if err != nil {
 		return RunRecord{}, fmt.Errorf("resolve run root: %w", err)
 	}
+	selectedTasks := manifest.Tasks
+	var selection *RunSelection
+	policySHA256 := ""
 	runID := StableRunID(manifest)
+	if options.Selection != nil {
+		normalized, err := NewRunSelection(options.Selection.DataSplits, options.Selection.TaskIDs)
+		if err != nil {
+			return RunRecord{}, err
+		}
+		if !sha256Pattern.MatchString(options.HarnessPolicySHA256) {
+			return RunRecord{}, fmt.Errorf("invalid harness policy sha256 %q", options.HarnessPolicySHA256)
+		}
+		selectedTasks, err = SelectTasks(manifest, normalized)
+		if err != nil {
+			return RunRecord{}, err
+		}
+		selection = &normalized
+		policySHA256 = options.HarnessPolicySHA256
+		runID = StableCohortRunID(manifest, normalized, options.HarnessPolicySHA256)
+	}
 	if existing, err := LoadRun(runRoot, runID); err == nil {
 		return existing, nil
 	} else if !os.IsNotExist(rootCause(err)) {
@@ -125,8 +235,9 @@ func CreateRun(manifestPath string, options CreateRunOptions) (RunRecord, error)
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), ManifestFile: filepath.Base(manifestPath),
 		ManifestSHA256: manifestHash, TemplateVersion: manifest.Baseline.TemplateVersion,
 		TemplateSHA256: manifest.Baseline.TemplateSHA256, BaselineStatus: baselineStatus, HarnessStatus: harnessStatus,
+		Selection: selection, HarnessPolicySHA256: policySHA256,
 	}
-	for _, task := range manifest.Tasks {
+	for _, task := range selectedTasks {
 		model := task.ModelConfigSnapshot
 		baselineFailure := options.BaselineFailureType
 		if baselineFailure == "" && baselineStatus == StatusEnvironmentBlocked {
@@ -156,6 +267,32 @@ func CreateRun(manifestPath string, options CreateRunOptions) (RunRecord, error)
 		return RunRecord{}, err
 	}
 	return run, nil
+}
+
+func deduplicateDataSplits(values []DataSplit) []DataSplit {
+	if len(values) == 0 {
+		return nil
+	}
+	unique := values[:1]
+	for _, value := range values[1:] {
+		if value != unique[len(unique)-1] {
+			unique = append(unique, value)
+		}
+	}
+	return unique
+}
+
+func deduplicateStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	unique := values[:1]
+	for _, value := range values[1:] {
+		if value != unique[len(unique)-1] {
+			unique = append(unique, value)
+		}
+	}
+	return unique
 }
 
 func SaveRun(runRoot string, run RunRecord) error {
