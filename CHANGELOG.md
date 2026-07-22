@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 记录 Wave A 虾评小说 Skill 的双审计内容结论与能力级、行段哈希可追溯参考单元；原始包没有被安装或执行，四项仅可作有界参考，两项因内容完整性或安全/状态边界被拒绝。
+- Recorded dual-auditor Wave A Xiaping novel-Skill conclusions and capability-level, line-span-hash traceable reference units; no raw package was installed or executed, four are bounded reference-only, and two are rejected for content-integrity or safety/state-boundary reasons.
+
 - 新增有界、纯静态的 Skill ZIP 归档审计：在不落盘、不解压、不执行第三方内容的前提下，输出稳定 SHA-256、排序文件清单并显式标记脚本；审计限制为 4 MiB 压缩包、8 MiB 展开内容、5,000 个文件及单个文本文件 512 KiB，并拒绝路径穿越、绝对/盘符路径、重复规范化路径和符号链接。
 - Added bounded, static Skill ZIP archive auditing: without writing, extracting, or executing third-party content, it returns stable SHA-256 values, a sorted file inventory, and explicit script flags; audits are limited to 4 MiB archives, 8 MiB expanded content, 5,000 files, and 512 KiB per text file, while rejecting traversal, absolute/drive paths, duplicate normalized paths, and symlinks.
 - 冻结首批 15 个虾评小说 Skill 内容审计候选（Wave A/B），将 65 项自动短名单与原始九候选目录按封闭能力集和三类小说画像交叉核验；提交仅保留稳定 ID、平台聚合数据、选择依据与可审计的误报排除理由，不将平台数据表述为写作质量结论。
