@@ -1,7 +1,9 @@
 package evaluation
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -56,9 +58,14 @@ type OptionFloatMetrics struct {
 }
 
 func SaveReview(runRoot, runID string, review ReviewRecord) error {
+	lock, err := acquireReviewLock(runRoot, runID)
+	if err != nil {
+		return ReviewPersistenceError{}
+	}
+	defer lock.Close()
 	index, err := LoadBlindIndex(runRoot, runID)
 	if err != nil {
-		return err
+		return ReviewPersistenceError{}
 	}
 	sampleReady := false
 	for _, sample := range index.Samples {
@@ -72,12 +79,45 @@ func SaveReview(runRoot, runID string, review ReviewRecord) error {
 	}
 	existing, err := loadReviews(runRoot, runID)
 	if err != nil {
-		return err
+		return ReviewPersistenceError{}
 	}
 	if err := validateReview(review, existing); err != nil {
 		return err
 	}
-	return writeJSONFile(filepath.Join(runRoot, runID, "private", "reviews", review.ReviewID+".json"), review)
+	if err := writePrivateReview(filepath.Join(runRoot, runID, "private", "reviews", review.ReviewID+".json"), review); err != nil {
+		return ReviewPersistenceError{}
+	}
+	return nil
+}
+
+// ReviewPersistenceError means durable private review state could not be read or written.
+type ReviewPersistenceError struct{}
+
+func (ReviewPersistenceError) Error() string { return "review persistence failed" }
+
+// DecodeReviewRecord strictly reads one human-submitted review record from an already-open input.
+func DecodeReviewRecord(reader io.Reader) (ReviewRecord, error) {
+	var review ReviewRecord
+	decoder := json.NewDecoder(reader)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&review); err != nil {
+		return ReviewRecord{}, err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		if err == nil {
+			return ReviewRecord{}, fmt.Errorf("trailing JSON value")
+		}
+		return ReviewRecord{}, err
+	}
+	return review, nil
+}
+
+func writePrivateReview(path string, review ReviewRecord) error {
+	payload, err := json.MarshalIndent(review, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writePrivateHarnessOutput(path, payload)
 }
 
 func validateReview(review ReviewRecord, existing []ReviewRecord) error {

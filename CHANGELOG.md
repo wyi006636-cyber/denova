@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `quality-eval record-review` 现可从仓库外、指定 run 的私有 review inbox 严格导入一份人工盲评 JSON。该离线评测命令要求 `--run`、`--run-root` 和 `--input`；以 handle-bound 无重解析输入读取拒绝仓库/越界路径、未知或尾随 JSON，所有失败只返回稳定安全码。评审验证与原子 owner-only 私有证据写入由跨进程 OS 文件锁串行化，输入文件不被删除或改写。
+- `quality-eval record-review` now strictly imports one human blind-review JSON from an explicit run's private inbox outside the repository. This offline evaluation command requires `--run`, `--run-root`, and `--input`; it uses handle-bound, no-reparse input reads to reject repository/out-of-boundary paths and unknown or trailing JSON, returns only stable safe failure codes, and serializes review validation plus atomic owner-only persistence with an OS cross-process file lock. The input file is never deleted or rewritten.
+
 - 建立 P0-T09 Windows upstream failure allowlist 合同文件，初始值严格为 `[]`；只有同时具备精确测试名、稳定失败签名、feature/upstream 双复现 SHA、owner 与 expiry 的失败才允许登记。
 - Added the P0-T09 Windows upstream failure allowlist contract with an exact initial value of `[]`; entries require an exact test name, stable failure signature, feature/upstream reproduction SHAs, owner, and expiry.
 

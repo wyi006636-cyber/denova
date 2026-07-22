@@ -40,7 +40,7 @@ func main() {
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("expected validate, create-run, execute-harness, package-blind, summarize, export-run-index, or skills")
+		return errors.New("expected validate, create-run, execute-harness, package-blind, record-review, summarize, export-run-index, or skills")
 	}
 	switch args[0] {
 	case "skills":
@@ -123,6 +123,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		}
 		fmt.Fprintf(stdout, "PACKAGED run=%s status=%s samples=%d\n", runID, index.Status, len(index.Samples))
 		return nil
+	case "record-review":
+		return recordReview(args[1:], stdout, stderr)
 	case "summarize":
 		runID, runRoot, err := parseRunCommand(args[0], args[1:], stderr)
 		if err != nil {
@@ -164,6 +166,54 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	default:
 		return fmt.Errorf("unknown command %q", args[0])
 	}
+}
+
+func recordReview(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("record-review", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	runID := flags.String("run", "", "stable run ID")
+	runRootValue := flags.String("run-root", "", "absolute private run root outside the repository")
+	inputValue := flags.String("input", "", "absolute private review JSON input")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*runID) == "" || strings.TrimSpace(*runRootValue) == "" || strings.TrimSpace(*inputValue) == "" {
+		return errors.New("record-review requires --run, --run-root, and --input")
+	}
+	runRoot, err := privateRunRoot(*runRootValue)
+	if err != nil {
+		return errors.New("invalid_input_location")
+	}
+	runDir, err := evaluation.RunDirectory(runRoot, *runID)
+	if err != nil {
+		return errors.New("invalid_run")
+	}
+	input, err := openPrivateReviewInput(*inputValue, filepath.Join(runDir, "private", "review-inbox"))
+	if err != nil {
+		if errors.Is(err, errReviewInputType) {
+			return errors.New("invalid_input_type")
+		}
+		return errors.New("invalid_input_location")
+	}
+	defer input.Close()
+	review, err := evaluation.DecodeReviewRecord(input)
+	if err != nil {
+		return errors.New("invalid_json")
+	}
+	if err := evaluation.SaveReview(runRoot, *runID, review); err != nil {
+		var persistence evaluation.ReviewPersistenceError
+		if errors.As(err, &persistence) {
+			return errors.New("persistence_failure")
+		}
+		return errors.New("invalid_review")
+	}
+	fmt.Fprintf(stdout, "REVIEW run=%s sample=%s kind=%s status=RECORDED\n", *runID, review.SampleID, review.Kind)
+	return nil
+}
+
+func pathContains(parent, child string) bool {
+	relative, err := filepath.Rel(parent, child)
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 func createRun(ctx context.Context, manifestPath string, stdout, stderr io.Writer) error {

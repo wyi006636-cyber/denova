@@ -1,9 +1,12 @@
 package evaluation
 
 import (
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -59,6 +62,164 @@ func TestSummarizeRejectsDuplicateIndependentReviewer(t *testing.T) {
 	if err := SaveReview(runRoot, run.RunID, review); err == nil || !strings.Contains(strings.ToLower(err.Error()), "duplicate reviewer") {
 		t.Fatalf("SaveReview() error = %v, want duplicate reviewer", err)
 	}
+}
+
+func TestSaveReviewSerializesConcurrentIndependentLimits(t *testing.T) {
+	runRoot, run := readyPackagedRun(t)
+	sample := firstReadySample(t, runRoot, run.RunID)
+	start := make(chan struct{})
+	results := make(chan error, 3)
+	var group sync.WaitGroup
+	for index := 0; index < 3; index++ {
+		index := index
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			<-start
+			results <- SaveReview(runRoot, run.RunID, validReview(sample, "concurrent-reviewer-"+string(rune('1'+index)), "A"))
+		}()
+	}
+	close(start)
+	group.Wait()
+	close(results)
+	successes := 0
+	for err := range results {
+		if err == nil {
+			successes++
+		}
+	}
+	if successes != 2 {
+		t.Fatalf("successful independent reviews=%d, want 2", successes)
+	}
+	reviews, err := loadReviews(runRoot, run.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reviews) != 2 {
+		t.Fatalf("persisted reviews=%d, want 2", len(reviews))
+	}
+
+	index, err := LoadBlindIndex(runRoot, run.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	duplicateSample := index.Samples[1]
+	duplicateResults := make(chan error, 2)
+	start = make(chan struct{})
+	for index := 0; index < 2; index++ {
+		index := index
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			<-start
+			review := validReview(duplicateSample, "same-reviewer", "A")
+			review.ReviewID = "same-id-race-" + string(rune('1'+index))
+			duplicateResults <- SaveReview(runRoot, run.RunID, review)
+		}()
+	}
+	close(start)
+	group.Wait()
+	close(duplicateResults)
+	if successes := countSuccessfulReviews(duplicateResults); successes != 1 {
+		t.Fatalf("duplicate reviewer successes=%d, want 1", successes)
+	}
+}
+
+func TestSaveReviewSerializesSameIDRace(t *testing.T) {
+	runRoot, run := readyPackagedRun(t)
+	sample := firstReadySample(t, runRoot, run.RunID)
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	var group sync.WaitGroup
+	for index := 0; index < 2; index++ {
+		index := index
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			<-start
+			review := validReview(sample, "same-id-reviewer-"+string(rune('1'+index)), "A")
+			review.ReviewID = "same-review-id"
+			results <- SaveReview(runRoot, run.RunID, review)
+		}()
+	}
+	close(start)
+	group.Wait()
+	close(results)
+	if successes := countSuccessfulReviews(results); successes != 1 {
+		t.Fatalf("same review ID successes=%d, want 1", successes)
+	}
+	reviews, err := loadReviews(runRoot, run.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reviews) != 1 || reviews[0].ReviewID != "same-review-id" {
+		t.Fatalf("reviews=%#v", reviews)
+	}
+}
+
+func TestSaveReviewSerializesSeparateProcesses(t *testing.T) {
+	runRoot, run := readyPackagedRun(t)
+	sample := firstReadySample(t, runRoot, run.RunID)
+	reviews := []ReviewRecord{
+		validReview(sample, "process-reviewer-one", "A"),
+		validReview(sample, "process-reviewer-two", "A"),
+		validReview(sample, "process-reviewer-three", "A"),
+	}
+	commands := make([]*exec.Cmd, 0, len(reviews))
+	for _, review := range reviews {
+		payload, err := json.Marshal(review)
+		if err != nil {
+			t.Fatal(err)
+		}
+		command := exec.Command(os.Args[0], "-test.run=TestSaveReviewProcessHelper")
+		command.Env = append(os.Environ(), "DENOVA_REVIEW_PROCESS_HELPER=1", "DENOVA_REVIEW_RUN_ROOT="+runRoot, "DENOVA_REVIEW_RUN_ID="+run.RunID, "DENOVA_REVIEW_RECORD="+string(payload))
+		commands = append(commands, command)
+	}
+	for _, command := range commands {
+		if err := command.Start(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	successes := 0
+	for _, command := range commands {
+		if err := command.Wait(); err == nil {
+			successes++
+		}
+	}
+	if successes != 2 {
+		t.Fatalf("separate process successes=%d, want 2", successes)
+	}
+	recorded, err := loadReviews(runRoot, run.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recorded) != 2 {
+		t.Fatalf("persisted separate process reviews=%d, want 2", len(recorded))
+	}
+}
+
+func TestSaveReviewProcessHelper(t *testing.T) {
+	if os.Getenv("DENOVA_REVIEW_PROCESS_HELPER") != "1" {
+		return
+	}
+	var review ReviewRecord
+	if err := json.Unmarshal([]byte(os.Getenv("DENOVA_REVIEW_RECORD")), &review); err != nil {
+		os.Exit(2)
+	}
+	if err := SaveReview(os.Getenv("DENOVA_REVIEW_RUN_ROOT"), os.Getenv("DENOVA_REVIEW_RUN_ID"), review); err != nil {
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+func countSuccessfulReviews(results <-chan error) int {
+	successes := 0
+	for err := range results {
+		if err == nil {
+			successes++
+		}
+	}
+	return successes
 }
 
 func TestSummarizeRequiresAdjudicationForConflict(t *testing.T) {

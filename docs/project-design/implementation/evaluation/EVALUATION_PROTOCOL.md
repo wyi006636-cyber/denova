@@ -144,6 +144,26 @@ If either arm is unavailable, the sample is `NOT-READY` and no A/B prose files a
 
 If the two independent decisions differ, a third reviewer adjudicates while still blind to source. The adjudication record must reference the two conflicting review IDs. Agreement does not permit an unnecessary adjudication record.
 
+### 7.1 私有人工提交 / Private human submission
+
+只有真实的人类评审者可以提交或裁决盲评；Codex、其他模型和自动化 agent 不能充当评审者。评审者在仓库外的私有运行根中保存一份 JSON，且该文件的规范真实路径必须位于目标 run 的 `private/review-inbox/` 内。随后由本机操作者显式导入：
+
+Only real human reviewers may submit or adjudicate blind reviews; Codex, other models, and automated agents cannot act as reviewers. A reviewer stores one JSON file in the out-of-repository private run root, whose canonical real path must be inside the target run's `private/review-inbox/`, then a local operator explicitly imports it:
+
+```powershell
+quality-eval record-review --run <run-id> --run-root <absolute-private-root> --input <absolute-private-review-json>
+```
+
+三个参数均为必填。`--run-root` 与 `--input` 必须为绝对路径；导入器拒绝仓库内文件、inbox 外文件、符号链接/junction/reparse 逃逸、非普通文件、未知字段、尾随 JSON 和无效评审合同。成功只输出稳定的 run、sample、kind、`RECORDED` 状态；不会输出评审者、选择、引用、备注或任何私有路径。输入文件不会被自动删除或改写。通过后，记录只以 owner-only 权限原子保存到私有 review evidence；盲包、索引和摘要仍仅保留既有匿名聚合。
+
+All three arguments are required. `--run-root` and `--input` must be absolute; the importer validates the run ID before deriving a run path, opens the final input handle without following its reparse point, verifies the handle's canonical regular file remains in the inbox, and rejects repository files, files outside the inbox, symlink/junction/reparse escapes, non-regular files, unknown fields, trailing JSON, and invalid review contracts. Failures return only stable safe reason codes and never echo private paths, identities, decisions, evidence, notes, or prose. Success prints only stable run, sample, kind, and `RECORDED` status. The input is never automatically deleted or rewritten. On acceptance, an OS-released cross-process lock serializes validation and atomic owner-only private persistence; blind packages, indexes, and summaries retain only their existing anonymous aggregates.
+
+Review JSON is exactly one object with no unknown or trailing values. Its required fields are: `contract` (`denova.quality-evaluation-review`), `version` (`v1`), safe stable `review_id`, `sample_id`, and `reviewer_id`; `kind` (`independent` or `adjudication`); complete `restatement` (`character_goal`, `obstacle`, `choice`, `cost`, `text_change`); `decision` (`A`, `B`, or `tie`); non-empty `evidence` items with `option` (`A` or `B`), `quote`, and `reason`; `fact_errors.A/B` (non-negative); and `author_edit_ratio.A/B` (0 through 1). `notes` is optional. An independent review has no `conflict_review_ids`; an adjudication names exactly two different existing independent review IDs for the same sample, and is accepted only when those two decisions conflict. `SaveReview` is the final authority for ready-sample membership, reviewer uniqueness, the two-independent-review cap, and all semantic validation.
+
+当前 regression cohort 的真实人工评审仍为 0；导入能力不改变其 `NOT-ENOUGH-DATA` 状态，也不构成质量 PASS 或任何优劣结论。
+
+The current regression cohort still has 0 real human reviews; import capability does not change its `NOT-ENOUGH-DATA` status and does not create a quality PASS or comparative conclusion.
+
 ## 8. 指标与分层 / Metrics and strata
 
 配对主指标把 H 胜记为 `1`、平记为 `0.5`、H 负记为 `0`，用稳定 seed 的 2,000 次 task-level bootstrap 计算 95% CI。报告必须同时按以下维度汇总：

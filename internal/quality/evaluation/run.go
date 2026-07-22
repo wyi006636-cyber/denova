@@ -3,6 +3,7 @@ package evaluation
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -444,6 +445,12 @@ func readStrictJSON(path string, target any) error {
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		return fmt.Errorf("decode %s: %w", path, err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		if err == nil {
+			return fmt.Errorf("decode %s: trailing JSON value", path)
+		}
+		return fmt.Errorf("decode %s: trailing data: %w", path, err)
 	}
 	return nil
 }
