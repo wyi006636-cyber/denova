@@ -86,7 +86,7 @@ func capabilityMembers(candidates []CandidateRecord, ignored map[string]bool) ma
 			}
 		}
 		for _, match := range candidate.Capabilities {
-			if match.Status == MatchMatched {
+			if credibleWritingMatch(candidate, match.CapabilityID) {
 				out[match.CapabilityID] = append(out[match.CapabilityID], candidate)
 			}
 		}

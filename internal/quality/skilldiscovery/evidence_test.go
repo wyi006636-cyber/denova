@@ -29,6 +29,20 @@ func TestBuildEvidenceVectorsUsesExplorationForMissingEvidence(t *testing.T) {
 	}
 }
 
+func TestBuildEvidenceVectorsExcludesMediaOnlyCandidate(t *testing.T) {
+	candidate := CandidateRecord{
+		Skill: SkillRecord{ID: "media", Name: "video storyboard", Downloads: 100},
+		Capabilities: []CapabilityMatch{{
+			CapabilityID: "outline.build-short-structure",
+			Status:       MatchMatched,
+			Evidence:     []FieldEvidence{{Field: "name", Term: "storyboard"}},
+		}},
+	}
+	if vectors := BuildEvidenceVectors([]CandidateRecord{candidate}, nil, nil); len(vectors) != 0 {
+		t.Fatalf("media-only candidate produced vectors: %#v", vectors)
+	}
+}
+
 func TestBuildEvidenceVectorsKeepsSingletonsAndNeverUsesCatalogStars(t *testing.T) {
 	candidates := []CandidateRecord{
 		{Skill: SkillRecord{ID: "single", Downloads: 100, AverageStars: 500}, Capabilities: []CapabilityMatch{{CapabilityID: "cap", Status: MatchMatched}}},

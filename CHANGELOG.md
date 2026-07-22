@@ -24,6 +24,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复虾评证据向量与短名单的媒体排除边界：证据层现复用可信写作匹配条件，媒体专用候选不会生成无法通过发布校验的向量。
+- Fixed the Xiaping evidence-vector and shortlist media-exclusion boundary: evidence generation now reuses the credible-writing match so media-only candidates cannot produce vectors rejected during publication.
 - 修复霞萍发现排序在单个候选评论证据不可用时的发布边界：保持分页和计数完整性校验，但将失败候选明确降级为 `EVIDENCE-CACHE-MISSING` 探索项，不再阻断其他完整候选的事务性短名单发布。
 - Fixed Xiaping discovery ranking when an individual candidate's review evidence is unavailable: pagination and count-integrity checks remain strict, while failed candidates are explicitly downgraded to `EVIDENCE-CACHE-MISSING` exploration entries without blocking transactional shortlist publication for complete peers.
 - 修复霞萍实时评论可选文本字段的结构化变体：`pros`、`cons` 与 `use_case` 的对象或数组值不再阻断受限缓存解析，而是作为未提供处理；评论正文与评分仍用于聚合，身份和原文不会进入提交工件。
