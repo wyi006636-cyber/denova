@@ -86,6 +86,8 @@ pnpm --dir web install --frozen-lockfile
 
 ### Phase 0 Gate
 
+P0-T09 唯一允许的 Harness 执行是版本化、评测专用、离线 runner：它不接入产品 API/SSE、UI/页面/菜单/设置、Automation 或产品工作流，不写正式 workspace/Markdown，不走 Author Finalization 或自动发布，不创建生产 CandidateSet/ReviewIssue/PreferenceMemory/Capability Router/Skill 执行，且不执行第三方脚本。它不是新 Phase、里程碑或产品 Harness 状态机。
+
 **目标命令：**
 
 ```powershell
@@ -106,9 +108,9 @@ git diff --check
 **验收门槛：**
 
 - 核心请求、session display/context、Task/SSE、workspace revision/lease、版本包含/排除、Skills 安装和共享菜单特征测试全绿。
-- 三 Profile 各至少 12 个 Phase 0 试运行任务，manifest、hash、普通单轮输出和随机盲包可复算。
+- tuning runner/template shakeout 后，只对冻结 regression cohort 做 S/H paired pilot：S 是一调用，H 是双独立候选、结构化审稿、最终修订的四调用流程；K 保持独立 capability-reference 隔离实验，不能替代 H。六个 `release_holdout` task 只保留元数据/hash，零模型调用、输出、盲包、评审和调优。
 - 七个必需核心 ADR 与 Projection driver ADR 为 Accepted。
-- `quality-gate-v1.json` 有从实际方差得出的样本量、非劣容差和成本比，不含拍脑袋阈值。
+- `quality-gate-v1.json` 仅从真实 regression pilot 和人工评审方差冻结未来样本量、非劣容差和成本规则，不含拍脑袋阈值；这不证明 P0-T09、Phase 0 或 Phase 2/3/5 已质量 PASS。
 - Windows allowlist 默认空；若非空，满足第 7 节全部证据。
 
 ### Phase 1 Gate

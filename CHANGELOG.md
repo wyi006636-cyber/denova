@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 澄清 Phase 0 Harness 边界：P0-T09 仅可实现版本化、评测专用、离线 runner，用于 tuning shakeout 后的冻结 regression S/H 配对 pilot；它不接入产品运行时、正式工作区、Author Finalization、自动发布或第三方脚本，六个 `release_holdout` 任务继续仅保留元数据/hash。
+- Clarified the Phase 0 Harness boundary: P0-T09 may implement only a versioned, evaluation-only offline runner for a frozen regression S/H paired pilot after tuning shakeout; it excludes product runtime, formal workspaces, Author Finalization, automatic publication, and third-party scripts, while all six `release_holdout` tasks remain metadata/hash-only.
+
 - 新增已批准的 P0 离线 Harness 实施计划，将 cohort/run 合同、H policy 与模板、双候选/审稿/修订执行、可续跑私有证据、CLI/Provider、盲评隐私、规划修正和真实 smoke/tuning/regression 运行拆成七个 TDD 提交，并明确 Phase 0 不生成 release holdout。
 - Added the approved P0 offline Harness implementation plan, splitting cohort/run contracts, H policy and templates, dual-candidate/review/revision execution, resumable private evidence, CLI/Provider integration, blind-review privacy, planning correction, and real smoke/tuning/regression runs into seven TDD commits while explicitly excluding release-holdout generation from Phase 0.
 

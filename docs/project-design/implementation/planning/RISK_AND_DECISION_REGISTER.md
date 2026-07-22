@@ -17,6 +17,7 @@
 | FD-007 | 虾评是第一优先级 Skill 来源，Harness 依赖 Capability | 禁止具体 Skill 接管状态机或全量提示词堆叠 |
 | FD-008 | Tauri 是 Phase 4/v1 发行形态 | 禁止提前阻塞 Phase 0–3 质量验证 |
 | FD-009 | 向量检索、独立 Worker、强沙箱、云同步/协作需证据再立项 | 不进入当前 MVP 关键路径 |
+| FD-010 | P0-T09 可实现版本化、评测专用离线 Harness runner 取得真实 S/H 配对证据 | 禁止产品运行时/API/SSE/UI/Automation 集成、正式工作区写入、Author Finalization、自动发布、生产 CandidateSet/ReviewIssue/PreferenceMemory/Capability Router/Skill 执行、第三方脚本执行或产品状态机；不是新 Phase/里程碑 |
 
 ## 2. 必需 ADR 待办
 
@@ -80,6 +81,7 @@
 | QUAL-006 | 审稿 issue 空泛、误报或把所有问题路由到润色 | 高/高 | 定位/可执行率低，作者拒绝率高 | ReviewIssue 合同、分类 precision/actionability、Revision Router 穷尽 | Review Lead；P2-T05/P2-T06 |
 | QUAL-007 | Provider/model 漂移使历史回归不可比 | 高/中 | 同 model name 行为/价格改变 | 记录 Provider/model 版本/日期/参数；新 cohort，不混合旧结果 | Eval/Agent；P5-T04 |
 | QUAL-008 | PreferenceMemory 把一次选择固化成僵硬风格 | 中/高 | 新任务质量下降、偏好互相冲突 | 作用域/强度/证据、弱信号累计、作者查看/撤销、holdout 回归 | Product/Eval；P2-T07/P5-T04 |
+| QUAL-009 | 把 P0-T09 离线 pilot 误写成产品 Harness 或 Phase 2/3/5 质量 PASS | 高/灾难 | runner 出现产品 API/SSE/UI/workspace 写入，或报告把 tuning/holdout/fixture 当质量结论 | 仅版本化离线 runner；tuning shakeout 后冻结 regression paired pilot；`release_holdout` 只保留 metadata/hash 且零调用/输出/盲包/评审/调优；P0-T09 只冻结未来样本量和非劣规则 | Eval/Tech Lead；P0-T09 |
 
 ## 7. Skills 风险
 

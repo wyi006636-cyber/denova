@@ -1,9 +1,9 @@
 # P0-T07 三 Profile 质量评测协议 / Three-profile quality evaluation protocol
 
 > Contract: `denova.quality-evaluation-protocol/v1`
-> Status: P0-T07 offline tooling complete; real S arm is `ENVIRONMENT-BLOCKED`; H arm is `NOT-READY`
+> Status: P0-T07 offline tooling complete; committed legacy S arm is `ENVIRONMENT-BLOCKED`; H arm is `NOT-READY`. A P0-T09 evaluation-only offline H runner is approved/planned here, not implemented or successful.
 > Date: 2026-07-21
-> Scope: baseline and evaluation infrastructure only; no Harness workflow, P0-T08, P0-T09, Phase 1, or quality-gate manifest
+> Scope: baseline and evaluation infrastructure plus the approved P0-T09 runner boundary; no product Harness workflow, runtime integration, P0-T09 success claim, Phase 1 implementation, or quality-gate PASS.
 
 ## 1. 目的与非结论 / Purpose and non-conclusion
 
@@ -45,13 +45,13 @@ Each Profile covers opening, character choice or dialogue, structural turn, and 
 
 - `tuning` 可用于开发评测工具和未来调模板。
 - `regression` 用于检查已冻结方案的回归。
-- `release_holdout` 只登记任务和 hash；当前阶段不根据其结果调模板，也不在同一批数据上宣称发布通过。
-- P0-T09 才能根据真实方差和最小检测效应冻结正式样本量及非劣容差。本文件不创建 `quality-gate-v1.json`。
+- `release_holdout` 的全部六个 task 只登记任务和 hash：零模型调用、零输出、零盲包、零评审、零调优，也不在同一批数据上宣称发布通过。
+- P0-T09 必须先完成 `tuning` runner/template shakeout，随后只以冻结的 `regression` paired pilot 和人工评审方差冻结未来正式样本量及非劣规则；不宣称 P0-T09、Phase 0 或 Phase 2/3/5 质量 PASS。本文件不创建 Gate PASS。
 
 - `tuning` may support future template or method development.
 - `regression` checks a frozen approach for regressions.
-- `release_holdout` is registered and hashed but is not used to tune the template or claim success on the same cohort.
-- P0-T09, not P0-T07, must derive formal sample sizes and non-inferiority tolerances from real variance. This protocol does not create a gate manifest.
+- All six `release_holdout` tasks are registered and hashed only: zero model calls, outputs, blind packages, reviews, and tuning; they cannot support a same-cohort release claim.
+- P0-T09 must first run a `tuning` runner/template shakeout, then derive future formal sample-size and non-inferiority rules only from a frozen `regression` paired pilot and human-review variance. It does not claim a P0-T09, Phase 0, or Phase 2/3/5 quality PASS.
 
 ## 3. 普通单轮 S arm / Ordinary single-turn S arm
 
@@ -90,15 +90,17 @@ The output limit is a shared comparison boundary, not a runtime timeout. The CLI
 
 Each S result records provider, model, parameters, input/output SHA-256, single-call token usage, cost status, and failure classification. Without verified pricing, monetary cost is explicitly `NOT-AVAILABLE`; token counts are not converted using invented prices. Failed calls do not receive fabricated output hashes or prose files.
 
-## 4. 未来 H arm 与公平性 / Future H arm and fairness
+## 4. P0-T09 评测专用 H arm 与公平性 / P0-T09 evaluation-only H arm and fairness
 
-H arm 未来必须使用同一任务、相同允许输入事实、相同模型族、相同参数边界和同一任务 QualitySpec。Harness 多次调用、候选、审稿和修订的实际 token 与成本必须全部计入。禁止通过削弱 S prompt、删除关键事实、改用更弱模型或隐藏失败重试制造优势。
+P0-T09 可实现一个版本化、评测专用、离线 H runner。H 必须使用同一任务、相同允许输入事实、相同模型族、相同参数边界和同一任务 QualitySpec；其精确流程为两个独立候选、一次结构化审稿、一次最终修订，共四次模型调用。所有调用的实际 token 与成本必须全部计入。禁止通过削弱 S prompt、删除关键事实、改用更弱模型或隐藏失败重试制造优势。
 
-The future H arm must use the same task, factual input permissions, model family, parameter boundary, and task QualitySpec. All Harness candidate/review/revision calls and costs count. Weakening S, withholding facts, using a weaker model, or hiding retries is prohibited.
+P0-T09 may implement a versioned, evaluation-only, offline H runner. H uses the same task, factual input permissions, model family, parameter boundary, and task QualitySpec; its exact flow is two independent candidates, one structured review, and one final revision, for four model calls total. All call costs and tokens count. Weakening S, withholding facts, using a weaker model, or hiding retries is prohibited.
 
-P0-T07 不实现 H arm。当前运行中所有 H 项均为 `NOT-READY`，工具不会创建 H 正文、胜率或 PASS。
+该 runner 是 P0-T09 的内部执行机械，不是新 Phase、里程碑、独立产品目标或产品 Harness 状态机。它绝不添加产品运行时集成、用户可见 Harness workflow、正式工作区写入、自动发布或第三方脚本执行；也不接入产品 API/SSE/UI/页面/菜单/设置、Automation、正式 Markdown、Author Finalization、生产 CandidateSet/ReviewIssue/PreferenceMemory/Capability Router/Skill 执行或 Phase 1。
 
-P0-T07 does not implement H. Every H record in the current run is `NOT-READY`; no H prose, win rate, or PASS is fabricated.
+This runner is internal P0-T09 execution machinery, not a new Phase, milestone, independent product goal, or product Harness state machine. It adds no product runtime integration, user-facing Harness workflow, formal workspace write, automatic publication, or third-party-script execution; it also excludes product API/SSE/UI/pages/menus/settings, Automation, formal Markdown, Author Finalization, production CandidateSet/ReviewIssue/PreferenceMemory/Capability Router/Skill execution, and Phase 1.
+
+S remains exactly one model call. K remains a separate capability-reference isolation experiment and must never be renamed or substituted as H. P0-T07 does not implement H: every H record in the committed legacy run remains `NOT-READY`, and no H prose, win rate, or PASS is fabricated from that run.
 
 ## 5. 稳定 ID 与 hash / Stable IDs and hashes
 
@@ -148,9 +150,9 @@ If the two independent decisions differ, a third reviewer adjudicates while stil
 
 The paired score records H win as 1, tie as 0.5, and H loss as 0. A deterministic 2,000-resample task bootstrap produces the 95% CI. Reports include Profile, genre, task type, length bucket, overall pairs, fact errors, author edit ratio, token usage, verified monetary cost when available, and H/S cost ratio.
 
-P0-T07 不提前写死 60%、70% 等胜率，也不把 CI 下界规则当作当前 PASS。正式门槛属于 P0-T09 的真实方差分析。
+P0-T07 不提前写死 60%、70% 等胜率，也不把 CI 下界规则当作当前 PASS。P0-T09 只从真实 frozen regression pilot 与人工评审方差冻结未来样本量和非劣规则；这不构成 Phase 2/3/5 质量 PASS。
 
-P0-T07 pre-registers no arbitrary 60% or 70% win rate and does not treat a CI rule as a current PASS. Formal thresholds belong to P0-T09 variance and power analysis.
+P0-T07 pre-registers no arbitrary 60% or 70% win rate and does not treat a CI rule as a current PASS. P0-T09 freezes future sample-size and non-inferiority rules only from a real frozen regression pilot and human-review variance; it does not establish a Phase 2/3/5 quality PASS.
 
 ## 9. 结果状态 / Result states
 
@@ -201,9 +203,9 @@ Errors retain enough run/task/Profile context for diagnosis without credentials,
 - Summary: `NOT-READY`, paired samples `0`, missing arms `36`
 - Quality claim: none
 
-当前配置存在 DeepSeek Provider、`default` model profile 和 `deepseek-v4-pro` 标识，但当前有效配置与进程环境没有 API Key。此分类是环境事实，不是模型或项目质量失败。配置凭据后应产生新的真实 S 输出记录；H arm 仍须等后续 Harness 实现，不能在 P0-T07 伪造。
+当前配置存在 DeepSeek Provider、`default` model profile 和 `deepseek-v4-pro` 标识，但当前有效配置与进程环境没有 API Key。此分类是环境事实，不是模型或项目质量失败。配置凭据后应产生新的真实 S 输出记录；P0-T09 的评测专用离线 runner 在本提交仅获批准/规划，尚未实现或成功，不能改变该历史 H 状态或在 P0-T07 伪造。
 
-The Provider/model identifiers exist, but no API key is available in the effective configuration or process environment. This is an environment fact, not a model or product quality result. Supplying runtime credentials can produce real S outputs; H must still wait for an actual Harness implementation.
+The Provider/model identifiers exist, but no API key is available in the effective configuration or process environment. This is an environment fact, not a model or product quality result. Supplying runtime credentials can produce real S outputs; the P0-T09 evaluation-only offline runner is approved/planned at this commit, not implemented or successful, and cannot alter the legacy H state.
 
 ## 13. 命令 / Commands
 
