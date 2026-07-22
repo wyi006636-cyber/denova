@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增已批准的 P0 离线 Harness 实施计划，将 cohort/run 合同、H policy 与模板、双候选/审稿/修订执行、可续跑私有证据、CLI/Provider、盲评隐私、规划修正和真实 smoke/tuning/regression 运行拆成七个 TDD 提交，并明确 Phase 0 不生成 release holdout。
+- Added the approved P0 offline Harness implementation plan, splitting cohort/run contracts, H policy and templates, dual-candidate/review/revision execution, resumable private evidence, CLI/Provider integration, blind-review privacy, planning correction, and real smoke/tuning/regression runs into seven TDD commits while explicitly excluding release-holdout generation from Phase 0.
+
 - 批准 P0-T09 评测专用离线 Harness 设计：在不接入产品运行时、正式工作区或第三方脚本的边界内，以同模型双候选、结构化审稿和修订流程生成真实 H arm，并保持 tuning/regression/release holdout 分离、运行时凭证与可复算盲评证据。
 - Approved the P0-T09 evaluation-only offline Harness design: within boundaries excluding product runtime, formal workspaces, and third-party scripts, it produces a real H arm through same-model dual candidates, structured review, and revision while preserving tuning/regression/release-holdout separation, runtime-only credentials, and reproducible blind-review evidence.
 
