@@ -1,0 +1,148 @@
+{
+  "contract": "denova.quality-evaluation-run-index",
+  "version": "v1",
+  "generated_at": "2026-07-22T11:58:24.0172246Z",
+  "runs": [
+    {
+      "run_id": "run-2ac80556cb00c5aa3ff52f42",
+      "selection": {
+        "data_splits": [
+          "tuning"
+        ],
+        "task_ids": [
+          "fq-urban-opening-01"
+        ]
+      },
+      "task_count": 1,
+      "harness_policy_sha256": "sha256:10a70d3ae7cc9f4e3c3dbeaaaf28b62835db0e165ce887a995a4e010dd7a8ea5",
+      "baseline_template_sha256": "sha256:56a566495b63cea286fd8bb60abeb9a7770422c3c4c4c67f63e86739859c3a54",
+      "model_config_sha256": [
+        "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      ],
+      "arm_status_counts": {
+        "H": {
+          "READY": 1
+        },
+        "S": {
+          "READY": 1
+        }
+      },
+      "usage": {
+        "H": {
+          "prompt_tokens": 5505,
+          "completion_tokens": 2971,
+          "total_tokens": 8476,
+          "model_calls": 4
+        },
+        "S": {
+          "prompt_tokens": 389,
+          "completion_tokens": 725,
+          "total_tokens": 1114,
+          "model_calls": 1
+        }
+      },
+      "cost": {
+        "H": {
+          "status": "NOT-AVAILABLE"
+        },
+        "S": {
+          "status": "NOT-AVAILABLE"
+        }
+      },
+      "local_evidence_available": true,
+      "blind_package_sha256": "sha256:931c1945326fae3d820d9c10614664118c5619e48b26b67db7e9c2e94223fbf4"
+    },
+    {
+      "run_id": "run-2f9cce8a71c485df0881cdbb",
+      "selection": {
+        "data_splits": [
+          "tuning"
+        ]
+      },
+      "task_count": 18,
+      "harness_policy_sha256": "sha256:10a70d3ae7cc9f4e3c3dbeaaaf28b62835db0e165ce887a995a4e010dd7a8ea5",
+      "baseline_template_sha256": "sha256:56a566495b63cea286fd8bb60abeb9a7770422c3c4c4c67f63e86739859c3a54",
+      "model_config_sha256": [
+        "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      ],
+      "arm_status_counts": {
+        "H": {
+          "READY": 18
+        },
+        "S": {
+          "READY": 18
+        }
+      },
+      "usage": {
+        "H": {
+          "prompt_tokens": 137764,
+          "completion_tokens": 83037,
+          "total_tokens": 220801,
+          "model_calls": 72
+        },
+        "S": {
+          "prompt_tokens": 7003,
+          "completion_tokens": 22021,
+          "total_tokens": 29024,
+          "model_calls": 18
+        }
+      },
+      "cost": {
+        "H": {
+          "status": "NOT-AVAILABLE"
+        },
+        "S": {
+          "status": "NOT-AVAILABLE"
+        }
+      },
+      "local_evidence_available": true,
+      "blind_package_sha256": "sha256:0ca1a48414f8320eec76ceee6979014a3636c613bc65ab8b21b5218a27c8d1f0"
+    },
+    {
+      "run_id": "run-4d815afd6f76bbea0926ac55",
+      "selection": {
+        "data_splits": [
+          "regression"
+        ]
+      },
+      "task_count": 12,
+      "harness_policy_sha256": "sha256:10a70d3ae7cc9f4e3c3dbeaaaf28b62835db0e165ce887a995a4e010dd7a8ea5",
+      "baseline_template_sha256": "sha256:56a566495b63cea286fd8bb60abeb9a7770422c3c4c4c67f63e86739859c3a54",
+      "model_config_sha256": [
+        "sha256:8940c87702e5e928745498105567929bc1a237af0ebbb7dc106a5b70cb249834"
+      ],
+      "arm_status_counts": {
+        "H": {
+          "READY": 12
+        },
+        "S": {
+          "READY": 12
+        }
+      },
+      "usage": {
+        "H": {
+          "prompt_tokens": 92657,
+          "completion_tokens": 58978,
+          "total_tokens": 151635,
+          "model_calls": 48
+        },
+        "S": {
+          "prompt_tokens": 4634,
+          "completion_tokens": 14744,
+          "total_tokens": 19378,
+          "model_calls": 12
+        }
+      },
+      "cost": {
+        "H": {
+          "status": "NOT-AVAILABLE"
+        },
+        "S": {
+          "status": "NOT-AVAILABLE"
+        }
+      },
+      "local_evidence_available": true,
+      "blind_package_sha256": "sha256:41e5502e6619ba6f33cf3e92fa2bb241c8ef8d794a445da9776a9be4ae004bdb"
+    }
+  ]
+}

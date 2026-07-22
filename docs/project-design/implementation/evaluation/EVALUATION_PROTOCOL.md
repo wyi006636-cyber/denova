@@ -202,18 +202,25 @@ Errors retain enough run/task/Profile context for diagnosis without credentials,
 - Thinking, sensitive full prompts, provider authorization, and source clues do not enter run metadata or blind packages.
 - Private outputs remain under the run's `private/` area and still require a license/privacy audit before any commit.
 
-## 12. 当前可复算运行 / Current reproducible run
+## 12. 当前可复算运行 / Current reproducible runs
 
-- Run ID: `run-598b2c33eba7f255bd88eaec`
-- S arm: 36 × `ENVIRONMENT-BLOCKED` (`provider_credentials_missing`)
-- H arm: 36 × `NOT-READY` (`harness_arm_not_available`)
-- Blind package: 36 × `NOT-READY`, no A/B prose files
-- Summary: `NOT-READY`, paired samples `0`, missing arms `36`
-- Quality claim: none
+历史快照 `run-598b2c33eba7f255bd88eaec` 是凭据受阻的 legacy 运行：S 为 36 × `ENVIRONMENT-BLOCKED`（`provider_credentials_missing`），H 为 36 × `NOT-READY`，没有可用 A/B 盲评样本。它只保留为历史诊断记录，旧失败运行不能作为成功或质量证据。
 
-当前配置存在 DeepSeek Provider、`default` model profile 和 `deepseek-v4-pro` 标识，但当前有效配置与进程环境没有 API Key。此分类是环境事实，不是模型或项目质量失败。P0-T09 的评测专用离线 runner 与 CLI 已实现；两次失败审稿调用均记录 `completion_tokens=4096`、`reasoning_tokens=4096`、最终回答 token 为 `0` 和 `empty_output`。根因不是审稿 schema：冻结 snapshot 已要求 `thinking_enabled:false`，但旧 `enable_thinking:false` 字段不符合 DeepSeek V4 的 `thinking.type` 合同，V4 默认 thinking 吞掉了共享上限。修复将 H policy 身份升级为 `p0-offline-harness-v1-thinking-disabled` 并冻结嵌套禁用传输；没有触发 live 调用、读取私有输出、改变历史运行状态或质量结论。
+The historical `run-598b2c33eba7f255bd88eaec` snapshot is a credential-blocked legacy run: S is 36 × `ENVIRONMENT-BLOCKED` (`provider_credentials_missing`), H is 36 × `NOT-READY`, and it has no usable blind A/B samples. It remains only as a diagnostic record; old failed runs are not success or quality evidence.
 
-The Provider/model identifiers exist, but no API key is available in the effective configuration or process environment. This is an environment fact, not a model or product quality result. The P0-T09 evaluation-only offline runner and CLI are implemented; two failed review calls each recorded `completion_tokens=4096`, `reasoning_tokens=4096`, zero final-answer tokens, and `empty_output`. The root cause was not the review schema: the frozen snapshot already required `thinking_enabled:false`, but the legacy `enable_thinking:false` field did not satisfy DeepSeek V4's `thinking.type` contract, so V4's default thinking consumed the shared bound. The remediation versions H policy identity as `p0-offline-harness-v1-thinking-disabled` and freezes nested disabled transport; it made no live call, accessed no private output, and changes neither historical run status nor quality conclusions.
+当前 P0-T09 live cohort 的已提交可复现索引为 `p0-harness-run-index-v1.json`，仅包含选择、哈希、状态计数、聚合用量/成本、本地证据可用性和盲包哈希。运行时 API Key 从未持久化到 manifest、运行元数据、日志、盲包或提交文件。
+
+The current P0-T09 live cohort is recorded in the committed reproducibility index `p0-harness-run-index-v1.json`, which contains only selection, hashes, status counts, aggregate usage/cost, local-evidence availability, and blind-package hashes. The runtime API key was never persisted to the manifest, run metadata, logs, blind packages, or committed files.
+
+| Cohort / 批次 | Run ID | Safe aggregate facts / 安全聚合事实 |
+| --- | --- | --- |
+| Smoke / 冒烟 | `run-2ac80556cb00c5aa3ff52f42` | S/H `READY`: 1/1; model calls S/H: 1/4; blind samples: 1 |
+| Tuning / 调优 | `run-2f9cce8a71c485df0881cdbb` | S/H `READY`: 18/18; model calls S/H: 18/72; blind samples: 18 |
+| Regression / 回归 | `run-4d815afd6f76bbea0926ac55` | S/H `READY`: 12/12; model calls S/H: 12/48; blind samples: 12 |
+
+三个 cohort 的失败数均为 0，reasoning tokens 均为 0；`release_holdout` 的调用、输出、中间产物和盲评样本均为 0。真实独立人工评审仍缺失，因此汇总结论是 `NOT-ENOUGH-DATA`，不产生质量 `PASS` 或任何优劣结论。
+
+All three cohorts have zero failures and zero reasoning tokens; `release_holdout` has zero calls, outputs, intermediates, and blind samples. Real independent human reviews are still missing, so the summary conclusion is `NOT-ENOUGH-DATA`; there is no quality `PASS` and no comparative quality conclusion.
 
 ## 13. 命令 / Commands
 

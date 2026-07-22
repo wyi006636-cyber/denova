@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- 记录成功的 P0-T09 offline Harness smoke、tuning 和 regression cohort 的受限可复现索引；提交内容仅含选择、哈希、状态计数、聚合用量/成本、本地证据可用性和盲包哈希，不含私有正文、盲测映射、评审记录、身份或凭据。评估协议现将旧 credential-blocked 快照与当前 live cohort 区分开，并明确缺少真实人工评审时为 `NOT-ENOUGH-DATA`，不构成质量 `PASS`。
+- Recorded the successful P0-T09 offline Harness smoke, tuning, and regression cohorts in a bounded reproducibility index; committed data includes only selection, hashes, status counts, aggregate usage/cost, local-evidence availability, and blind-package hashes, never private prose, blind mappings, review records, identities, or credentials. The protocol now distinguishes the legacy credential-blocked snapshot from current live cohorts and states that missing real human reviews result in `NOT-ENOUGH-DATA`, not a quality `PASS`.
+
 - 修复离线 Harness H 首次追加失败阶段的可复算证据：请求构建成功后的 prior-output 读取、Provider、空/超限输出、结构化审稿和输出持久化失败，均保留该请求的 input、模型配置、policy 和模板哈希；请求构建失败不会伪造 input hash，失败 attempt 历史与调用计数保持不变。
 - Fixed reproducibility evidence for newly appended failed offline Harness H stages: after request assembly, prior-output reads, provider failures, empty/oversize output, structured-review rejection, and output-persistence failures retain that request's input, model-config, policy, and template hashes; request-build failures do not fabricate an input hash, while attempt history and call accounting remain unchanged.
 
