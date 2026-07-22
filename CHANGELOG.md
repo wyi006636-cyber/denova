@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `quality-eval` 新增 cohort 安全命令面：`create-run` 仅允许显式 tuning/regression 选择、仓库外的绝对私有运行根目录和冻结 Harness policy，并以每个选中任务恰好一次的 S 调用生成 cohort；`execute-harness` 按固定四阶段运行 H，`package-blind` 与 `summarize` 可接收显式私有运行根目录。Provider 适配统一为可注入生成器，不向 CLI 输出凭据、授权头、提示词、推理或原始响应。
+- Added secure cohort commands to `quality-eval`: `create-run` accepts only explicit tuning/regression selections, an absolute private run root outside the repository, and a frozen Harness policy, then generates S with exactly one call per selected task; `execute-harness` runs the fixed four-stage H sequence, while `package-blind` and `summarize` accept an explicit private run root. The Provider adapter now uses one injectable generator and never emits credentials, authorization headers, prompts, reasoning, or raw responses to CLI output.
+
 - 新增可续跑的离线 Harness H 执行器：仅对已选的 tuning/regression cohort 按候选 A、候选 B、结构化审稿、修订的固定顺序调用注入式生成器；每阶段输出以私有 `0600` 原子文件与运行记录保存，校验输入、模型、policy、模板和输出哈希后才续跑，最终修订作为 H arm，失败会留下稳定阶段状态且不会生成半成品盲评包。
 - Added a resumable offline Harness H executor: only selected tuning/regression cohorts call an injected generator in the fixed candidate A, candidate B, structured-review, revision order; each stage atomically saves private `0600` output and the run record, resumes only after input/model/policy/template/output hashes match, uses the final revision as the H arm, and records stable failures without producing partial blind packages.
 

@@ -39,6 +39,58 @@ func TestExecuteSingleTurnBaselineCallsModelOncePerTask(t *testing.T) {
 	}
 }
 
+func TestExecuteSingleTurnBaselineSupportsSelectedCohort(t *testing.T) {
+	manifestPath, manifest := writeValidManifest(t)
+	runRoot := filepath.Join(filepath.Dir(manifestPath), manifest.RunRoot)
+	selection, err := NewRunSelection([]DataSplit{SplitTuning}, []string{"long_serial-01"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	policyHash := "sha256:" + strings.Repeat("1", 64)
+	run, err := CreateRun(manifestPath, CreateRunOptions{
+		RunRoot: runRoot, BaselineStatus: StatusNotReady, HarnessStatus: StatusNotReady,
+		Selection: &selection, HarnessPolicySHA256: policyHash,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if run.RunID != StableCohortRunID(manifest, selection, policyHash) || len(run.Tasks) != 1 {
+		t.Fatalf("cohort run=%#v", run)
+	}
+	generator := &recordingGenerator{}
+	updated, err := ExecuteSingleTurnBaseline(context.Background(), manifestPath, runRoot, run.RunID, generator)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(generator.requests) != 1 || generator.requests[0].TaskID != "long_serial-01" {
+		t.Fatalf("requests=%#v", generator.requests)
+	}
+	if updated.BaselineStatus != StatusReady || updated.Tasks[0].Arms["S"].Usage.ModelCalls != 1 {
+		t.Fatalf("updated=%#v", updated)
+	}
+}
+
+func TestExecuteSingleTurnBaselineRejectsMismatchedCohortSelection(t *testing.T) {
+	manifestPath, manifest := writeValidManifest(t)
+	runRoot := filepath.Join(filepath.Dir(manifestPath), manifest.RunRoot)
+	selection, err := NewRunSelection([]DataSplit{SplitTuning}, []string{"long_serial-01"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	policyHash := "sha256:" + strings.Repeat("1", 64)
+	run, err := CreateRun(manifestPath, CreateRunOptions{RunRoot: runRoot, Selection: &selection, HarnessPolicySHA256: policyHash})
+	if err != nil {
+		t.Fatal(err)
+	}
+	run.Selection = &RunSelection{DataSplits: []DataSplit{SplitRegression}, TaskIDs: []string{"long_serial-02"}}
+	if err := SaveRun(runRoot, run); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ExecuteSingleTurnBaseline(context.Background(), manifestPath, runRoot, run.RunID, &recordingGenerator{}); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("err=%v", err)
+	}
+}
+
 func TestExecuteSingleTurnBaselineRecordsFailureWithoutFabricatingOutput(t *testing.T) {
 	manifestPath, manifest := writeValidManifest(t)
 	runRoot := filepath.Join(filepath.Dir(manifestPath), manifest.RunRoot)

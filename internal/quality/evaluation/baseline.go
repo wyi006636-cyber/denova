@@ -47,8 +47,8 @@ func ExecuteSingleTurnBaseline(ctx context.Context, manifestPath, runRoot, runID
 	if err != nil {
 		return RunRecord{}, err
 	}
-	if run.RunID != StableRunID(manifest) {
-		return RunRecord{}, fmt.Errorf("run %s does not match manifest inputs and frozen template", runID)
+	if err := validateBaselineRun(manifest, run); err != nil {
+		return RunRecord{}, err
 	}
 	template, err := os.ReadFile(ResolveTemplatePath(manifestPath, manifest))
 	if err != nil {
@@ -68,6 +68,10 @@ func ExecuteSingleTurnBaseline(ctx context.Context, manifestPath, runRoot, runID
 		if err != nil {
 			return RunRecord{}, fmt.Errorf("run %s task %s profile %s read input: %w", runID, task.ID, task.ProfileID, err)
 		}
+		sArm := runTask.Arms["S"]
+		if validReadyBaselineOutput(runRoot, run, *runTask, task, manifest) {
+			continue
+		}
 		request := BaselineRequest{
 			TaskID: task.ID, ProfileID: task.ProfileID, TaskType: task.TaskType, LengthBucket: task.LengthBucket,
 			SystemTemplate: string(template), TemplateVersion: manifest.Baseline.TemplateVersion,
@@ -77,7 +81,6 @@ func ExecuteSingleTurnBaseline(ctx context.Context, manifestPath, runRoot, runID
 			ThinkingPersisted: manifest.Baseline.ThinkingPersisted,
 		}
 		result, generationErr := generator.Generate(ctx, request)
-		sArm := runTask.Arms["S"]
 		if generationErr != nil {
 			failed = true
 			sArm.Status = StatusFailed
@@ -136,4 +139,54 @@ func ExecuteSingleTurnBaseline(ctx context.Context, manifestPath, runRoot, runID
 		return RunRecord{}, err
 	}
 	return run, nil
+}
+
+func validReadyBaselineOutput(runRoot string, run RunRecord, runTask RunTask, task EvaluationTask, manifest CorpusManifest) bool {
+	arm := runTask.Arms["S"]
+	model := task.ModelConfigSnapshot
+	if arm.Status != StatusReady || run.TemplateVersion != manifest.Baseline.TemplateVersion || run.TemplateSHA256 != manifest.Baseline.TemplateSHA256 || arm.InputSHA256 != task.InputSHA256 || arm.Provider != model.Provider || arm.BaseURL != model.BaseURL || arm.ModelProfileID != model.ModelProfileID || arm.Model != model.Model || arm.Parameters != model.Parameters || arm.OutputFile == "" || arm.OutputSHA256 == "" {
+		return false
+	}
+	runDir, err := RunDirectory(runRoot, run.RunID)
+	if err != nil {
+		return false
+	}
+	outputPath := filepath.Join(runDir, filepath.FromSlash(arm.OutputFile))
+	if !pathWithin(runDir, outputPath) {
+		return false
+	}
+	resolvedRunDir, err := filepath.EvalSymlinks(runDir)
+	if err != nil {
+		return false
+	}
+	resolvedOutputPath, err := filepath.EvalSymlinks(outputPath)
+	if err != nil || !pathWithin(resolvedRunDir, resolvedOutputPath) {
+		return false
+	}
+	hash, err := FileSHA256(outputPath)
+	return err == nil && hash == arm.OutputSHA256
+}
+
+func validateBaselineRun(manifest CorpusManifest, run RunRecord) error {
+	if run.Selection == nil {
+		if run.RunID != StableRunID(manifest) {
+			return fmt.Errorf("run %s does not match manifest inputs and frozen template", run.RunID)
+		}
+		return nil
+	}
+	selection, err := NewRunSelection(run.Selection.DataSplits, run.Selection.TaskIDs)
+	if err != nil || !sha256Pattern.MatchString(run.HarnessPolicySHA256) || run.RunID != StableCohortRunID(manifest, selection, run.HarnessPolicySHA256) {
+		return fmt.Errorf("run %s does not match selected cohort and frozen Harness policy", run.RunID)
+	}
+	selected, err := SelectTasks(manifest, selection)
+	if err != nil || len(selected) != len(run.Tasks) {
+		return fmt.Errorf("run %s task set does not match selected cohort", run.RunID)
+	}
+	for index, task := range selected {
+		runTask := run.Tasks[index]
+		if runTask.TaskID != task.ID || runTask.TaskHash != StableTaskHash(task) || runTask.InputSHA256 != task.InputSHA256 || runTask.ModelConfigSHA256 != task.ModelConfigSnapshot.SHA256 {
+			return fmt.Errorf("run %s task set does not match selected cohort", run.RunID)
+		}
+	}
+	return nil
 }

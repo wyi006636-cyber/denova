@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -21,6 +22,15 @@ import (
 
 const defaultManifestPath = "docs/project-design/implementation/evaluation/corpus-manifest-v1.json"
 
+type evaluationGenerator interface {
+	evaluation.TextGenerator
+	evaluation.HarnessTextGenerator
+}
+
+var newEvaluationGenerator = func(apiKey string) evaluationGenerator {
+	return &einoGenerator{apiKey: apiKey}
+}
+
 func main() {
 	if err := run(context.Background(), os.Args[1:], os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintf(os.Stderr, "quality-eval: %v\n", err)
@@ -30,7 +40,7 @@ func main() {
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("expected validate, create-run, package-blind, summarize, or skills")
+		return errors.New("expected validate, create-run, execute-harness, package-blind, summarize, or skills")
 	}
 	switch args[0] {
 	case "skills":
@@ -55,13 +65,53 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		flags := flag.NewFlagSet("create-run", flag.ContinueOnError)
 		flags.SetOutput(stderr)
 		manifestPath := flags.String("manifest", "", "corpus manifest path")
+		splits := flags.String("splits", "", "comma-separated cohort splits: tuning,regression")
+		tasks := flags.String("tasks", "", "optional comma-separated task IDs")
+		policyPath := flags.String("harness-policy", "", "frozen Harness policy path")
+		runRoot := flags.String("run-root", "", "absolute private run root outside the repository")
 		if err := flags.Parse(args[1:]); err != nil {
 			return err
 		}
 		if strings.TrimSpace(*manifestPath) == "" {
 			return errors.New("create-run requires --manifest")
 		}
-		return createRun(ctx, *manifestPath, stdout, stderr)
+		if strings.TrimSpace(*splits) == "" {
+			if strings.TrimSpace(*tasks) != "" || strings.TrimSpace(*policyPath) != "" || strings.TrimSpace(*runRoot) != "" {
+				return errors.New("cohort options require --splits")
+			}
+			return createRun(ctx, *manifestPath, stdout, stderr)
+		}
+		return createCohortRun(ctx, *manifestPath, *splits, *tasks, *policyPath, *runRoot, stdout, stderr)
+	case "execute-harness":
+		flags := flag.NewFlagSet("execute-harness", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		runID := flags.String("run", "", "stable cohort run ID")
+		manifestPath := flags.String("manifest", "", "corpus manifest path")
+		policyPath := flags.String("harness-policy", "", "frozen Harness policy path")
+		runRoot := flags.String("run-root", "", "absolute private run root outside the repository")
+		if err := flags.Parse(args[1:]); err != nil {
+			return err
+		}
+		if strings.TrimSpace(*runID) == "" || strings.TrimSpace(*manifestPath) == "" || strings.TrimSpace(*policyPath) == "" || strings.TrimSpace(*runRoot) == "" {
+			return errors.New("execute-harness requires --run, --manifest, --harness-policy, and --run-root")
+		}
+		resolvedRunRoot, err := privateRunRoot(*runRoot)
+		if err != nil {
+			return err
+		}
+		cfg, _, err := config.LoadWithWorkspace("")
+		if err != nil {
+			return fmt.Errorf("load Provider configuration: %w", err)
+		}
+		resolved := config.ResolveAgentModel(cfg, config.AgentKindIDE)
+		generator := newEvaluationGenerator(resolved.OpenAIAPIKey)
+		updated, err := evaluation.ExecuteOfflineHarness(ctx, *manifestPath, resolvedRunRoot, *runID, *policyPath, generator)
+		if err != nil {
+			return err
+		}
+		usage := aggregateHarnessUsage(updated)
+		fmt.Fprintf(stdout, "HARNESS run=%s status=%s tasks=%d model_calls=%d tokens=%d\n", updated.RunID, updated.HarnessStatus, len(updated.Tasks), usage.ModelCalls, usage.TotalTokens)
+		return nil
 	case "package-blind":
 		runID, runRoot, err := parseRunCommand(args[0], args[1:], stderr)
 		if err != nil {
@@ -120,7 +170,7 @@ func createRun(ctx context.Context, manifestPath string, stdout, stderr io.Write
 	if err != nil {
 		return err
 	}
-	generator := &einoGenerator{apiKey: resolved.OpenAIAPIKey}
+	generator := newEvaluationGenerator(resolved.OpenAIAPIKey)
 	updated, err := evaluation.ExecuteSingleTurnBaseline(ctx, manifestPath, runRoot, runRecord.RunID, generator)
 	if err != nil {
 		return err
@@ -133,16 +183,200 @@ func createRun(ctx context.Context, manifestPath string, stdout, stderr io.Write
 	return nil
 }
 
+func createCohortRun(ctx context.Context, manifestPath, splitsValue, tasksValue, policyPath, runRootValue string, stdout, stderr io.Writer) error {
+	if strings.TrimSpace(policyPath) == "" {
+		return errors.New("cohort create-run requires --harness-policy")
+	}
+	if strings.TrimSpace(runRootValue) == "" {
+		return errors.New("cohort create-run requires --run-root")
+	}
+	runRoot, err := privateRunRoot(runRootValue)
+	if err != nil {
+		return err
+	}
+	selection, err := parseRunSelection(splitsValue, tasksValue)
+	if err != nil {
+		return err
+	}
+	manifest, err := evaluation.LoadManifest(manifestPath)
+	if err != nil {
+		return err
+	}
+	selectedTasks, err := evaluation.SelectTasks(manifest, selection)
+	if err != nil {
+		return err
+	}
+	policy, err := evaluation.LoadHarnessPolicy(policyPath)
+	if err != nil {
+		return err
+	}
+	selectedManifest := manifest
+	selectedManifest.Tasks = selectedTasks
+	cfg, _, err := config.LoadWithWorkspace("")
+	if err != nil {
+		return fmt.Errorf("load Provider configuration: %w", err)
+	}
+	resolved := config.ResolveAgentModel(cfg, config.AgentKindIDE)
+	if blockReason := providerBlockReason(selectedManifest, resolved); blockReason != "" {
+		return fmt.Errorf("cohort provider is unavailable: %s", blockReason)
+	}
+	runRecord, err := evaluation.CreateRun(manifestPath, evaluation.CreateRunOptions{
+		RunRoot: runRoot, BaselineStatus: evaluation.StatusNotReady, HarnessStatus: evaluation.StatusNotReady,
+		Selection: &selection, HarnessPolicySHA256: evaluation.HarnessPolicySHA256(policy),
+	})
+	if err != nil {
+		return err
+	}
+	generator := newEvaluationGenerator(resolved.OpenAIAPIKey)
+	updated, err := evaluation.ExecuteSingleTurnBaseline(ctx, manifestPath, runRoot, runRecord.RunID, generator)
+	if err != nil {
+		return err
+	}
+	if updated.BaselineStatus != evaluation.StatusReady {
+		return fmt.Errorf("run %s saved but one or more S-arm model calls failed", updated.RunID)
+	}
+	fmt.Fprintf(stderr, "quality-eval: run=%s baseline=READY tasks=%d model_calls=%d\n", updated.RunID, len(updated.Tasks), len(updated.Tasks))
+	fmt.Fprintln(stdout, updated.RunID)
+	return nil
+}
+
+func parseRunSelection(splitsValue, tasksValue string) (evaluation.RunSelection, error) {
+	splits, err := parseCSV(splitsValue, "split")
+	if err != nil {
+		return evaluation.RunSelection{}, err
+	}
+	taskIDs, err := parseCSV(tasksValue, "task ID")
+	if err != nil {
+		return evaluation.RunSelection{}, err
+	}
+	dataSplits := make([]evaluation.DataSplit, len(splits))
+	for index, split := range splits {
+		dataSplits[index] = evaluation.DataSplit(split)
+	}
+	return evaluation.NewRunSelection(dataSplits, taskIDs)
+}
+
+func parseCSV(value, label string) ([]string, error) {
+	if strings.TrimSpace(value) == "" {
+		return nil, nil
+	}
+	seen := make(map[string]struct{})
+	values := strings.Split(value, ",")
+	parsed := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return nil, fmt.Errorf("%s list contains an empty value", label)
+		}
+		if _, exists := seen[value]; exists {
+			return nil, fmt.Errorf("%s list contains duplicate %q", label, value)
+		}
+		seen[value] = struct{}{}
+		parsed = append(parsed, value)
+	}
+	return parsed, nil
+}
+
+func privateRunRoot(value string) (string, error) {
+	if !filepath.IsAbs(value) {
+		return "", errors.New("--run-root must be an absolute path outside the repository")
+	}
+	runRoot, err := resolvePathForContainment(value)
+	if err != nil {
+		return "", fmt.Errorf("resolve --run-root: %w", err)
+	}
+	repositoryRoot, err := findRepositoryRoot()
+	if err != nil {
+		return "", fmt.Errorf("resolve repository root: %w", err)
+	}
+	repositoryRoot, err = resolvePathForContainment(repositoryRoot)
+	if err != nil {
+		return "", fmt.Errorf("resolve repository root: %w", err)
+	}
+	relative, err := filepath.Rel(repositoryRoot, runRoot)
+	if err != nil {
+		if filepath.VolumeName(repositoryRoot) != filepath.VolumeName(runRoot) {
+			return runRoot, nil
+		}
+		return "", fmt.Errorf("compare --run-root to repository: %w", err)
+	}
+	if relative == "." || (relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))) {
+		return "", errors.New("--run-root must be outside the repository")
+	}
+	return runRoot, nil
+}
+
+func resolvePathForContainment(path string) (string, error) {
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	missing := make([]string, 0)
+	for {
+		resolved, err := filepath.EvalSymlinks(path)
+		if err == nil {
+			return filepath.Join(append([]string{resolved}, missing...)...), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return "", err
+		}
+		missing = append([]string{filepath.Base(path)}, missing...)
+		path = parent
+	}
+}
+
+func findRepositoryRoot() (string, error) {
+	directory, err := filepath.Abs(".")
+	if err != nil {
+		return "", err
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(directory, ".git")); err == nil {
+			return directory, nil
+		}
+		parent := filepath.Dir(directory)
+		if parent == directory {
+			return "", errors.New("repository root not found")
+		}
+		directory = parent
+	}
+}
+
+func aggregateHarnessUsage(run evaluation.RunRecord) evaluation.UsageRecord {
+	usage := evaluation.UsageRecord{}
+	for _, task := range run.Tasks {
+		arm := task.Arms["H"]
+		usage.PromptTokens += arm.Usage.PromptTokens
+		usage.CompletionTokens += arm.Usage.CompletionTokens
+		usage.ReasoningTokens += arm.Usage.ReasoningTokens
+		usage.TotalTokens += arm.Usage.TotalTokens
+		usage.ModelCalls += arm.Usage.ModelCalls
+	}
+	return usage
+}
+
 func parseRunCommand(name string, args []string, stderr io.Writer) (string, string, error) {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	runID := flags.String("run", "", "stable run ID")
 	manifestPath := flags.String("manifest", defaultManifestPath, "corpus manifest path used to locate runs")
+	runRoot := flags.String("run-root", "", "explicit private run root")
 	if err := flags.Parse(args); err != nil {
 		return "", "", err
 	}
 	if strings.TrimSpace(*runID) == "" {
 		return "", "", fmt.Errorf("%s requires --run", name)
+	}
+	if strings.TrimSpace(*runRoot) != "" {
+		resolved, err := privateRunRoot(*runRoot)
+		if err != nil {
+			return "", "", err
+		}
+		return *runID, resolved, nil
 	}
 	manifest, err := evaluation.LoadManifest(*manifestPath)
 	if err != nil {
@@ -187,10 +421,25 @@ type einoGenerator struct {
 }
 
 func (generator *einoGenerator) Generate(ctx context.Context, request evaluation.BaselineRequest) (evaluation.GenerationResult, error) {
-	temperature := float32(request.Model.Parameters.Temperature)
-	maxTokens := request.Model.Parameters.MaxOutputTokens
+	goals := append([]string(nil), request.QualityGoals...)
+	sort.Strings(goals)
+	userMessage := fmt.Sprintf(
+		"Task ID: %s\nProfile: %s\nTask type: %s\nLength bucket: %s\nAllowed input classes: %s\nQualitySpec goals:\n- %s\n\nAuthorized task input:\n%s",
+		request.TaskID, request.ProfileID, request.TaskType, request.LengthBucket,
+		strings.Join(request.AllowedInputs, ", "), strings.Join(goals, "\n- "), request.Input,
+	)
+	return generator.generate(ctx, request.Model, request.SystemTemplate, userMessage)
+}
+
+func (generator *einoGenerator) GenerateHarness(ctx context.Context, request evaluation.HarnessRequest) (evaluation.GenerationResult, error) {
+	return generator.generate(ctx, request.Model, request.SystemTemplate, request.UserInput)
+}
+
+func (generator *einoGenerator) generate(ctx context.Context, model evaluation.ModelConfigSnapshot, systemTemplate, userInput string) (evaluation.GenerationResult, error) {
+	temperature := float32(model.Parameters.Temperature)
+	maxTokens := model.Parameters.MaxOutputTokens
 	modelConfig := openai.ChatModelConfig{
-		APIKey: generator.apiKey, BaseURL: request.Model.BaseURL, Model: request.Model.Model,
+		APIKey: generator.apiKey, BaseURL: model.BaseURL, Model: model.Model,
 		Temperature: &temperature, MaxTokens: &maxTokens, HTTPClient: providercompat.WrapHTTPClient(nil),
 	}
 	thinking := false
@@ -206,25 +455,18 @@ func (generator *einoGenerator) Generate(ctx context.Context, request evaluation
 	}
 	chatModel, err := openai.NewChatModel(ctx, &modelConfig)
 	if err != nil {
-		return evaluation.GenerationResult{}, fmt.Errorf("task %s profile %s create model: %w", request.TaskID, request.ProfileID, err)
+		return evaluation.GenerationResult{}, errors.New("create evaluation model failed")
 	}
 	wrapped := providercompat.Wrap(chatModel, modelConfig)
-	goals := append([]string(nil), request.QualityGoals...)
-	sort.Strings(goals)
-	userMessage := fmt.Sprintf(
-		"Task ID: %s\nProfile: %s\nTask type: %s\nLength bucket: %s\nAllowed input classes: %s\nQualitySpec goals:\n- %s\n\nAuthorized task input:\n%s",
-		request.TaskID, request.ProfileID, request.TaskType, request.LengthBucket,
-		strings.Join(request.AllowedInputs, ", "), strings.Join(goals, "\n- "), request.Input,
-	)
 	message, err := wrapped.Generate(ctx, []*schema.Message{
-		schema.SystemMessage(request.SystemTemplate),
-		schema.UserMessage(userMessage),
+		schema.SystemMessage(systemTemplate),
+		schema.UserMessage(userInput),
 	})
 	if err != nil {
-		return evaluation.GenerationResult{}, fmt.Errorf("task %s profile %s single model call: %w", request.TaskID, request.ProfileID, err)
+		return evaluation.GenerationResult{}, errors.New("evaluation model call failed")
 	}
 	if message == nil {
-		return evaluation.GenerationResult{}, fmt.Errorf("task %s profile %s single model call returned nil", request.TaskID, request.ProfileID)
+		return evaluation.GenerationResult{}, errors.New("evaluation model call returned nil")
 	}
 	result := evaluation.GenerationResult{
 		Output: message.Content,
