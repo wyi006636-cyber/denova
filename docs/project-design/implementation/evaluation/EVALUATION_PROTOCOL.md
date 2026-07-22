@@ -94,6 +94,10 @@ The output limit is a shared comparison boundary, not a runtime timeout. The CLI
 
 Each S result records provider, model, parameters, input/output SHA-256, single-call token usage, cost status, and failure classification. Without verified pricing, monetary cost is explicitly `NOT-AVAILABLE`; token counts are not converted using invented prices. Failed calls do not receive fabricated output hashes or prose files.
 
+对 H 而言，一旦 `BuildHarnessRequest` 成功，任何后续失败记录都必须保留该精确请求的 input SHA-256，以及冻结的模型配置、Harness policy 和阶段模板哈希；这包括既有输出读取、Provider、空/超限输出、结构化审稿和输出持久化失败。非空但拒绝的响应只进入私有 failure 文件及 `FailureOutputSHA256`，而不会成为接受的 `OutputSHA256`；空响应和 Provider 错误不伪造输出哈希。请求构建失败没有 request input hash，但可以仅在来源明确时保留已知的其他冻结哈希。续跑保留完整 attempts，并且五次 Provider 调用绝不转为四调用 READY。
+
+For H, once `BuildHarnessRequest` succeeds, every later failure record must retain that exact request input SHA-256 plus the frozen model-config, Harness-policy, and stage-template hashes; this includes prior-output reads, provider failures, empty/oversize output, structured-review rejection, and output-persistence failures. A non-empty rejected response remains only in a private failure file with `FailureOutputSHA256`, never accepted `OutputSHA256`; empty responses and provider errors do not fabricate an output hash. A request-build failure has no request input hash, though it may retain other known frozen hashes only when their source is unambiguous. Resume preserves the full attempts list, and five provider calls never become a four-call READY result.
+
 ## 4. P0-T09 评测专用 H arm 与公平性 / P0-T09 evaluation-only H arm and fairness
 
 P0-T09 可实现一个版本化、评测专用、离线 H runner。H 必须使用同一任务、相同允许输入事实、相同模型族、相同参数边界和同一任务 QualitySpec；其精确流程为两个独立候选、一次结构化审稿、一次最终修订，共四次模型调用。所有调用的实际 token 与成本必须全部计入。禁止通过削弱 S prompt、删除关键事实、改用更弱模型或隐藏失败重试制造优势。

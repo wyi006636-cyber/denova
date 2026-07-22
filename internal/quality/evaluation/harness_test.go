@@ -114,6 +114,7 @@ func TestExecuteOfflineHarnessRecordsStructuredReviewFailure(t *testing.T) {
 		if failed.FailureDetail != "contract_mismatch" || failed.FailureOutputSHA256 == "" || failed.FailureOutputFile == "" || len(failed.Attempts) != 1 || failed.Attempts[0].Usage.TotalTokens != 18 {
 			t.Fatalf("task %s failed review evidence=%#v", task.TaskID, failed)
 		}
+		assertFailedStageRequestEvidence(t, failed, harnessRequestFor(t, generator.Requests, task.TaskID, HarnessStageReview), fixture)
 		failurePath := filepath.Join(fixture.RunRoot, fixture.RunID, filepath.FromSlash(failed.FailureOutputFile))
 		info, err := os.Stat(failurePath)
 		if err != nil {
@@ -144,6 +145,44 @@ func TestExecuteOfflineHarnessGeneratorErrorRecordsAttemptWithoutOutput(t *testi
 	if failed.Usage.ModelCalls != 1 || len(failed.Attempts) != 1 || !failed.Attempts[0].ProviderAttempted || failed.FailureOutputFile != "" || failed.FailureOutputSHA256 != "" || failed.Cost.Status != "NOT-AVAILABLE" {
 		t.Fatalf("failed generator evidence=%#v", failed)
 	}
+	assertFailedStageRequestEvidence(t, failed, generator.Requests[0], fixture)
+}
+
+func TestExecuteOfflineHarnessEmptyOutputRetainsRequestEvidenceWithoutOutputHash(t *testing.T) {
+	fixture := newHarnessExecutionFixture(t)
+	generator := &recordingHarnessGenerator{EmptyStage: HarnessStageCandidateA}
+	if _, err := ExecuteOfflineHarness(context.Background(), fixture.ManifestPath, fixture.RunRoot, fixture.RunID, fixture.PolicyPath, generator); err == nil {
+		t.Fatal("empty output must fail")
+	}
+	run, err := LoadRun(fixture.RunRoot, fixture.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed := run.Tasks[0].Arms["H"].Stages[0]
+	if failed.FailureDetail != "empty_output" || failed.FailureOutputSHA256 != "" || failed.FailureOutputFile != "" || failed.Usage.ModelCalls != 1 {
+		t.Fatalf("empty-output evidence=%#v", failed)
+	}
+	assertFailedStageRequestEvidence(t, failed, generator.Requests[0], fixture)
+}
+
+func TestExecuteOfflineHarnessOversizeOutputRetainsRequestEvidenceAsPrivateFailure(t *testing.T) {
+	fixture := newHarnessExecutionFixture(t)
+	generator := &recordingHarnessGenerator{OversizeStage: HarnessStageCandidateA}
+	if _, err := ExecuteOfflineHarness(context.Background(), fixture.ManifestPath, fixture.RunRoot, fixture.RunID, fixture.PolicyPath, generator); err == nil {
+		t.Fatal("oversize output must fail")
+	}
+	run, err := LoadRun(fixture.RunRoot, fixture.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed := run.Tasks[0].Arms["H"].Stages[0]
+	if failed.FailureDetail != "oversize_output" || failed.OutputSHA256 != "" || failed.OutputFile != "" || failed.FailureOutputSHA256 == "" || failed.FailureOutputFile == "" || failed.Usage.ModelCalls != 1 || len(failed.Attempts) != 1 || !failed.Attempts[0].ProviderAttempted {
+		t.Fatalf("oversize-output evidence=%#v", failed)
+	}
+	if failed.Attempts[0].FailureOutputSHA256 != failed.FailureOutputSHA256 || failed.Attempts[0].FailureOutputFile != failed.FailureOutputFile {
+		t.Fatalf("oversize-output attempt evidence=%#v", failed.Attempts[0])
+	}
+	assertFailedStageRequestEvidence(t, failed, generator.Requests[0], fixture)
 }
 
 func TestPersistHarnessPreProviderFailuresDoNotFabricateModelCalls(t *testing.T) {
@@ -155,7 +194,34 @@ func TestPersistHarnessPreProviderFailuresDoNotFabricateModelCalls(t *testing.T)
 				t.Fatal(err)
 			}
 			runTask := &run.Tasks[0]
-			if err := persistHarnessStageFailure(fixture.RunRoot, &run, runTask, runTask.Arms["H"], 0, HarnessStageCandidateA, GenerationResult{}, false, "harness_candidate_a_failed", failureType); err != nil {
+			policy, err := LoadHarnessPolicy(fixture.PolicyPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			failureContext := harnessFailureContextForStage(HarnessStageCandidateA, runTask.ModelConfigSHA256, run.HarnessPolicySHA256, policy.Stages[0].TemplateSHA256)
+			if failureType == "prior_output_unreadable" {
+				manifest, err := LoadManifest(fixture.ManifestPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				task, ok := FindManifestTask(manifest, runTask.TaskID)
+				if !ok {
+					t.Fatalf("missing fixture task %q", runTask.TaskID)
+				}
+				input, err := os.ReadFile(ResolveInputPath(fixture.ManifestPath, manifest, task))
+				if err != nil {
+					t.Fatal(err)
+				}
+				request, err := BuildHarnessRequest(HarnessStageCandidateA, HarnessRequestInputs{
+					TaskID: task.ID, OriginalInput: string(input), InputSHA256: task.InputSHA256, QualityGoals: task.QualitySpec.Goals,
+					StagePolicy: policy.Stages[0], SystemTemplate: "candidate\n", Model: task.ModelConfigSnapshot,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				failureContext = harnessFailureContextForRequest(request, runTask.ModelConfigSHA256, run.HarnessPolicySHA256, policy.Stages[0].TemplateSHA256)
+			}
+			if err := persistHarnessStageFailure(fixture.RunRoot, &run, runTask, runTask.Arms["H"], 0, failureContext, GenerationResult{}, false, "harness_candidate_a_failed", failureType); err != nil {
 				t.Fatal(err)
 			}
 			stored, err := LoadRun(fixture.RunRoot, fixture.RunID)
@@ -165,6 +231,15 @@ func TestPersistHarnessPreProviderFailuresDoNotFabricateModelCalls(t *testing.T)
 			failed := stored.Tasks[0].Arms["H"].Stages[0]
 			if failed.Usage.ModelCalls != 0 || len(failed.Attempts) != 1 || failed.Attempts[0].ProviderAttempted || failed.Attempts[0].FailureDetail != failureType {
 				t.Fatalf("pre-provider failure=%#v", failed)
+			}
+			if failureType == "request_build_failed" && failed.InputSHA256 != "" {
+				t.Fatalf("request build failure fabricated input hash=%q", failed.InputSHA256)
+			}
+			if failureType == "prior_output_unreadable" {
+				if failed.OutputSHA256 != "" || failed.OutputFile != "" || failed.FailureOutputSHA256 != "" || failed.FailureOutputFile != "" {
+					t.Fatalf("prior-output failure fabricated output evidence=%#v", failed)
+				}
+				assertFailedStageRequestEvidence(t, failed, HarnessRequest{TaskID: runTask.TaskID, InputSHA256: failureContext.InputSHA256}, fixture)
 			}
 		})
 	}
@@ -176,8 +251,14 @@ func TestExecuteOfflineHarnessResumePreservesFailedAttemptAndBlocksFourCallReady
 	if _, err := ExecuteOfflineHarness(context.Background(), fixture.ManifestPath, fixture.RunRoot, fixture.RunID, fixture.PolicyPath, first); err == nil {
 		t.Fatal("first invalid review must fail")
 	}
+	firstRun, err := LoadRun(fixture.RunRoot, fixture.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstFailedReview := firstRun.Tasks[0].Arms["H"].Stages[2]
+	assertFailedStageRequestEvidence(t, firstFailedReview, harnessRequestFor(t, first.Requests, firstRun.Tasks[0].TaskID, HarnessStageReview), fixture)
 	second := &recordingHarnessGenerator{}
-	_, err := ExecuteOfflineHarness(context.Background(), fixture.ManifestPath, fixture.RunRoot, fixture.RunID, fixture.PolicyPath, second)
+	_, err = ExecuteOfflineHarness(context.Background(), fixture.ManifestPath, fixture.RunRoot, fixture.RunID, fixture.PolicyPath, second)
 	if err == nil {
 		t.Fatal("five-call resumed sample must not become ready")
 	}
@@ -187,7 +268,7 @@ func TestExecuteOfflineHarnessResumePreservesFailedAttemptAndBlocksFourCallReady
 	}
 	for _, task := range run.Tasks {
 		h := task.Arms["H"]
-		if h.Status == StatusReady || h.Usage.ModelCalls != 5 || len(h.Stages[2].Attempts) != 2 {
+		if h.Status == StatusReady || h.Usage.ModelCalls != 5 || len(h.Stages[2].Attempts) != 2 || h.Stages[2].InputSHA256 == "" {
 			t.Fatalf("task %s resumed H=%#v", task.TaskID, h)
 		}
 	}
@@ -224,6 +305,10 @@ func TestExecuteOfflineHarnessStopsAfterOutputPersistenceFailure(t *testing.T) {
 	if h.Status != StatusFailed || h.FailureType != "harness_candidate_a_failed" || len(h.Stages) != 1 || h.Stages[0].Status != StatusFailed {
 		t.Fatalf("durable failed stage=%#v", h)
 	}
+	if h.Stages[0].FailureOutputSHA256 == "" {
+		t.Fatalf("accepted provider output must retain failure hash: %#v", h.Stages[0])
+	}
+	assertFailedStageRequestEvidence(t, h.Stages[0], generator.Requests[0], fixture)
 }
 
 func TestExecuteOfflineHarnessStopsAfterRunRecordPersistenceFailure(t *testing.T) {
@@ -286,6 +371,8 @@ func newHarnessExecutionFixture(t *testing.T) harnessExecutionFixture {
 type recordingHarnessGenerator struct {
 	Requests      []HarnessRequest
 	FailStage     HarnessStage
+	EmptyStage    HarnessStage
+	OversizeStage HarnessStage
 	InvalidReview bool
 	ErrorResult   GenerationResult
 	ReviewResult  GenerationResult
@@ -300,6 +387,12 @@ func (g *recordingHarnessGenerator) GenerateHarness(_ context.Context, request H
 	if request.Stage == g.FailStage {
 		return g.ErrorResult, fmt.Errorf("injected %s failure", request.Stage)
 	}
+	if request.Stage == g.EmptyStage {
+		return GenerationResult{}, nil
+	}
+	if request.Stage == g.OversizeStage {
+		return GenerationResult{Output: strings.Repeat("x", frozenHarnessMaxOutputBytes+1)}, nil
+	}
 	if request.Stage == HarnessStageReview {
 		if g.ReviewResult.Output != "" {
 			return g.ReviewResult, nil
@@ -310,6 +403,49 @@ func (g *recordingHarnessGenerator) GenerateHarness(_ context.Context, request H
 		return GenerationResult{Output: `{"preferred_candidate":"A","issues":[],"preserve":[]}`, Usage: UsageRecord{ModelCalls: 1}}, nil
 	}
 	return GenerationResult{Output: fmt.Sprintf("%s output for %s", request.Stage, request.TaskID), Usage: UsageRecord{ModelCalls: 1}}, nil
+}
+
+func assertFailedStageRequestEvidence(t *testing.T, failed HarnessStageRecord, request HarnessRequest, fixture harnessExecutionFixture) {
+	t.Helper()
+	policy, err := LoadHarnessPolicy(fixture.PolicyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stagePolicy HarnessStagePolicy
+	for _, candidate := range policy.Stages {
+		if candidate.Stage == failed.Stage {
+			stagePolicy = candidate
+			break
+		}
+	}
+	if stagePolicy.Stage == "" {
+		t.Fatalf("policy missing stage %q", failed.Stage)
+	}
+	run, err := LoadRun(fixture.RunRoot, fixture.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var task RunTask
+	for _, candidate := range run.Tasks {
+		if candidate.TaskID == request.TaskID || request.TaskID == "" {
+			task = candidate
+			break
+		}
+	}
+	if failed.InputSHA256 != request.InputSHA256 || failed.ModelConfigSHA256 != task.ModelConfigSHA256 || failed.HarnessPolicySHA256 != HarnessPolicySHA256(policy) || failed.TemplateSHA256 != stagePolicy.TemplateSHA256 {
+		t.Fatalf("failed request evidence=%#v request=%#v", failed, request)
+	}
+}
+
+func harnessRequestFor(t *testing.T, requests []HarnessRequest, taskID string, stage HarnessStage) HarnessRequest {
+	t.Helper()
+	for _, request := range requests {
+		if request.TaskID == taskID && request.Stage == stage {
+			return request
+		}
+	}
+	t.Fatalf("missing %s request for %s", stage, taskID)
+	return HarnessRequest{}
 }
 
 func (g *recordingHarnessGenerator) Count(stage HarnessStage) int {

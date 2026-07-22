@@ -4,6 +4,9 @@
 
 ### Fixed
 
+- 修复离线 Harness H 首次追加失败阶段的可复算证据：请求构建成功后的 prior-output 读取、Provider、空/超限输出、结构化审稿和输出持久化失败，均保留该请求的 input、模型配置、policy 和模板哈希；请求构建失败不会伪造 input hash，失败 attempt 历史与调用计数保持不变。
+- Fixed reproducibility evidence for newly appended failed offline Harness H stages: after request assembly, prior-output reads, provider failures, empty/oversize output, structured-review rejection, and output-persistence failures retain that request's input, model-config, policy, and template hashes; request-build failures do not fabricate an input hash, while attempt history and call accounting remain unchanged.
+
 - 质量评测 / Quality evaluation：冻结 DeepSeek V4 的 S/H thinking 传输为嵌套 `thinking.type=disabled`，移除评测请求中的 legacy `enable_thinking`，并让 H policy 以新身份拒绝与 frozen model snapshot 不一致的 thinking 模式；4096 token 边界、模板和解析规则不变。
 - Quality evaluation: froze DeepSeek V4 S/H thinking transport to nested `thinking.type=disabled`, removed legacy `enable_thinking` from evaluation requests, and versioned H policy identity to reject thinking-mode disagreement with the frozen model snapshot; the 4096-token boundary, templates, and parsing rules are unchanged.
 

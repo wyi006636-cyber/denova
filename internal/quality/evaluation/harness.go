@@ -17,6 +17,28 @@ type harnessPersistenceError struct {
 	Err       error
 }
 
+// harnessFailureContext carries the frozen evidence known at a Harness failure boundary.
+// InputSHA256 remains empty until BuildHarnessRequest has successfully assembled the request.
+type harnessFailureContext struct {
+	Stage               HarnessStage
+	InputSHA256         string
+	ModelConfigSHA256   string
+	HarnessPolicySHA256 string
+	TemplateSHA256      string
+}
+
+func harnessFailureContextForStage(stage HarnessStage, modelHash, policyHash, templateHash string) harnessFailureContext {
+	return harnessFailureContext{
+		Stage: stage, ModelConfigSHA256: modelHash, HarnessPolicySHA256: policyHash, TemplateSHA256: templateHash,
+	}
+}
+
+func harnessFailureContextForRequest(request HarnessRequest, modelHash, policyHash, templateHash string) harnessFailureContext {
+	context := harnessFailureContextForStage(request.Stage, modelHash, policyHash, templateHash)
+	context.InputSHA256 = request.InputSHA256
+	return context
+}
+
 func (err *harnessPersistenceError) Error() string {
 	return fmt.Sprintf("run %s task %s Harness %s %s persistence failed: %v", err.RunID, err.TaskID, err.Stage, err.Operation, err.Err)
 }
@@ -139,34 +161,36 @@ func executeHarnessTask(ctx context.Context, runRoot string, run *RunRecord, run
 			StagePolicy: stagePolicy, SystemTemplate: templates[stage], Model: task.ModelConfigSnapshot,
 		})
 		if err != nil {
-			return failHarnessStage(runRoot, run, runTask, h, index, stage, GenerationResult{}, false, "harness_"+string(stage)+"_failed", "request_build_failed")
+			failureContext := harnessFailureContextForStage(stage, task.ModelConfigSnapshot.SHA256, policyHash, stagePolicy.TemplateSHA256)
+			return failHarnessStage(runRoot, run, runTask, h, index, failureContext, GenerationResult{}, false, "harness_"+string(stage)+"_failed", "request_build_failed")
 		}
+		failureContext := harnessFailureContextForRequest(request, task.ModelConfigSnapshot.SHA256, policyHash, stagePolicy.TemplateSHA256)
 		if index < len(h.Stages) && validHarnessStageOutput(filepath.Join(runRoot, run.RunID), h.Stages[index], request, stagePolicy, task.ModelConfigSnapshot.SHA256, policyHash) {
 			payload, err := os.ReadFile(filepath.Join(runRoot, run.RunID, filepath.FromSlash(h.Stages[index].OutputFile)))
 			if err != nil {
-				return failHarnessStage(runRoot, run, runTask, h, index, stage, GenerationResult{}, false, "harness_"+string(stage)+"_failed", "prior_output_unreadable")
+				return failHarnessStage(runRoot, run, runTask, h, index, failureContext, GenerationResult{}, false, "harness_"+string(stage)+"_failed", "prior_output_unreadable")
 			}
 			outputs[stage] = string(payload)
 			continue
 		}
 		result, err := generator.GenerateHarness(ctx, request)
 		if err != nil {
-			return failHarnessStage(runRoot, run, runTask, h, index, stage, result, true, "harness_"+string(stage)+"_failed", "provider_error")
+			return failHarnessStage(runRoot, run, runTask, h, index, failureContext, result, true, "harness_"+string(stage)+"_failed", "provider_error")
 		}
 		if strings.TrimSpace(result.Output) == "" {
-			return failHarnessStage(runRoot, run, runTask, h, index, stage, result, true, "harness_"+string(stage)+"_failed", "empty_output")
+			return failHarnessStage(runRoot, run, runTask, h, index, failureContext, result, true, "harness_"+string(stage)+"_failed", "empty_output")
 		}
 		if len([]byte(result.Output)) > stagePolicy.MaxOutputBytes {
-			return failHarnessStage(runRoot, run, runTask, h, index, stage, result, true, "harness_"+string(stage)+"_failed", "oversize_output")
+			return failHarnessStage(runRoot, run, runTask, h, index, failureContext, result, true, "harness_"+string(stage)+"_failed", "oversize_output")
 		}
 		if stage == HarnessStageReview {
 			if _, err := ParseHarnessReview([]byte(result.Output), stagePolicy.MaxOutputBytes, task.QualitySpec.Goals); err != nil {
-				return failHarnessStage(runRoot, run, runTask, h, index, stage, result, true, "harness_review_failed", harnessReviewFailureDetail(err))
+				return failHarnessStage(runRoot, run, runTask, h, index, failureContext, result, true, "harness_review_failed", harnessReviewFailureDetail(err))
 			}
 		}
 		outputRel := filepath.ToSlash(filepath.Join("private", "outputs", task.ID, "h", string(stage)+".txt"))
 		if err := writePrivateHarnessOutput(filepath.Join(runRoot, run.RunID, filepath.FromSlash(outputRel)), []byte(result.Output)); err != nil {
-			return failHarnessOutputPersistence(runRoot, run, runTask, h, index, stage, result, err)
+			return failHarnessOutputPersistence(runRoot, run, runTask, h, index, failureContext, result, err)
 		}
 		record := HarnessStageRecord{
 			Stage: stage, Status: StatusReady, InputSHA256: request.InputSHA256, OutputSHA256: OutputSHA256(result.Output), OutputFile: outputRel,
@@ -207,21 +231,21 @@ func validHarnessStageOutput(runDir string, record HarnessStageRecord, request H
 	return err == nil && hash == record.OutputSHA256
 }
 
-func failHarnessStage(runRoot string, run *RunRecord, runTask *RunTask, h ArmRecord, index int, stage HarnessStage, result GenerationResult, providerAttempted bool, failureType, detail string) error {
-	if err := persistHarnessStageFailure(runRoot, run, runTask, h, index, stage, result, providerAttempted, failureType, detail); err != nil {
+func failHarnessStage(runRoot string, run *RunRecord, runTask *RunTask, h ArmRecord, index int, failureContext harnessFailureContext, result GenerationResult, providerAttempted bool, failureType, detail string) error {
+	if err := persistHarnessStageFailure(runRoot, run, runTask, h, index, failureContext, result, providerAttempted, failureType, detail); err != nil {
 		return err
 	}
-	return fmt.Errorf("run %s task %s Harness %s failed: %s", run.RunID, runTask.TaskID, stage, detail)
+	return fmt.Errorf("run %s task %s Harness %s failed: %s", run.RunID, runTask.TaskID, failureContext.Stage, detail)
 }
 
-func failHarnessOutputPersistence(runRoot string, run *RunRecord, runTask *RunTask, h ArmRecord, index int, stage HarnessStage, result GenerationResult, cause error) error {
-	if err := persistHarnessStageFailure(runRoot, run, runTask, h, index, stage, result, true, "harness_"+string(stage)+"_failed", "output_persistence_failed"); err != nil {
+func failHarnessOutputPersistence(runRoot string, run *RunRecord, runTask *RunTask, h ArmRecord, index int, failureContext harnessFailureContext, result GenerationResult, cause error) error {
+	if err := persistHarnessStageFailure(runRoot, run, runTask, h, index, failureContext, result, true, "harness_"+string(failureContext.Stage)+"_failed", "output_persistence_failed"); err != nil {
 		return err
 	}
-	return harnessRecordError(run.RunID, runTask.TaskID, stage, cause)
+	return harnessRecordError(run.RunID, runTask.TaskID, failureContext.Stage, cause)
 }
 
-func persistHarnessStageFailure(runRoot string, run *RunRecord, runTask *RunTask, h ArmRecord, index int, stage HarnessStage, result GenerationResult, providerAttempted bool, failureType, detail string) error {
+func persistHarnessStageFailure(runRoot string, run *RunRecord, runTask *RunTask, h ArmRecord, index int, failureContext harnessFailureContext, result GenerationResult, providerAttempted bool, failureType, detail string) error {
 	usage, cost := normalizedHarnessAttempt(result, providerAttempted)
 	attempt := HarnessCallAttempt{ProviderAttempted: providerAttempted, Status: StatusFailed, Usage: usage, Cost: cost, FailureType: failureType, FailureDetail: detail}
 	if result.Output != "" {
@@ -229,19 +253,15 @@ func persistHarnessStageFailure(runRoot string, run *RunRecord, runTask *RunTask
 		if index < len(h.Stages) {
 			attemptNumber = len(h.Stages[index].Attempts) + 1
 		}
-		outputRel := filepath.ToSlash(filepath.Join("private", "failures", runTask.TaskID, "h", string(stage)+fmt.Sprintf("-%d.txt", attemptNumber)))
+		outputRel := filepath.ToSlash(filepath.Join("private", "failures", runTask.TaskID, "h", string(failureContext.Stage)+fmt.Sprintf("-%d.txt", attemptNumber)))
 		if err := writePrivateHarnessOutput(filepath.Join(runRoot, run.RunID, filepath.FromSlash(outputRel)), []byte(result.Output)); err != nil {
-			return harnessRecordError(run.RunID, runTask.TaskID, stage, err)
+			return harnessRecordError(run.RunID, runTask.TaskID, failureContext.Stage, err)
 		}
 		attempt.FailureOutputFile = outputRel
 		attempt.FailureOutputSHA256 = OutputSHA256(result.Output)
 	}
-	record := HarnessStageRecord{Stage: stage, Status: StatusFailed, Usage: usage, Cost: cost, FailureType: failureType, FailureDetail: detail, FailureOutputFile: attempt.FailureOutputFile, FailureOutputSHA256: attempt.FailureOutputSHA256, Attempts: []HarnessCallAttempt{attempt}}
+	record := HarnessStageRecord{Stage: failureContext.Stage, Status: StatusFailed, InputSHA256: failureContext.InputSHA256, ModelConfigSHA256: failureContext.ModelConfigSHA256, HarnessPolicySHA256: failureContext.HarnessPolicySHA256, TemplateSHA256: failureContext.TemplateSHA256, Usage: usage, Cost: cost, FailureType: failureType, FailureDetail: detail, FailureOutputFile: attempt.FailureOutputFile, FailureOutputSHA256: attempt.FailureOutputSHA256, Attempts: []HarnessCallAttempt{attempt}}
 	if index < len(h.Stages) {
-		record.InputSHA256 = h.Stages[index].InputSHA256
-		record.ModelConfigSHA256 = h.Stages[index].ModelConfigSHA256
-		record.HarnessPolicySHA256 = h.Stages[index].HarnessPolicySHA256
-		record.TemplateSHA256 = h.Stages[index].TemplateSHA256
 		record.Attempts = append(h.Stages[index].Attempts, attempt)
 		h.Stages = append(append([]HarnessStageRecord(nil), h.Stages[:index]...), record)
 	} else {
@@ -256,7 +276,7 @@ func persistHarnessStageFailure(runRoot string, run *RunRecord, runTask *RunTask
 	runTask.Arms["H"] = h
 	run.HarnessStatus = StatusFailed
 	if err := SaveRun(runRoot, *run); err != nil {
-		return harnessRecordError(run.RunID, runTask.TaskID, stage, err)
+		return harnessRecordError(run.RunID, runTask.TaskID, failureContext.Stage, err)
 	}
 	return nil
 }
