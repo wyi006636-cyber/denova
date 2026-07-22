@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 冻结评测专用、离线 Harness H policy：固定为两个候选、盲审和修订四个阶段，仅允许 tuning/regression，禁止持久化 thinking，并校验模板路径、哈希与输出上限。
+- Frozen the evaluation-only offline Harness H policy: two candidates, blinded review, and revision are fixed as four stages; only tuning/regression are allowed, thinking persistence is forbidden, and template paths, hashes, and output limits are verified.
+
 - 新增 cohort 感知的质量评测运行选择：运行可规范化 tuning/regression 切分和任务 ID、拒绝 Phase 0 的 `release_holdout`，并将选择结果与 Harness policy SHA-256 纳入稳定运行身份；未选择 cohort 的既有 P0-T07 运行 ID 与记录保持不变。
 - Added cohort-aware quality-evaluation run selection: runs normalize tuning/regression splits and task IDs, reject Phase 0 `release_holdout`, and include the selection and Harness policy SHA-256 in their stable identities; existing P0-T07 runs without a cohort retain their IDs and records.
 

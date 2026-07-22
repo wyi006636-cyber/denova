@@ -1,0 +1,38 @@
+{
+  "contract": "denova.quality-harness-policy",
+  "version": "v1",
+  "policy_id": "p0-offline-harness-v1",
+  "allowed_splits": ["tuning", "regression"],
+  "candidate_count": 2,
+  "thinking_persisted": false,
+  "stages": [
+    {
+      "stage": "candidate_a",
+      "template_file": "runs/templates/harness-candidate-v1.md",
+      "template_sha256": "sha256:c73b2a7ae645c7c5b3b067fb41316a6d035945685fc92eeff1542c8f6b47db51",
+      "max_output_tokens": 4096,
+      "max_output_bytes": 49152
+    },
+    {
+      "stage": "candidate_b",
+      "template_file": "runs/templates/harness-candidate-v1.md",
+      "template_sha256": "sha256:c73b2a7ae645c7c5b3b067fb41316a6d035945685fc92eeff1542c8f6b47db51",
+      "max_output_tokens": 4096,
+      "max_output_bytes": 49152
+    },
+    {
+      "stage": "review",
+      "template_file": "runs/templates/harness-review-v1.md",
+      "template_sha256": "sha256:5f42ab2ba44021d9481fe36538424d04f5d2d06a71f91d307493bea98d767b80",
+      "max_output_tokens": 4096,
+      "max_output_bytes": 49152
+    },
+    {
+      "stage": "revision",
+      "template_file": "runs/templates/harness-revision-v1.md",
+      "template_sha256": "sha256:28de666b55001e40fc859d327e9c5edbd79ba4c5439488a23aa0e2f843a5a2c8",
+      "max_output_tokens": 4096,
+      "max_output_bytes": 49152
+    }
+  ]
+}
