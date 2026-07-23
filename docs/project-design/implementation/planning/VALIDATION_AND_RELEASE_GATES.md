@@ -20,7 +20,7 @@
 | Windows `go mod tidy -diff` | FAIL | 仅因既有 P0-T09 Windows ACL import 使 `golang.org/x/sys v0.46.0` 应由 indirect 改为 direct；无版本或 `go.sum` 变化。未经批准不得改依赖文件 |
 | Linux native CI-equivalent | FAIL | 全量 Go、web test/i18n/build/distribution build 通过；`govulncheck` 发现可达 `GO-2026-5970`（`golang.org/x/text v0.38.0`），修复需 v0.39.0，未经批准不得升级 |
 
-工程门禁的完整逐项事实、质量缺口和后续批准项见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。根据 FD-011，P1-T01–P1-T07 可按各自工程门禁开始；0/24 正式人工评审和缺失的 `quality-gate-v1.json` 禁止质量声明与 H v1 产品化，但不再构成 Phase 1 全局入口阻塞。tidy 分类失败与 `GO-2026-5970` 继续阻止发布就绪声明。
+工程门禁的完整逐项事实、质量缺口和后续批准项见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。根据 FD-011，P1-T01–P1-T07 可按各自工程门禁开始；0/24 正式人工评审和缺失的 `quality-gate-v1.json` 意味着 H v1 不推广、不得作质量声明，但不再构成 Phase 1 全局入口阻塞。tidy 分类失败与 `GO-2026-5970` 继续阻止发布就绪声明。
 
 ## 2. 通用门禁层级
 
