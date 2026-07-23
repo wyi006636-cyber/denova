@@ -47,6 +47,9 @@ func TestBootstrapPolicyMatchesProductSpecAllowlistAndDefaultsToNoTools(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
+	if receipt.CandidateRegistrationCount != len(want)+11 {
+		t.Fatalf("bootstrap smoke candidates = %d, want %d", receipt.CandidateRegistrationCount, len(want)+11)
+	}
 	if receipt.RegisteredToolCount != 0 || receipt.Filesystem || receipt.Shell || receipt.DirectWrite {
 		t.Fatalf("unsafe bootstrap builder receipt: %#v", receipt)
 	}

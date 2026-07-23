@@ -35,10 +35,11 @@ type BootstrapPolicy struct {
 }
 
 type BootstrapBuildReceipt struct {
-	RegisteredToolCount int  `json:"registeredToolCount"`
-	Filesystem          bool `json:"filesystem"`
-	Shell               bool `json:"shell"`
-	DirectWrite         bool `json:"directWrite"`
+	CandidateRegistrationCount int  `json:"candidateRegistrationCount"`
+	RegisteredToolCount        int  `json:"registeredToolCount"`
+	Filesystem                 bool `json:"filesystem"`
+	Shell                      bool `json:"shell"`
+	DirectWrite                bool `json:"directWrite"`
 }
 
 var domainToolAllowlist = map[string]CapabilityMode{
@@ -100,17 +101,60 @@ func (p BootstrapPolicy) Validate() error {
 	return nil
 }
 
-// SmokeBuildBootstrap exercises Denova's real tool assembler with every legacy
-// file, shell, lore-write, and configuration-write flag left false.
+// SmokeBuildBootstrap exercises Denova's real tool assembler with the complete
+// domain-tool universe and every legacy tool family supplied as candidates.
+// The bootstrap grant set and resolved legacy settings are both empty, so the
+// assembler must filter every candidate and register no callable tool.
 func SmokeBuildBootstrap(ctx context.Context, policy BootstrapPolicy) (BootstrapBuildReceipt, error) {
 	if err := policy.Validate(); err != nil {
 		return BootstrapBuildReceipt{}, err
 	}
-	result, err := agenttools.Build(ctx, agenttools.BuildRequest{})
+	settings := agenttools.Settings{}
+	granted := make(map[string]CapabilityMode, len(policy.Capabilities))
+	for _, capability := range policy.Capabilities {
+		granted[capability.ID] = capability.Mode
+	}
+	registrations := make([]agenttools.ToolRegistration, 0, len(domainToolAllowlist)+11)
+	for id, mode := range domainToolAllowlist {
+		id, mode := id, mode
+		registration := agenttools.StaticTools("yanzhou:"+id, nil)
+		registration.Enabled = func(agenttools.Settings) bool {
+			return granted[id] == mode
+		}
+		registrations = append(registrations, registration)
+	}
+	legacySources := []string{
+		agenttools.AgentToolFileRead,
+		agenttools.AgentToolFileWrite,
+		agenttools.AgentToolShellExecute,
+		agenttools.AgentToolSkills,
+		agenttools.AgentToolLoreRead,
+		agenttools.AgentToolLoreWrite,
+		agenttools.AgentToolTodo,
+		agenttools.AgentToolWebSearch,
+		agenttools.AgentToolImageGeneration,
+		agenttools.AgentToolAgentConfigRead,
+		agenttools.AgentToolAgentConfigWrite,
+	}
+	for _, source := range legacySources {
+		registration := agenttools.StaticTools("legacy:"+source, nil)
+		registration.Enabled = agenttools.CapabilityAllowed(source)
+		registrations = append(registrations, registration)
+	}
+	result, err := agenttools.Build(ctx, agenttools.BuildRequest{
+		Settings: settings,
+		Tools:    registrations,
+	})
 	if err != nil {
 		return BootstrapBuildReceipt{}, err
 	}
-	return BootstrapBuildReceipt{RegisteredToolCount: len(result.Tools)}, nil
+	return BootstrapBuildReceipt{
+		CandidateRegistrationCount: len(registrations),
+		RegisteredToolCount:        len(result.Tools),
+		Filesystem:                 agenttools.FilesystemAllowed(settings),
+		Shell:                      settings.ShellExecute,
+		DirectWrite:                settings.FileWrite || settings.LoreWrite || settings.AgentConfigWrite,
+	}, nil
 }
 
 type BootstrapTokenGate struct {
