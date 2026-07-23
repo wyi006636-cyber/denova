@@ -4,6 +4,8 @@
 
 ### Added
 
+- 新增 Phase 0 门禁拆分路线的精确实施计划，覆盖基线报告、主/详细计划、验证门禁、追踪矩阵和决策登记的一致性修改、隐私扫描与原子提交边界。
+- Added the exact implementation plan for the Phase 0 gate-split route, covering consistent updates to the baseline report, master/detailed plans, validation gates, traceability matrix, and decision register, plus privacy scans and an atomic commit boundary.
 - 批准拆分 Phase 0 工程推进与质量结论门禁的路线设计：允许完整开展 P1-T01–P1-T07，保留 H v1 为不进入产品的评测证据，不以模型票或缺失人工评审伪造质量 PASS；现有 tidy 与 govulncheck 失败继续作为独立工程债务记录。
 - Approved the route design that separates Phase 0 engineering progress from quality claims: P1-T01–P1-T07 may proceed, H v1 remains non-product evaluation evidence, and neither model votes nor missing human reviews are converted into a quality PASS; the existing tidy and govulncheck failures remain explicit engineering debt.
 - 新增 Phase 0 双语事实基线报告：区分受限 cohort 和工程门禁的已验证结果与尚缺的真实人工盲评；明确 P0-T09/Phase 0 为 `NOT-ENOUGH-DATA / BLOCKED`，不创建 `quality-gate-v1.json`，也不作质量结论。
