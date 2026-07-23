@@ -4,6 +4,8 @@
 
 ### Added
 
+- 批准拆分 Phase 0 工程推进与质量结论门禁的路线设计：允许完整开展 P1-T01–P1-T07，保留 H v1 为不进入产品的评测证据，不以模型票或缺失人工评审伪造质量 PASS；现有 tidy 与 govulncheck 失败继续作为独立工程债务记录。
+- Approved the route design that separates Phase 0 engineering progress from quality claims: P1-T01–P1-T07 may proceed, H v1 remains non-product evaluation evidence, and neither model votes nor missing human reviews are converted into a quality PASS; the existing tidy and govulncheck failures remain explicit engineering debt.
 - 新增 Phase 0 双语事实基线报告：区分受限 cohort 和工程门禁的已验证结果与尚缺的真实人工盲评；明确 P0-T09/Phase 0 为 `NOT-ENOUGH-DATA / BLOCKED`，不创建 `quality-gate-v1.json`，也不作质量结论。
 - Added a bilingual Phase 0 factual baseline report that separates verified bounded-cohort and engineering-gate results from missing real human blind reviews; P0-T09/Phase 0 remain `NOT-ENOUGH-DATA / BLOCKED`, no `quality-gate-v1.json` is created, and no quality conclusion is made.
 
