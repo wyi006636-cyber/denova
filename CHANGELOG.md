@@ -4,6 +4,10 @@
 
 ### Added
 
+- 用户影响：建立 P1-T01 的 Profile v1 与 QualitySpec v1 领域基础，为后续可审计的三类小说质量合同提供稳定底座；本次不接入 API、UI、Workspace 或产品 Harness，不改变现有创作流程，也不作质量提升声明。
+- User impact: established the P1-T01 Profile v1 and QualitySpec v1 domain foundation for future auditable quality contracts across the three fiction profiles; this change does not integrate API, UI, Workspace, or the product Harness, does not alter the current writing flow, and makes no quality-improvement claim.
+- 工程影响：新增穷尽且无默认回退的三 Profile 注册表、Draft 2020-12 合同校验、QualitySpec 四层确定性解析与跨记录语义校验、可定位结构化错误，以及未知/更新版本原字节保留和 managed mutation 拒绝合同；复用现有 `jsonschema/v6`，未修改依赖或已接受的 Schema/示例。
+- Engineering impact: added an exhaustive three-Profile registry with no default fallback, Draft 2020-12 contract validation, deterministic four-layer QualitySpec resolution and cross-record semantic validation, locatable structured errors, plus raw-byte preservation and managed-mutation rejection for unknown/newer versions; it reuses the existing `jsonschema/v6` dependency without changing dependencies or the accepted schemas/examples.
 - 新增 Phase 0 门禁拆分路线的精确实施计划，覆盖基线报告、主/详细计划、验证门禁、追踪矩阵和决策登记的一致性修改、隐私扫描与原子提交边界。
 - Added the exact implementation plan for the Phase 0 gate-split route, covering consistent updates to the baseline report, master/detailed plans, validation gates, traceability matrix, and decision register, plus privacy scans and an atomic commit boundary.
 - 批准拆分 Phase 0 工程推进与质量结论门禁的路线设计：允许完整开展 P1-T01–P1-T07，保留 H v1 为不进入产品的评测证据，不以模型票或缺失人工评审伪造质量 PASS；现有 tidy 与 govulncheck 失败继续作为独立工程债务记录。
