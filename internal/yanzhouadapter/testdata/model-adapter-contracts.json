@@ -235,14 +235,33 @@
         },
         {
           "type": "content_block_start",
+          "index": 1,
           "content_block": {
             "type": "tool_use",
             "id": "call_weather_1",
             "name": "get_weather",
-            "input": {
-              "city": "Shanghai"
-            }
+            "input": {}
           }
+        },
+        {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "input_json_delta",
+            "partial_json": "{\"city\":\""
+          }
+        },
+        {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "input_json_delta",
+            "partial_json": "Shanghai\"}"
+          }
+        },
+        {
+          "type": "content_block_stop",
+          "index": 1
         },
         {
           "type": "content_block_delta",

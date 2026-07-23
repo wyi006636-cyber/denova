@@ -143,9 +143,17 @@ func (a *anthropicAdapter) NormalizeResponse(data []byte) (ModelResponse, error)
 func (a *anthropicAdapter) NormalizeStream(chunks []json.RawMessage) ([]ModelStreamEvent, error) {
 	events := make([]ModelStreamEvent, 0, len(chunks))
 	inputTokens := 0
+	type toolBlock struct {
+		id           string
+		name         string
+		initialInput map[string]any
+		partialJSON  strings.Builder
+	}
+	toolBlocks := make(map[int]*toolBlock)
 	for _, data := range chunks {
 		var event struct {
 			Type    string `json:"type"`
+			Index   int    `json:"index"`
 			Message struct {
 				Usage struct {
 					Input int `json:"input_tokens"`
@@ -158,9 +166,10 @@ func (a *anthropicAdapter) NormalizeStream(chunks []json.RawMessage) ([]ModelStr
 				Input map[string]any `json:"input"`
 			} `json:"content_block"`
 			Delta struct {
-				Type       string `json:"type"`
-				Text       string `json:"text"`
-				StopReason string `json:"stop_reason"`
+				Type        string `json:"type"`
+				Text        string `json:"text"`
+				PartialJSON string `json:"partial_json"`
+				StopReason  string `json:"stop_reason"`
 			} `json:"delta"`
 			Usage struct {
 				Output int `json:"output_tokens"`
@@ -178,18 +187,36 @@ func (a *anthropicAdapter) NormalizeStream(chunks []json.RawMessage) ([]ModelStr
 					Type:    "content-delta",
 					Content: event.Delta.Text,
 				})
+			} else if event.Delta.Type == "input_json_delta" {
+				if block := toolBlocks[event.Index]; block != nil {
+					block.partialJSON.WriteString(event.Delta.PartialJSON)
+				}
 			}
 		case "content_block_start":
 			if event.ContentBlock.Type == "tool_use" {
-				toolCall := ModelToolCall{
-					ID:        event.ContentBlock.ID,
-					Name:      event.ContentBlock.Name,
-					Arguments: stringifyArguments(event.ContentBlock.Input),
+				toolBlocks[event.Index] = &toolBlock{
+					id:           event.ContentBlock.ID,
+					name:         event.ContentBlock.Name,
+					initialInput: event.ContentBlock.Input,
 				}
+			}
+		case "content_block_stop":
+			if block := toolBlocks[event.Index]; block != nil {
+				arguments := stringifyArguments(block.initialInput)
+				if partial := block.partialJSON.String(); partial != "" {
+					var parsed any
+					if err := json.Unmarshal([]byte(partial), &parsed); err == nil {
+						arguments = stringifyArguments(parsed)
+					} else {
+						arguments = partial
+					}
+				}
+				toolCall := ModelToolCall{ID: block.id, Name: block.name, Arguments: arguments}
 				events = append(events, ModelStreamEvent{
 					Type:     "tool-call-delta",
 					ToolCall: &toolCall,
 				})
+				delete(toolBlocks, event.Index)
 			}
 		case "message_delta":
 			if event.Delta.StopReason != "" {

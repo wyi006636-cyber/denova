@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-const modelContractFixtureDigest = "c95e97b08ad845485c528d4dd1427eaac6b60c1311b75ba3317c9d7d73771e2b"
+const modelContractFixtureDigest = "8971282b27aab70c868d561c85cad2fa24a99e313b99a6a7b2e081fd01ecfed7"
 const modelContractSecret = "wp2-go-adapter-secret-sentinel"
 
 type modelContractFixture struct {
