@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 增加 Yanzhou 模型适配工厂：严格区分 OpenAI-compatible、Anthropic Messages、Gemini generateContent、Ollama 与 LM Studio，并通过同一跨语言 fixture 归一消息、工具、流、用量、结束原因和脱敏错误。
+- Added a Yanzhou model adapter factory that keeps OpenAI-compatible, Anthropic Messages, Gemini generateContent, Ollama, and LM Studio distinct, with one cross-language fixture normalizing messages, tools, streams, usage, finish reasons, and redacted errors.
 - 增加 Yanzhou 专用无界面 Sidecar：使用 UTF-8 JSONL 严格分帧、一次性 bootstrap token、五类可独立验证 provenance 和精确九类 Agent 握手；默认拒绝所有工具，并让真实 Denova builder smoke 过滤完整 domain/legacy 候选注册，证明未注册 filesystem、shell 或 direct-write 能力。
 - Added a headless Yanzhou sidecar with strict UTF-8 JSONL framing, a single-use bootstrap token, five independently verifiable provenance identities, and exact nine-kind Agent discovery. Its bootstrap tool surface is default-deny, with a real Denova builder smoke filtering the complete domain and legacy candidate set to prove that filesystem, shell, and direct-write capabilities are not registered.
 - 写作与游戏模式共用的工作台通知槽新增一次性 GitHub Star 提示：仅在当前会话完成有效 Agent 回合后出现，新版本提醒始终优先；关闭或打开仓库后不再提示，并完整支持中英文、明暗主题、桌面与移动布局。

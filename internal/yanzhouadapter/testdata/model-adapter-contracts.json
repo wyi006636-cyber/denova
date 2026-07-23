@@ -1,0 +1,377 @@
+{
+  "schemaVersion": "1",
+  "request": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "Use the weather tool and answer briefly."
+      },
+      {
+        "role": "user",
+        "content": "What is the weather in Shanghai?"
+      },
+      {
+        "role": "assistant",
+        "content": "",
+        "toolCalls": [
+          {
+            "id": "call_weather_1",
+            "name": "get_weather",
+            "arguments": "{\"city\":\"Shanghai\"}"
+          }
+        ]
+      },
+      {
+        "role": "tool",
+        "toolCallId": "call_weather_1",
+        "name": "get_weather",
+        "content": "{\"temperature\":29}"
+      }
+    ],
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Read the current weather.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "city"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "temperature": 0.2,
+    "maxOutputTokens": 256
+  },
+  "expected": {
+    "response": {
+      "role": "assistant",
+      "content": "It is 29C.",
+      "toolCalls": [
+        {
+          "id": "call_weather_1",
+          "name": "get_weather",
+          "arguments": "{\"city\":\"Shanghai\"}"
+        }
+      ],
+      "finishReason": "tool_calls",
+      "usage": {
+        "inputTokens": 11,
+        "outputTokens": 7,
+        "totalTokens": 18
+      }
+    },
+    "stream": [
+      {
+        "type": "content-delta",
+        "content": "It is "
+      },
+      {
+        "type": "tool-call-delta",
+        "toolCall": {
+          "id": "call_weather_1",
+          "name": "get_weather",
+          "arguments": "{\"city\":\"Shanghai\"}"
+        }
+      },
+      {
+        "type": "content-delta",
+        "content": "29C."
+      },
+      {
+        "type": "message-complete",
+        "finishReason": "tool_calls",
+        "usage": {
+          "inputTokens": 11,
+          "outputTokens": 7,
+          "totalTokens": 18
+        }
+      }
+    ],
+    "error": {
+      "code": "rate_limit",
+      "status": 429,
+      "message": "rate limited",
+      "retryable": true
+    }
+  },
+  "providers": {
+    "openai-compatible": {
+      "response": {
+        "id": "chatcmpl-fixture",
+        "model": "fixture-model",
+        "choices": [
+          {
+            "message": {
+              "role": "assistant",
+              "content": "It is 29C.",
+              "tool_calls": [
+                {
+                  "id": "call_weather_1",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Shanghai\"}"
+                  }
+                }
+              ]
+            },
+            "finish_reason": "tool_calls"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 11,
+          "completion_tokens": 7,
+          "total_tokens": 18
+        }
+      },
+      "stream": [
+        {
+          "choices": [
+            {
+              "delta": {
+                "content": "It is "
+              }
+            }
+          ]
+        },
+        {
+          "choices": [
+            {
+              "delta": {
+                "tool_calls": [
+                  {
+                    "index": 0,
+                    "id": "call_weather_1",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"Shanghai\"}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "choices": [
+            {
+              "delta": {
+                "content": "29C."
+              }
+            }
+          ]
+        },
+        {
+          "choices": [
+            {
+              "delta": {},
+              "finish_reason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 11,
+            "completion_tokens": 7,
+            "total_tokens": 18
+          }
+        }
+      ],
+      "error": {
+        "error": {
+          "type": "rate_limit_error",
+          "code": "rate_limit",
+          "message": "rate limited {{API_KEY}}"
+        }
+      }
+    },
+    "anthropic-native": {
+      "response": {
+        "id": "msg_fixture",
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "It is 29C."
+          },
+          {
+            "type": "tool_use",
+            "id": "call_weather_1",
+            "name": "get_weather",
+            "input": {
+              "city": "Shanghai"
+            }
+          }
+        ],
+        "stop_reason": "tool_use",
+        "usage": {
+          "input_tokens": 11,
+          "output_tokens": 7
+        }
+      },
+      "stream": [
+        {
+          "type": "message_start",
+          "message": {
+            "usage": {
+              "input_tokens": 11,
+              "output_tokens": 0
+            }
+          }
+        },
+        {
+          "type": "content_block_delta",
+          "delta": {
+            "type": "text_delta",
+            "text": "It is "
+          }
+        },
+        {
+          "type": "content_block_start",
+          "content_block": {
+            "type": "tool_use",
+            "id": "call_weather_1",
+            "name": "get_weather",
+            "input": {
+              "city": "Shanghai"
+            }
+          }
+        },
+        {
+          "type": "content_block_delta",
+          "delta": {
+            "type": "text_delta",
+            "text": "29C."
+          }
+        },
+        {
+          "type": "message_delta",
+          "delta": {
+            "stop_reason": "tool_use"
+          },
+          "usage": {
+            "output_tokens": 7
+          }
+        }
+      ],
+      "error": {
+        "type": "error",
+        "error": {
+          "type": "rate_limit_error",
+          "message": "rate limited {{API_KEY}}"
+        }
+      }
+    },
+    "gemini-native": {
+      "response": {
+        "candidates": [
+          {
+            "content": {
+              "role": "model",
+              "parts": [
+                {
+                  "text": "It is 29C."
+                },
+                {
+                  "functionCall": {
+                    "id": "call_weather_1",
+                    "name": "get_weather",
+                    "args": {
+                      "city": "Shanghai"
+                    }
+                  }
+                }
+              ]
+            },
+            "finishReason": "STOP"
+          }
+        ],
+        "usageMetadata": {
+          "promptTokenCount": 11,
+          "candidatesTokenCount": 7,
+          "totalTokenCount": 18
+        }
+      },
+      "stream": [
+        {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "It is "
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "functionCall": {
+                      "id": "call_weather_1",
+                      "name": "get_weather",
+                      "args": {
+                        "city": "Shanghai"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "29C."
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": []
+              },
+              "finishReason": "STOP"
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 11,
+            "candidatesTokenCount": 7,
+            "totalTokenCount": 18
+          }
+        }
+      ],
+      "error": {
+        "error": {
+          "code": 429,
+          "status": "RESOURCE_EXHAUSTED",
+          "message": "rate limited {{API_KEY}}"
+        }
+      }
+    }
+  }
+}
