@@ -20,7 +20,7 @@
 | Windows `go mod tidy -diff` | FAIL | 仅因既有 P0-T09 Windows ACL import 使 `golang.org/x/sys v0.46.0` 应由 indirect 改为 direct；无版本或 `go.sum` 变化。未经批准不得改依赖文件 |
 | Linux native CI-equivalent | FAIL | 全量 Go、web test/i18n/build/distribution build 通过；`govulncheck` 发现可达 `GO-2026-5970`（`golang.org/x/text v0.38.0`），修复需 v0.39.0，未经批准不得升级 |
 
-工程门禁的完整逐项事实、质量缺口和后续批准项见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。P0-T09/Phase 0 仍为 `NOT-ENOUGH-DATA / BLOCKED`：regression 真实人工独立评审为 0/24，`quality-gate-v1.json` 不存在；Phase 1 不得开始。
+工程门禁的完整逐项事实、质量缺口和后续批准项见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。根据 FD-011，P1-T01–P1-T07 可按各自工程门禁开始；0/24 正式人工评审和缺失的 `quality-gate-v1.json` 禁止质量声明与 H v1 产品化，但不再构成 Phase 1 全局入口阻塞。tidy 分类失败与 `GO-2026-5970` 继续阻止发布就绪声明。
 
 ## 2. 通用门禁层级
 
@@ -113,10 +113,12 @@ git diff --check
 - 核心请求、session display/context、Task/SSE、workspace revision/lease、版本包含/排除、Skills 安装和共享菜单特征测试全绿。
 - tuning runner/template shakeout 后，只对冻结 regression cohort 做 S/H paired pilot：S 是一调用，H 是双独立候选、结构化审稿、最终修订的四调用流程；K 保持独立 capability-reference 隔离实验，不能替代 H。六个 `release_holdout` task 只保留元数据/hash，零模型调用、输出、盲包、评审和调优。
 - 七个必需核心 ADR 与 Projection driver ADR 为 Accepted。
-- `quality-gate-v1.json` 仅从真实 regression pilot 和人工评审方差冻结未来样本量、非劣容差和成本规则，不含拍脑袋阈值；这不证明 P0-T09、Phase 0 或 Phase 2/3/5 已质量 PASS。
+- `quality-gate-v1.json` 当前保持不存在；首次 Harness 质量声明前只能从预注册真实产品评测推导未来样本量、非劣容差和成本规则，不含拍脑袋阈值。
 - Windows allowlist 默认空；若非空，满足第 7 节全部证据。
 
 ### Phase 1 Gate
+
+**进入条件：**FD-011 已批准；所需基础 ADR 已 Accepted；当前 Task 的范围和工作区干净；每个 P1 Task 独立通过自己的 targeted、repository、集成和 UI 门禁。Phase 1 工程期间允许 `quality-gate-v1.json` 不存在，但不得据此做阈值验收、H v1 产品化或 Harness 质量声明。
 
 **目标命令：**
 
@@ -294,12 +296,12 @@ scripts/build-github-release.sh "$(git describe --tags --exact-match)"
 
 每对样本记分：H 胜 1、平 0.5、H 负 0。按 task 分层 bootstrap 计算 95% CI。
 
-- Phase 0：只估计方差并冻结样本量/容差，不要求 Harness 胜出。
+- Phase 0：保留隔离诊断证据，不冻结缺少人工方差支持的样本量/容差，也不要求 Harness 胜出。
 - Phase 2：`long_serial` 的 CI 下界必须大于 0.50。
 - Phase 3：三个 Profile 各自 CI 下界均大于 0.50。
 - Phase 5：新的发布 holdout 上三个 Profile 各自再次满足；不能用总体平均替代单 Profile。
 
-不提前写死 60%、70% 等任意胜率；“CI 下界 > 0.50”表达的是可重复优于随机/基线。实际最小样本量由 P0-T09 根据方差和最小检测效应写入版本化 Gate Manifest；样本未达到 manifest 值时结果为 NOT-ENOUGH-DATA，不是 PASS。
+不提前写死 60%、70% 等任意胜率；“CI 下界 > 0.50”表达的是可重复优于随机/基线。实际最小样本量必须在首次质量声明前由预注册真实产品评测的方差和最小检测效应写入版本化 Gate Manifest；manifest 不存在或样本不足时结果不是 PASS。
 
 ### 6.4 Profile 专项判断
 
@@ -313,7 +315,7 @@ scripts/build-github-release.sh "$(git describe --tags --exact-match)"
 
 ### 6.5 非劣与成本门槛
 
-以下阈值由 P0-T09 用实际基线写入 `quality-gate-v1.json`，缺任一值即 Gate 配置无效：
+以下阈值只可在首次 Harness 质量声明前，由预注册真实产品评测写入 `quality-gate-v1.json`；缺任一值即 Gate 配置无效：
 
 - `max_fact_error_delta`：H 相对 S 的事实错误率非劣容差。
 - `max_author_edit_delta`：达到可定稿状态的作者改稿量非劣容差。

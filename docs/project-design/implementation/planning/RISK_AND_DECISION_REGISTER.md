@@ -1,6 +1,6 @@
 # 风险与架构决策登记册
 
-> 状态：规划阶段开放登记；截至 2026-07-22，P0-T09 的工程证据已部分取得，但人工质量证据不足，Phase 0 与 Phase 1 为 `NOT-ENOUGH-DATA / BLOCKED`。详见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。
+> 状态（2026-07-23）：P1-T01–P1-T07 可按各自工程门禁开始；当前质量结论仍为 `INCONCLUSIVE`，H v1 不推广，发布尚未就绪。0/24 正式人工评审、tidy 分类失败和 `GO-2026-5970` 继续作为独立事实记录。详见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。
 > 规则：最终融合方案已经冻结的产品方向不在实现 PR 中重新投票；本登记册只决策物理 Schema、类型合同、事务语义、依赖和迁移等实现细节。
 > 风险 owner 是职责，不是具体姓名；排期时必须落实到人。
 
@@ -18,6 +18,7 @@
 | FD-008 | Tauri 是 Phase 4/v1 发行形态 | 禁止提前阻塞 Phase 0–3 质量验证 |
 | FD-009 | 向量检索、独立 Worker、强沙箱、云同步/协作需证据再立项 | 不进入当前 MVP 关键路径 |
 | FD-010 | P0-T09 可实现版本化、评测专用离线 Harness runner 取得真实 S/H 配对证据 | 禁止产品运行时/API/SSE/UI/Automation 集成、正式工作区写入、Author Finalization、自动发布、生产 CandidateSet/ReviewIssue/PreferenceMemory/Capability Router/Skill 执行、第三方脚本执行或产品状态机；不是新 Phase/里程碑 |
+| FD-011 | Phase 1 工程开发不再以 P0 人工评审配额或 Gate Manifest 为前置；H v1 不推广，质量与发布声明仍须后续真实产品证据 | P1-T01–P1-T07 可按各自门禁推进；不得把放行工程开发写成 Phase 0 质量 PASS、H v1 产品授权或发布就绪 |
 
 ## 2. 必需 ADR 待办
 
@@ -42,7 +43,7 @@
 | ADR-CAP-001 | Capability 与 Skill Manifest | Proposed | P2-T02 开始前 | P2-T02、P2-T04–P2-T06、P3-T04–P3-T06 | workflow 只依赖 Capability ID；manifest 记录来源/hash/许可/权限/schema/model/cost/eval；router 选最少必要实现并保存选择证据 |
 | ADR-AUTO-001 | Automation/Batch 与 Harness 边界 | Proposed | P2-T03 开始前 | P2-T03、P2-T07、P3-T07 | Automation 只创建/继续 Job 或写待审 Artifact；`auto_write` 不对正式区生效；批次确认可上移粒度但不能取消 hash/revision 校验 |
 | ADR-TAURI-001 | Tauri shell/sidecar/更新边界 | Deferred | P4-T03 开始前，且 P3-T08 必须 PASS | P4-T03–P4-T06、P5-T02、P5-T06 | React/Go Web 核心保持可独立运行；Tauri 只做 shell、sidecar 生命周期和 OS 集成；端口/健康/退出/更新/签名有独立状态机 |
-| ADR-EVAL-001 | Quality Gate Manifest 与统计方法 | Proposed | P0-T09 完成前 | P2-T09、P3-T08、P5-T04 | 分层配对盲评；CI 下界 >0.50；样本量、事实/改稿/成本非劣容差由 Phase 0 实测冻结；发布 holdout 独立 |
+| ADR-EVAL-001 | Quality Gate Manifest 与统计方法 | Proposed | 首次 Harness 质量声明前 | P2-T09、P3-T08、P5-T04 | 在真实产品纵切后预注册分层评测；样本量、事实/改稿/成本非劣容差必须由新证据推导；发布 holdout 独立，P0 模型诊断票不得替代 |
 
 ## 4. 技术风险
 
@@ -81,7 +82,8 @@
 | QUAL-006 | 审稿 issue 空泛、误报或把所有问题路由到润色 | 高/高 | 定位/可执行率低，作者拒绝率高 | ReviewIssue 合同、分类 precision/actionability、Revision Router 穷尽 | Review Lead；P2-T05/P2-T06 |
 | QUAL-007 | Provider/model 漂移使历史回归不可比 | 高/中 | 同 model name 行为/价格改变 | 记录 Provider/model 版本/日期/参数；新 cohort，不混合旧结果 | Eval/Agent；P5-T04 |
 | QUAL-008 | PreferenceMemory 把一次选择固化成僵硬风格 | 中/高 | 新任务质量下降、偏好互相冲突 | 作用域/强度/证据、弱信号累计、作者查看/撤销、holdout 回归 | Product/Eval；P2-T07/P5-T04 |
-| QUAL-009 | 把 P0-T09 离线 pilot 误写成产品 Harness 或 Phase 2/3/5 质量 PASS | 高/灾难 | runner 出现产品 API/SSE/UI/workspace 写入，或报告把 tuning/holdout/fixture 当质量结论 | 仅版本化离线 runner；tuning shakeout 后冻结 regression paired pilot；`release_holdout` 只保留 metadata/hash 且零调用/输出/盲包/评审/调优；P0-T09 只冻结未来样本量和非劣规则 | Eval/Tech Lead；P0-T09 |
+| QUAL-009 | 把 P0-T09 离线 pilot 误写成产品 Harness 或 Phase 2/3/5 质量 PASS | 高/灾难 | runner 出现产品 API/SSE/UI/workspace 写入，或报告把 tuning/holdout/fixture 当质量结论 | 仅保留版本化离线诊断 runner 与 release-holdout 隔离；H v1 不推广，未来 Gate 规则必须来自真实产品证据 | Eval/Tech Lead；P0-T09/FD-011 |
+| QUAL-010 | 评测工作取代真实创作产品目标 | 高/高 | 评测轮次、评委或门禁持续增加，但没有真实作者创作闭环交付 | 质量证据必须跟随真实产品纵切；诊断评测不得全局阻塞无关工程；无稳定收益的流程不推广 | Product/Tech Lead；FD-011/P1–P3 |
 
 ## 7. Skills 风险
 
@@ -124,5 +126,5 @@
 2. 风险触发时记录实际证据、影响 Requirement/Task、临时保护和决定期限；“可能有问题”不能替代复现。
 3. 风险降低只能在验证证据附上后从 Open 改为 Monitoring/Closed；代码合并本身不是关闭证据。
 4. ADR 改变已发布文件/API/配置时，必须包含迁移、备份、回滚和兼容说明；Beta 可不兼容，但必须明确说明。
-5. 任何试图改变 FD-001–FD-009 的提案都需要先修订最终融合方案并由用户审核，不能在普通实现 Goal 中完成。
+5. 任何试图改变 FD-001–FD-011 的提案都需要先修订最终融合方案并由用户审核，不能在普通实现 Goal 中完成。
 6. 每个 Phase 退出由负责人复查本登记册：高/灾难风险没有 owner、缓解或验证证据时不得退出。

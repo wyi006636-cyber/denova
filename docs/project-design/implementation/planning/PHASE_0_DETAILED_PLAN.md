@@ -10,7 +10,7 @@
 2. P0-T02 与 P0-T03 可并行；P0-T02 是推荐的第一个编码任务。
 3. P0-T04 在 Workspace Schema 边界明确后开始；P0-T05、P0-T07、P0-T08 可在其后并行。
 4. P0-T06 依赖 CandidateSet/ReviewIssue 的状态与定稿写入边界。
-5. P0-T09 汇总全部证据；只有真实 regression 人工评审方差足够时才冻结 Phase 1/2 使用的 Gate Manifest。
+5. P0-T09 汇总全部证据；人工评审不足时不创建 Gate Manifest、H v1 不推广，但根据 FD-011 不再阻止 P1-T01–P1-T07 开始。
 
 每项任务独立提交。进入下一项前，前一提交必须通过该项的目标测试；不得把多个 ADR、测试修复和功能原型混成一个提交。
 
@@ -671,17 +671,17 @@ git diff --check
 
 首个合同提交：`test: define Xiaping discovery contracts`
 
-## 11. P0-T09：Phase 0 集成门禁与质量阈值冻结
+## 11. P0-T09：Phase 0 证据收尾与路线交接
 
 **目标**
 
-汇总工程、ADR、质量和 Skills 证据，执行 Phase 0 全门禁，并基于真实 regression paired pilot 与人工评审方差冻结未来 MVP/v1 的质量、成本和安全阈值。为取得该 pilot 的真实 H 证据，P0-T09 允许实现版本化、评测专用、离线 Harness runner；该 runner 是本 Task 的内部执行机械，不是新 Phase、里程碑或独立产品目标。
+汇总工程、ADR、质量和 Skills 证据，记录工程门禁事实，并保存评测专用离线 Harness runner 的隔离 paired pilot。P0-T09 不再承担在 Phase 1 前强制冻结质量阈值的责任；证据不足时明确不推广 H v1，并把质量门槛推迟到真实产品纵切之后。
 
-**当前状态（2026-07-22）**：受限 smoke、tuning 和 regression S/H cohort 已成功，但 regression 的真实人工独立评审为 0/24，尚无冲突可裁决；因此 P0-T09 和 Phase 0 为 `NOT-ENOUGH-DATA / BLOCKED`。`quality-gate-v1.json` 仍不存在，且不得因现有工程证据或模型输出创建阈值。详见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。
+**当前状态（2026-07-23）**：受限 smoke、tuning 和 regression S/H cohort 已成功，正式人工独立评审仍为 0/24，`quality-gate-v1.json` 不存在，质量结论为 `INCONCLUSIVE`，H v1 不推广。FD-011 已允许 P1-T01–P1-T07 按各自工程门禁开始；tidy 分类失败和 `GO-2026-5970` 继续作为发布前独立工程债务。详见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。
 
 **业务理由**
 
-最终方案明确禁止在基线前伪造固定胜率。P0-T09 把“没有预设数字”转化为可审计的计算和批准流程，而非留下永久未决项。
+最终方案明确禁止伪造固定胜率。当前 runner、盲包和导入能力作为可审计诊断机械保留；它们没有证明 H v1 的产品收益，因此不应继续消耗主线开发资源或成为 Phase 1 的全局门禁。
 
 **输入**
 
@@ -689,7 +689,7 @@ P0-T01–P0-T08、P0-T08A 全部产物和当前 CI/release 命令，以及 P0-T0
 
 **目标 package / 文件**
 
-- `docs/project-design/implementation/evaluation/quality-gate-v1.json`（计划新增）。
+- `docs/project-design/implementation/evaluation/quality-gate-v1.json`（延期；首次 Harness 质量声明前由真实产品证据决定是否创建）。
 - `docs/project-design/implementation/evaluation/PHASE_0_BASELINE_REPORT.md`（计划新增）。
 - `docs/project-design/implementation/baseline/windows-upstream-failure-allowlist.json`（已建立，初始值为空数组）。
 - `docs/project-design/implementation/adr/ADR-PROJECTION-001-sqlite-fts-driver.md`（计划新增，决定 Phase 1 使用的成熟驱动和 CGO/Tauri 约束）。
@@ -698,8 +698,8 @@ P0-T01–P0-T08、P0-T08A 全部产物和当前 CI/release 命令，以及 P0-T0
 
 - 先以 `tuning` 执行 runner/template shakeout，再以冻结的 `regression` cohort 进行 paired pilot；所有六个 `release_holdout` task 始终仅保留元数据/hash，零模型调用、零输出、零盲包、零评审、零调优。
 - S arm 精确为每 task 一次模型调用；H arm 精确为两个独立候选、一次结构化审稿、一次最终修订，共四次模型调用。K 是独立的 capability-reference 隔离实验，不得改名或替代 H。
-- 每 Profile 的真实 pilot 方差、最小检测效应，以及未来 Phase 2/3/5 的最小样本量和非劣规则；P0-T09 不宣称任何 Phase 2/3/5 质量 PASS。
-- Gate Manifest 只可记录由真实 regression pilot 冻结的统计规则；若方差/人工评审数据不足，保持 `NOT-ENOUGH-DATA`，不得将 Phase 0 或质量 Gate 写为 PASS。
+- 当前没有可用的人类 pilot 方差、最小检测效应、未来最小样本量或非劣规则；该缺口如实记录，不宣称任何 Phase 2/3/5 质量 PASS。
+- Gate Manifest 保持不存在；未来若创建，只能记录由预注册真实产品评测推导的统计规则。
 - 本 runner 不创建产品 CandidateSet/ReviewIssue/PreferenceMemory/Capability Router/Skill 执行、正式工作区写入或 Author Finalization；这些产品合同仍留给后续 Phase。
 - 精确 Windows upstream failure allowlist；每项有测试名、失败签名、upstream 复现 SHA、issue/owner、到期日。当前无法用 Go 运行不构成 allowlist 条目。
 
@@ -711,8 +711,8 @@ P0-T02、P0-T06、P0-T07、P0-T08、P0-T08A。
 
 1. 在具备 Go 工具链的 Windows 环境执行全量 Go 和精确 Windows 回归；在 Linux CI 执行官方门禁。
 2. 执行全量前端/i18n/build，并记录非失败 warning。
-3. 先运行 tuning runner/template shakeout，冻结其后模板/配置，再由双人完成 regression paired pilot 的盲评、第三人裁决冲突；评测工具计算 CI 和人工评审方差。
-4. 仅据真实 regression pilot 冻结未来 `quality-gate-v1.json` 的样本量与非劣规则，记录计算方法、批准者、适用 Profile/版本和修改流程；不得宣称 Phase 2/3/5 PASS。
+3. 保留冻结 regression 盲包和人工导入能力，但不再以固定 24 份 P0 人工票作为 Phase 1 入口条件；模型诊断票不得导入为真人证据。
+4. 将 `quality-gate-v1.json` 延期到真实产品纵切之后的预注册评测；未创建时不得使用阈值验收或宣称 Phase 2/3/5 质量 PASS。
 5. 对现有失败同时在特性分支和 `upstream/master@eb5e4ee53ad158fe88dfb7148408edc6558e481a` 复现；不能复现为上游的均视为新增回归。
 6. 审核所有核心 ADR 为 Accepted；任一未决则明确阻塞 Phase 1 对应 Task。
 7. 生成 Phase 0 报告，逐项给出 PASS/FAIL/NOT-RUN；NOT-RUN 不能算 PASS。
@@ -735,8 +735,8 @@ git status --short
 
 **验收**
 
-- 所有硬门禁结果均有明确记录；本 P0-T09 边界性工作包不得据此宣称 P0-T09、Phase 0 或任何未来质量 Gate 为 PASS，且没有未说明 NOT-RUN。
-- 质量 Gate Manifest 的未来规则有真实 regression pilot、人工评审方差、样本依据和版本，不含随意拍定的胜率；P0-T09 本身及任何未来质量 Gate 均不得因本 Task 宣称 PASS。
+- 所有工程门禁结果均有明确记录；放行 Phase 1 工程不等于质量 PASS 或发布就绪，且没有未说明 NOT-RUN。
+- `quality-gate-v1.json` 不存在且没有随意拍定的胜率；H v1 明确不推广，未来质量声明另行取得真实产品证据。
 - 离线 runner 仍与产品运行时完全隔离：无产品 API/SSE/UI/Automation、无正式 Markdown/workspace 写入、无 Author Finalization/自动发布、无生产 CandidateSet/ReviewIssue/PreferenceMemory/Capability Router/Skill 执行，且无第三方脚本执行。
 - allowlist 默认空；若非空，每项满足双基线复现和到期规则。
 - `git status --short` 仅含本 Task 预期文档/门禁文件，且提交后工作区干净。
@@ -763,10 +763,10 @@ git status --short
 
 - [ ] P0-T01–P0-T09（含 P0-T08A）每项一个英文 Commit，工作区干净。
 - [ ] 七个必需 ADR 与 Projection ADR 均有明确状态、批准者和日期。
-- [ ] 三 Profile 任务集、普通单轮结果、盲评包和 Gate Manifest 可复算。
+- [ ] 三 Profile 任务集、普通单轮结果和盲评包可复算；Gate Manifest 缺失及原因有明确记录。
 - [ ] 写作/游戏、菜单、SSE、会话、Workspace Change、版本与 Skills 安装链无新增回归。
-- [ ] Windows Go 门禁实际执行；环境缺失不再存在。
+- [ ] Windows/Linux 工程门禁已实际执行；tidy 分类失败和 `GO-2026-5970` 独立登记并在发布前解决。
 - [ ] 没有新依赖、业务页面、产品 Harness 状态机或正式数据迁移混入 Phase 0；P0-T09 唯一允许的是版本化、评测专用离线 runner。
 - [ ] 没有 skip、删测试、降低断言或通配 allowlist。
 
-Phase 0 通过后，下一步从 P1-T01/P1-T02 开始；不得直接跳到 Agent 编排或 Tauri。
+FD-011 路线决策生效后，从 P1-T01/P1-T02 开始；P1-T01–P1-T07 按各自工程门禁推进，不得直接跳到 Agent 编排、H v1 产品化或 Tauri。

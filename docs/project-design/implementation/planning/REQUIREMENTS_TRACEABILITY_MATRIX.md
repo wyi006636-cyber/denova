@@ -1,6 +1,6 @@
 # 需求追踪矩阵
 
-> 执行状态（2026-07-22）：P0-T09 的受限 offline runner cohort 与工程门禁已有证据，但不能满足 EVAL-001/EVAL-002 的人工质量验收；真实 regression 评审为 0/24，Gate Manifest 尚未创建，Phase 0 与 Phase 1 为 `NOT-ENOUGH-DATA / BLOCKED`。详见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。
+> 执行状态（2026-07-23）：P0-T09 的受限 offline runner cohort 与工程门禁已有证据，但质量结论仍为 `INCONCLUSIVE`，H v1 不推广，Gate Manifest 尚未创建。根据 FD-011，缺少 P0 人工评审不再阻塞 P1-T01–P1-T07；未来质量证明由 P2-T09、P3-T08、P5-T04 的真实产品证据承接。详见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。
 
 > 基线：`docs/project-design/final/小说写作工具-最终融合最优方案.md` v1.1。
 > 规则：最终方案是需求真源；Kimi、WorkBuddy、竞品和虾评资料只提供论据、候选方法或来源证据。
@@ -20,7 +20,7 @@
 
 | Requirement ID | P | 需求与验收含义 | 最终方案来源 | 承接 Phase / Task | 主要验证证据 |
 |---|---:|---|---|---|---|
-| GOAL-001 | P0 | 产品目标是提高优秀网文产出概率；不得以自动化、Agent 数或流程完成率替代；P0-T09 可用评测专用离线 H 取得真实配对证据，但不形成产品状态机 | 1、3、6.4、17.3 | P0-T07、P0-T09、P2-T09、P3-T08、P5-T04 | 同任务同模型盲评、作者保留/改稿、成本与错误率 |
+| GOAL-001 | P0 | 产品目标是提高优秀网文产出概率；不得以自动化、Agent 数或流程完成率替代；P0-T09 只提供诊断配对证据与 H v1 不推广决定，不形成产品状态机或 Phase 1 全局门禁 | 1、3、6.4、17.3 | P0-T07、P0-T09、P2-T09、P3-T08、P5-T04 | 真实产品同任务盲评、作者保留/改稿、成本与错误率 |
 | BASE-001 | P0 | 当前项目是唯一仓库，固定 Denova 上游基线并可重复核验 | 2、15.1、16 Phase 0 | P0-T01、P0-T09、P5-T05 | branch/HEAD/remotes/merge-base、差异清单 |
 | ARCH-001 | P0 | Denova 是唯一底座；模块化单体演进，不重写前后端和 Agent Runtime | 2、5、19 ADR-001 | P0-T01、P0-T02、P1-T05、P2-T02、P5-T05 | 依赖图、源码 diff、核心回归、上游同步冲突量 |
 | MODE-001 | P0 | 写作/游戏共通能力保持边界；共享一级菜单不自动切换模式，且只有一个 active | 项目约定、5、12 | P0-T02、P1-T06、P2-T08、P3-T03、P4-T01、P4-T06 | store/navigation 组件测试、双模式人工矩阵 |
@@ -52,8 +52,8 @@
 | FE-002 | P1 | 全部用户可见交互中英双语，亮/暗主题，宽/窄屏、长文本和空数据适配 | 项目前端规范、12、15 | P0-T02、P1-T06、P2-T08、P3-T03、P4-T01、P4-T06、P5-T06 | i18n key check、组件测试、页面验证矩阵 |
 | FE-003 | P1 | 作者能理解 QualitySpec、候选、ReviewIssue、来源、差异、定稿与恢复，无需理解 DAG/Git/Agent | 12、17.2 | P1-T06、P2-T08、P3-T03、P4-T01、P4-T02、P4-T06 | 可用性脚本、任务完成观察、空/错误状态 |
 | TAURI-001 | P1 | Tauri 是 v1 后期发行形态，不能阻塞前期质量验证 | 12.4、15.2、19 ADR-011 | P0-T01、P3-T08、P4-T03–P4-T06、P5-T02、P5-T06 | P3 前无 Tauri 依赖、sidecar/安装/退出矩阵 |
-| EVAL-001 | P0 | 同任务、同模型、可比成本下做普通单轮 vs Harness 人工盲评；P0-T09 的 H 仅为评测专用离线 runner，模型分数不是发布结论 | 3、17.3 | P0-T07、P0-T08A、P0-T09、P2-T09、P3-T08、P5-T04 | 随机盲包、双评审、CI、证据文本 |
-| EVAL-002 | P1 | 三 Profile 分层评测，记录首轮可用、保留/改稿、候选收益、审稿准确、事实错误和成本；P0-T09 只为后续规则提供隔离的真实 pilot 证据 | 17.3 | P0-T07、P0-T08A、P0-T09、P2-T09、P3-T08、P4-T02、P5-T03、P5-T04 | corpus manifest、指标聚合、质量 Gate Manifest |
+| EVAL-001 | P0 | 同任务、同模型、可比成本下比较普通单轮与拟推广工作流；P0-T09 的 H 仅为诊断性离线 runner，模型分数不是发布结论，未来人工证据由真实产品 Task 承接 | 3、17.3 | P0-T07、P0-T08A、P0-T09、P2-T09、P3-T08、P5-T04 | 随机盲包、双评审、CI、证据文本 |
+| EVAL-002 | P1 | 三 Profile 分层评测，记录首轮可用、保留/改稿、候选收益、审稿准确、事实错误和成本；P0-T09 只保存隔离诊断证据，不负责在 Phase 1 前冻结 Gate Manifest | 17.3 | P0-T07、P0-T08A、P0-T09、P2-T09、P3-T08、P4-T02、P5-T03、P5-T04 | corpus manifest、指标聚合、质量 Gate Manifest |
 | SAFE-001 | P0 | 迁移、覆盖、定稿前有预览/版本/备份/回滚；崩溃不能留下半提交 | 14.1、17.1 | P0-T02、P0-T03、P0-T06、P1-T02、P2-T07、P5-T01、P5-T02 | 故障注入、restore receipt、备份恢复演练 |
 | SAFE-002 | P0 | API Key 不进作品目录/日志；第三方来源和权限可见；未知代码不被称作沙箱 | 10.2、11.2、14.1 | P0-T01、P0-T08、P0-T08A、P2-T02、P3-T04、P4-T05、P5-T05 | secret scan、权限 manifest、静态安全审计 |
 | REL-001 | P1 | goroutine recover、错误日志有上下文、LLM 无写死超时、状态可恢复 | 项目代码约定、14.2/14.5 | P0-T02、P1-T05、P2-T03、P2-T09、P5-T02、P5-T03 | panic/recovery、日志字段、取消/重试分类测试 |
@@ -77,7 +77,7 @@
 | P0-T07 | GOAL-001、PROFILE-001–003、EVAL-001、EVAL-002 | 三 Profile corpus 与单轮基线 |
 | P0-T08 | SKILL-001、SKILL-002、SKILL-003、SKILL-004、SAFE-002 | 虾评 catalog、Capability 初映射和红线 |
 | P0-T08A | SKILL-001、SKILL-002、SKILL-003、SKILL-004、EVAL-001、EVAL-002、SAFE-002 | 用户批准的公开全目录快照、严格证据合同、合成 fixture 与双通道短名单；依赖 P0-T08 并阻塞 P0-T09 的 Skill 证据闭环，不改写 P0-T08 历史 |
-| P0-T09 | GOAL-001、DATA-002、EVAL-001、EVAL-002、UPSTREAM-001 | 仅评测专用离线 H runner 的真实 regression paired pilot、未来 Gate 规则、Phase 0 报告、allowlist；不创建产品 Harness 状态机 |
+| P0-T09 | GOAL-001、DATA-002、EVAL-001、EVAL-002、UPSTREAM-001 | 仅评测专用离线 H runner 的 regression paired 诊断、H v1 不推广决定、Phase 0 报告和 allowlist；未来 Gate 规则延期，不创建产品 Harness 状态机 |
 | P1-T01 | PROFILE-001–003、QS-001、CTX-001 | Profile registry 与 QualitySpec 合同实现 |
 | P1-T02 | DATA-001、DATA-003、AUTH-001、SAFE-001 | Schema adapter 与迁移回滚 |
 | P1-T03 | DATA-002、DATA-003、DEFER-001 | FTS 投影与重建 |

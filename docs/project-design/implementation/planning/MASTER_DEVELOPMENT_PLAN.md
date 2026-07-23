@@ -1,6 +1,6 @@
 # Harness Novel 总体开发计划
 
-> 状态：部分实施；截至 2026-07-22，P0-T09 有受限 live cohort 和工程门禁证据，但真实 regression 人工评审为 0/24，Phase 0 与 Phase 1 均为 `NOT-ENOUGH-DATA / BLOCKED`，详见 `../evaluation/PHASE_0_BASELINE_REPORT.md`。
+> 状态（2026-07-23）：P1-T01–P1-T07 可按各自工程门禁开始；质量结论仍为 `INCONCLUSIVE`，H v1 不推广，发布尚未就绪。0/24 正式人工评审、tidy 分类失败和 `GO-2026-5970` 继续独立记录，详见 `../evaluation/PHASE_0_BASELINE_REPORT.md` 与 `RISK_AND_DECISION_REGISTER.md` 的 FD-011。
 > 制定日期：2026-07-21
 > 唯一工程仓库：`D:\vibe\harness novel`
 > 当前分支：`feat/quality-harness-foundation`
@@ -86,7 +86,7 @@ Harness Novel 的产品目标是提高优秀网文的产出概率。自动化数
 
 ### Phase 0：工程基线、质量基线与 Skills 盘点
 
-**目标：**在不实现 Harness 产品业务闭环前，冻结可复现的工程、质量、来源与决策基线。P0-T09 可实现一个版本化、评测专用、离线的 Harness runner，用于取得真实 S/H 配对证据；它不是产品运行时集成、用户工作流、正式工作区写入、自动发布或第三方脚本执行。
+**目标：**在不实现 Harness 产品业务闭环前，冻结可复现的工程、来源与决策基线，并保存隔离的质量诊断证据。P0-T09 的版本化离线 runner 仅用于评测；未形成有效质量结论时保持 H v1 不推广，但不再阻塞 Phase 1 领域工程。
 
 **任务：**
 
@@ -101,11 +101,11 @@ Harness Novel 的产品目标是提高优秀网文的产出概率。自动化数
 | P0-T07 | 三 Profile 真实任务集、普通单轮基线协议和可重复采样工具 | P0-T04 | 3.0 人日 |
 | P0-T08 | 虾评 Skills 盘点、来源/哈希/权限/Capability 初映射和接入红线 | P0-T04 | 2.0 人日 |
 | P0-T08A | 用户批准的全目录发现/证据增量：公开元数据快照、能力召回、重复/评论证据与双通道短名单；不改写 P0-T08 历史 | P0-T08 | 4.0 人日 |
-| P0-T09 | 评测专用离线 Harness runner 的调优/冻结回归配对 pilot、Phase 0 集成门禁和未来质量门槛冻结 | P0-T02、P0-T06、P0-T07、P0-T08、P0-T08A | 1.5 人日 |
+| P0-T09 | 评测专用离线 Harness runner 的调优/冻结回归配对 pilot、工程门禁事实、H v1 不推广决定与 Phase 0 基线报告；未来质量门槛延期 | P0-T02、P0-T06、P0-T07、P0-T08、P0-T08A | 1.5 人日 |
 
-**交付物：**基线说明、回归测试、三类评测集与单轮结果、虾评来源清单、七类核心 ADR、质量门槛清单。
+**交付物：**基线说明、回归测试、三类评测集与隔离运行证据、虾评来源清单、七类核心 ADR、未建立质量门槛的明确记录和 H v1 不推广决定。
 
-**人员与时间：**单人 17.5 人日，约 3–3.5 周；双人可并行 P0-T02、P0-T07/P0-T08A，约 2.5 周。角色需要 Go/Agent、React 测试、网文评测三类能力，单人承担时不得省略人工评测。
+**人员与时间：**单人 17.5 人日，约 3–3.5 周；双人可并行 P0-T02、P0-T07/P0-T08A，约 2.5 周。角色需要 Go/Agent、React 测试和网文评测能力；评测资源不足时如实保留质量缺口，不得让固定人工配额永久阻塞无关工程。
 
 **退出条件：**
 
@@ -114,7 +114,7 @@ Harness Novel 的产品目标是提高优秀网文的产出概率。自动化数
 - 三 Profile 均有版本化任务集、普通单轮输出和盲评协议；P0-T09 的离线 runner 仅以 tuning shakeout 后的冻结 regression paired pilot 取得证据，全部 `release_holdout` 仍只保留元数据/hash。
 - ADR-WS-001、ADR-QS-001、ADR-PROFILE-001、ADR-CS-001、ADR-RI-001、ADR-PM-001、ADR-AF-001 均为 `Accepted`。
 - 后续所有核心模块都有真实接入路径；不存在依赖虚构接口的任务。
-- P0-T09 仅从真实 regression pilot 与人工评审方差冻结未来样本量和非劣规则；这不构成 Phase 2/3/5 质量 PASS，未冻结时禁止进入对外质量声明。
+- `quality-gate-v1.json` 保持缺失，不虚构样本量或非劣规则；这不阻止 Phase 1 工程，但禁止对外质量声明和 H v1 产品化。
 
 ### Phase 1：创作领域与质量基础
 
@@ -122,7 +122,7 @@ Harness Novel 的产品目标是提高优秀网文的产出概率。自动化数
 
 | Task ID | 交付物 | 依赖 | 估算 |
 |---|---|---|---:|
-| P1-T01 | `Profile` 注册表、`QualitySpec` 组合/校验/版本合同 | P0-T04、P0-T09 | 2–3 人日 |
+| P1-T01 | `Profile` 注册表、`QualitySpec` 组合/校验/版本合同 | P0-T04、FD-011 | 2–3 人日 |
 | P1-T02 | Workspace Schema v1 适配器、分区校验、迁移预览/备份/回滚 | P0-T03、P0-T06 | 3–4 人日 |
 | P1-T03 | SQLite/FTS 可重建投影、手改失效检测和重建命令 | P1-T02、ADR-PROJECTION-001 | 3–4 人日 |
 | P1-T04 | CandidateSet、ReviewIssue、PreferenceMemory 文件仓储与版本迁移 | P0-T05、P0-T06、P1-T02 | 2–3 人日 |
@@ -213,18 +213,19 @@ Harness Novel 的产品目标是提高优秀网文的产出概率。自动化数
 ```mermaid
 flowchart LR
     P0B["P0-T01/T02 工程基线"] --> ADR["P0-T03..T06 核心 ADR"]
-    P0B --> EVAL["P0-T07 质量基线"]
+    P0B --> EVAL["P0-T07/P0-T09 质量诊断证据"]
     ADR --> DOMAIN["P1 领域与文件真源"]
-    EVAL --> GATE0["P0-T09 门槛冻结"]
     DOMAIN --> LONG["P2 长篇闭环"]
-    GATE0 --> LONG
-    LONG --> SHORT["P3 双短篇与 Skills 生命周期"]
+    EVAL --> NOPROMOTE["H v1 不推广"]
+    NOPROMOTE -.约束.-> LONG
+    LONG --> QGATE["P2-T09 真实产品质量证据"]
+    QGATE --> SHORT["P3 双短篇与 Skills 生命周期"]
     SHORT --> MVP["M3 三 Profile MVP"]
     MVP --> UX["P4 UX 与 Tauri"]
     UX --> BETA["P5 可靠性与 Beta"]
 ```
 
-真正关键路径是：Author Finalization/真源 ADR → Workspace Schema → 领域对象 → Harness 状态机 → 长篇闭环 → 两个短篇 Profile → 三 Profile 盲评 → Tauri → Beta。Skills 盘点、评测任务集和前端骨架可并行，但不能绕过上述依赖提前宣布 MVP。
+真正关键路径是：Author Finalization/真源 ADR → Workspace Schema → 领域对象 → 真实长篇创作闭环 → 两个短篇 Profile → 三 Profile 质量证据 → Tauri → Beta。P0 诊断评测不再位于 Phase 1 入口；多候选、审稿或 Harness 状态机必须在真实创作中证明必要性后推进，且不能绕过质量与发布证据提前宣布 MVP。
 
 ## 7. MVP、v1 与延期范围
 
