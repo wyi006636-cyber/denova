@@ -40,11 +40,14 @@ func collectVersionFiles(root, base string) ([]versionFileData, error) {
 			return nil
 		}
 		relSlash := filepath.ToSlash(rel)
-		if isVersionExcludedRelPath(relSlash) {
-			if entry.IsDir() {
+		policy := versionPolicyForRelPath(relSlash)
+		if policy.excluded {
+			if entry.IsDir() && policy.excludesDescendants {
 				return filepath.SkipDir
 			}
-			return nil
+			if !entry.IsDir() {
+				return nil
+			}
 		}
 		if entry.IsDir() {
 			return nil
@@ -106,29 +109,62 @@ func isTextBytes(data []byte) bool {
 }
 
 func isVersionExcludedRelPath(relPath string) bool {
-	cleanRel := filepath.ToSlash(filepath.Clean(filepath.FromSlash(relPath)))
-	return cleanRel == ".git" || strings.HasPrefix(cleanRel, ".git/") ||
-		cleanRel == workspacepath.CurrentRel("runs") || strings.HasPrefix(cleanRel, workspacepath.CurrentRel("runs")+"/") ||
-		cleanRel == workspacepath.LegacyRel("runs") || strings.HasPrefix(cleanRel, workspacepath.LegacyRel("runs")+"/") ||
-		cleanRel == workspacepath.CurrentRel("changes") || strings.HasPrefix(cleanRel, workspacepath.CurrentRel("changes")+"/") ||
-		cleanRel == workspacepath.LegacyRel("changes") || strings.HasPrefix(cleanRel, workspacepath.LegacyRel("changes")+"/") ||
-		cleanRel == workspacepath.CurrentRel("reviews") || strings.HasPrefix(cleanRel, workspacepath.CurrentRel("reviews")+"/") ||
-		cleanRel == workspacepath.LegacyRel("reviews") || strings.HasPrefix(cleanRel, workspacepath.LegacyRel("reviews")+"/") ||
-		cleanRel == workspacepath.CurrentRel("interactive") || strings.HasPrefix(cleanRel, workspacepath.CurrentRel("interactive")+"/") ||
-		cleanRel == workspacepath.LegacyRel("interactive") || strings.HasPrefix(cleanRel, workspacepath.LegacyRel("interactive")+"/")
+	return versionPolicyForRelPath(relPath).excluded
 }
 
-func versionProtectedExcludedDirs() []string {
-	return []string{
-		workspacepath.CurrentRel("runs"),
-		workspacepath.LegacyRel("runs"),
-		workspacepath.CurrentRel("changes"),
-		workspacepath.LegacyRel("changes"),
-		workspacepath.CurrentRel("reviews"),
-		workspacepath.LegacyRel("reviews"),
-		workspacepath.CurrentRel("interactive"),
-		workspacepath.LegacyRel("interactive"),
+type versionPathPolicy struct {
+	excluded            bool
+	excludesDescendants bool
+}
+
+func versionPolicyForRelPath(relPath string) versionPathPolicy {
+	cleanRel := filepath.ToSlash(filepath.Clean(filepath.FromSlash(relPath)))
+	excludeTree := func(root string) (versionPathPolicy, bool) {
+		if cleanRel == root || strings.HasPrefix(cleanRel, root+"/") {
+			return versionPathPolicy{excluded: true, excludesDescendants: true}, true
+		}
+		return versionPathPolicy{}, false
 	}
+	for _, root := range []string{".git", ".denova-migration", ".nova-migration"} {
+		if policy, matched := excludeTree(root); matched {
+			return policy
+		}
+	}
+	for _, dataRoot := range []string{workspacepath.DataDirName, workspacepath.LegacyDataDirName} {
+		for _, name := range []string{"runs", "checkpoints", "sessions", "backups", "messages", "changes", "reviews", "interactive"} {
+			if policy, matched := excludeTree(dataRoot + "/" + name); matched {
+				return policy
+			}
+		}
+		if cleanRel == dataRoot+"/automations/inbox.json" {
+			return versionPathPolicy{excluded: true}
+		}
+	}
+	for _, root := range []string{
+		workspacepath.CurrentRel("quality", "runs"),
+		workspacepath.CurrentRel("cache"),
+		workspacepath.CurrentRel("quality", "projections"),
+	} {
+		if policy, matched := excludeTree(root); matched {
+			return policy
+		}
+	}
+	if cleanRel == workspacepath.CurrentRel("index.db") || isCurrentVersionIndexSidecar(cleanRel) || isRootVersionMigrationTemp(cleanRel) {
+		return versionPathPolicy{excluded: true}
+	}
+	return versionPathPolicy{}
+}
+
+func isCurrentVersionIndexSidecar(relPath string) bool {
+	prefix := workspacepath.CurrentRel("index.db-")
+	return strings.HasPrefix(relPath, prefix) && !strings.ContainsRune(strings.TrimPrefix(relPath, workspacepath.DataDirName+"/"), '/')
+}
+
+func isRootVersionMigrationTemp(relPath string) bool {
+	if strings.ContainsRune(relPath, '/') || !strings.HasSuffix(relPath, ".tmp") {
+		return false
+	}
+	return strings.HasPrefix(relPath, ".denova-migrate-") || strings.HasPrefix(relPath, ".nova-migrate-")
 }
 
 func safeVisiblePath(workspace, relPath string) (string, error) {

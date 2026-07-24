@@ -3,6 +3,7 @@ module denova
 go 1.26.5
 
 require (
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/PuerkitoBio/goquery v1.12.0
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/cloudwego/eino v0.9.9

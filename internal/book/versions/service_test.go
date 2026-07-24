@@ -67,8 +67,8 @@ func TestGoGitVersionCreateDiffAndRestore(t *testing.T) {
 	if readFile(t, dir, "setting/progress.md") != "进度一" {
 		t.Fatalf("restore should recover deleted progress")
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".nova", "sessions", "internal.txt")); !os.IsNotExist(err) {
-		t.Fatalf("restore should remove .nova content absent from target version, err=%v", err)
+	if got := readFile(t, dir, ".nova/sessions/internal.txt"); got != "内部数据" {
+		t.Fatalf("restore should preserve excluded .nova session data: %q", got)
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".nova", "lore", "items.json")); !os.IsNotExist(err) {
 		t.Fatalf("restore should remove .nova lore content absent from target version, err=%v", err)
