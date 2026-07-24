@@ -17,21 +17,23 @@ import (
 	"denova/internal/agent"
 	"denova/internal/api"
 	"denova/internal/app"
-	"denova/internal/buildinfo"
 	"denova/internal/observability"
 )
 
 func main() {
+	exitCode := runCommand(context.Background(), os.Args[1:], os.Stdout, os.Stderr, runApplication)
+	if exitCode != 0 {
+		os.Exit(exitCode)
+	}
+}
+
+func runApplication() {
 	var (
 		workspace string
 		dev       bool
 		devMode   bool
 		noOpen    bool
 	)
-	if hasVersionArg(os.Args[1:]) {
-		fmt.Println(buildinfo.Version)
-		return
-	}
 	cfg := config.Load()
 	port := defaultPort(cfg)
 	frontendPort := defaultFrontendPort(cfg)
