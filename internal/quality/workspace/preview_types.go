@@ -157,6 +157,8 @@ func (err *PreviewStaleError) Error() string {
 type previewSnapshot struct {
 	Path     string
 	NodeType string
+	Mode     uint32
+	Identity FilesystemIdentity
 	Size     int64
 	SHA256   string
 }

@@ -14,11 +14,17 @@ import (
 type previewNode struct {
 	Path     string
 	NodeType string
+	Mode     uint32
+	Identity FilesystemIdentity
 	Size     int64
 	SHA256   string
 }
 
 func scanWorkspaceNodes(workspace string) ([]previewNode, []PreviewConflict, error) {
+	workspaceIdentity, err := pathFilesystemIdentity(workspace)
+	if err != nil {
+		return nil, nil, &InspectionError{Code: CodeWorkspaceRead, Path: workspace, Field: "workspace.identity", Value: workspace, Message: "workspace filesystem identity cannot be pinned", Err: err}
+	}
 	root, err := os.OpenRoot(workspace)
 	if err != nil {
 		return nil, nil, &InspectionError{Code: CodeWorkspaceRead, Path: workspace, Field: "workspace", Value: workspace, Message: "workspace root handle cannot be opened", Err: err}
@@ -32,11 +38,6 @@ func scanWorkspaceNodes(workspace string) ([]previewNode, []PreviewConflict, err
 		if rel == "." {
 			return nil
 		}
-		if rel == ".git" && entry.IsDir() {
-			nodes = append(nodes, previewNode{Path: rel, NodeType: "directory"})
-			return fs.SkipDir
-		}
-
 		if _, validateErr := ValidateRelativePath(rel, PathOptions{Intent: PathIntentExisting}); validateErr != nil {
 			conflicts = append(conflicts, previewConflictFromError(validateErr, rel, ""))
 			if entry.IsDir() {
@@ -75,7 +76,18 @@ func scanWorkspaceNodes(workspace string) ([]previewNode, []PreviewConflict, err
 			}
 			return nil
 		case info.IsDir():
-			nodes = append(nodes, previewNode{Path: rel, NodeType: "directory"})
+			identity, identityErr := rootEntryFilesystemIdentity(root, rel, info)
+			if identityErr != nil {
+				return identityErr
+			}
+			nodes = append(nodes, previewNode{Path: rel, NodeType: "directory", Mode: uint32(info.Mode().Perm()), Identity: identity})
+			if identity.Volume != workspaceIdentity.Volume {
+				conflicts = append(conflicts, PreviewConflict{Code: CodePreviewReparsePoint, Path: rel, Field: "source.filesystem", Value: identity.Volume, Message: "mount points and filesystem-boundary traversal require explicit authorization"})
+				return fs.SkipDir
+			}
+			if rel == ".git" {
+				return fs.SkipDir
+			}
 			canonical, canonicalErr := ResolveCanonicalPath(workspace, rel, CanonicalOptions{})
 			if canonicalErr != nil {
 				conflicts = append(conflicts, previewConflictFromError(canonicalErr, rel, ""))
@@ -94,10 +106,17 @@ func scanWorkspaceNodes(workspace string) ([]previewNode, []PreviewConflict, err
 			}
 			return nil
 		case info.Mode().IsRegular():
+			identity, identityErr := rootEntryFilesystemIdentity(root, rel, info)
+			if identityErr != nil {
+				return identityErr
+			}
+			if identity.Volume != workspaceIdentity.Volume {
+				conflicts = append(conflicts, PreviewConflict{Code: CodePreviewReparsePoint, Path: rel, Field: "source.filesystem", Value: identity.Volume, Message: "file crosses the pinned workspace filesystem boundary"})
+			}
 			canonical, canonicalErr := ResolveCanonicalPath(workspace, rel, CanonicalOptions{})
 			if canonicalErr != nil {
 				conflicts = append(conflicts, previewConflictFromError(canonicalErr, rel, ""))
-				nodes = append(nodes, previewNode{Path: rel, NodeType: string(PreviewNodeFile), Size: info.Size()})
+				nodes = append(nodes, previewNode{Path: rel, NodeType: string(PreviewNodeFile), Mode: uint32(info.Mode().Perm()), Identity: identity, Size: info.Size()})
 				return nil
 			}
 			logicalPath := filepath.Join(workspace, filepath.FromSlash(rel))
@@ -115,12 +134,12 @@ func scanWorkspaceNodes(workspace string) ([]previewNode, []PreviewConflict, err
 				var pathErr *PathError
 				if errors.As(hashErr, &pathErr) {
 					conflicts = append(conflicts, previewConflictFromError(hashErr, rel, ""))
-					nodes = append(nodes, previewNode{Path: rel, NodeType: string(PreviewNodeFile), Size: size, SHA256: hash})
+					nodes = append(nodes, previewNode{Path: rel, NodeType: string(PreviewNodeFile), Mode: uint32(info.Mode().Perm()), Identity: identity, Size: size, SHA256: hash})
 					return nil
 				}
 				return hashErr
 			}
-			nodes = append(nodes, previewNode{Path: rel, NodeType: string(PreviewNodeFile), Size: size, SHA256: hash})
+			nodes = append(nodes, previewNode{Path: rel, NodeType: string(PreviewNodeFile), Mode: uint32(info.Mode().Perm()), Identity: identity, Size: size, SHA256: hash})
 			if changed {
 				conflicts = append(conflicts, PreviewConflict{
 					Code:    CodePreviewSourceChanged,

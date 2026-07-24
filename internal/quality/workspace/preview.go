@@ -357,7 +357,7 @@ func previewVersionChange(before, after VersionDisposition) VersionPolicyChange 
 func previewSnapshots(nodes []previewNode) []previewSnapshot {
 	snapshots := make([]previewSnapshot, 0, len(nodes))
 	for _, node := range nodes {
-		snapshots = append(snapshots, previewSnapshot{Path: node.Path, NodeType: node.NodeType, Size: node.Size, SHA256: node.SHA256})
+		snapshots = append(snapshots, previewSnapshot{Path: node.Path, NodeType: node.NodeType, Mode: node.Mode, Identity: node.Identity, Size: node.Size, SHA256: node.SHA256})
 	}
 	return snapshots
 }
