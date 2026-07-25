@@ -132,6 +132,15 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 			}
 			continue
 		}
+		if frame.Kind == yanzhouprotocol.KindRunCancel {
+			runID, decodeErr := runCancelRunID(frame.Payload)
+			if !writingHarnessNegotiated || decodeErr != nil || writingRuntime.CancelRun(runID) != nil {
+				if err := writeRuntimeError(stdout, frame, "run_cancel_rejected"); err != nil {
+					return err
+				}
+			}
+			continue
+		}
 		if frame.Kind == yanzhouprotocol.KindRunStart {
 			planMode, decodeErr := runStartPlanMode(frame.Payload)
 			switch {
@@ -172,6 +181,21 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 			}
 		}
 	}
+}
+
+func runCancelRunID(payload json.RawMessage) (string, error) {
+	var value struct {
+		RunID string `json:"runId"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&value); err != nil || strings.TrimSpace(value.RunID) == "" {
+		return "", errors.New("run.cancel runId is invalid")
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return "", errors.New("run.cancel payload is invalid")
+	}
+	return value.RunID, nil
 }
 
 func runStartPlanMode(payload json.RawMessage) (bool, error) {

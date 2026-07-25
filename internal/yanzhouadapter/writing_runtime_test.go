@@ -9,10 +9,17 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"denova/internal/yanzhouprotocol"
 )
+
+type writingRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (roundTrip writingRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return roundTrip(request)
+}
 
 func writingRunPayload(t *testing.T, baseURL string, entrypoint string) json.RawMessage {
 	t.Helper()
@@ -318,6 +325,63 @@ func TestWritingFrameRuntimeAcceptsValidatedSkillSelectionAndProjectsItIntoTheMo
 	var output bytes.Buffer
 	if err := runtime.HandleFrame(context.Background(), frame, &output); err != nil {
 		t.Fatalf("HandleFrame rejected validated Skill selection: %v", err)
+	}
+}
+
+func TestWritingFrameRuntimeCancelInterruptsTheExistingRunAndPreservesItsTerminal(t *testing.T) {
+	started := make(chan struct{})
+	client := &http.Client{Transport: writingRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		close(started)
+		<-request.Context().Done()
+		return nil, request.Context().Err()
+	})}
+
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, err := NewWritingFrameRuntime(store, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	primeWritingContext(t, runtime, "plan-run-1")
+	frame := yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "request-1", Payload: writingRunPayload(t, "http://fixture.invalid", "agent_chat"),
+	}
+	var output bytes.Buffer
+	done := make(chan error, 1)
+	go func() { done <- runtime.HandleFrame(context.Background(), frame, &output) }()
+
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("writing provider call did not start")
+	}
+	if err := runtime.CancelRun("plan-run-1"); err != nil {
+		t.Fatalf("CancelRun rejected the active run: %v", err)
+	}
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("canceled run returned an infrastructure error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("canceled writing run did not terminate")
+	}
+
+	events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) == 0 || events[len(events)-1].Type != RunEventTypeRunAborted {
+		t.Fatalf("terminal events = %#v, want run.aborted", events)
+	}
+	for _, event := range events {
+		if event.Type == RunEventTypeRunCompleted || event.Type == RunEventTypeRunFailed {
+			t.Fatalf("cancel emitted conflicting terminal %s", event.Type)
+		}
 	}
 }
 

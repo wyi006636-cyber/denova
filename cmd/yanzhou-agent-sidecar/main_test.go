@@ -162,4 +162,87 @@ func TestRunDispatchesBothEntrypointsThroughNegotiatedWritingHarnesses(t *testin
 	}
 }
 
+func TestRunRoutesExistingCancelToWritingRuntimeAndEmitsOneAbortedTerminal(t *testing.T) {
+	providerCalls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		providerCalls++
+		<-request.Context().Done()
+	}))
+	defer server.Close()
+
+	t.Setenv(bootstrapTokenEnv, "wp8-cancel-token")
+	t.Setenv("YANZHOU_UPSTREAM_REPOSITORY", "denova")
+	t.Setenv("YANZHOU_UPSTREAM_BASE_SHA", "a"+strings.Repeat("1", 39))
+	t.Setenv("YANZHOU_ADAPTER_COMMIT_SHA", "b"+strings.Repeat("2", 39))
+	t.Setenv("YANZHOU_SOURCE_TREE_SHA", "c"+strings.Repeat("3", 39))
+	t.Setenv("YANZHOU_BINARY_SHA256", strings.Repeat("d", 64))
+	t.Setenv("YANZHOU_SKILLS_MANIFEST_SHA", strings.Repeat("e", 64))
+	t.Setenv("YANZHOU_BUILT_AT", "2026-07-25T00:00:00Z")
+
+	var input bytes.Buffer
+	handshakePayload, _ := json.Marshal(yanzhouprotocol.HandshakeRequest{
+		ProtocolVersion: yanzhouprotocol.ProtocolVersion, ClientBuild: "wp8-test",
+		WorkspaceSchema: "yanzhou-book/1", BootstrapToken: "wp8-cancel-token",
+		RequestedFeatures: []string{"handshake", "writing-harness"},
+	})
+	writeInputFrame(t, &input, yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindHandshakeRequest, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "handshake-cancel", Payload: handshakePayload})
+	payload := sidecarWritingPayload(t, server.URL, "run-cancel", "agent_chat", "novel-lite", 1)
+	writeInputFrame(t, &input, yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-run-cancel", Payload: payload})
+	writeInputFrame(t, &input, yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindToolResponse, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "tool-run-cancel-context", RunID: "run-cancel", Seq: 1,
+		Payload: sidecarContextResponsePayload(t),
+	})
+	cancelPayload, _ := json.Marshal(map[string]string{"runId": "run-cancel"})
+	writeInputFrame(t, &input, yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindRunCancel, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "cancel-run-cancel", Payload: cancelPayload,
+	})
+
+	var output bytes.Buffer
+	if err := run(context.Background(), []string{"--runtime-root", t.TempDir()}, &input, &output); err != nil {
+		t.Fatal(err)
+	}
+	reader := yanzhouprotocol.NewReader(&output, yanzhouprotocol.DefaultMaxFrameBytes)
+	terminals := []string{}
+	for {
+		frame, err := reader.ReadFrame()
+		if err != nil {
+			break
+		}
+		if frame.Kind == yanzhouprotocol.KindRuntimeError {
+			t.Fatalf("cancel produced runtime.error: %s", frame.Payload)
+		}
+		if frame.Kind != yanzhouprotocol.KindRunEvent {
+			continue
+		}
+		var event struct {
+			Type string `json:"type"`
+		}
+		if err := json.Unmarshal(frame.Payload, &event); err != nil {
+			t.Fatal(err)
+		}
+		if strings.HasPrefix(event.Type, "run.") && event.Type != "run.started" {
+			terminals = append(terminals, event.Type)
+		}
+	}
+	if strings.Join(terminals, ",") != "run.aborted" {
+		t.Fatalf("terminals = %#v, want one run.aborted", terminals)
+	}
+	if providerCalls != 0 {
+		t.Fatalf("provider calls after pending cancel = %d", providerCalls)
+	}
+}
+
+func TestRunCancelPayloadIsClosedAndRequiresRunID(t *testing.T) {
+	for _, payload := range []string{`{}`, `{"runId":""}`, `{"runId":"run-1","extra":true}`, `{"runId":"run-1"} trailing`} {
+		if _, err := runCancelRunID(json.RawMessage(payload)); err == nil {
+			t.Fatalf("invalid cancel payload was accepted: %s", payload)
+		}
+	}
+	if runID, err := runCancelRunID(json.RawMessage(`{"runId":"run-1"}`)); err != nil || runID != "run-1" {
+		t.Fatalf("valid cancel = %q, %v", runID, err)
+	}
+}
+
 func TestMain(m *testing.M) { os.Exit(m.Run()) }

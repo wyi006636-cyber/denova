@@ -33,7 +33,8 @@ var writingCapabilityKinds = map[string]string{
 }
 
 type writingRuntimeState struct {
-	runID string
+	runID  string
+	cancel context.CancelFunc
 }
 
 // WritingFrameRuntime consumes the existing run.start frame for non-Plan writing.
@@ -47,6 +48,7 @@ type WritingFrameRuntime struct {
 	idempotency        map[string]string
 	pendingResponses   map[string]chan yanzhouprotocol.Envelope
 	earlyToolResponses map[string]yanzhouprotocol.Envelope
+	pendingCancels     map[string]struct{}
 }
 
 func NewWritingFrameRuntime(store RuntimeEventStore, client *http.Client) (*WritingFrameRuntime, error) {
@@ -61,7 +63,34 @@ func NewWritingFrameRuntime(store RuntimeEventStore, client *http.Client) (*Writ
 		runs: map[string]writingRuntimeState{}, idempotency: map[string]string{},
 		pendingResponses:   map[string]chan yanzhouprotocol.Envelope{},
 		earlyToolResponses: map[string]yanzhouprotocol.Envelope{},
+		pendingCancels:     map[string]struct{}{},
 	}, nil
+}
+
+// CancelRun consumes the existing run.cancel authority. It only cancels model/tool
+// work; the runtime still emits the single durable run.aborted terminal itself.
+func (runtime *WritingFrameRuntime) CancelRun(runID string) error {
+	if runtime == nil || !validPlanSchemaID(runID) {
+		return errors.New("writing run cancel is invalid")
+	}
+	runtime.mu.Lock()
+	state, active := runtime.runs[runID]
+	if active {
+		cancel := state.cancel
+		runtime.mu.Unlock()
+		if cancel == nil {
+			return errors.New("writing run cancel is unavailable")
+		}
+		cancel()
+		return nil
+	}
+	if len(runtime.pendingCancels) >= 128 {
+		runtime.mu.Unlock()
+		return errors.New("writing run cancel buffer is full")
+	}
+	runtime.pendingCancels[runID] = struct{}{}
+	runtime.mu.Unlock()
+	return nil
 }
 
 type writingContextSection struct {
@@ -205,23 +234,10 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	if err := frame.Validate(); err != nil || frame.Kind != yanzhouprotocol.KindRunStart {
 		return errors.New("writing frame is invalid")
 	}
-	runtime.mu.Lock()
-	defer runtime.mu.Unlock()
 	var request planRunRequest
 	if err := decodeStrictPlanJSON(frame.Payload, yanzhouprotocol.DefaultMaxFrameBytes, &request); err != nil || validateWritingRunRequest(request, frame.RequestID) != nil {
 		return errors.New("writing run request is invalid")
 	}
-	if existing, ok := runtime.idempotency[request.IdempotencyKey]; ok {
-		if existing != request.RunID {
-			return errors.New("writing run idempotency conflict")
-		}
-		return nil
-	}
-	if _, exists := runtime.runs[request.RunID]; exists {
-		return errors.New("writing run already exists")
-	}
-	runtime.runs[request.RunID] = writingRuntimeState{runID: request.RunID}
-	runtime.idempotency[request.IdempotencyKey] = request.RunID
 	profile, err := writingHarnessProfile(request.HarnessProfile)
 	if err != nil {
 		return err
@@ -231,13 +247,41 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 		wallTime = profile.Budget.MaxWallTimeMS
 	}
 	runCtx, cancel := context.WithTimeout(ctx, time.Duration(wallTime)*time.Millisecond)
-	defer cancel()
+	runtime.mu.Lock()
+	if existing, ok := runtime.idempotency[request.IdempotencyKey]; ok {
+		runtime.mu.Unlock()
+		cancel()
+		if existing != request.RunID {
+			return errors.New("writing run idempotency conflict")
+		}
+		return nil
+	}
+	if _, exists := runtime.runs[request.RunID]; exists {
+		runtime.mu.Unlock()
+		cancel()
+		return errors.New("writing run already exists")
+	}
+	runtime.runs[request.RunID] = writingRuntimeState{runID: request.RunID, cancel: cancel}
+	runtime.idempotency[request.IdempotencyKey] = request.RunID
+	_, cancelPending := runtime.pendingCancels[request.RunID]
+	delete(runtime.pendingCancels, request.RunID)
+	runtime.mu.Unlock()
+	defer func() {
+		cancel()
+		runtime.mu.Lock()
+		delete(runtime.runs, request.RunID)
+		runtime.mu.Unlock()
+	}()
 
 	if _, err := EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunStarted, Payload: map[string]any{
 		"sessionId": request.SessionID, "agentKind": request.AgentKind, "entrypoint": request.Entrypoint,
 		"capabilityId": request.CapabilityID, "harnessProfile": request.HarnessProfile,
 	}}); err != nil {
 		return err
+	}
+	if cancelPending {
+		cancel()
+		return runtime.emitCancelled(ctx, output, request, nil)
 	}
 	if _, err := EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolRequested, Payload: map[string]any{
 		"toolId": "story.get_target", "agentId": "primary-writer",
@@ -246,6 +290,9 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	}
 	contextText, err := runtime.requestWritingContext(runCtx, output, request)
 	if err != nil {
+		if errors.Is(runCtx.Err(), context.Canceled) {
+			return runtime.emitCancelled(ctx, output, request, nil)
+		}
 		_, terminalErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunFailed, Payload: map[string]any{
 			"schemaVersion": "1", "reason": "tool_error", "resumable": false, "partialArtifactRefs": []string{},
 		}})
@@ -306,6 +353,9 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 		response, callErr := runtime.callModel(runCtx, request, stage, artifacts, contextText)
 		modelCalls++
 		if callErr != nil {
+			if errors.Is(runCtx.Err(), context.Canceled) {
+				return runtime.emitCancelled(ctx, output, request, artifacts)
+			}
 			_, terminalErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunFailed, Payload: map[string]any{
 				"schemaVersion": "1", "reason": "provider_error", "resumable": false, "partialArtifactRefs": writingArtifactIDs(artifacts),
 			}})
@@ -343,6 +393,13 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	}
 	_, err = EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunCompleted, Payload: map[string]any{
 		"schemaVersion": "1", "reason": "completed", "resumable": false, "partialArtifactRefs": writingArtifactIDs(artifacts),
+	}})
+	return err
+}
+
+func (runtime *WritingFrameRuntime) emitCancelled(ctx context.Context, output io.Writer, request planRunRequest, artifacts []writingRuntimeArtifact) error {
+	_, err := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunAborted, Payload: map[string]any{
+		"schemaVersion": "1", "reason": "cancelled", "resumable": false, "partialArtifactRefs": writingArtifactIDs(artifacts),
 	}})
 	return err
 }
