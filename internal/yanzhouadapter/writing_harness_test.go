@@ -95,14 +95,18 @@ func TestWritingHarnessScopeAndSkillEvidenceFailClosed(t *testing.T) {
 	checksum := "sha256:" + strings.Repeat("a", 64)
 	receipt := SkillLoadReceipt{SchemaVersion: "1", ID: "group-plan", Revision: 1, Checksum: checksum, Source: SkillSourceBuiltin}
 	snapshot := SkillSnapshot{SchemaVersion: "1", RunID: "run-1", Skills: []SkillLoadReceipt{receipt}}
-	resolution, err := ResolveWritingHarnessSkill(WritingHarnessSkillEvidence{RunID: "run-1", SkillID: "group-plan", CapabilityID: "outline.volume.create", ScopeKind: HarnessScopeNChapters, LoadReceipt: receipt, SkillSnapshot: snapshot})
+	catalog := WritingHarnessCatalogEntry{ID: "outline.volume.create", CompatibleSkills: []string{"group-plan"}}
+	resolution, err := ResolveWritingHarnessSkill(WritingHarnessSkillEvidence{RunID: "run-1", SkillID: "group-plan", CapabilityID: "outline.volume.create", ScopeKind: HarnessScopeNChapters, CatalogEntry: catalog, LoadReceipt: receipt, SkillSnapshot: snapshot})
 	if err != nil || resolution.CapabilityID != "outline.volume.create" {
 		t.Fatalf("group-plan resolution failed: resolution=%+v err=%v", resolution, err)
 	}
 	for _, evidence := range []WritingHarnessSkillEvidence{
 		{SkillID: "continue"},
-		{RunID: "run-1", SkillID: "group-plan", CapabilityID: "outline.volume.create", ScopeKind: HarnessScopeChapter, LoadReceipt: receipt, SkillSnapshot: snapshot},
-		{RunID: "run-1", SkillID: "chapter-illustration", CapabilityID: "chapter.continue", ScopeKind: HarnessScopeChapter, LoadReceipt: receipt, SkillSnapshot: snapshot},
+		{RunID: "run-1", SkillID: "group-plan", CapabilityID: "outline.volume.create", ScopeKind: HarnessScopeNChapters, LoadReceipt: receipt, SkillSnapshot: snapshot},
+		{RunID: "run-1", SkillID: "group-plan", CapabilityID: "outline.volume.create", ScopeKind: HarnessScopeNChapters, CatalogEntry: WritingHarnessCatalogEntry{ID: "outline.main.create", CompatibleSkills: []string{"group-plan"}}, LoadReceipt: receipt, SkillSnapshot: snapshot},
+		{RunID: "run-1", SkillID: "group-plan", CapabilityID: "outline.volume.create", ScopeKind: HarnessScopeNChapters, CatalogEntry: WritingHarnessCatalogEntry{ID: "outline.volume.create", CompatibleSkills: []string{"outline"}}, LoadReceipt: receipt, SkillSnapshot: snapshot},
+		{RunID: "run-1", SkillID: "group-plan", CapabilityID: "outline.volume.create", ScopeKind: HarnessScopeChapter, CatalogEntry: catalog, LoadReceipt: receipt, SkillSnapshot: snapshot},
+		{RunID: "run-1", SkillID: "chapter-illustration", CapabilityID: "chapter.continue", ScopeKind: HarnessScopeChapter, CatalogEntry: WritingHarnessCatalogEntry{ID: "chapter.continue", CompatibleSkills: []string{"chapter-illustration"}}, LoadReceipt: receipt, SkillSnapshot: snapshot},
 	} {
 		if _, err := ResolveWritingHarnessSkill(evidence); err == nil {
 			t.Fatalf("invalid Skill evidence unexpectedly passed: %+v", evidence)

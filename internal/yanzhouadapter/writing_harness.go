@@ -275,8 +275,14 @@ type WritingHarnessSkillEvidence struct {
 	SkillID       string
 	CapabilityID  string
 	ScopeKind     WritingHarnessScopeKind
+	CatalogEntry  WritingHarnessCatalogEntry
 	LoadReceipt   SkillLoadReceipt
 	SkillSnapshot SkillSnapshot
+}
+
+type WritingHarnessCatalogEntry struct {
+	ID               string   `json:"id"`
+	CompatibleSkills []string `json:"compatibleSkills"`
 }
 
 type WritingHarnessSkillResolution struct {
@@ -295,8 +301,18 @@ var midWritingSkillCapabilities = map[string][]string{
 
 func ResolveWritingHarnessSkill(evidence WritingHarnessSkillEvidence) (WritingHarnessSkillResolution, error) {
 	capabilities, known := midWritingSkillCapabilities[evidence.SkillID]
-	if !known || !validPlanSchemaID(evidence.RunID) || !validPlanSchemaID(evidence.CapabilityID) || evidence.LoadReceipt.Validate() != nil || evidence.LoadReceipt.ID != evidence.SkillID || evidence.SkillSnapshot.SchemaVersion != "1" || evidence.SkillSnapshot.RunID != evidence.RunID {
+	if !known || !validPlanSchemaID(evidence.RunID) || !validPlanSchemaID(evidence.CapabilityID) || evidence.CatalogEntry.Validate() != nil || evidence.CatalogEntry.ID != evidence.CapabilityID || evidence.LoadReceipt.Validate() != nil || evidence.LoadReceipt.ID != evidence.SkillID || evidence.SkillSnapshot.SchemaVersion != "1" || evidence.SkillSnapshot.RunID != evidence.RunID {
 		return WritingHarnessSkillResolution{}, fmt.Errorf("WritingHarness Skill evidence is invalid")
+	}
+	catalogAllowsSkill := false
+	for _, skillID := range evidence.CatalogEntry.CompatibleSkills {
+		if skillID == evidence.SkillID {
+			catalogAllowsSkill = true
+			break
+		}
+	}
+	if !catalogAllowsSkill {
+		return WritingHarnessSkillResolution{}, fmt.Errorf("WritingHarness Skill Catalog entry does not authorize the Skill")
 	}
 	allowed := false
 	for _, capability := range capabilities {
@@ -319,6 +335,20 @@ func ResolveWritingHarnessSkill(evidence WritingHarnessSkillEvidence) (WritingHa
 		return WritingHarnessSkillResolution{}, fmt.Errorf("WritingHarness Skill receipt does not match the run snapshot")
 	}
 	return WritingHarnessSkillResolution{SkillID: evidence.SkillID, CapabilityID: evidence.CapabilityID, Receipt: cloneSkillReceipt(evidence.LoadReceipt)}, nil
+}
+
+func (entry WritingHarnessCatalogEntry) Validate() error {
+	if !validPlanSchemaID(entry.ID) || len(entry.CompatibleSkills) == 0 || len(entry.CompatibleSkills) > 64 {
+		return fmt.Errorf("WritingHarness Skill Catalog entry is invalid")
+	}
+	seen := map[string]bool{}
+	for _, skillID := range entry.CompatibleSkills {
+		if !validPlanSchemaID(skillID) || seen[skillID] {
+			return fmt.Errorf("WritingHarness Skill Catalog entry is invalid")
+		}
+		seen[skillID] = true
+	}
+	return nil
 }
 
 type WritingHarnessArtifactProjection struct {
