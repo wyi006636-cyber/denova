@@ -37,7 +37,8 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected positional arguments")
 	}
-	if _, err := prepareRuntimeRoot(*runtimeRoot); err != nil {
+	preparedRuntimeRoot, err := prepareRuntimeRoot(*runtimeRoot)
+	if err != nil {
 		return err
 	}
 
@@ -84,14 +85,66 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 		return fmt.Errorf("write handshake response: %w", err)
 	}
 
-	_, err = reader.ReadFrame()
-	if errors.Is(err, io.EOF) {
-		return nil
+	eventStore, err := yanzhouadapter.NewFileRuntimeEventStore(preparedRuntimeRoot)
+	if err != nil {
+		return fmt.Errorf("open runtime event store: %w", err)
 	}
-	if err == nil {
-		return fmt.Errorf("WP1 sidecar accepts only the bootstrap handshake")
+	defer eventStore.Close()
+	planRuntime, err := yanzhouadapter.NewPlanFrameRuntime(eventStore, nil)
+	if err != nil {
+		return fmt.Errorf("initialize plan runtime: %w", err)
 	}
-	return fmt.Errorf("read post-handshake frame: %w", err)
+	planModeNegotiated := containsFeature(response.SupportedFeatures, "plan-mode")
+	for {
+		frame, err := reader.ReadFrame()
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("read post-handshake frame: %w", err)
+		}
+		if !planModeNegotiated || (frame.Kind != yanzhouprotocol.KindRunStart && frame.Kind != yanzhouprotocol.KindRunResume) {
+			if err := writeRuntimeError(stdout, frame, "feature_not_negotiated"); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := planRuntime.HandleFrame(ctx, frame, stdout); err != nil {
+			if writeErr := writeRuntimeError(stdout, frame, "plan_frame_rejected"); writeErr != nil {
+				return writeErr
+			}
+		}
+	}
+}
+
+func containsFeature(features []string, expected string) bool {
+	for _, feature := range features {
+		if feature == expected {
+			return true
+		}
+	}
+	return false
+}
+
+func writeRuntimeError(output io.Writer, input yanzhouprotocol.Envelope, code string) error {
+	payload, err := json.Marshal(map[string]string{
+		"code":    code,
+		"message": "sidecar frame was rejected",
+	})
+	if err != nil {
+		return fmt.Errorf("encode runtime error: %w", err)
+	}
+	frame := yanzhouprotocol.Envelope{
+		Kind:            yanzhouprotocol.KindRuntimeError,
+		ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID:       input.RequestID,
+		RunID:           input.RunID,
+		Payload:         payload,
+	}
+	if err := yanzhouprotocol.WriteFrame(output, frame); err != nil {
+		return fmt.Errorf("write runtime error: %w", err)
+	}
+	return nil
 }
 
 func prepareRuntimeRoot(root string) (string, error) {

@@ -123,6 +123,9 @@ type deepAgentSpec struct {
 	ExtraTools        []tool.BaseTool
 	ExtraToolsFactory func(config.ResolvedAgentToolSettings) ([]tool.BaseTool, error)
 	ModelOutputGuard  func(context.Context, *adk.RetryContext) *adk.RetryDecision
+	// RunToolSettings is the final run-manifest deny layer for configured
+	// SubAgents. Nil preserves the legacy parent boundary while feature flags are off.
+	RunToolSettings *config.ResolvedAgentToolSettings
 }
 
 func buildDeepAgent(ctx context.Context, cfg *config.Config, spec deepAgentSpec) (adk.Agent, error) {
@@ -356,7 +359,11 @@ func buildConfiguredSubAgent(ctx context.Context, cfg *config.Config, parent dee
 		return nil, fmt.Errorf("创建子 Agent 模型失败 id=%s: %w", sub.ID, err)
 	}
 	subChatModel := providercompat.Wrap(cm, modelCfg)
-	toolSettings := config.ResolveSubAgentTools(parentTools, sub.Tools)
+	runToolSettings := parentTools
+	if parent.RunToolSettings != nil {
+		runToolSettings = *parent.RunToolSettings
+	}
+	toolSettings := config.ResolveSubAgentToolsForRun(parentTools, sub.Tools, runToolSettings)
 	assembly, err := buildChatModelAgentAssembly(ctx, cfg, chatModelAgentAssemblySpec{
 		Kind:              sub.ID,
 		ToolPolicyKind:    parent.Kind,

@@ -185,6 +185,23 @@ func TestResolveSubAgentToolsCapsParentPermissions(t *testing.T) {
 	}
 }
 
+func TestResolveSubAgentToolsForRunRequiresParentChildAndRun(t *testing.T) {
+	on := true
+	parent := ResolvedAgentToolSettings{FileRead: true, LoreRead: true, Skills: true}
+	child := AgentToolOverride{FileRead: &on, LoreRead: &on, Skills: &on}
+	run := ResolvedAgentToolSettings{FileRead: true, LoreRead: false, Skills: true}
+	resolved := ResolveSubAgentToolsForRun(parent, child, run)
+	if !resolved.FileRead || resolved.LoreRead || !resolved.Skills {
+		t.Fatalf("three-way intersection = %#v", resolved)
+	}
+	if got := ResolveSubAgentToolsForRun(ResolvedAgentToolSettings{}, child, run); got.FileRead || got.LoreRead || got.Skills {
+		t.Fatalf("parent deny expanded: %#v", got)
+	}
+	if got := ResolveSubAgentToolsForRun(parent, AgentToolOverride{}, ResolvedAgentToolSettings{}); got.FileRead || got.LoreRead || got.Skills {
+		t.Fatalf("run deny expanded: %#v", got)
+	}
+}
+
 func TestGeneralSubAgentSettingsMergeAndResolve(t *testing.T) {
 	on := true
 	off := false

@@ -229,6 +229,25 @@ func ResolveSubAgentTools(parent ResolvedAgentToolSettings, override AgentToolOv
 	}
 }
 
+// ResolveSubAgentToolsForRun applies the run manifest as a third independent
+// deny layer. No true value can be introduced by a child override or run.
+func ResolveSubAgentToolsForRun(parent ResolvedAgentToolSettings, override AgentToolOverride, run ResolvedAgentToolSettings) ResolvedAgentToolSettings {
+	child := ResolveSubAgentTools(parent, override)
+	return ResolvedAgentToolSettings{
+		FileRead:         child.FileRead && run.FileRead,
+		FileWrite:        child.FileWrite && run.FileWrite,
+		ShellExecute:     child.ShellExecute && run.ShellExecute,
+		Skills:           child.Skills && run.Skills,
+		LoreRead:         child.LoreRead && run.LoreRead,
+		LoreWrite:        child.LoreWrite && run.LoreWrite,
+		Todo:             child.Todo && run.Todo,
+		WebSearch:        child.WebSearch && run.WebSearch,
+		ImageGeneration:  child.ImageGeneration && run.ImageGeneration,
+		AgentConfigRead:  child.AgentConfigRead && run.AgentConfigRead,
+		AgentConfigWrite: child.AgentConfigWrite && run.AgentConfigWrite,
+	}
+}
+
 func mergeSubAgent(parent, child SubAgentConfig) SubAgentConfig {
 	out := parent
 	if child.ID != "" {

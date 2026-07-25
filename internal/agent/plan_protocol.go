@@ -35,6 +35,192 @@ type planProtocolParser struct {
 	successfulBlocks int
 }
 
+// ProtocolPlanBlockKind is the public, transport-neutral plan block kind used
+// by the Yanzhou sidecar adapter. It deliberately does not expose Eino event
+// internals.
+type ProtocolPlanBlockKind string
+
+const (
+	ProtocolPlanBlockQuestions ProtocolPlanBlockKind = "questions"
+	ProtocolPlanBlockProposal  ProtocolPlanBlockKind = "proposal"
+)
+
+// ProtocolPlanBlock is one complete hidden control block extracted from a
+// model stream.
+type ProtocolPlanBlock struct {
+	Kind    ProtocolPlanBlockKind
+	Content string
+}
+
+// ProtocolPlanParseResult separates author-visible prose from hidden control
+// blocks and tells the caller to stop the current model round after success.
+type ProtocolPlanParseResult struct {
+	Visible string
+	Blocks  []ProtocolPlanBlock
+	Stop    bool
+}
+
+// ProtocolPlanStreamParser is a fail-closed parser for the public Yanzhou
+// adapter. The existing display parser below remains responsible for Denova's
+// legacy Event projection.
+type ProtocolPlanStreamParser struct {
+	buffer      strings.Builder
+	block       ProtocolPlanBlockKind
+	blockBuffer strings.Builder
+	stopped     bool
+}
+
+func NewProtocolPlanStreamParser() *ProtocolPlanStreamParser {
+	return &ProtocolPlanStreamParser{}
+}
+
+func (p *ProtocolPlanStreamParser) Stopped() bool {
+	return p != nil && p.stopped
+}
+
+func (p *ProtocolPlanStreamParser) Push(content string) (ProtocolPlanParseResult, error) {
+	if p == nil {
+		return ProtocolPlanParseResult{}, fmt.Errorf("plan stream parser is required")
+	}
+	if p.stopped || content == "" {
+		return ProtocolPlanParseResult{Stop: p.stopped}, nil
+	}
+	p.buffer.WriteString(content)
+	return p.drainProtocol(false)
+}
+
+func (p *ProtocolPlanStreamParser) Flush() (ProtocolPlanParseResult, error) {
+	if p == nil {
+		return ProtocolPlanParseResult{}, fmt.Errorf("plan stream parser is required")
+	}
+	if p.stopped {
+		return ProtocolPlanParseResult{Stop: true}, nil
+	}
+	return p.drainProtocol(true)
+}
+
+func (p *ProtocolPlanStreamParser) drainProtocol(flush bool) (ProtocolPlanParseResult, error) {
+	var visible strings.Builder
+	for {
+		buffer := p.buffer.String()
+		if p.block != "" {
+			closeTag := protocolPlanCloseTag(p.block)
+			if nestedKind, nestedIndex, _ := nextProtocolPlanOpenTag(buffer); nestedIndex >= 0 {
+				if closeIndex := strings.Index(buffer, closeTag); closeIndex < 0 || nestedIndex < closeIndex {
+					p.resetProtocolBlock()
+					return ProtocolPlanParseResult{Visible: visible.String()}, fmt.Errorf("nested plan control block is invalid: %s", nestedKind)
+				}
+			}
+			if index := strings.Index(buffer, closeTag); index >= 0 {
+				p.blockBuffer.WriteString(buffer[:index])
+				content := strings.TrimSpace(p.blockBuffer.String())
+				kind := p.block
+				p.buffer.Reset()
+				p.resetProtocolBlock()
+				if content == "" {
+					return ProtocolPlanParseResult{Visible: visible.String()}, fmt.Errorf("plan control block content is empty")
+				}
+				p.stopped = true
+				return ProtocolPlanParseResult{
+					Visible: visible.String(),
+					Blocks:  []ProtocolPlanBlock{{Kind: kind, Content: content}},
+					Stop:    true,
+				}, nil
+			}
+			if flush {
+				p.buffer.Reset()
+				p.resetProtocolBlock()
+				return ProtocolPlanParseResult{Visible: visible.String()}, fmt.Errorf("plan control block is not closed")
+			}
+			retain := longestPlanTagPrefixSuffix(buffer, []string{closeTag, planQuestionsOpenTag, proposedPlanOpenTag})
+			if len(buffer) > retain {
+				p.blockBuffer.WriteString(buffer[:len(buffer)-retain])
+				p.buffer.Reset()
+				p.buffer.WriteString(buffer[len(buffer)-retain:])
+			}
+			return ProtocolPlanParseResult{Visible: visible.String()}, nil
+		}
+
+		if buffer == "" {
+			return ProtocolPlanParseResult{Visible: visible.String()}, nil
+		}
+		kind, index, openTag := nextProtocolPlanOpenTag(buffer)
+		if index >= 0 {
+			visible.WriteString(buffer[:index])
+			p.buffer.Reset()
+			p.buffer.WriteString(buffer[index+len(openTag):])
+			p.block = kind
+			continue
+		}
+		if flush {
+			visible.WriteString(buffer)
+			p.buffer.Reset()
+			return ProtocolPlanParseResult{Visible: visible.String()}, nil
+		}
+		retain := longestPlanTagPrefixSuffix(buffer, []string{planQuestionsOpenTag, proposedPlanOpenTag})
+		if len(buffer) > retain {
+			visible.WriteString(buffer[:len(buffer)-retain])
+			p.buffer.Reset()
+			p.buffer.WriteString(buffer[len(buffer)-retain:])
+		}
+		return ProtocolPlanParseResult{Visible: visible.String()}, nil
+	}
+}
+
+func (p *ProtocolPlanStreamParser) resetProtocolBlock() {
+	p.block = ""
+	p.blockBuffer.Reset()
+}
+
+func nextProtocolPlanOpenTag(content string) (ProtocolPlanBlockKind, int, string) {
+	legacyKind, index, tag := nextPlanOpenTag(content)
+	switch legacyKind {
+	case planBlockQuestions:
+		return ProtocolPlanBlockQuestions, index, tag
+	case planBlockProposal:
+		return ProtocolPlanBlockProposal, index, tag
+	default:
+		return "", index, tag
+	}
+}
+
+func protocolPlanCloseTag(kind ProtocolPlanBlockKind) string {
+	switch kind {
+	case ProtocolPlanBlockQuestions:
+		return planQuestionsCloseTag
+	case ProtocolPlanBlockProposal:
+		return proposedPlanCloseTag
+	default:
+		return ""
+	}
+}
+
+func ParseProtocolPlanToolCall(name, args string) (ProtocolPlanBlock, bool, error) {
+	legacyKind, handled := planBlockKindForToolName(name)
+	if !handled {
+		return ProtocolPlanBlock{}, false, nil
+	}
+	args = strings.TrimSpace(args)
+	var object map[string]any
+	if args == "" || json.Unmarshal([]byte(args), &object) != nil || object == nil {
+		return ProtocolPlanBlock{}, true, fmt.Errorf("plan tool arguments must be a complete JSON object")
+	}
+	kind := ProtocolPlanBlockQuestions
+	content := args
+	if legacyKind == planBlockProposal {
+		kind = ProtocolPlanBlockProposal
+		// V2 proposals are closed structured objects. Preserve the complete object
+		// instead of letting the legacy markdown wrapper extract its summary field.
+		if _, structured := object["schemaVersion"]; !structured {
+			content = strings.TrimSpace(extractProposedPlanToolContent(args))
+		}
+		if content == "" {
+			return ProtocolPlanBlock{}, true, fmt.Errorf("proposed plan tool content is empty")
+		}
+	}
+	return ProtocolPlanBlock{Kind: kind, Content: content}, true, nil
+}
+
 func newPlanProtocolParser(meta agentEventMetadata, emit func(Event)) *planProtocolParser {
 	if emit == nil {
 		emit = func(Event) {}

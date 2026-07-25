@@ -36,3 +36,20 @@ func TestComposeAgentInputAddsWritingSkillLoadHintWithoutSkillBody(t *testing.T)
 		}
 	}
 }
+
+func TestWritingSkillLoadsOnlyForProseProducingTurns(t *testing.T) {
+	for _, kind := range []WritingTurnKind{WritingTurnDraft, WritingTurnContinue, WritingTurnRewrite, WritingTurnPolish} {
+		request, ok := ResolveWritingSkillForTurn(&config.Config{WritingSkillDefault: "novel-heavy"}, "", kind)
+		if !ok || request.Name != "novel-heavy" || !request.RequireLoadedReceipt {
+			t.Fatalf("turn %q request=%#v ok=%t", kind, request, ok)
+		}
+	}
+	for _, kind := range []WritingTurnKind{WritingTurnPlanning, WritingTurnQuestion, WritingTurnReview} {
+		if request, ok := ResolveWritingSkillForTurn(&config.Config{WritingSkillDefault: "novel-heavy"}, "", kind); ok {
+			t.Fatalf("non-writing turn %q unexpectedly loads %#v", kind, request)
+		}
+	}
+	if _, ok := ResolveWritingSkillForTurn(nil, "novel-standard", WritingTurnKind("unknown")); ok {
+		t.Fatal("unknown turn kind must fail closed")
+	}
+}

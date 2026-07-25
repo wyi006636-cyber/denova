@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 增加 Yanzhou WP4 Plan、Skill、SubAgent 与工具适配层：真实 Sidecar 支持多轮动态 Plan 与分离批准，Skill 摘要/显式加载回执，七个稳定 SubAgent 的三方权限交集，以及 Builder/Orchestrator 双重 default-deny 工具门；不开放作品文件写入。
+- Added the Yanzhou WP4 Plan, Skill, SubAgent, and tool adapter layer: the real sidecar now supports multi-round dynamic planning with separated approvals, summary-only Skill discovery and explicit load receipts, three-way capability narrowing for seven stable SubAgents, and Builder/Orchestrator default-deny tool gates without enabling manuscript writes.
 - 增加 Yanzhou durable runtime 与 context adapter：提供闭合 Run/事件/终态合同、ref-only Context Receipt、可重启 interruption lineage、版本化原子 checkpoint、compaction receipt 与有界 RunLedger；普通事件、会话投影和日志不暴露 raw payload、作品路径或凭证。
 - Added the Yanzhou durable runtime and context adapter with closed run/event/terminal contracts, ref-only context receipts, restart-safe interruption lineage, versioned atomic checkpoints, compaction receipts, and a bounded run ledger; ordinary events, session projections, and logs exclude raw payloads, manuscript paths, and credentials.
 - 增加 Yanzhou 模型适配工厂：严格区分 OpenAI-compatible、Anthropic Messages、Gemini generateContent、Ollama 与 LM Studio，并通过同一跨语言 fixture 归一消息、工具、流、用量、结束原因和脱敏错误。

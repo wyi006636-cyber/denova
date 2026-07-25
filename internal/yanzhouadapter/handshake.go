@@ -8,6 +8,16 @@ import (
 	"denova/internal/yanzhouprotocol"
 )
 
+var sidecarSupportedFeatures = []string{
+	"handshake",
+	"jsonl",
+	"bootstrap-policy",
+	"plan-mode",
+	"skills-v2",
+	"sub-agents",
+	"tool-harness",
+}
+
 func Handshake(request yanzhouprotocol.HandshakeRequest, gate *BootstrapTokenGate, provenance yanzhouprotocol.Provenance, sidecarBuild string) (yanzhouprotocol.HandshakeResponse, error) {
 	if err := request.Validate(); err != nil {
 		return yanzhouprotocol.HandshakeResponse{}, err
@@ -34,7 +44,7 @@ func Handshake(request yanzhouprotocol.HandshakeRequest, gate *BootstrapTokenGat
 		ProtocolVersion:   ProtocolVersion,
 		SidecarBuild:      sidecarBuild,
 		Provenance:        provenance,
-		SupportedFeatures: []string{"handshake", "jsonl", "bootstrap-policy"},
+		SupportedFeatures: negotiateSidecarFeatures(request.RequestedFeatures),
 		AgentKinds:        kinds,
 		MaxFrameBytes:     yanzhouprotocol.DefaultMaxFrameBytes,
 	}
@@ -42,4 +52,18 @@ func Handshake(request yanzhouprotocol.HandshakeRequest, gate *BootstrapTokenGat
 		return yanzhouprotocol.HandshakeResponse{}, err
 	}
 	return response, nil
+}
+
+func negotiateSidecarFeatures(requested []string) []string {
+	requestedSet := make(map[string]struct{}, len(requested))
+	for _, feature := range requested {
+		requestedSet[feature] = struct{}{}
+	}
+	negotiated := make([]string, 0, len(sidecarSupportedFeatures))
+	for _, feature := range sidecarSupportedFeatures {
+		if _, ok := requestedSet[feature]; ok {
+			negotiated = append(negotiated, feature)
+		}
+	}
+	return negotiated
 }

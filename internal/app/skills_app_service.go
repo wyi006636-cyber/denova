@@ -81,7 +81,7 @@ func (s *SkillsAppService) Create(ctx context.Context, scope novaskills.Scope, n
 	if err != nil {
 		return novaskills.Document{}, err
 	}
-	log.Printf("[skills] Skill created scope=%s name=%s path=%s", scope, name, doc.Path)
+	log.Printf("[skills] Skill created scope=%s name=%s", scope, name)
 	return doc, nil
 }
 
@@ -99,7 +99,7 @@ func (s *SkillsAppService) SaveAs(ctx context.Context, scope novaskills.Scope, n
 	if err != nil {
 		return novaskills.Document{}, err
 	}
-	log.Printf("[skills] Skill saved as source_scope=%s source_name=%s target_scope=%s target_name=%s path=%s", scope, name, targetScope, targetName, doc.Path)
+	log.Printf("[skills] Skill saved as source_scope=%s source_name=%s target_scope=%s target_name=%s", scope, name, targetScope, targetName)
 	return doc, nil
 }
 
@@ -146,7 +146,7 @@ func (s *SkillsAppService) InstallGitHub(ctx context.Context, scope novaskills.S
 	if err != nil {
 		return novaskills.InstallResult{}, err
 	}
-	log.Printf("[skills] Skills installed from github scope=%s url=%q count=%d", scope, source.URL, len(result.Installed))
+	log.Printf("[skills] Skills installed from github scope=%s count=%d", scope, len(result.Installed))
 	return result, nil
 }
 
