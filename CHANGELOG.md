@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 工作区变更服务新增单文件替换与一致性快照接缝：在同一变更租约内完成现有 CAS、耐久 ChangeSet 提交和调用方快照；快照失败时仍返回已提交变更，供上层明确报告部分成功。
+- The workspace-change service adds a one-file replacement and consistent-snapshot seam that keeps existing CAS, durable ChangeSet commit, and the caller snapshot under one mutation lease; snapshot failures still return the committed change so callers can report partial success explicitly.
 - 写作模式编辑器查找栏新增替换与正则匹配：可展开替换输入框，支持替换当前匹配或全部替换；开启正则后查找与替换均按正则表达式执行，替换文本支持 `$1` 等捕获组引用。
 - The Writing Mode editor search bar now supports replace and regex matching: expand a replace field to replace the current match or all matches; with regex enabled, both find and replace use regular expressions, and the replacement text supports capture group references like `$1`.
 
