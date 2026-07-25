@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,12 +13,24 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"denova/internal/yanzhouadapter"
 	"denova/internal/yanzhouprotocol"
 )
 
 const bootstrapTokenEnv = "YANZHOU_BOOTSTRAP_TOKEN"
+
+type synchronizedWriter struct {
+	mu     sync.Mutex
+	writer io.Writer
+}
+
+func (writer *synchronizedWriter) Write(value []byte) (int, error) {
+	writer.mu.Lock()
+	defer writer.mu.Unlock()
+	return writer.writer.Write(value)
+}
 
 func main() {
 	logger := log.New(os.Stderr, "yanzhou-agent-sidecar: ", 0)
@@ -28,6 +41,7 @@ func main() {
 }
 
 func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) error {
+	stdout = &synchronizedWriter{writer: stdout}
 	flags := flag.NewFlagSet("yanzhou-agent-sidecar", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	runtimeRoot := flags.String("runtime-root", "", "isolated Yanzhou app-data runtime directory")
@@ -94,7 +108,14 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 	if err != nil {
 		return fmt.Errorf("initialize plan runtime: %w", err)
 	}
+	writingRuntime, err := yanzhouadapter.NewWritingFrameRuntime(eventStore, nil)
+	if err != nil {
+		return fmt.Errorf("initialize writing runtime: %w", err)
+	}
 	planModeNegotiated := containsFeature(response.SupportedFeatures, "plan-mode")
+	writingHarnessNegotiated := containsFeature(response.SupportedFeatures, "writing-harness")
+	var writingRuns sync.WaitGroup
+	defer writingRuns.Wait()
 	for {
 		frame, err := reader.ReadFrame()
 		if errors.Is(err, io.EOF) {
@@ -103,7 +124,43 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 		if err != nil {
 			return fmt.Errorf("read post-handshake frame: %w", err)
 		}
-		if !planModeNegotiated || (frame.Kind != yanzhouprotocol.KindRunStart && frame.Kind != yanzhouprotocol.KindRunResume) {
+		if frame.Kind == yanzhouprotocol.KindToolResponse {
+			if !writingHarnessNegotiated || writingRuntime.HandleToolResponse(frame) != nil {
+				if err := writeRuntimeError(stdout, frame, "tool_response_rejected"); err != nil {
+					return err
+				}
+			}
+			continue
+		}
+		if frame.Kind == yanzhouprotocol.KindRunStart {
+			planMode, decodeErr := runStartPlanMode(frame.Payload)
+			switch {
+			case decodeErr != nil:
+				if err := writeRuntimeError(stdout, frame, "run_start_invalid"); err != nil {
+					return err
+				}
+			case planMode && planModeNegotiated:
+				if err := planRuntime.HandleFrame(ctx, frame, stdout); err != nil {
+					if writeErr := writeRuntimeError(stdout, frame, "plan_frame_rejected"); writeErr != nil {
+						return writeErr
+					}
+				}
+			case !planMode && writingHarnessNegotiated:
+				writingRuns.Add(1)
+				go func(input yanzhouprotocol.Envelope) {
+					defer writingRuns.Done()
+					if handleErr := writingRuntime.HandleFrame(ctx, input, stdout); handleErr != nil {
+						_ = writeRuntimeError(stdout, input, "writing_frame_rejected")
+					}
+				}(frame)
+			default:
+				if err := writeRuntimeError(stdout, frame, "feature_not_negotiated"); err != nil {
+					return err
+				}
+			}
+			continue
+		}
+		if !planModeNegotiated || frame.Kind != yanzhouprotocol.KindRunResume {
 			if err := writeRuntimeError(stdout, frame, "feature_not_negotiated"); err != nil {
 				return err
 			}
@@ -115,6 +172,17 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 			}
 		}
 	}
+}
+
+func runStartPlanMode(payload json.RawMessage) (bool, error) {
+	var value struct {
+		PlanMode *bool `json:"planMode"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	if err := decoder.Decode(&value); err != nil || value.PlanMode == nil {
+		return false, errors.New("run.start planMode is invalid")
+	}
+	return *value.PlanMode, nil
 }
 
 func containsFeature(features []string, expected string) bool {

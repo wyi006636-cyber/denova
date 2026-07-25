@@ -13,6 +13,7 @@ var sidecarSupportedFeatures = []string{
 	"jsonl",
 	"bootstrap-policy",
 	"plan-mode",
+	"writing-harness",
 	"skills-v2",
 	"sub-agents",
 	"tool-harness",
