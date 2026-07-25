@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log/slog"
 	"strings"
 	"time"
 	"unicode"
@@ -741,7 +740,7 @@ func (m *contextCompactionMiddleware) BeforeModelRewriteState(ctx context.Contex
 		Phase:    contextCompactionPhaseMidRun,
 	})
 	if err != nil {
-		observability.Logger("agent-run").Warn("mid_run_context_compaction_failed", slog.String("agent_kind", m.agentKind), slog.Any("error", err))
+		observability.Logger("agent-run").Warn("mid_run_context_compaction_failed", "agent_kind", m.agentKind, "reason", "compaction_error")
 		return ctx, state, nil
 	}
 	if !result.Triggered {

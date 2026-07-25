@@ -13,7 +13,7 @@ func markInterruptionIfNeeded(conversation Conversation, resumed *session.Interr
 		return
 	}
 	if err := conversation.MarkInterrupted(userMessage, assistantContent, reason); err != nil {
-		log.Printf("[agent-run] mark interruption failed err=%v", err)
+		log.Printf("[agent-run] mark interruption failed reason=persistence_error")
 	}
 }
 

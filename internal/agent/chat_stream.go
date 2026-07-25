@@ -43,13 +43,19 @@ func processStreamingEvent(ctx context.Context, mv *adk.MessageVariant, fullCont
 				log.Printf("[agent-run] interactive completion rejected before TurnResult submission; retrying model call generated_bytes=%d", fullContent.Len())
 				message, concatErr := concatStreamingChunks(chunks)
 				if concatErr != nil {
-					log.Printf("[agent-run] concat rejected streaming message failed err=%v chunks=%d", concatErr, len(chunks))
+					log.Printf("[agent-run] concat rejected streaming message failed chunks=%d", len(chunks))
 				}
 				return message, err
 			}
-			log.Printf("[agent-run] interrupted reason=stream_recv_error err=%v generated_bytes=%d", err, fullContent.Len())
+			reason := "provider_error"
+			message := "模型服务调用失败"
+			if strings.Contains(err.Error(), "没有收到任何输出") {
+				reason = "provider_idle_timeout"
+				message = "模型服务长时间没有响应"
+			}
+			log.Printf("[agent-run] interrupted reason=%s generated_bytes=%d", reason, fullContent.Len())
 			if ctx.Err() == nil {
-				emit(Event{Type: "error", Data: map[string]string{"message": err.Error()}})
+				emit(Event{Type: "error", Data: map[string]string{"message": message}})
 			}
 			return nil, err
 		}
@@ -132,7 +138,7 @@ func processStreamingEvent(ctx context.Context, mv *adk.MessageVariant, fullCont
 					lastArgsLen[i] = currentLen
 					if !loggedToolPaths[i] {
 						if path := toolPathFromArgs(tc.Function.Arguments); path != "" {
-							logToolPath(tc.Function.Name, tc.ID, path)
+							log.Printf("[agent-tool] target identified name=%s id=%s path_bytes=%d path_chars=%d", tc.Function.Name, tc.ID, len(path), len([]rune(path)))
 							loggedToolPaths[i] = true
 							emit(Event{Type: "tool_target", Data: meta.appendTo(map[string]interface{}{
 								"id":     tc.ID,
@@ -174,7 +180,7 @@ func processStreamingEvent(ctx context.Context, mv *adk.MessageVariant, fullCont
 	}
 	msg, err := concatStreamingChunks(chunks)
 	if err != nil {
-		log.Printf("[agent-run] concat streaming message failed err=%v chunks=%d", err, len(chunks))
+		log.Printf("[agent-run] concat streaming message failed chunks=%d", len(chunks))
 		return nil, nil
 	}
 	return msg, nil
@@ -261,7 +267,7 @@ func processNonStreamingEvent(mv *adk.MessageVariant, fullContent, fullThinking 
 		logToolCall(name, tc.ID, len(args), "non_streaming")
 		target := toolPathFromArgs(args)
 		if path := toolPathFromArgs(args); path != "" {
-			logToolPath(name, tc.ID, path)
+			log.Printf("[agent-tool] target identified name=%s id=%s path_bytes=%d path_chars=%d", name, tc.ID, len(path), len([]rune(path)))
 		}
 		manifest := manifestForToolEvent(name, toolResultMaxBytes)
 		data := meta.appendTo(map[string]interface{}{

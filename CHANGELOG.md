@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 增加 Yanzhou durable runtime 与 context adapter：提供闭合 Run/事件/终态合同、ref-only Context Receipt、可重启 interruption lineage、版本化原子 checkpoint、compaction receipt 与有界 RunLedger；普通事件、会话投影和日志不暴露 raw payload、作品路径或凭证。
+- Added the Yanzhou durable runtime and context adapter with closed run/event/terminal contracts, ref-only context receipts, restart-safe interruption lineage, versioned atomic checkpoints, compaction receipts, and a bounded run ledger; ordinary events, session projections, and logs exclude raw payloads, manuscript paths, and credentials.
 - 增加 Yanzhou 模型适配工厂：严格区分 OpenAI-compatible、Anthropic Messages、Gemini generateContent、Ollama 与 LM Studio，并通过同一跨语言 fixture 归一消息、工具、流、用量、结束原因和脱敏错误。
 - Added a Yanzhou model adapter factory that keeps OpenAI-compatible, Anthropic Messages, Gemini generateContent, Ollama, and LM Studio distinct, with one cross-language fixture normalizing messages, tools, streams, usage, finish reasons, and redacted errors.
 - 增加 Yanzhou 专用无界面 Sidecar：使用 UTF-8 JSONL 严格分帧、一次性 bootstrap token、五类可独立验证 provenance 和精确九类 Agent 握手；默认拒绝所有工具，并让真实 Denova builder smoke 过滤完整 domain/legacy 候选注册，证明未注册 filesystem、shell 或 direct-write 能力。

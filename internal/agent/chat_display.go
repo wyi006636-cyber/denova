@@ -34,7 +34,7 @@ func appendAssistantIfAny(conversation Conversation, content, thinking *strings.
 		persistErr = conversation.AppendAssistant(generated)
 	}
 	if persistErr != nil {
-		log.Printf("[agent-run] persist assistant message failed err=%v", persistErr)
+		log.Printf("[agent-run] persist assistant message failed")
 		return generated, persistErr
 	}
 	log.Printf("[agent-run] persisted assistant message bytes=%d thinking_bytes=%d", len(generated), len(reasoning))
@@ -95,6 +95,53 @@ func newDisplayEventRecorder(conversation Conversation) *displayEventRecorder {
 	}
 }
 
+// boundedDisplayProjectionEvent keeps the durable Session projection
+// reconstructible without copying raw tool frames into product history. The
+// original event continues to the internal sidecar transport and the bounded
+// RunLedger independently.
+func boundedDisplayProjectionEvent(ev Event) Event {
+	if ev.Type == "tool_args_delta" || ev.Type == "tool_target" {
+		return Event{}
+	}
+	if ev.Type != "tool_call" && ev.Type != "tool_result" {
+		return ev
+	}
+	if ev.Type == "tool_call" && isPlanProtocolToolName(eventDataString(ev.Data, "name")) {
+		return ev
+	}
+	remove := map[string]struct{}{
+		"args":              {},
+		"content":           {},
+		"illustration":      {},
+		"interactive_image": {},
+		"path":              {},
+		"result":            {},
+		"target":            {},
+		"workspace_change":  {},
+	}
+	switch data := ev.Data.(type) {
+	case map[string]interface{}:
+		bounded := make(map[string]interface{}, len(data))
+		for key, value := range data {
+			if _, sensitive := remove[key]; sensitive {
+				continue
+			}
+			bounded[key] = value
+		}
+		ev.Data = bounded
+	case map[string]string:
+		bounded := make(map[string]string, len(data))
+		for key, value := range data {
+			if _, sensitive := remove[key]; sensitive {
+				continue
+			}
+			bounded[key] = value
+		}
+		ev.Data = bounded
+	}
+	return ev
+}
+
 func (r *displayEventRecorder) Record(ev Event) {
 	if r == nil || r.appender == nil {
 		return
@@ -145,7 +192,7 @@ func (r *displayEventRecorder) Record(ev Event) {
 			SubAgentSessionID: meta.SubAgentSessionID,
 			SubAgentType:      meta.SubAgentType,
 		}); err != nil {
-			log.Printf("[agent-run] persist display tool_call failed name=%s id=%s err=%v", name, id, err)
+			log.Printf("[agent-run] persist display tool_call failed name=%s id=%s", name, id)
 			return
 		}
 		if id != "" {
@@ -163,7 +210,7 @@ func (r *displayEventRecorder) Record(ev Event) {
 			return
 		}
 		if err := argsAppender.AppendDisplayToolArgs(id, name, delta); err != nil {
-			log.Printf("[agent-run] persist display tool_args_delta failed name=%s id=%s err=%v", name, id, err)
+			log.Printf("[agent-run] persist display tool_args_delta failed name=%s id=%s", name, id)
 		}
 	case "tool_result":
 		r.flushThinking()
@@ -175,15 +222,15 @@ func (r *displayEventRecorder) Record(ev Event) {
 		}
 		if resultUpdater, ok := r.appender.(displayToolResultUpdater); ok {
 			if err := resultUpdater.UpdateDisplayToolResult(id, name, "success", result); err != nil {
-				log.Printf("[agent-run] persist display tool_result failed name=%s id=%s err=%v", name, id, err)
+				log.Printf("[agent-run] persist display tool_result failed name=%s id=%s", name, id)
 			}
 		} else if err := r.appender.UpdateDisplayToolStatus(id, name, "success"); err != nil {
-			log.Printf("[agent-run] persist display tool_result status failed name=%s id=%s err=%v", name, id, err)
+			log.Printf("[agent-run] persist display tool_result status failed name=%s id=%s", name, id)
 		}
 		if illustration := eventDataChapterIllustration(ev.Data, "illustration"); illustration != nil {
 			if updater, ok := r.appender.(displayToolIllustrationUpdater); ok {
 				if err := updater.UpdateDisplayToolIllustration(id, name, illustration); err != nil {
-					log.Printf("[agent-run] persist display illustration failed name=%s id=%s err=%v", name, id, err)
+					log.Printf("[agent-run] persist display illustration failed name=%s id=%s", name, id)
 				}
 			}
 		}
@@ -225,7 +272,7 @@ func (r *displayEventRecorder) Record(ev Event) {
 			GeneratedBytes:       stats.GeneratedBytes,
 			UsageCalls:           usageCallsForSession(stats.Calls),
 		}); err != nil {
-			log.Printf("[agent-run] persist token_usage failed run_id=%s err=%v", stats.RunID, err)
+			log.Printf("[agent-run] persist token_usage failed run_id=%s", stats.RunID)
 		}
 	case "plan_question", "proposed_plan":
 		r.flushThinking()
@@ -248,13 +295,13 @@ func (r *displayEventRecorder) Record(ev Event) {
 			SubAgentSessionID: meta.SubAgentSessionID,
 			SubAgentType:      meta.SubAgentType,
 		}); err != nil {
-			log.Printf("[agent-run] persist display plan event failed role=%s bytes=%d err=%v", ev.Type, len(content), err)
+			log.Printf("[agent-run] persist display plan event failed role=%s bytes=%d", ev.Type, len(content))
 		}
 	case "error", "aborted":
 		r.flushThinking()
 		for id, name := range r.pendingToolIDs {
 			if err := r.appender.UpdateDisplayToolStatus(id, name, "error"); err != nil {
-				log.Printf("[agent-run] persist display tool_error failed name=%s id=%s err=%v", name, id, err)
+				log.Printf("[agent-run] persist display tool_error failed name=%s id=%s", name, id)
 			}
 		}
 		r.pendingToolIDs = make(map[string]string)
@@ -262,7 +309,7 @@ func (r *displayEventRecorder) Record(ev Event) {
 		r.flushThinking()
 		for id, name := range r.pendingToolIDs {
 			if err := r.appender.UpdateDisplayToolStatus(id, name, "success"); err != nil {
-				log.Printf("[agent-run] persist display tool_done failed name=%s id=%s err=%v", name, id, err)
+				log.Printf("[agent-run] persist display tool_done failed name=%s id=%s", name, id)
 			}
 		}
 		r.pendingToolIDs = make(map[string]string)
@@ -291,7 +338,7 @@ func (r *displayEventRecorder) flushThinking() {
 		SubAgentSessionID: r.thinkingMeta.SubAgentSessionID,
 		SubAgentType:      r.thinkingMeta.SubAgentType,
 	}); err != nil {
-		log.Printf("[agent-run] persist display thinking failed bytes=%d err=%v", len(content), err)
+		log.Printf("[agent-run] persist display thinking failed bytes=%d", len(content))
 	}
 	r.thinkingMeta = agentEventMetadata{}
 }
@@ -310,7 +357,7 @@ func (r *displayEventRecorder) recordSubAgentAssistantChunk(meta agentEventMetad
 			return
 		}
 		if err := appender.AppendDisplayEventContent(id, "assistant", content); err != nil {
-			log.Printf("[agent-run] persist subagent assistant chunk failed id=%s err=%v", id, err)
+			log.Printf("[agent-run] persist subagent assistant chunk failed id=%s", id)
 		}
 		return
 	}
@@ -328,7 +375,7 @@ func (r *displayEventRecorder) recordSubAgentAssistantChunk(meta agentEventMetad
 		SubAgentSessionID: id,
 		SubAgentType:      meta.SubAgentType,
 	}); err != nil {
-		log.Printf("[agent-run] persist subagent assistant failed id=%s err=%v", id, err)
+		log.Printf("[agent-run] persist subagent assistant failed id=%s", id)
 		return
 	}
 	r.subAgentAssistantIDs[id] = true

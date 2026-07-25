@@ -2,6 +2,8 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -12,6 +14,8 @@ import (
 	"denova/internal/session"
 )
 
+const contextReceiptMaxNumber = 1_000_000_000
+
 // Conversation 抽象 Agent 对话的上下文读取与结果写入。
 // 写作模式写入普通 session，游戏模式可写入 interactive/story。
 type Conversation interface {
@@ -20,6 +24,152 @@ type Conversation interface {
 	MarkInterrupted(userMessage, assistantContent, reason string) error
 	PendingInterruption() *session.Interruption
 	ResolveInterruption(id string) error
+}
+
+// ResumeAttemptStatus is the durable state of a newly executed resume
+// attempt. Resume starts a new execution; it never represents a suspended Go
+// routine continuing in memory.
+type ResumeAttemptStatus string
+
+const (
+	ResumeAttemptStatusRunning   ResumeAttemptStatus = "running"
+	ResumeAttemptStatusSucceeded ResumeAttemptStatus = "succeeded"
+	ResumeAttemptStatusFailed    ResumeAttemptStatus = "failed"
+)
+
+// ResumeAttemptFinishOutcome is the closed terminal reason recorded for a
+// durable resume attempt.
+type ResumeAttemptFinishOutcome string
+
+const (
+	ResumeAttemptOutcomeSucceeded              ResumeAttemptFinishOutcome = "succeeded"
+	ResumeAttemptOutcomePrepareFailed          ResumeAttemptFinishOutcome = "prepare_failed"
+	ResumeAttemptOutcomeUserCommitFailed       ResumeAttemptFinishOutcome = "user_commit_failed"
+	ResumeAttemptOutcomeCompactionFailed       ResumeAttemptFinishOutcome = "compaction_failed"
+	ResumeAttemptOutcomeRunnerFailed           ResumeAttemptFinishOutcome = "runner_failed"
+	ResumeAttemptOutcomeCancelled              ResumeAttemptFinishOutcome = "cancelled"
+	ResumeAttemptOutcomeProviderFailed         ResumeAttemptFinishOutcome = "provider_failed"
+	ResumeAttemptOutcomeProviderIdleTimeout    ResumeAttemptFinishOutcome = "provider_idle_timeout"
+	ResumeAttemptOutcomePanicked               ResumeAttemptFinishOutcome = "panicked"
+	ResumeAttemptOutcomeBudgetExhausted        ResumeAttemptFinishOutcome = "budget_exhausted"
+	ResumeAttemptOutcomeRunWallTimeout         ResumeAttemptFinishOutcome = "run_wall_timeout"
+	ResumeAttemptOutcomeAssistantPersistFailed ResumeAttemptFinishOutcome = "assistant_persist_failed"
+	ResumeAttemptOutcomeLifecycleFinishFailed  ResumeAttemptFinishOutcome = "lifecycle_finish_failed"
+)
+
+// RunTerminationCause is the closed internal cause shared by the Agent loop
+// and the Yanzhou adapter. It contains no provider error text or runtime data.
+type RunTerminationCause string
+
+const (
+	RunTerminationProviderIdleTimeout RunTerminationCause = "provider_idle_timeout"
+	RunTerminationUserCancelled       RunTerminationCause = "user_cancelled"
+	RunTerminationProviderError       RunTerminationCause = "provider_error"
+	RunTerminationPanic               RunTerminationCause = "panic"
+	RunTerminationBudgetExhausted     RunTerminationCause = "budget_exhausted"
+	RunTerminationWallTimeout         RunTerminationCause = "run_wall_timeout"
+)
+
+// RunTerminationDecision is the stable ledger/resume projection for a closed
+// cause. Raw errors and provider data must never be used as Status or Reason.
+type RunTerminationDecision struct {
+	Status        string
+	Reason        string
+	ResumeOutcome ResumeAttemptFinishOutcome
+}
+
+func ClassifyRunTermination(cause RunTerminationCause) (RunTerminationDecision, bool) {
+	switch cause {
+	case RunTerminationProviderIdleTimeout:
+		return RunTerminationDecision{
+			Status:        "interrupted",
+			Reason:        "provider_idle_timeout",
+			ResumeOutcome: ResumeAttemptOutcomeProviderIdleTimeout,
+		}, true
+	case RunTerminationUserCancelled:
+		return RunTerminationDecision{
+			Status:        "aborted",
+			Reason:        "cancelled",
+			ResumeOutcome: ResumeAttemptOutcomeCancelled,
+		}, true
+	case RunTerminationProviderError:
+		return RunTerminationDecision{
+			Status:        "failed",
+			Reason:        "provider_error",
+			ResumeOutcome: ResumeAttemptOutcomeProviderFailed,
+		}, true
+	case RunTerminationPanic:
+		return RunTerminationDecision{
+			Status:        "failed",
+			Reason:        "panic",
+			ResumeOutcome: ResumeAttemptOutcomePanicked,
+		}, true
+	case RunTerminationBudgetExhausted:
+		return RunTerminationDecision{
+			Status:        "budget_exhausted",
+			Reason:        "budget_exhausted",
+			ResumeOutcome: ResumeAttemptOutcomeBudgetExhausted,
+		}, true
+	case RunTerminationWallTimeout:
+		return RunTerminationDecision{
+			Status:        "budget_exhausted",
+			Reason:        "run_wall_timeout",
+			ResumeOutcome: ResumeAttemptOutcomeRunWallTimeout,
+		}, true
+	default:
+		return RunTerminationDecision{}, false
+	}
+}
+
+// ResumeAttemptBasis is the bounded request used by the main-side authority to
+// validate that an interruption is still pending before allocating an attempt.
+type ResumeAttemptBasis struct {
+	OperationID    string `json:"operation_id"`
+	InterruptionID string `json:"interruption_id"`
+}
+
+// ResumeValidationReceipt records only the durable identities established by
+// the main-side authority while validating the pending interruption.
+type ResumeValidationReceipt struct {
+	OperationID    string `json:"operation_id"`
+	InterruptionID string `json:"interruption_id"`
+	OriginRunID    string `json:"origin_run_id"`
+}
+
+// ResumeAttemptIdentity identifies a new execution derived from a durable
+// interruption. OriginRunID is lineage only and must not be used as the new
+// execution identity.
+type ResumeAttemptIdentity struct {
+	AttemptID       string                  `json:"attempt_id"`
+	ExecutionRunID  string                  `json:"execution_run_id"`
+	InterruptionID  string                  `json:"interruption_id"`
+	OriginRunID     string                  `json:"origin_run_id"`
+	ParentAttemptID string                  `json:"parent_attempt_id,omitempty"`
+	AttemptNumber   int                     `json:"attempt_number"`
+	Status          ResumeAttemptStatus     `json:"status"`
+	Validation      ResumeValidationReceipt `json:"validation"`
+}
+
+// ResumeAttemptFinish is the canonical terminal operation sent to the
+// main-side authority.
+type ResumeAttemptFinish struct {
+	Attempt ResumeAttemptIdentity      `json:"attempt"`
+	Outcome ResumeAttemptFinishOutcome `json:"outcome"`
+}
+
+// ResumeAttemptFinishReceipt is the bounded durable result of a finish
+// operation. InterruptionResolved is true only for a successful attempt.
+type ResumeAttemptFinishReceipt struct {
+	Attempt              ResumeAttemptIdentity      `json:"attempt"`
+	Outcome              ResumeAttemptFinishOutcome `json:"outcome"`
+	InterruptionResolved bool                       `json:"interruption_resolved"`
+}
+
+// ResumeAttemptLifecycle is optional. Legacy Conversation implementations do
+// not implement it and retain their existing interruption behavior.
+type ResumeAttemptLifecycle interface {
+	BeginResumeAttempt(context.Context, ResumeAttemptBasis) (ResumeAttemptIdentity, error)
+	FinishResumeAttempt(context.Context, ResumeAttemptFinish) (ResumeAttemptFinishReceipt, error)
 }
 
 // UserMessageReferencesSetter lets a durable conversation attach bounded,
@@ -46,6 +196,127 @@ type ContextLedgerReporter interface {
 // must not retain full message bodies in the returned durable records.
 type FinalContextLedgerReporter interface {
 	ContextLedgerPartsForMessages(messages []*schema.Message) []ContextLedgerPart
+}
+
+// ContextCompactionMessageRange identifies the durable product-transcript
+// interval represented by one compaction epoch without persisting its text.
+type ContextCompactionMessageRange struct {
+	StartIndex int    `json:"startIndex"`
+	EndIndex   int    `json:"endIndex"`
+	Count      int    `json:"count"`
+	Hash       string `json:"hash"`
+}
+
+// ContextCompactionReceipt is the bounded audit projection for a persisted
+// compaction epoch. Summary and transcript bodies remain in their owning
+// stores; only content-addressed refs and counts cross the runtime boundary.
+type ContextCompactionReceipt struct {
+	SchemaVersion          string                        `json:"schemaVersion"`
+	Epoch                  int                           `json:"epoch"`
+	Phase                  string                        `json:"phase"`
+	StableContextHash      string                        `json:"stableContextHash"`
+	CompressedMessageRange ContextCompactionMessageRange `json:"compressedMessageRange"`
+	RetainedRecentTurns    int                           `json:"retainedRecentTurns"`
+	SummaryArtifactRef     string                        `json:"summaryArtifactRef"`
+	TokensBefore           int                           `json:"tokensBefore"`
+	TokensAfter            int                           `json:"tokensAfter"`
+	Hash                   string                        `json:"hash"`
+}
+
+// ContextCompactionReceiptReporter lets the runtime record the current epoch
+// before and after a run without depending on SessionConversation internals.
+type ContextCompactionReceiptReporter interface {
+	LatestContextCompactionReceipt() (ContextCompactionReceipt, bool)
+}
+
+type contextCompactionRangeHashIdentity struct {
+	Count      int    `json:"count"`
+	EndIndex   int    `json:"endIndex"`
+	Hash       string `json:"hash"`
+	StartIndex int    `json:"startIndex"`
+}
+
+// Field order is lexicographic so encoding/json matches the shared
+// JavaScript canonical serializer used by the main-side receipt store.
+type contextCompactionHashIdentity struct {
+	CompressedMessageRange contextCompactionRangeHashIdentity `json:"compressedMessageRange"`
+	Epoch                  int                                `json:"epoch"`
+	Phase                  string                             `json:"phase"`
+	RetainedRecentTurns    int                                `json:"retainedRecentTurns"`
+	SchemaVersion          string                             `json:"schemaVersion"`
+	StableContextHash      string                             `json:"stableContextHash"`
+	SummaryArtifactRef     string                             `json:"summaryArtifactRef"`
+	TokensAfter            int                                `json:"tokensAfter"`
+	TokensBefore           int                                `json:"tokensBefore"`
+}
+
+type stableContextHashIdentity struct {
+	Content string `json:"content"`
+	Title   string `json:"title"`
+}
+
+func contextReceiptSHA256(value []byte) string {
+	digest := sha256.Sum256(value)
+	return fmt.Sprintf("sha256:%x", digest[:])
+}
+
+func contextReceiptJSONHash(value any) (string, bool) {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return "", false
+	}
+	return contextReceiptSHA256(encoded), true
+}
+
+func contextCompactionReceiptHash(receipt ContextCompactionReceipt) (string, bool) {
+	return contextReceiptJSONHash(contextCompactionHashIdentity{
+		CompressedMessageRange: contextCompactionRangeHashIdentity{
+			Count:      receipt.CompressedMessageRange.Count,
+			EndIndex:   receipt.CompressedMessageRange.EndIndex,
+			Hash:       receipt.CompressedMessageRange.Hash,
+			StartIndex: receipt.CompressedMessageRange.StartIndex,
+		},
+		Epoch:               receipt.Epoch,
+		Phase:               receipt.Phase,
+		RetainedRecentTurns: receipt.RetainedRecentTurns,
+		SchemaVersion:       receipt.SchemaVersion,
+		StableContextHash:   receipt.StableContextHash,
+		SummaryArtifactRef:  receipt.SummaryArtifactRef,
+		TokensAfter:         receipt.TokensAfter,
+		TokensBefore:        receipt.TokensBefore,
+	})
+}
+
+func validContextReceiptSHA256(value string) bool {
+	if len(value) != len("sha256:")+64 || !strings.HasPrefix(value, "sha256:") {
+		return false
+	}
+	for _, character := range value[len("sha256:"):] {
+		if (character < '0' || character > '9') && (character < 'a' || character > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+func validContextCompactionReceipt(receipt ContextCompactionReceipt) bool {
+	if receipt.SchemaVersion != "1" || receipt.Epoch <= 0 || receipt.Epoch > contextReceiptMaxNumber || (receipt.Phase != contextCompactionPhasePreRun && receipt.Phase != contextCompactionPhaseMidRun) {
+		return false
+	}
+	rangeValue := receipt.CompressedMessageRange
+	if rangeValue.StartIndex < 0 || rangeValue.EndIndex < rangeValue.StartIndex || rangeValue.EndIndex > contextReceiptMaxNumber || rangeValue.Count != rangeValue.EndIndex-rangeValue.StartIndex {
+		return false
+	}
+	if receipt.RetainedRecentTurns < 0 || receipt.RetainedRecentTurns > contextReceiptMaxNumber || receipt.TokensBefore < 0 || receipt.TokensBefore > contextReceiptMaxNumber || receipt.TokensAfter < 0 || receipt.TokensAfter > contextReceiptMaxNumber || receipt.TokensAfter > receipt.TokensBefore {
+		return false
+	}
+	for _, value := range []string{receipt.StableContextHash, rangeValue.Hash, receipt.SummaryArtifactRef, receipt.Hash} {
+		if !validContextReceiptSHA256(value) {
+			return false
+		}
+	}
+	want, ok := contextCompactionReceiptHash(receipt)
+	return ok && want == receipt.Hash
 }
 
 // RunTraceMetadata is the bounded interactive identity attached to one run.
@@ -350,6 +621,61 @@ func (c *SessionConversation) compactionPolicy() contextCompactionPolicy {
 
 func (c *SessionConversation) nextCompactionEpoch() int {
 	return c.session.NextContextCompactionEpoch(c.agentKind)
+}
+
+// LatestContextCompactionReceipt derives a content-free receipt from the
+// persisted compaction record and its exact source transcript interval. The
+// product transcript is read only to calculate a hash and is never copied into
+// the returned value.
+func (c *SessionConversation) LatestContextCompactionReceipt() (ContextCompactionReceipt, bool) {
+	if c == nil || c.session == nil {
+		return ContextCompactionReceipt{}, false
+	}
+	record, ok := c.session.LatestContextCompaction(c.agentKind)
+	if !ok || record.Epoch <= 0 || record.Epoch > contextReceiptMaxNumber || strings.TrimSpace(record.Summary) == "" {
+		return ContextCompactionReceipt{}, false
+	}
+	if record.Phase != contextCompactionPhasePreRun && record.Phase != contextCompactionPhaseMidRun {
+		return ContextCompactionReceipt{}, false
+	}
+	messages := c.session.GetMessages()
+	if record.SourceStartIndex < 0 || record.SourceEndIndex < record.SourceStartIndex || record.SourceEndIndex > len(messages) {
+		return ContextCompactionReceipt{}, false
+	}
+	count := record.SourceEndIndex - record.SourceStartIndex
+	if record.SourceMessageCount != count || record.RetainedTurns < 0 || record.RetainedTurns > contextReceiptMaxNumber || record.TokensBefore < 0 || record.TokensBefore > contextReceiptMaxNumber || record.TokensAfter < 0 || record.TokensAfter > contextReceiptMaxNumber || record.TokensAfter > record.TokensBefore {
+		return ContextCompactionReceipt{}, false
+	}
+	stableContextHash, stableOK := contextReceiptJSONHash(stableContextHashIdentity{
+		Content: c.stableContext,
+		Title:   c.stableContextTitle,
+	})
+	rangeHash, rangeOK := contextReceiptJSONHash(messages[record.SourceStartIndex:record.SourceEndIndex])
+	if !stableOK || !rangeOK {
+		return ContextCompactionReceipt{}, false
+	}
+	receipt := ContextCompactionReceipt{
+		SchemaVersion:     "1",
+		Epoch:             record.Epoch,
+		Phase:             record.Phase,
+		StableContextHash: stableContextHash,
+		CompressedMessageRange: ContextCompactionMessageRange{
+			StartIndex: record.SourceStartIndex,
+			EndIndex:   record.SourceEndIndex,
+			Count:      count,
+			Hash:       rangeHash,
+		},
+		RetainedRecentTurns: record.RetainedTurns,
+		SummaryArtifactRef:  contextReceiptSHA256([]byte(record.Summary)),
+		TokensBefore:        record.TokensBefore,
+		TokensAfter:         record.TokensAfter,
+	}
+	hash, hashOK := contextCompactionReceiptHash(receipt)
+	if !hashOK {
+		return ContextCompactionReceipt{}, false
+	}
+	receipt.Hash = hash
+	return receipt, true
 }
 
 func (c *SessionConversation) compactionIncrementalSource(keepLatestUser bool) ([]*schema.Message, string, int, int) {

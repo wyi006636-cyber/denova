@@ -99,8 +99,8 @@ func (r *toolResultContextRecorder) retainedCall(toolCallID string) bool {
 	return ok
 }
 
-func logAgentContextPersistError(kind string, err error) {
-	log.Printf("[agent-run] persist tool result context failed kind=%s err=%v", kind, err)
+func logAgentContextPersistError(kind string, _ error) {
+	log.Printf("[agent-run] persist tool result context failed kind=%s reason=persistence_error", kind)
 }
 
 func assistantToolContextMessage(msg *schema.Message, policy ToolResultContextPolicy) *schema.Message {
