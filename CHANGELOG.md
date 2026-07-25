@@ -49,6 +49,11 @@
 
 ### Fixed
 
+- 用户影响：修复游戏模式交互回合中一个低概率正文串接问题。当模型已输出首个正文候选、结构化模块仍在重试，而后台工具结果先于显示事件完成时，后续模型正文不再被错误追加到首个候选；最终展示正文继续与已锁定候选及对应状态/选择保持一致。
+- User impact: fixed a low-probability interactive-game prose concatenation issue. When the model had already produced the first narrative candidate, structured modules were still retrying, and a background tool result completed ahead of display-event consumption, later model prose is no longer appended to the locked candidate; the final visible narrative remains aligned with that candidate and its state/choice submission.
+- 工程影响：流式与非流式交互正文分类现以当前 run 已接收的正文候选为稳定边界，不再读取可能超前于事件队列的异步 readiness。新增确定性 RED/GREEN 回归，并以原失败场景 1,000 次重复验证；未修改 API、配置、依赖或超时。
+- Engineering impact: streaming and non-streaming interactive prose classification now uses the narrative candidate already accepted by the current run as its stable boundary instead of asynchronous readiness that may advance ahead of the event queue. Deterministic RED/GREEN regressions and a 1,000-run repetition of the original failure scenario cover the fix; no API, configuration, dependency, or timeout changed.
+
 - 优化质量评测与 CLI 单测夹具：Harness 默认选择一个真实 regression 任务，仅“后续任务不得执行”断言保留双任务 cohort；分层汇总、盲包拒绝和 Skills rank 失配测试复用最小、可恢复的输入状态。因此不改变生产私有证据写入或 Windows owner-only ACL。Windows 集成测试现通过一个最小 READY 盲包成功执行 `SaveReview`，并验证 Harness 证据、已接受评审和评审锁目录/文件 ACL。
 - Optimized quality-evaluation and CLI test fixtures: Harness defaults to one real regression task, while only assertions that later work must not run retain a two-task cohort; stratified summary, blind-package rejection, and Skills-rank mismatch tests reuse minimal, restorable input state. This does not change production private-evidence writes or Windows owner-only ACLs. The Windows integration test now successfully executes `SaveReview` through a minimal READY blind package and verifies ACLs for Harness evidence, accepted reviews, and review lock directories/files.
 
