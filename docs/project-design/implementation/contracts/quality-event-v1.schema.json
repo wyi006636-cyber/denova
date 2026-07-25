@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://denova.example/schemas/quality-event-v1.schema.json",
+  "title": "Denova Quality Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "event_type", "event_id", "run_id", "occurred_at", "sequence", "summary"],
+  "properties": {
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "version"],
+      "properties": {
+        "kind": { "const": "denova.quality-event" },
+        "version": { "const": "v1" }
+      }
+    },
+    "event_type": { "$ref": "#/$defs/eventType" },
+    "event_id": { "$ref": "#/$defs/opaqueID" },
+    "run_id": { "$ref": "#/$defs/opaqueID" },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "summary": { "$ref": "#/$defs/summary" },
+    "stage_id": { "$ref": "#/$defs/opaqueID" },
+    "artifact_id": { "$ref": "#/$defs/opaqueID" }
+  },
+  "allOf": [
+    {
+      "oneOf": [
+        {
+          "properties": {
+            "event_type": { "enum": ["workflow.run.created", "workflow.input.invalidated", "preference.confirmed", "preference.revoked"] }
+          },
+          "not": { "anyOf": [{ "required": ["stage_id"] }, { "required": ["artifact_id"] }] }
+        },
+        {
+          "properties": {
+            "event_type": { "enum": ["workflow.stage.started", "workflow.stage.completed", "workflow.stage.failed", "workflow.decision.required"] }
+          },
+          "required": ["stage_id"],
+          "not": { "required": ["artifact_id"] }
+        },
+        {
+          "properties": {
+            "event_type": { "enum": ["artifact.created", "candidate.created", "candidate.compared", "candidate.selected", "review.issue.created", "review.completed", "revision.completed", "finalization.started", "finalization.completed", "finalization.rolled_back"] }
+          },
+          "required": ["stage_id", "artifact_id"]
+        }
+      ]
+    },
+    {
+      "oneOf": [
+        { "$ref": "#/$defs/code-workflow-run-created" },
+        { "$ref": "#/$defs/code-workflow-stage-started" },
+        { "$ref": "#/$defs/code-workflow-stage-completed" },
+        { "$ref": "#/$defs/code-workflow-stage-failed" },
+        { "$ref": "#/$defs/code-workflow-input-invalidated" },
+        { "$ref": "#/$defs/code-workflow-decision-required" },
+        { "$ref": "#/$defs/code-artifact-created" },
+        { "$ref": "#/$defs/code-candidate-created" },
+        { "$ref": "#/$defs/code-candidate-compared" },
+        { "$ref": "#/$defs/code-candidate-selected" },
+        { "$ref": "#/$defs/code-review-issue-created" },
+        { "$ref": "#/$defs/code-review-completed" },
+        { "$ref": "#/$defs/code-revision-completed" },
+        { "$ref": "#/$defs/code-preference-confirmed" },
+        { "$ref": "#/$defs/code-preference-revoked" },
+        { "$ref": "#/$defs/code-finalization-started" },
+        { "$ref": "#/$defs/code-finalization-completed" },
+        { "$ref": "#/$defs/code-finalization-rolled-back" }
+      ]
+    }
+  ],
+  "$defs": {
+    "opaqueID": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9._:-]{2,127}$"
+    },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "workflow.run.created",
+        "workflow.stage.started",
+        "workflow.stage.completed",
+        "workflow.stage.failed",
+        "workflow.input.invalidated",
+        "workflow.decision.required",
+        "artifact.created",
+        "candidate.created",
+        "candidate.compared",
+        "candidate.selected",
+        "review.issue.created",
+        "review.completed",
+        "revision.completed",
+        "preference.confirmed",
+        "preference.revoked",
+        "finalization.started",
+        "finalization.completed",
+        "finalization.rolled_back"
+      ]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "arguments"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "quality.event.workflow.run.created",
+            "quality.event.workflow.stage.started",
+            "quality.event.workflow.stage.completed",
+            "quality.event.workflow.stage.failed",
+            "quality.event.workflow.input.invalidated",
+            "quality.event.workflow.decision.required",
+            "quality.event.artifact.created",
+            "quality.event.candidate.created",
+            "quality.event.candidate.compared",
+            "quality.event.candidate.selected",
+            "quality.event.review.issue.created",
+            "quality.event.review.completed",
+            "quality.event.revision.completed",
+            "quality.event.preference.confirmed",
+            "quality.event.preference.revoked",
+            "quality.event.finalization.started",
+            "quality.event.finalization.completed",
+            "quality.event.finalization.rolled_back"
+          ]
+        },
+        "arguments": {
+          "type": "array",
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/summaryArgument" },
+          "allOf": [
+            { "contains": { "properties": { "name": { "const": "profile_id" } }, "required": ["name"] }, "minContains": 0, "maxContains": 1 },
+            { "contains": { "properties": { "name": { "const": "stage_kind" } }, "required": ["name"] }, "minContains": 0, "maxContains": 1 },
+            { "contains": { "properties": { "name": { "const": "artifact_kind" } }, "required": ["name"] }, "minContains": 0, "maxContains": 1 },
+            { "contains": { "properties": { "name": { "const": "decision_kind" } }, "required": ["name"] }, "minContains": 0, "maxContains": 1 },
+            { "contains": { "properties": { "name": { "const": "preference_kind" } }, "required": ["name"] }, "minContains": 0, "maxContains": 1 },
+            { "contains": { "properties": { "name": { "const": "reason_code" } }, "required": ["name"] }, "minContains": 0, "maxContains": 1 },
+            { "contains": { "properties": { "name": { "const": "result_code" } }, "required": ["name"] }, "minContains": 0, "maxContains": 1 },
+            { "contains": { "properties": { "name": { "const": "item_count" } }, "required": ["name"] }, "minContains": 0, "maxContains": 1 }
+          ]
+        }
+      }
+    },
+    "summaryArgument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "type": "string" },
+        "value": { "type": "string" }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "name": { "const": "profile_id" },
+            "value": { "enum": ["long_serial", "fanqie_short", "zhihu_salt_short"] }
+          }
+        },
+        {
+          "properties": {
+            "name": { "enum": ["stage_kind", "artifact_kind", "decision_kind", "preference_kind", "reason_code", "result_code"] },
+            "value": { "type": "string", "maxLength": 128, "pattern": "^[a-z0-9][a-z0-9._:-]{0,127}$" }
+          }
+        },
+        {
+          "properties": {
+            "name": { "const": "item_count" },
+            "value": { "type": "string", "maxLength": 128, "pattern": "^(0|[1-9][0-9]*)$" }
+          }
+        }
+      ]
+    },
+    "code-workflow-run-created": { "properties": { "event_type": { "const": "workflow.run.created" }, "summary": { "properties": { "code": { "const": "quality.event.workflow.run.created" } } } } },
+    "code-workflow-stage-started": { "properties": { "event_type": { "const": "workflow.stage.started" }, "summary": { "properties": { "code": { "const": "quality.event.workflow.stage.started" } } } } },
+    "code-workflow-stage-completed": { "properties": { "event_type": { "const": "workflow.stage.completed" }, "summary": { "properties": { "code": { "const": "quality.event.workflow.stage.completed" } } } } },
+    "code-workflow-stage-failed": { "properties": { "event_type": { "const": "workflow.stage.failed" }, "summary": { "properties": { "code": { "const": "quality.event.workflow.stage.failed" } } } } },
+    "code-workflow-input-invalidated": { "properties": { "event_type": { "const": "workflow.input.invalidated" }, "summary": { "properties": { "code": { "const": "quality.event.workflow.input.invalidated" } } } } },
+    "code-workflow-decision-required": { "properties": { "event_type": { "const": "workflow.decision.required" }, "summary": { "properties": { "code": { "const": "quality.event.workflow.decision.required" } } } } },
+    "code-artifact-created": { "properties": { "event_type": { "const": "artifact.created" }, "summary": { "properties": { "code": { "const": "quality.event.artifact.created" } } } } },
+    "code-candidate-created": { "properties": { "event_type": { "const": "candidate.created" }, "summary": { "properties": { "code": { "const": "quality.event.candidate.created" } } } } },
+    "code-candidate-compared": { "properties": { "event_type": { "const": "candidate.compared" }, "summary": { "properties": { "code": { "const": "quality.event.candidate.compared" } } } } },
+    "code-candidate-selected": { "properties": { "event_type": { "const": "candidate.selected" }, "summary": { "properties": { "code": { "const": "quality.event.candidate.selected" } } } } },
+    "code-review-issue-created": { "properties": { "event_type": { "const": "review.issue.created" }, "summary": { "properties": { "code": { "const": "quality.event.review.issue.created" } } } } },
+    "code-review-completed": { "properties": { "event_type": { "const": "review.completed" }, "summary": { "properties": { "code": { "const": "quality.event.review.completed" } } } } },
+    "code-revision-completed": { "properties": { "event_type": { "const": "revision.completed" }, "summary": { "properties": { "code": { "const": "quality.event.revision.completed" } } } } },
+    "code-preference-confirmed": { "properties": { "event_type": { "const": "preference.confirmed" }, "summary": { "properties": { "code": { "const": "quality.event.preference.confirmed" } } } } },
+    "code-preference-revoked": { "properties": { "event_type": { "const": "preference.revoked" }, "summary": { "properties": { "code": { "const": "quality.event.preference.revoked" } } } } },
+    "code-finalization-started": { "properties": { "event_type": { "const": "finalization.started" }, "summary": { "properties": { "code": { "const": "quality.event.finalization.started" } } } } },
+    "code-finalization-completed": { "properties": { "event_type": { "const": "finalization.completed" }, "summary": { "properties": { "code": { "const": "quality.event.finalization.completed" } } } } },
+    "code-finalization-rolled-back": { "properties": { "event_type": { "const": "finalization.rolled_back" }, "summary": { "properties": { "code": { "const": "quality.event.finalization.rolled_back" } } } } }
+  }
+}

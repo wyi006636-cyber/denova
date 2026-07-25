@@ -19,6 +19,10 @@ func (s *Server) registerRoutes(h *hertzserver.Hertz) {
 	apiHandlers := handlers.New(s.app)
 	api := h.Group("/api")
 	{
+		api.GET("/quality/profiles", apiHandlers.HandleQualityProfiles)
+		api.GET("/quality/profiles/:profile_id", apiHandlers.HandleQualityProfile)
+		api.GET("/quality/project", apiHandlers.HandleQualityProject)
+		api.POST("/quality/project/migration-preview", apiHandlers.HandleQualityMigrationPreview)
 		api.GET("/workspace/tree", apiHandlers.HandleWorkspaceTree)
 		api.GET("/workspace/summary", apiHandlers.HandleWorkspaceSummary)
 		api.PATCH("/workspace/chapter-status", apiHandlers.HandleWorkspaceChapterStatus)

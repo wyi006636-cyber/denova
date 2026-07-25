@@ -43,6 +43,13 @@ func (e *StreamEncoder) WriteEvent(ev agent.Event) error {
 		return err
 	}
 	data := eventDataMap(ev.Data)
+	if isQualityEventData(data) {
+		if err := e.closeOpenContent(); err != nil {
+			return err
+		}
+		payload := qualityActivityData(ev.Type, data)
+		return e.writeData(DataTypeActivity, qualityActivityID(data, ev.Type), payload)
+	}
 	meta := providerMetadataFromData(data)
 
 	switch ev.Type {
@@ -154,9 +161,14 @@ func (e *StreamEncoder) ensureStarted(ev agent.Event) error {
 		return nil
 	}
 	data := eventDataMap(ev.Data)
+	startID := eventID(data, "assistant")
+	if isQualityEventData(data) {
+		startID = qualityActivityID(data, "assistant")
+		data = qualityActivityData(ev.Type, data)
+	}
 	start := map[string]any{
 		"type":      "start",
-		"messageId": eventID(data, "assistant"),
+		"messageId": startID,
 	}
 	if metadata := messageMetadataFromData(data); len(metadata) > 0 {
 		start["messageMetadata"] = metadata

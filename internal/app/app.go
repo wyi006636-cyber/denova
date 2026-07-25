@@ -50,6 +50,8 @@ type App struct {
 	automationApp  *AutomationAppService
 	skillsApp      *SkillsAppService
 	imageApp       *ImageAppService
+	qualityApp     *QualityAppService
+	qualityAppErr  error
 	servicesOnce   sync.Once
 
 	mu sync.RWMutex
@@ -136,6 +138,10 @@ func (a *App) ensureServices() {
 		a.automationApp = &AutomationAppService{app: a}
 		a.skillsApp = &SkillsAppService{app: a}
 		a.imageApp = &ImageAppService{app: a}
+		a.qualityApp, a.qualityAppErr = newQualityAppService(nil)
+		if a.qualityApp != nil {
+			a.qualityApp.app = a
+		}
 	})
 }
 
