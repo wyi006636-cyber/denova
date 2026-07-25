@@ -26,12 +26,12 @@
 
 | ADR ID | 对象 | 状态 | 决定期限 | 阻塞 Task | 建议方案 |
 |---|---|---|---|---|---|
-| ADR-WS-001 | Workspace Schema v1 | Proposed | P0-T03 完成前 | P1-T02、P1-T03、P1-T04、P2-T07、P5-T01 | 保留现有 `ideas.md`、`setting/`、`chapters/`、`.denova/lore/items.json`；新增 `.denova/quality/` 文件合同；run/cache/index 精确排除版本；迁移预览+备份+原子切换+回滚，不强制重命名旧路径 |
+| ADR-WS-001 | Workspace Schema v1 | Accepted v1 | 2026-07-21 | P1-T02、P1-T03、P1-T04、P2-T07、P5-T01 | 保留现有 `ideas.md`、`setting/`、`chapters/`、`.denova/lore/items.json`；新增 `.denova/quality/` 文件合同；run/cache/index 精确排除版本；迁移预览+备份+原子切换+回滚，不强制重命名旧路径 |
 | ADR-QS-001 | QualitySpec | Proposed | P0-T04 完成前 | P1-T01、P1-T06、P2-T01、P2-T03、P2-T05 | 作品级与任务级分层，Profile default → project → task → 作者本次确认；每条目标有来源/用途/范围/证据/版本；模型修改仅为候选 |
 | ADR-PROFILE-001 | Profile | Proposed | P0-T04 完成前 | P1-T01、P1-T06、P2-T01、P3-T01、P3-T02 | 穷尽 `long_serial`、`fanqie_short`、`zhihu_salt_short`；平台易变规则带来源/日期且作者可覆盖；共享能力合同，差异用数据表达 |
-| ADR-CS-001 | CandidateSet | Proposed | P0-T05 完成前 | P1-T04、P2-T04、P2-T06、P2-T08、P3-T03 | 候选绑定 source/model/Skill/Profile/QualitySpec/hash；关键节点多候选、普通任务单候选；支持选择/混合/拒绝且保留父来源 |
-| ADR-RI-001 | ReviewIssue | Proposed | P0-T05 完成前 | P1-T04、P2-T05、P2-T06、P2-T08、P3-T06 | issue 必须有位置、读感证据、原因、严重度、修订层级、最小影响范围和复核；分数不能代替证据；状态可关闭/重开 |
-| ADR-PM-001 | PreferenceMemory | Proposed | P0-T06 完成前 | P1-T04、P2-T06、P2-T07、P2-T08、P5-T04 | 只接收作者明确选择/否决/改写/规则确认；追加式、范围化、带证据/强度/版本，可查看、编辑、撤销；模型自评和无操作无效 |
+| ADR-CS-001 | CandidateSet | Accepted v1 | 2026-07-21 | P1-T04、P2-T04、P2-T06、P2-T08、P3-T03 | 候选绑定 source/model/Skill/Profile/QualitySpec/hash；关键节点多候选、普通任务单候选；支持选择/混合/拒绝且保留父来源 |
+| ADR-RI-001 | ReviewIssue | Accepted v1 | 2026-07-21 | P1-T04、P2-T05、P2-T06、P2-T08、P3-T06 | issue 必须有位置、读感证据、原因、严重度、修订层级、最小影响范围和复核；分数不能代替证据；状态可关闭/重开 |
+| ADR-PM-001 | PreferenceMemory | Accepted v1 | 2026-07-21 | P1-T04、P2-T06、P2-T07、P2-T08、P5-T04 | 只接收作者明确选择/否决/改写/规则确认；追加式、范围化、带证据/强度/版本，可查看、编辑、撤销；模型自评和无操作无效 |
 | ADR-AF-001 | Author Finalization | Proposed | P0-T06 完成前 | P1-T02、P2-T03、P2-T07、P2-T08、P3-T07、P5-T02 | 请求绑定 workspace、全部 base revision、candidate/artifact hash、一次性 nonce；复用 workspacechange durable batch 和 go-git 版本；跨介质失败用明确 roll-forward/补偿+receipt，不虚假宣称 ACID |
 
 ## 3. 补充 ADR 待办

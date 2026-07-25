@@ -34,6 +34,20 @@ const (
 	CodeDuplicateProfile     ErrorCode = "duplicate_profile"
 	CodeEngineMismatch       ErrorCode = "engine_mismatch"
 	CodeWalkthroughMismatch  ErrorCode = "walkthrough_mismatch"
+	CodeStateVocabulary      ErrorCode = "state_vocabulary"
+	CodeStateTransition      ErrorCode = "state_transition"
+	CodeHistoryContinuity    ErrorCode = "history_continuity"
+	CodeDuplicateIdentity    ErrorCode = "duplicate_identity"
+	CodeBindingMismatch      ErrorCode = "binding_mismatch"
+	CodeHashMismatch         ErrorCode = "hash_mismatch"
+	CodeRangeInvalid         ErrorCode = "range_invalid"
+	CodeLineageInvalid       ErrorCode = "lineage_invalid"
+	CodeEvidenceInvalid      ErrorCode = "evidence_invalid"
+	CodeAuthorityViolation   ErrorCode = "authority_violation"
+	CodeReferenceInvalid     ErrorCode = "reference_invalid"
+	CodeJournalInvalid       ErrorCode = "journal_invalid"
+	CodeResolutionCycle      ErrorCode = "resolution_cycle"
+	CodeScopeExpansion       ErrorCode = "scope_expansion"
 )
 
 // ContractError locates a contract failure without reducing it to a warning.

@@ -247,12 +247,16 @@ func emitDurableWriteEvent(observe func(durableWriteEvent), event durableWriteEv
 }
 
 func siblingTempName(root *os.Root, rel string) (string, error) {
+	return siblingNameWithMarker(root, rel, ".tmp-")
+}
+
+func siblingNameWithMarker(root *os.Root, rel, marker string) (string, error) {
 	for attempt := 0; attempt < 16; attempt++ {
 		var random [12]byte
 		if _, err := rand.Read(random[:]); err != nil {
 			return "", err
 		}
-		candidate := rel + ".tmp-" + hex.EncodeToString(random[:])
+		candidate := rel + marker + hex.EncodeToString(random[:])
 		if _, err := root.Lstat(filepath.FromSlash(candidate)); errors.Is(err, os.ErrNotExist) {
 			return candidate, nil
 		} else if err != nil {
