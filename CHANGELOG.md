@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 增加 Yanzhou WP7 三档写作 Harness adapter：暴露 novel-lite、novel-standard、novel-heavy 的闭合角色图、独立 model/tool/delegation/revision/time/token 预算、typed scope、Artifact 投影与中段 Skill→Capability 证据合同；仅生成候选与 Proposal 元数据，不获得作品路径或正式写权限。
+- Added the Yanzhou WP7 three-profile writing Harness adapter with closed novel-lite, novel-standard, and novel-heavy role graphs, independent model/tool/delegation/revision/time/token budgets, typed scopes, Artifact projections, and evidence-bound mid-writing Skill-to-Capability contracts; it exposes candidate and Proposal metadata only, with no manuscript path or canonical write authority.
 - 增加 Yanzhou WP4 Plan、Skill、SubAgent 与工具适配层：真实 Sidecar 支持多轮动态 Plan 与分离批准，Skill 摘要/显式加载回执，七个稳定 SubAgent 的三方权限交集，以及 Builder/Orchestrator 双重 default-deny 工具门；不开放作品文件写入。
 - Added the Yanzhou WP4 Plan, Skill, SubAgent, and tool adapter layer: the real sidecar now supports multi-round dynamic planning with separated approvals, summary-only Skill discovery and explicit load receipts, three-way capability narrowing for seven stable SubAgents, and Builder/Orchestrator default-deny tool gates without enabling manuscript writes.
 - 增加 Yanzhou durable runtime 与 context adapter：提供闭合 Run/事件/终态合同、ref-only Context Receipt、可重启 interruption lineage、版本化原子 checkpoint、compaction receipt 与有界 RunLedger；普通事件、会话投影和日志不暴露 raw payload、作品路径或凭证。
