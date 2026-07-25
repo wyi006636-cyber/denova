@@ -1,0 +1,3 @@
+# Exact tracked binary assets allowed above 1 MiB: path<TAB>maximum bytes
+img/interactive.png	1998348
+img/subagents.png	1183201

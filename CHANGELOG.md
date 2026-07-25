@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增仓库卫生检查与独立 CI 门禁：阻止原始证据目录、超 1 MiB 的非精确白名单文件和超过 20,000 行的生成文本进入产品 Git，并为现有大型二进制资源保留可审计的精确上限。
+- Added a repository-hygiene command and independent CI gate that reject raw-evidence paths, files above 1 MiB without exact allowlist entries, and generated text over 20,000 lines, with auditable exact caps for existing large binary assets.
+- 新增双语 Pull Request 模板，分别记录测试、提交、推送、草稿 PR、审查、合并和发布证据，并明确检查单一能力/安全边界与外置原始证据。
+- Added a bilingual Pull Request template that records test, commit, push, Draft PR, review, merge, and release evidence separately and checks for one capability/safety boundary with raw evidence kept external.
 - 写作模式编辑器查找栏新增替换与正则匹配：可展开替换输入框，支持替换当前匹配或全部替换；开启正则后查找与替换均按正则表达式执行，替换文本支持 `$1` 等捕获组引用。
 - The Writing Mode editor search bar now supports replace and regex matching: expand a replace field to replace the current match or all matches; with regex enabled, both find and replace use regular expressions, and the replacement text supports capture group references like `$1`.
 
