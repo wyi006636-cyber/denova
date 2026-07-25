@@ -37,6 +37,7 @@ import automations from './en-US/automations'
 import messages from './en-US/messages'
 import onboarding from './en-US/onboarding'
 import changes from './en-US/changes'
+import quality from './en-US/quality'
 
 const enUS = {
   ...common,
@@ -78,6 +79,7 @@ const enUS = {
   ...messages,
   ...onboarding,
   ...changes,
+  ...quality,
 } as const
 
 export default enUS

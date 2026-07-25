@@ -171,13 +171,13 @@ vi.mock('@/features/onboarding/OnboardingGuide', () => ({
 
 describe('Quality Harness App refresh restoration boundary', () => {
   it.each([
-    ['ide', 'Writing'],
-    ['interactive', 'Game'],
-  ] as const)('restores the %s return mode through App while a shared view is visible (%s)', (contentMode, _visibleMode) => {
+    ['ide', 'quality'],
+    ['interactive', 'quality'],
+  ] as const)('restores the %s return mode through App while the %s shared view is visible', (contentMode, visibleMode) => {
     window.localStorage.clear()
     window.localStorage.setItem('nova:content-mode', contentMode)
     useWorkspaceStore.setState({
-      mode: 'agents',
+      mode: visibleMode,
       selectedProjectId: undefined,
       selectedChapterId: undefined,
       rightPanel: null,
@@ -188,7 +188,7 @@ describe('Quality Harness App refresh restoration boundary', () => {
     render(<App />)
 
     const router = document.querySelector<HTMLElement>('[data-testid="quality-app-mode-router"]')
-    expect(router).toHaveAttribute('data-mode', 'agents')
+    expect(router).toHaveAttribute('data-mode', 'quality')
     expect(router).toHaveAttribute('data-return-mode', contentMode)
 
     fireEvent.click(document.querySelector<HTMLButtonElement>('[data-testid="quality-app-return"]')!)
@@ -216,7 +216,7 @@ describe('Quality Harness shared navigation safety boundaries', () => {
     render(<QualityHarnessNavigation />)
     expectDesktopActive('story')
 
-    for (const id of ['skills', 'agents', 'automations'] as const) {
+    for (const id of ['quality', 'skills', 'agents', 'automations'] as const) {
       clickDesktopActivity(id)
       expect(window.localStorage.getItem('nova:content-mode')).toBe('interactive')
       expectDesktopActive(id)
@@ -243,6 +243,22 @@ describe('Quality Harness shared navigation safety boundaries', () => {
     expectDesktopActive('story')
   })
 
+  it.each(['ide', 'interactive'] as const)('enters and exits Quality from %s without changing content mode', (contentMode) => {
+    window.localStorage.setItem('nova:content-mode', contentMode)
+    useWorkspaceStore.setState({ mode: contentMode, rightPanel: null })
+    render(<QualityHarnessNavigation />)
+
+    clickDesktopActivity('quality')
+    expect(useWorkspaceStore.getState().mode).toBe('quality')
+    expect(window.localStorage.getItem('nova:content-mode')).toBe(contentMode)
+    expectDesktopActive('quality')
+
+    clickDesktopActivity('quality')
+    expect(useWorkspaceStore.getState().mode).toBe(contentMode)
+    expect(window.localStorage.getItem('nova:content-mode')).toBe(contentMode)
+    expectDesktopActive(contentMode === 'ide' ? 'writing' : 'story')
+  })
+
   it('keeps exactly one mobile menu active and returns from a restored shared menu', () => {
     responsiveState.mobile = true
     useWorkspaceStore.setState({ mode: 'agents', rightPanel: null })
@@ -259,6 +275,10 @@ describe('Quality Harness shared navigation safety boundaries', () => {
     expect(useWorkspaceStore.getState().mode).toBe('interactive')
     expect(mobileActiveIDs()).toEqual(['story'])
     expectPressedMode('interactive')
+
+    clickMobileActivity('quality')
+    expect(window.localStorage.getItem('nova:content-mode')).toBe('interactive')
+    expect(mobileActiveIDs()).toEqual(['quality'])
   })
 })
 

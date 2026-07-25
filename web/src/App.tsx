@@ -103,7 +103,7 @@ function App() {
   const workspaceAutoRefreshEnabled = mode === 'ide' && !settingsOpen && (rightPanel === 'ai' || rightPanel === null)
 
   useEffect(() => {
-    if (mode === 'books' || mode === 'skills' || mode === 'agents' || mode === 'automations') return
+    if (mode === 'books' || mode === 'quality' || mode === 'skills' || mode === 'agents' || mode === 'automations') return
     const contentMode = mode === 'interactive' ? 'interactive' : 'ide'
     booksReturnModeRef.current = contentMode
     setBooksReturnMode(contentMode)
@@ -325,7 +325,7 @@ function App() {
     setOpenTabs([])
     setActiveTabKey(null)
     clearSelectedFile()
-    if (mode !== 'books') setMode('books')
+    if (mode !== 'books' && mode !== 'quality') setMode('books')
   }, [clearSelectedFile, mode, setMode, workspace, workspaceLoaded])
 
   useEffect(() => {
@@ -599,7 +599,7 @@ function App() {
   }, [isStreaming, send])
 
   const handleSetMode = useCallback((nextMode: WorkspaceMode) => {
-    if (nextMode === 'books' || nextMode === 'skills' || nextMode === 'agents' || nextMode === 'automations') {
+    if (nextMode === 'books' || nextMode === 'quality' || nextMode === 'skills' || nextMode === 'agents' || nextMode === 'automations') {
       const returnMode = mode === 'ide' || mode === 'interactive' ? mode : booksReturnModeRef.current
       booksReturnModeRef.current = returnMode
       setBooksReturnMode(returnMode)

@@ -1,6 +1,16 @@
 import { http, HttpResponse } from 'msw'
+import {
+  qualityPreviewFixture,
+  qualityProfileDetailFixture,
+  qualityProfileSummariesFixture,
+  qualityProjectFixture,
+} from './quality-fixtures'
 
 export const handlers = [
+  http.get('/api/quality/profiles', () => HttpResponse.json(qualityProfileSummariesFixture())),
+  http.get('/api/quality/profiles/:profileID', ({ params }) => HttpResponse.json(qualityProfileDetailFixture(String(params.profileID)))),
+  http.get('/api/quality/project', () => HttpResponse.json(qualityProjectFixture())),
+  http.post('/api/quality/project/migration-preview', () => HttpResponse.json(qualityPreviewFixture())),
   http.get('/api/messages', () =>
     HttpResponse.json({
       items: [],

@@ -36,7 +36,8 @@ const AgentsView = lazy(() => import('@/features/agents/AgentsView').then((modul
 const AutomationsView = lazy(() => import('@/features/automations/AutomationsView').then((module) => ({ default: module.AutomationsView })))
 const SkillsView = lazy(() => import('@/features/skills/SkillsView').then((module) => ({ default: module.SkillsView })))
 const SettingsView = lazy(() => import('@/features/settings/SettingsView').then((module) => ({ default: module.SettingsView })))
-type MainRouteId = 'settings' | 'skills' | 'agents' | 'automations' | 'books' | 'interactive' | 'versions' | 'ide-lore' | 'ide-teller' | 'ide-writing'
+const QualityProjectView = lazy(() => import('@/features/quality/project/QualityProjectView').then((module) => ({ default: module.QualityProjectView })))
+type MainRouteId = 'settings' | 'quality' | 'skills' | 'agents' | 'automations' | 'books' | 'interactive' | 'versions' | 'ide-lore' | 'ide-teller' | 'ide-writing'
 type PlanningDocumentIcon = 'ideas' | 'outline' | 'plan' | 'creator' | 'progress' | 'characterState'
 
 interface ModeRouterProps {
@@ -231,6 +232,7 @@ export function ModeRouter(props: ModeRouterProps) {
   const agentsVisible = mode === 'agents'
   const automationsVisible = mode === 'automations'
   const skillsVisible = mode === 'skills'
+  const qualityVisible = mode === 'quality'
   const ideWorkspacePanel = mode === 'ide' && (rightPanel === 'lore' || rightPanel === 'teller') ? rightPanel : null
   const interactiveSubmode = useInteractiveStore((state) => state.submode)
   const setInteractiveSubmode = useInteractiveStore((state) => state.setSubmode)
@@ -403,7 +405,9 @@ export function ModeRouter(props: ModeRouterProps) {
   }
   const visibleMainRoute: MainRouteId = settingsOpen
     ? 'settings'
-    : skillsVisible
+    : qualityVisible
+      ? 'quality'
+      : skillsVisible
       ? 'skills'
       : agentsVisible
         ? 'agents'
@@ -645,6 +649,11 @@ export function ModeRouter(props: ModeRouterProps) {
       {mountedRoutes.has('skills') && (
         <MainRouteLayer visible={visibleMainRoute === 'skills'}>
           <SkillsView workspace={workspace} onClose={() => onSetMode(booksReturnMode)} />
+        </MainRouteLayer>
+      )}
+      {mountedRoutes.has('quality') && (
+        <MainRouteLayer visible={visibleMainRoute === 'quality'}>
+          <QualityProjectView onClose={() => onSetMode(booksReturnMode)} />
         </MainRouteLayer>
       )}
       {mountedRoutes.has('agents') && (

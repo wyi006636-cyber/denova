@@ -6,7 +6,7 @@ import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, us
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Group, Panel, Separator } from 'react-resizable-panels'
-import { BookOpen, Bot, Clock3, Database, History, MessageSquareText, PanelLeft, PenLine, Search, Settings, SlidersHorizontal, Sparkles, X } from 'lucide-react'
+import { BookOpen, Bot, ClipboardCheck, Clock3, Database, History, MessageSquareText, PanelLeft, PenLine, Search, Settings, SlidersHorizontal, Sparkles, X } from 'lucide-react'
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react'
 import { WorkspaceLayout } from '@/components/layout/workspace-layout'
 import { WorkspaceMobileLayout, type MobileNavItem } from '@/components/layout/workspace-mobile-layout'
@@ -56,7 +56,7 @@ interface WorkbenchShellProps {
   onDismissUpdateNotice?: () => void
 }
 
-type ActivityItemId = 'writing' | 'story' | 'timeline' | 'lore' | 'teller' | 'versions' | 'books' | 'skills' | 'agents' | 'automations'
+type ActivityItemId = 'writing' | 'story' | 'timeline' | 'lore' | 'teller' | 'versions' | 'books' | 'quality' | 'skills' | 'agents' | 'automations'
 type ActivityOrderScope = 'ide' | 'interactive'
 type SortableActivityItemId = `${ActivityOrderScope}:${ActivityItemId}`
 
@@ -77,8 +77,8 @@ const ACTIVITY_ORDER_STORAGE_KEYS: Record<ActivityOrderScope, string> = {
   ide: 'nova.activity.order.ide.v2',
   interactive: 'nova.activity.order.interactive.v2',
 }
-const DEFAULT_IDE_ACTIVITY_ORDER: ActivityItemId[] = ['writing', 'lore', 'teller', 'versions', 'books', 'skills', 'agents', 'automations']
-const DEFAULT_INTERACTIVE_ACTIVITY_ORDER: ActivityItemId[] = ['story', 'timeline', 'lore', 'teller', 'versions', 'books', 'skills', 'agents', 'automations']
+const DEFAULT_IDE_ACTIVITY_ORDER: ActivityItemId[] = ['writing', 'lore', 'teller', 'versions', 'books', 'quality', 'skills', 'agents', 'automations']
+const DEFAULT_INTERACTIVE_ACTIVITY_ORDER: ActivityItemId[] = ['story', 'timeline', 'lore', 'teller', 'versions', 'books', 'quality', 'skills', 'agents', 'automations']
 const ACTIVITY_BAR_WIDTH_STORAGE_KEY = 'nova.layout.activityBarWidth'
 const ACTIVITY_BAR_COLLAPSED_WIDTH = 64
 const ACTIVITY_BAR_MIN_WIDTH = 112
@@ -174,15 +174,16 @@ export function WorkbenchShell({
   const loreVisible = rightPanel === 'lore'
   const tellerVisible = rightPanel === 'teller'
   const versionsVisible = rightPanel === 'versions'
-  const sharedMenuActive = settingsOpen || versionsVisible || mode === 'books' || mode === 'skills' || mode === 'agents' || mode === 'automations'
+  const sharedMenuActive = settingsOpen || versionsVisible || mode === 'books' || mode === 'quality' || mode === 'skills' || mode === 'agents' || mode === 'automations'
   const ideModeActive = mode === 'ide' && !sharedMenuActive
   const interactiveModeActive = mode === 'interactive' && !sharedMenuActive
   const skillsActive = mode === 'skills' && !settingsOpen
+  const qualityActive = mode === 'quality' && !settingsOpen
   const agentsActive = mode === 'agents' && !settingsOpen
   const automationsActive = mode === 'automations' && !settingsOpen
-  const fullWorkspacePanelVisible = settingsOpen || versionsVisible || mode === 'skills' || mode === 'agents' || mode === 'automations' || (mode === 'ide' && (loreVisible || tellerVisible))
-  const modeLabel = settingsOpen ? t('workbench.mode.settings') : versionsVisible ? t('workbench.activity.versions') : mode === 'interactive' ? t('workbench.mode.interactive') : mode === 'books' ? t('workbench.mode.books') : mode === 'skills' ? t('workbench.mode.skills') : mode === 'agents' ? t('workbench.mode.agents') : mode === 'automations' ? t('workbench.mode.automations') : t('workbench.mode.ide')
-  const navigationMode = mode === 'books' || mode === 'skills' || mode === 'agents' || mode === 'automations' ? booksReturnMode : mode
+  const fullWorkspacePanelVisible = settingsOpen || versionsVisible || mode === 'quality' || mode === 'skills' || mode === 'agents' || mode === 'automations' || (mode === 'ide' && (loreVisible || tellerVisible))
+  const modeLabel = settingsOpen ? t('workbench.mode.settings') : versionsVisible ? t('workbench.activity.versions') : mode === 'interactive' ? t('workbench.mode.interactive') : mode === 'books' ? t('workbench.mode.books') : mode === 'quality' ? t('quality.title') : mode === 'skills' ? t('workbench.mode.skills') : mode === 'agents' ? t('workbench.mode.agents') : mode === 'automations' ? t('workbench.mode.automations') : t('workbench.mode.ide')
+  const navigationMode = mode === 'books' || mode === 'quality' || mode === 'skills' || mode === 'agents' || mode === 'automations' ? booksReturnMode : mode
   const activityOrderScope: ActivityOrderScope = navigationMode === 'interactive' ? 'interactive' : 'ide'
   const activityOrder = activityOrders[activityOrderScope]
 
@@ -210,7 +211,7 @@ export function WorkbenchShell({
 
   const openVersions = () => {
     closeSettingsIfOpen()
-    if (mode === 'books' || mode === 'skills' || mode === 'agents' || mode === 'automations') {
+    if (mode === 'books' || mode === 'quality' || mode === 'skills' || mode === 'agents' || mode === 'automations') {
       onSetMode(booksReturnMode)
     }
     onSetRightPanel(versionsVisible ? null : 'versions')
@@ -278,6 +279,16 @@ export function WorkbenchShell({
     onSetMode('automations')
   }
 
+  const openQuality = () => {
+    if (mode === 'quality' && !settingsOpen) {
+      returnFromBooks()
+      return
+    }
+    closeSettingsIfOpen()
+    if (versionsVisible) onSetRightPanel(null)
+    onSetMode('quality')
+  }
+
   const openAutomationNotification = (target: AutomationMessageNavigation) => {
     closeSettingsIfOpen()
     if (versionsVisible) onSetRightPanel(null)
@@ -342,6 +353,13 @@ export function WorkbenchShell({
 
   const sharedActivityItems: ActivityItem[] = [
     {
+      id: 'quality',
+      label: t('quality.title'),
+      onClick: openQuality,
+      active: qualityActive,
+      icon: <ClipboardCheck className="h-4 w-4" />,
+    },
+    {
       id: 'books',
       label: t('workbench.activity.books'),
       onClick: openBooks,
@@ -383,7 +401,7 @@ export function WorkbenchShell({
       ...(navigationMode === 'interactive' ? interactiveActivityItems : ideActivityItems),
       ...sharedActivityItems,
     ], activityOrder, defaultActivityOrderForScope(activityOrderScope)),
-    [activityOrder, activityOrderScope, agentsActive, automationInboxUnread, automationRunning, automationsActive, booksReturnMode, ideModeActive, interactiveModeActive, interactiveSubmode, loreVisible, mode, navigationMode, settingsOpen, skillsActive, tellerVisible, versionsVisible],
+    [activityOrder, activityOrderScope, agentsActive, automationInboxUnread, automationRunning, automationsActive, booksReturnMode, ideModeActive, interactiveModeActive, interactiveSubmode, loreVisible, mode, navigationMode, qualityActive, settingsOpen, skillsActive, tellerVisible, versionsVisible],
   )
 
   const handleActivityDragEnd = (event: DragEndEvent) => {
