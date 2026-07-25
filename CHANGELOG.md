@@ -34,6 +34,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Game Mode now reconnects to the active Agent task for the current story and branch after a page refresh, replaying the player action, reasoning, tool calls, and streamed prose before merging the same turn on persistence confirmation.
 - Windows 新建或切换书籍时不再因工作区变更存储对 `.denova` 目录执行不受支持的同步而失败；账本、内容 blob 和作品文件仍保留完整的文件级持久化同步。
 - Creating or switching books on Windows no longer fails when workspace-change storage encounters unsupported directory synchronization under `.denova`; ledger, content blob, and manuscript files retain full file-level durability synchronization.
+- 自动化回调测试现在会在临时目录清理前等待后台协调器退出，稳定测试与 CI 生命周期；不改变产品行为。
+- Automation callback tests now wait for the background coordinator before temporary-directory cleanup, stabilizing the test and CI lifecycle without changing product behavior.
 
 ## [v0.3.0] - 2026-07-18
 
