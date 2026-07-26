@@ -25,10 +25,23 @@ type ShortFictionAppService struct {
 type shortFictionRoot interface {
 	Lstat(string) (os.FileInfo, error)
 	Open(string) (*os.File, error)
+	OpenRoot(string) (shortFictionRoot, error)
 	Close() error
 }
 
 type shortFictionRootOpener func(string) (shortFictionRoot, error)
+
+type osShortFictionRoot struct {
+	*os.Root
+}
+
+func (r *osShortFictionRoot) OpenRoot(name string) (shortFictionRoot, error) {
+	child, err := r.Root.OpenRoot(name)
+	if err != nil {
+		return nil, err
+	}
+	return &osShortFictionRoot{Root: child}, nil
+}
 
 // GenerateShortFictionCandidate returns a preview candidate without persisting it or mutating the workspace.
 func (a *App) GenerateShortFictionCandidate(
@@ -141,7 +154,11 @@ func (s *ShortFictionAppService) shortFictionRootOpener() shortFictionRootOpener
 		return s.openRoot
 	}
 	return func(workspace string) (shortFictionRoot, error) {
-		return os.OpenRoot(workspace)
+		root, err := os.OpenRoot(workspace)
+		if err != nil {
+			return nil, err
+		}
+		return &osShortFictionRoot{Root: root}, nil
 	}
 }
 
@@ -155,7 +172,12 @@ func readShortFictionSource(
 	if err != nil {
 		return "", "", false, err
 	}
-	defer root.Close()
+	openedRoots := []shortFictionRoot{root}
+	defer func() {
+		for index := len(openedRoots) - 1; index >= 0; index-- {
+			_ = openedRoots[index].Close()
+		}
+	}()
 
 	openedRootIdentity, err := root.Lstat(".")
 	if err != nil {
@@ -165,12 +187,52 @@ func readShortFictionSource(
 		return "", "", false, shortfiction.NewError(shortfiction.ErrorCodeInvalidSource, "opened workspace identity does not match active workspace", nil)
 	}
 
-	var targetIdentity os.FileInfo
-	exists, targetIdentity, err = inspectShortFictionTarget(root, target)
-	if err != nil || !exists {
-		return "", "", exists, err
+	components := strings.Split(target, "/")
+	currentRoot := root
+	for _, component := range components[:len(components)-1] {
+		parentIdentity, statErr := currentRoot.Lstat(component)
+		if errors.Is(statErr, os.ErrNotExist) {
+			return "", "", false, nil
+		}
+		if statErr != nil {
+			return "", "", false, statErr
+		}
+		if parentIdentity.Mode()&os.ModeSymlink != 0 {
+			return "", "", false, shortfiction.NewError(shortfiction.ErrorCodeInvalidSource, "target path contains a symbolic link", nil)
+		}
+		if !parentIdentity.IsDir() {
+			return "", "", false, shortfiction.NewError(shortfiction.ErrorCodeInvalidSource, "target parent is not a directory", nil)
+		}
+		childRoot, openErr := currentRoot.OpenRoot(component)
+		if openErr != nil {
+			return "", "", false, openErr
+		}
+		openedRoots = append(openedRoots, childRoot)
+		openedChildIdentity, childStatErr := childRoot.Lstat(".")
+		if childStatErr != nil {
+			return "", "", false, childStatErr
+		}
+		if !openedChildIdentity.IsDir() || !os.SameFile(parentIdentity, openedChildIdentity) {
+			return "", "", false, shortfiction.NewError(shortfiction.ErrorCodeInvalidSource, "opened parent identity does not match preflight parent", nil)
+		}
+		currentRoot = childRoot
 	}
-	file, err := root.Open(filepath.FromSlash(target))
+
+	basename := components[len(components)-1]
+	targetIdentity, err := currentRoot.Lstat(basename)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", "", false, nil
+	}
+	if err != nil {
+		return "", "", false, err
+	}
+	if targetIdentity.Mode()&os.ModeSymlink != 0 {
+		return "", "", false, shortfiction.NewError(shortfiction.ErrorCodeInvalidSource, "target path contains a symbolic link", nil)
+	}
+	if !targetIdentity.Mode().IsRegular() {
+		return "", "", false, shortfiction.NewError(shortfiction.ErrorCodeInvalidSource, "target is not a regular file", nil)
+	}
+	file, err := currentRoot.Open(basename)
 	if err != nil {
 		return "", "", false, err
 	}
@@ -188,33 +250,4 @@ func readShortFictionSource(
 	}
 	sum := sha256.Sum256(data)
 	return string(data), fmt.Sprintf("sha256:%x", sum[:]), true, nil
-}
-
-func inspectShortFictionTarget(root shortFictionRoot, target string) (bool, os.FileInfo, error) {
-	components := strings.Split(target, "/")
-	prefix := ""
-	for index, component := range components {
-		prefix = filepath.Join(prefix, component)
-		info, err := root.Lstat(prefix)
-		if errors.Is(err, os.ErrNotExist) {
-			return false, nil, nil
-		}
-		if err != nil {
-			return false, nil, err
-		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return false, nil, shortfiction.NewError(shortfiction.ErrorCodeInvalidSource, "target path contains a symbolic link", nil)
-		}
-		if index < len(components)-1 {
-			if !info.IsDir() {
-				return false, nil, shortfiction.NewError(shortfiction.ErrorCodeInvalidSource, "target parent is not a directory", nil)
-			}
-			continue
-		}
-		if !info.Mode().IsRegular() {
-			return false, nil, shortfiction.NewError(shortfiction.ErrorCodeInvalidSource, "target is not a regular file", nil)
-		}
-		return true, info, nil
-	}
-	return false, nil, shortfiction.NewError(shortfiction.ErrorCodeInvalidSource, "target path is empty", nil)
 }

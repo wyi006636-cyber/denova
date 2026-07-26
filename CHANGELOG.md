@@ -30,6 +30,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 番茄短篇应用预览现在通过 `OpenRoot` 按单个路径组件链式打开每层正文父目录，并校验每个已打开父目录的文件身份，防止中间目录在预检后被竞态替换为符号链接。
+- Fanqie short-fiction app previews now chain through each manuscript parent one component at a time with `OpenRoot` and verify every opened parent identity, preventing an intermediate directory from being race-swapped to a symlink after preflight.
 - 番茄短篇应用预览现在将规范工作区与正文目标绑定到已打开描述符的文件身份，只从与预检目标身份一致的描述符读取并计算 revision，拒绝路径竞态中的符号链接替换。
 - Fanqie short-fiction app previews now bind the canonical workspace and manuscript target to opened-descriptor identities, reading and hashing only a descriptor that matches the preflight target and rejecting symlink swaps during path races.
 - 番茄短篇应用预览现在仅接受规范化且不含符号链接的正文来源路径，并改用纯读文件快照，避免冷工作区生成时创建变更账本元数据。

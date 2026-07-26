@@ -30,8 +30,8 @@ func TestFanqieGenerateRejectsDescriptorIdentityRacesBeforeModelCall(t *testing.
 				return workspace, workspacechange.Revision([]byte(hiddenSentinel))
 			},
 			openRoot: func(t *testing.T, workspace string) shortFictionRootOpener {
-				return swappingShortFictionRootOpener(t, workspace, func(delegate shortFictionRoot, name string) (*os.File, error) {
-					target := filepath.Join(workspace, filepath.FromSlash(name))
+				return swappingShortFictionRootOpener(t, workspace, func(delegate shortFictionRoot, openName, relative string) (*os.File, error) {
+					target := filepath.Join(workspace, filepath.FromSlash(relative))
 					original := target + ".original"
 					if err := os.Rename(target, original); err != nil {
 						t.Fatal(err)
@@ -39,7 +39,7 @@ func TestFanqieGenerateRejectsDescriptorIdentityRacesBeforeModelCall(t *testing.
 					if err := os.Symlink("../.hidden/secret.md", target); err != nil {
 						t.Fatal(err)
 					}
-					file, err := delegate.Open(name)
+					file, err := delegate.Open(openName)
 					if removeErr := os.Remove(target); removeErr != nil {
 						t.Fatal(removeErr)
 					}
@@ -51,7 +51,7 @@ func TestFanqieGenerateRejectsDescriptorIdentityRacesBeforeModelCall(t *testing.
 			},
 		},
 		{
-			name: "parent swapped to hidden symlink",
+			name: "parent swapped after Lstat before OpenRoot",
 			workspace: func(t *testing.T) (string, string) {
 				workspace := canonicalShortFictionTestWorkspace(t, t.TempDir())
 				writeShortFictionTestFile(t, workspace, "chapters/short.md", "visible parent target")
@@ -59,24 +59,7 @@ func TestFanqieGenerateRejectsDescriptorIdentityRacesBeforeModelCall(t *testing.
 				return workspace, workspacechange.Revision([]byte(hiddenSentinel))
 			},
 			openRoot: func(t *testing.T, workspace string) shortFictionRootOpener {
-				return swappingShortFictionRootOpener(t, workspace, func(delegate shortFictionRoot, name string) (*os.File, error) {
-					parent := filepath.Join(workspace, "chapters")
-					original := parent + ".original"
-					if err := os.Rename(parent, original); err != nil {
-						t.Fatal(err)
-					}
-					if err := os.Symlink(".hidden-parent", parent); err != nil {
-						t.Fatal(err)
-					}
-					file, err := delegate.Open(name)
-					if removeErr := os.Remove(parent); removeErr != nil {
-						t.Fatal(removeErr)
-					}
-					if renameErr := os.Rename(original, parent); renameErr != nil {
-						t.Fatal(renameErr)
-					}
-					return file, err
-				})
+				return parentAfterLstatShortFictionRootOpener(t, workspace)
 			},
 		},
 		{
@@ -112,7 +95,7 @@ func TestFanqieGenerateRejectsDescriptorIdentityRacesBeforeModelCall(t *testing.
 					if renameErr := os.Rename(original, workspace); renameErr != nil {
 						t.Fatal(renameErr)
 					}
-					return root, err
+					return &shortFictionTestRootAdapter{Root: root}, err
 				}
 			},
 		},
@@ -152,10 +135,106 @@ func TestFanqieGenerateRejectsDescriptorIdentityRacesBeforeModelCall(t *testing.
 	}
 }
 
+type shortFictionTestRootAdapter struct {
+	*os.Root
+}
+
+func (r *shortFictionTestRootAdapter) OpenRoot(name string) (shortFictionRoot, error) {
+	child, err := r.Root.OpenRoot(name)
+	if err != nil {
+		return nil, err
+	}
+	return &shortFictionTestRootAdapter{Root: child}, nil
+}
+
+type parentAfterLstatShortFictionRoot struct {
+	shortFictionRoot
+	t         *testing.T
+	workspace string
+	once      sync.Once
+	swapped   bool
+}
+
+func (r *parentAfterLstatShortFictionRoot) Lstat(name string) (os.FileInfo, error) {
+	info, err := r.shortFictionRoot.Lstat(name)
+	if err == nil && name == "chapters" {
+		r.once.Do(r.swapParent)
+	}
+	return info, err
+}
+
+func (r *parentAfterLstatShortFictionRoot) Open(name string) (*os.File, error) {
+	file, err := r.shortFictionRoot.Open(name)
+	r.restoreParent()
+	return file, err
+}
+
+func (r *parentAfterLstatShortFictionRoot) OpenRoot(name string) (shortFictionRoot, error) {
+	chained, ok := r.shortFictionRoot.(interface {
+		OpenRoot(string) (shortFictionRoot, error)
+	})
+	if !ok {
+		r.t.Fatal("root does not support component OpenRoot")
+	}
+	child, err := chained.OpenRoot(name)
+	r.restoreParent()
+	return child, err
+}
+
+func (r *parentAfterLstatShortFictionRoot) Close() error {
+	r.restoreParent()
+	return r.shortFictionRoot.Close()
+}
+
+func (r *parentAfterLstatShortFictionRoot) swapParent() {
+	parent := filepath.Join(r.workspace, "chapters")
+	original := parent + ".original"
+	if err := os.Rename(parent, original); err != nil {
+		r.t.Fatal(err)
+	}
+	if err := os.Symlink(".hidden-parent", parent); err != nil {
+		r.t.Fatal(err)
+	}
+	r.swapped = true
+}
+
+func (r *parentAfterLstatShortFictionRoot) restoreParent() {
+	if !r.swapped {
+		return
+	}
+	r.swapped = false
+	parent := filepath.Join(r.workspace, "chapters")
+	if err := os.Remove(parent); err != nil {
+		r.t.Fatal(err)
+	}
+	if err := os.Rename(parent+".original", parent); err != nil {
+		r.t.Fatal(err)
+	}
+}
+
+func parentAfterLstatShortFictionRootOpener(t *testing.T, workspace string) shortFictionRootOpener {
+	t.Helper()
+	return func(path string) (shortFictionRoot, error) {
+		if path != workspace {
+			t.Fatalf("open root path = %q, want %q", path, workspace)
+		}
+		root, err := os.OpenRoot(path)
+		if err != nil {
+			return nil, err
+		}
+		return &parentAfterLstatShortFictionRoot{
+			shortFictionRoot: &shortFictionTestRootAdapter{Root: root},
+			t:                t,
+			workspace:        workspace,
+		}, nil
+	}
+}
+
 type swappingShortFictionRoot struct {
 	shortFictionRoot
-	once   sync.Once
-	onOpen func(shortFictionRoot, string) (*os.File, error)
+	once   *sync.Once
+	prefix string
+	onOpen func(shortFictionRoot, string, string) (*os.File, error)
 }
 
 func (r *swappingShortFictionRoot) Open(name string) (*os.File, error) {
@@ -166,7 +245,7 @@ func (r *swappingShortFictionRoot) Open(name string) (*os.File, error) {
 	)
 	r.once.Do(func() {
 		ran = true
-		file, err = r.onOpen(r.shortFictionRoot, name)
+		file, err = r.onOpen(r.shortFictionRoot, name, filepath.Join(r.prefix, name))
 	})
 	if ran {
 		return file, err
@@ -174,10 +253,23 @@ func (r *swappingShortFictionRoot) Open(name string) (*os.File, error) {
 	return r.shortFictionRoot.Open(name)
 }
 
+func (r *swappingShortFictionRoot) OpenRoot(name string) (shortFictionRoot, error) {
+	child, err := r.shortFictionRoot.OpenRoot(name)
+	if err != nil {
+		return nil, err
+	}
+	return &swappingShortFictionRoot{
+		shortFictionRoot: child,
+		once:             r.once,
+		prefix:           filepath.Join(r.prefix, name),
+		onOpen:           r.onOpen,
+	}, nil
+}
+
 func swappingShortFictionRootOpener(
 	t *testing.T,
 	workspace string,
-	onOpen func(shortFictionRoot, string) (*os.File, error),
+	onOpen func(shortFictionRoot, string, string) (*os.File, error),
 ) shortFictionRootOpener {
 	t.Helper()
 	return func(path string) (shortFictionRoot, error) {
@@ -188,7 +280,11 @@ func swappingShortFictionRootOpener(
 		if err != nil {
 			return nil, err
 		}
-		return &swappingShortFictionRoot{shortFictionRoot: root, onOpen: onOpen}, nil
+		return &swappingShortFictionRoot{
+			shortFictionRoot: &shortFictionTestRootAdapter{Root: root},
+			once:             &sync.Once{},
+			onOpen:           onOpen,
+		}, nil
 	}
 }
 
