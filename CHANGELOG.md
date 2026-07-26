@@ -34,6 +34,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- 番茄短篇生成提示词从占位版升级为番茄短篇写作方法论：明确结构（8~12 章、逐章钩子、冲突升级与结局兑现）、文风（第一人称、短句短段、直角引号对白）与三类 AI 味禁令。
+- The Fanqie short-fiction generation prompt is upgraded from the placeholder to the Fanqie writing methodology: explicit structure (8-12 chapters, per-chapter hooks, escalating conflict and payoff), prose style (first person, short lines and paragraphs, corner-bracket dialogue), and three banned AI-flavor patterns.
 - Home、Settings、Agents、Skills 和 Automations 统一使用共享页面框架、分区导航、表单字段、资源目录、空状态与确认弹窗；资料库和方案预设同时复用自适应面板与移动端入口。
 - Home, Settings, Agents, Skills, and Automations now share page shells, section navigation, form fields, resource directories, empty states, and confirmation dialogs; Lore and Presets also reuse adaptive panes and mobile entry points.
 - 写作与游戏模式的 Agent 对话统一为单一挂载的聊天面板，并共享持久化输入偏好、上下文分析展示、文本测量和底部滚动控制，避免布局切换时重复初始化会话状态。
