@@ -92,14 +92,13 @@ func TestFanqieCandidateRejectsOversizedBriefSourceAndOutput(t *testing.T) {
 func TestFanqiePromptRequestsOneCompleteStoryWithoutWriteClaims(t *testing.T) {
 	prompt := FanqieSystemPrompt()
 	for _, requirement := range []string{
-		"one complete Markdown story",
-		"clear premise",
-		"protagonist desire",
-		"immediate pressure",
-		"early hook",
-		"payoff",
-		"Do not use a code fence.",
-		"Do not claim to write to a workspace or use tools.",
+		"一篇完整的番茄风格短篇小说",
+		"第一章直接进入冲突现场",
+		"主角目标、压力与钩子",
+		"悬念、损失或新问题",
+		"结局兑现开篇立起的期待",
+		"不用代码块包裹",
+		"不声称写入文件或使用工具",
 	} {
 		if !strings.Contains(prompt, requirement) {
 			t.Fatalf("prompt missing %q: %q", requirement, prompt)
