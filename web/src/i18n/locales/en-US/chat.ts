@@ -435,7 +435,7 @@ const chat = {
   'chat.fanqie.result.successTitle': 'Manuscript and version saved',
   'chat.fanqie.result.successBody': 'The complete story was written to the target Markdown and its version was saved.',
   'chat.fanqie.result.partialTitle': 'Manuscript written; version checkpoint failed',
-  'chat.fanqie.result.partialBody': 'The Markdown manuscript was written, but the version checkpoint failed. Inspect the manuscript first, then save a version manually.',
+  'chat.fanqie.result.partialBody': 'The Markdown manuscript was written to {{path}}, but the version checkpoint failed. Inspect that manuscript first, then save a version manually.',
   'chat.fanqie.result.writeRevision': 'Write revision',
   'chat.fanqie.result.version': 'Version checkpoint',
   'chat.fanqie.error.generateTitle': 'Preview could not be generated',

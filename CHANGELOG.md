@@ -38,6 +38,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 番茄短篇 Sheet 现在用单调请求身份与完整生成 authority 丢弃关闭、上下文切换或新请求之后返回的旧预览；确认同步去重并将已提交结果保持为终态，每个候选最多刷新工作区一次，部分成功也始终显示实际写入的 Markdown 路径。
+- The Fanqie story Sheet now uses monotonic request identity and complete generation authority to discard previews that return after close, context changes, or a newer request; confirmation is synchronously deduplicated, committed results remain terminal, each candidate refreshes the workspace at most once, and partial success always shows the Markdown path that was actually written.
 - 番茄短篇公开生成请求现在与前端合同统一为扁平的 `workspace`、`profile_id`、`target_path`、`base_revision`、`brief` 五字段；正文 `source` 仍只从当前工作区读取，`locale` 仍只从请求头获取，不接受客户端覆盖。
 - The public Fanqie short-fiction generation request now matches the frontend contract with exactly five flat fields: `workspace`, `profile_id`, `target_path`, `base_revision`, and `brief`; manuscript `source` still comes only from the active workspace, and `locale` still comes only from the request header, so clients cannot override either authority.
 - 番茄短篇确认现在会将候选正文与目标文件字节相同的预提交结果返回为稳定的 HTTP 400 `invalid_edit` 双语错误，并明确 `workspace_mutated:false`；不再把无需写入、未创建版本或 ChangeSet 的状态误报为 500 内部错误。

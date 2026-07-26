@@ -125,10 +125,13 @@ describe('AgentPanel', () => {
     }
   })
 
-  it('在 Agent 正在流式回复时禁用持久番茄短篇入口', () => {
+  it('在 Agent 正在流式回复时禁用持久番茄短篇入口', async () => {
     renderAgentPanel({ isStreaming: true })
 
     expect(screen.getByRole('button', { name: '番茄短篇' })).toBeDisabled()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /切换模型/ })).not.toHaveTextContent('加载模型')
+    })
   })
 
   it('创作 Agent 将思考和工具调用折叠到同一个思考过程', async () => {

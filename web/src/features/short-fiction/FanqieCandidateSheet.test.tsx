@@ -1,16 +1,19 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import type { ComponentProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { setConfiguredLocale } from '@/i18n'
+import i18next, { setConfiguredLocale } from '@/i18n'
 import type { ShortFictionCandidate, ShortFictionGenerateRequest } from '@/lib/api-client/short-fiction'
 import { server } from '@/test/msw/server'
 import { FanqieCandidateSheet } from './FanqieCandidateSheet'
 
 describe('FanqieCandidateSheet', () => {
-  afterEach(() => {
-    setConfiguredLocale('zh-CN')
+  afterEach(async () => {
+    await act(async () => {
+      setConfiguredLocale('zh-CN')
+      await i18next.changeLanguage('zh-CN')
+    })
   })
 
   it('previews without writing and confirms only after the explicit author action', async () => {
@@ -171,6 +174,50 @@ describe('FanqieCandidateSheet', () => {
       brief: '一篇悬疑反转短篇',
     })
     expect(confirmRequestCount).toBe(0)
+  })
+
+  it.each([
+    '/abs.md',
+    '../x.md',
+    '.hidden/x.md',
+    'chapters/.draft/x.md',
+    'C:/x.md',
+    'chapters/x.txt',
+  ])('rejects explicit invalid target %s before any API request', async (invalidTarget) => {
+    const user = userEvent.setup()
+    const readPaths: string[] = []
+    const generateBodies: ShortFictionGenerateRequest[] = []
+    const generateLocales: string[] = []
+    const confirmCandidates: ShortFictionCandidate[] = []
+
+    server.use(
+      http.get('/api/workspace/file', ({ request }) => {
+        readPaths.push(new URL(request.url).searchParams.get('path') || '')
+        return HttpResponse.json({ workspace: '/workspace', path: invalidTarget, content: '', revision: `sha256:${'1'.repeat(64)}` })
+      }),
+      http.post('/api/short-fiction/candidates', async ({ request }) => {
+        generateLocales.push(request.headers.get('X-Denova-Locale') || '')
+        generateBodies.push(await request.json() as ShortFictionGenerateRequest)
+        return HttpResponse.json(candidateFixture({ target_path: invalidTarget }))
+      }),
+      http.post('/api/short-fiction/candidates/confirm', async ({ request }) => {
+        const body = await request.json() as { candidate: ShortFictionCandidate }
+        confirmCandidates.push(body.candidate)
+        expect(request.headers.get('X-Denova-Locale')).toBe('zh-CN')
+        return HttpResponse.json(writtenResult(body.candidate))
+      }),
+    )
+
+    renderSheet({ selectedFile: null, fileSuggestions: [] })
+    await user.type(screen.getByLabelText('目标 Markdown'), invalidTarget)
+    await user.type(screen.getByLabelText('创作要求'), '非法目标不得调用 API')
+    await user.click(screen.getByRole('button', { name: '生成完整短篇预览' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('请输入工作区内可见的相对 .md 路径')
+    expect(readPaths).toEqual([])
+    expect(generateBodies).toEqual([])
+    expect(generateLocales).toEqual([])
+    expect(confirmCandidates).toEqual([])
   })
 
   it('defaults to the Markdown file selected before the first Sheet open', () => {
@@ -398,7 +445,7 @@ describe('FanqieCandidateSheet', () => {
     await user.click(screen.getByRole('button', { name: '确认写入正文' }))
 
     expect(await screen.findByText('正文已写入，版本检查点保存失败')).toBeInTheDocument()
-    expect(screen.getByText('Markdown 正文已写入，但版本检查点保存失败。请先检查正文内容，再手动保存一个版本。')).toBeInTheDocument()
+    expect(screen.getByText('Markdown 正文已写入 chapters/short.md，但版本检查点保存失败。请先检查该正文，再手动保存一个版本。')).toBeInTheDocument()
     expect(screen.getByRole('dialog')).not.toHaveTextContent(/retry|rollback|receipt|重试|回滚|收据/i)
     expect(onWorkspaceChanged).toHaveBeenCalledTimes(1)
     expect(onWorkspaceChanged).toHaveBeenCalledWith(['chapters/short.md'])
@@ -565,7 +612,10 @@ describe('FanqieCandidateSheet', () => {
   })
 
   it('renders paired English copy and sends the English locale', async () => {
-    setConfiguredLocale('en-US')
+    await act(async () => {
+      setConfiguredLocale('en-US')
+      await i18next.changeLanguage('en-US')
+    })
     const user = userEvent.setup()
     const revision = `sha256:${'a'.repeat(64)}`
     const expectedCandidate = candidateFixture({

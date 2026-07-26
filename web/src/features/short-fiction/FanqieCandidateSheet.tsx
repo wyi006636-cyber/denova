@@ -22,8 +22,28 @@ type SheetState =
   | { step: 'generating' }
   | { step: 'preview'; candidate: ShortFictionCandidate }
   | { step: 'confirming'; candidate: ShortFictionCandidate }
-  | { step: 'result'; result: ShortFictionConfirmationResult }
+  | { step: 'result'; result: ShortFictionConfirmationResult; candidate: ShortFictionCandidate }
   | { step: 'error'; phase: 'generate' | 'confirm'; message: string; candidate?: ShortFictionCandidate }
+
+interface GenerateContext {
+  open: boolean
+  workspace: string
+  selectedFile: string | null
+  locale: string
+}
+
+interface GenerateRequestIdentity {
+  id: number
+  authority: GenerateContext & {
+    targetPath: string
+    brief: string
+  }
+}
+
+interface ConfirmRequestIdentity {
+  id: number
+  candidateID: string
+}
 
 interface FanqieCandidateSheetProps {
   open: boolean
@@ -45,10 +65,26 @@ export function FanqieCandidateSheet({
   onWorkspaceChanged,
 }: FanqieCandidateSheetProps) {
   const { t } = useTranslation()
+  const locale = getResolvedLocale()
   const [targetPath, setTargetPath] = useState(() => normalizeMarkdownTarget(selectedFile || '') || '')
   const [brief, setBrief] = useState('')
   const [state, setState] = useState<SheetState>({ step: 'brief' })
   const targetEdited = useRef(false)
+  const generateSequence = useRef(0)
+  const activeGenerateRequest = useRef<GenerateRequestIdentity | null>(null)
+  const generateContext = useRef<GenerateContext>({ open, workspace, selectedFile, locale })
+  const generateAuthority = useRef({ ...generateContext.current, targetPath, brief: brief.trim() })
+  const previousGenerateContext = useRef<GenerateContext>(generateContext.current)
+  const confirmSequence = useRef(0)
+  const confirmInFlight = useRef<ConfirmRequestIdentity | null>(null)
+  const committedCandidates = useRef(new Set<string>())
+  const refreshedCandidates = useRef(new Set<string>())
+  generateContext.current = { open, workspace, selectedFile, locale }
+  generateAuthority.current = {
+    ...generateContext.current,
+    targetPath: normalizeMarkdownTarget(targetPath) || targetPath.trim(),
+    brief: brief.trim(),
+  }
 
   const targetSuggestions = useMemo(() => (
     Array.from(new Set(fileSuggestions.map(normalizeMarkdownTarget).filter((path): path is string => Boolean(path))))
@@ -56,9 +92,19 @@ export function FanqieCandidateSheet({
   ), [fileSuggestions])
 
   useEffect(() => {
-    if (!open || targetEdited.current) return
-    setTargetPath(normalizeMarkdownTarget(selectedFile || '') || '')
-  }, [open, selectedFile])
+    const previous = previousGenerateContext.current
+    const current = generateContext.current
+    previousGenerateContext.current = current
+
+    if (!sameGenerateContext(previous, current)) {
+      generateSequence.current += 1
+      activeGenerateRequest.current = null
+      setState((currentState) => resetStaleCandidateState(currentState))
+    }
+    if (open && !targetEdited.current) {
+      setTargetPath(normalizeMarkdownTarget(selectedFile || '') || '')
+    }
+  }, [locale, open, selectedFile, workspace])
 
   const generate = async () => {
     const normalizedTarget = normalizeMarkdownTarget(targetPath)
@@ -77,23 +123,46 @@ export function FanqieCandidateSheet({
 
     setTargetPath(normalizedTarget)
     setState({ step: 'generating' })
+    const requestIdentity: GenerateRequestIdentity = {
+      id: generateSequence.current + 1,
+      authority: {
+        ...generateContext.current,
+        targetPath: normalizedTarget,
+        brief: brief.trim(),
+      },
+    }
+    generateSequence.current = requestIdentity.id
+    activeGenerateRequest.current = requestIdentity
+    const requestIsCurrent = () => (
+      activeGenerateRequest.current?.id === requestIdentity.id
+      && sameGenerateAuthority(requestIdentity.authority, generateAuthority.current)
+    )
+    const finishGenerate = (nextState: SheetState) => {
+      if (!requestIsCurrent()) return false
+      activeGenerateRequest.current = null
+      setState(nextState)
+      return true
+    }
 
     let generationWorkspace = workspace
     let baseRevision = 'missing'
     try {
       const document = await readFile(normalizedTarget)
+      if (!requestIsCurrent()) return
       if (!document.workspace || !document.revision) {
-        setState({ step: 'error', phase: 'generate', message: t('chat.fanqie.error.revisionUnavailable') })
+        finishGenerate({ step: 'error', phase: 'generate', message: t('chat.fanqie.error.revisionUnavailable') })
         return
       }
       generationWorkspace = document.workspace
       baseRevision = document.revision
     } catch (error) {
+      if (!requestIsCurrent()) return
       if (!(error instanceof APIError) || error.status !== 404) {
-        setState({ step: 'error', phase: 'generate', message: apiErrorMessage(error, t('chat.fanqie.error.readFailed')) })
+        finishGenerate({ step: 'error', phase: 'generate', message: apiErrorMessage(error, t('chat.fanqie.error.readFailed')) })
         return
       }
     }
+    if (!requestIsCurrent()) return
 
     try {
       const candidate = await generateShortFictionCandidate({
@@ -102,29 +171,57 @@ export function FanqieCandidateSheet({
         target_path: normalizedTarget,
         base_revision: baseRevision,
         brief: brief.trim(),
-      }, getResolvedLocale())
+      }, requestIdentity.authority.locale)
+      if (!requestIsCurrent()) return
       if (!candidate.preview_markdown.trim()) {
-        setState({ step: 'error', phase: 'generate', message: t('chat.fanqie.error.emptyCandidate') })
+        finishGenerate({ step: 'error', phase: 'generate', message: t('chat.fanqie.error.emptyCandidate') })
         return
       }
-      setState({ step: 'preview', candidate })
+      finishGenerate({ step: 'preview', candidate })
     } catch (error) {
-      setState({ step: 'error', phase: 'generate', message: generationErrorMessage(error, t) })
+      finishGenerate({ step: 'error', phase: 'generate', message: generationErrorMessage(error, t) })
     }
+  }
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      generateSequence.current += 1
+      activeGenerateRequest.current = null
+      setState((currentState) => resetStaleCandidateState(currentState))
+    }
+    onOpenChange(nextOpen)
   }
 
   const confirm = async (candidate: ShortFictionCandidate) => {
     if (!candidate.preview_markdown.trim()) return
+    if (committedCandidates.current.has(candidate.candidate_id)) return
+    if (confirmInFlight.current?.candidateID === candidate.candidate_id) return
+
+    const requestIdentity: ConfirmRequestIdentity = {
+      id: confirmSequence.current + 1,
+      candidateID: candidate.candidate_id,
+    }
+    confirmSequence.current = requestIdentity.id
+    confirmInFlight.current = requestIdentity
     setState({ step: 'confirming', candidate })
     try {
       const result = await confirmShortFictionCandidate({ candidate }, getResolvedLocale())
-      setState({ step: 'result', result })
       if (result.status === 'written' || result.status === 'written_checkpoint_failed') {
-        void Promise.resolve(onWorkspaceChanged?.([candidate.target_path])).catch((error) => {
+        committedCandidates.current.add(candidate.candidate_id)
+        if (confirmInFlight.current?.id === requestIdentity.id) confirmInFlight.current = null
+        setState((currentState) => currentState.step === 'result'
+          ? currentState
+          : { step: 'result', result, candidate })
+        if (refreshedCandidates.current.has(candidate.candidate_id)) return
+        refreshedCandidates.current.add(candidate.candidate_id)
+        void Promise.resolve().then(() => onWorkspaceChanged?.([candidate.target_path])).catch((error) => {
           console.error('[FanqieCandidateSheet] workspace refresh failed file=FanqieCandidateSheet.tsx path=%s', candidate.target_path, error)
         })
       }
     } catch (error) {
+      if (committedCandidates.current.has(candidate.candidate_id)) return
+      if (confirmInFlight.current?.id !== requestIdentity.id) return
+      confirmInFlight.current = null
       setState({ step: 'error', phase: 'confirm', message: confirmationErrorMessage(error, t), candidate })
     }
   }
@@ -139,7 +236,7 @@ export function FanqieCandidateSheet({
       : undefined
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent
         side="right"
         showCloseButton={false}
@@ -163,7 +260,7 @@ export function FanqieCandidateSheet({
               size="icon-sm"
               aria-label={t('chat.fanqie.close')}
               title={t('chat.fanqie.close')}
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
             >
               <X />
             </Button>
@@ -206,7 +303,7 @@ export function FanqieCandidateSheet({
               />
             ) : null}
 
-            {state.step === 'result' ? <ResultStep result={state.result} targetPath={targetPath} t={t} /> : null}
+            {state.step === 'result' ? <ResultStep result={state.result} candidate={state.candidate} t={t} /> : null}
           </div>
         </ScrollArea>
       </SheetContent>
@@ -360,8 +457,9 @@ function PreviewStep({ candidate, confirming, disabled, error, onBack, onConfirm
   )
 }
 
-function ResultStep({ result, targetPath, t }: { result: ShortFictionConfirmationResult; targetPath: string; t: StepCopy }) {
+function ResultStep({ result, candidate, t }: { result: ShortFictionConfirmationResult; candidate: ShortFictionCandidate; t: StepCopy }) {
   const partial = result.status === 'written_checkpoint_failed'
+  const committedPath = result.status === 'written' ? result.checkpoint.path : candidate.target_path
   return (
     <section className="flex min-w-0 flex-col gap-4" aria-labelledby="fanqie-result-heading">
       <div className={`rounded-[var(--nova-radius)] border p-4 ${partial ? 'border-amber-500/40 bg-amber-500/10' : 'border-emerald-500/40 bg-emerald-500/10'}`}>
@@ -372,13 +470,13 @@ function ResultStep({ result, targetPath, t }: { result: ShortFictionConfirmatio
               {partial ? t('chat.fanqie.result.partialTitle') : t('chat.fanqie.result.successTitle')}
             </h2>
             <p className="mt-1 break-words text-xs leading-5 text-[var(--nova-text-muted)] [overflow-wrap:anywhere]">
-              {partial ? t('chat.fanqie.result.partialBody') : t('chat.fanqie.result.successBody')}
+              {partial ? t('chat.fanqie.result.partialBody', { path: committedPath }) : t('chat.fanqie.result.successBody')}
             </p>
           </div>
         </div>
       </div>
       <dl className="grid min-w-0 gap-2 rounded-[var(--nova-radius)] border border-[var(--nova-border)] bg-[var(--nova-surface-2)] p-3 text-[11px]">
-        <Metadata label={t('chat.fanqie.preview.target')} value={targetPath} />
+        <Metadata label={t('chat.fanqie.preview.target')} value={committedPath} />
         <Metadata label={t('chat.fanqie.result.writeRevision')} value={result.write_revision} />
         {result.status === 'written' ? <Metadata label={t('chat.fanqie.result.version')} value={result.checkpoint.version_id} /> : null}
       </dl>
@@ -416,6 +514,27 @@ function normalizeMarkdownTarget(value: string): string | null {
 
   const normalized = segments.join('/')
   return normalized.endsWith('.md') ? normalized : null
+}
+
+function sameGenerateContext(left: GenerateContext, right: GenerateContext) {
+  return left.open === right.open
+    && left.workspace === right.workspace
+    && left.selectedFile === right.selectedFile
+    && left.locale === right.locale
+}
+
+function sameGenerateAuthority(
+  left: GenerateRequestIdentity['authority'],
+  right: GenerateRequestIdentity['authority'],
+) {
+  return sameGenerateContext(left, right)
+    && left.targetPath === right.targetPath
+    && left.brief === right.brief
+}
+
+function resetStaleCandidateState(state: SheetState): SheetState {
+  if (state.step === 'confirming' || state.step === 'result' || state.step === 'brief') return state
+  return { step: 'brief' }
 }
 
 function apiErrorMessage(error: unknown, fallback: string) {
