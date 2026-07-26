@@ -62,10 +62,11 @@ func (s *Service) SaveFile(ctx context.Context, path, content, baseRevision stri
 		if mutation.Stage == mutationStageVisible {
 			s.markPendingParentSync(rel, mutation)
 			s.pendingSaves[rel] = pendingSaveIntent{
-				Path:         rel,
-				ParentRel:    mutation.ParentRel,
-				BaseRevision: expectedRevision,
-				Revision:     revision,
+				Path:          rel,
+				ParentRel:     mutation.ParentRel,
+				BaseRevision:  expectedRevision,
+				Revision:      revision,
+				PathUncertain: mutation.PathUncertain,
 			}
 			return SaveResult{}, durabilityPendingError(rel, "", "", mutation, writeErr)
 		}

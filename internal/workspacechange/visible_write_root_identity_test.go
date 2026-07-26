@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -41,6 +42,126 @@ func TestPendingParentSyncKeepsUncertainPathPrivateOnLaterFailure(t *testing.T) 
 	assertDurabilityPendingWithoutPath(t, err)
 	if _, statErr := os.Stat(filepath.Join(service.workspace, "other.md")); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("write barrier allowed a later mutation: %v", statErr)
+	}
+}
+
+func TestPendingParentSyncDoesNotAdoptReplacementIdentity(t *testing.T) {
+	t.Run("parent", func(t *testing.T) {
+		service, path := newConsistentSnapshotService(t, "same revision before the uncertain write")
+		const redirectedPath = "redirect/ch01.md"
+		writeTestFile(t, service.workspace, redirectedPath, "same revision before the uncertain write")
+		service.durability.visibleWriteHookFn = func(stage, _ string) error {
+			if stage == visibleWriteStageAfterReplace {
+				swapVisibleParentForTest(t, service.workspace, "chapters.written")
+			}
+			return nil
+		}
+
+		_, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+			Path:         path,
+			Content:      "candidate written through the opened parent",
+			BaseRevision: Revision([]byte("same revision before the uncertain write")),
+		}, func(ChangeSet) error {
+			t.Fatal("identity-uncertain write invoked the snapshot callback")
+			return nil
+		})
+		assertDurabilityPendingWithoutPath(t, err)
+
+		service.durability.visibleWriteHookFn = nil
+		_, err = service.SaveFile(context.Background(), "other.md", "must remain unwritten", "missing")
+		assertDurabilityPendingWithoutPath(t, err)
+		if len(service.pendingParentSync) != 1 {
+			t.Fatalf("replacement parent consumed pending identity: %#v", service.pendingParentSync)
+		}
+		if _, statErr := os.Stat(filepath.Join(service.workspace, "other.md")); !errors.Is(statErr, os.ErrNotExist) {
+			t.Fatalf("replacement parent admitted a later write: %v", statErr)
+		}
+	})
+
+	t.Run("workspace-root", func(t *testing.T) {
+		const path = "chapters/ch01.md"
+		service, replacement := newWorkspaceRootSwapService(t, path, "same revision before the uncertain write")
+		movedWorkspace := service.workspace + ".written"
+		service.durability.visibleWriteHookFn = func(stage, _ string) error {
+			if stage == visibleWriteStageAfterReplace {
+				swapWorkspaceRootForTest(t, service.workspace, replacement, movedWorkspace)
+			}
+			return nil
+		}
+
+		_, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+			Path:         path,
+			Content:      "candidate written through the opened workspace",
+			BaseRevision: Revision([]byte("same revision before the uncertain write")),
+		}, func(ChangeSet) error {
+			t.Fatal("identity-uncertain write invoked the snapshot callback")
+			return nil
+		})
+		assertDurabilityPendingWithoutPath(t, err)
+
+		service.durability.visibleWriteHookFn = nil
+		_, err = service.SaveFile(context.Background(), "other.md", "must remain unwritten", "missing")
+		assertDurabilityPendingWithoutPath(t, err)
+		if len(service.pendingParentSync) != 1 {
+			t.Fatalf("replacement workspace consumed pending identity: %#v", service.pendingParentSync)
+		}
+		if _, statErr := os.Stat(filepath.Join(service.workspace, "other.md")); !errors.Is(statErr, os.ErrNotExist) {
+			t.Fatalf("replacement workspace admitted a later write: %v", statErr)
+		}
+	})
+}
+
+func TestPendingSaveKeepsUncertainPathPrivateAfterIdentityRecovery(t *testing.T) {
+	service, path := newTestServiceWithFile(t, "draft")
+	change, err := service.ReplaceFile(context.Background(), ReplaceFileRequest{
+		Path: path, Content: "agent draft", BaseRevision: Revision([]byte("draft")),
+		Metadata: ChangeMetadata{Origin: OriginAgent, ChangeGroupID: "uncertain-save-redo-group"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Undo(context.Background(), HistoryRequest{GroupID: change.GroupID}); err != nil {
+		t.Fatal(err)
+	}
+	const redirectedPath = "redirect/ch01.md"
+	writeTestFile(t, service.workspace, redirectedPath, "draft")
+	service.durability.visibleWriteHookFn = func(stage, _ string) error {
+		if stage == visibleWriteStageAfterReplace {
+			swapVisibleParentForTest(t, service.workspace, "chapters.written")
+		}
+		return nil
+	}
+
+	_, err = service.SaveFile(context.Background(), path, "local draft", Revision([]byte("draft")))
+	assertDurabilityPendingWithoutPath(t, err)
+	service.durability.visibleWriteHookFn = nil
+	if err := os.Rename(filepath.Join(service.workspace, "chapters"), filepath.Join(service.workspace, "redirect")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(service.workspace, "chapters.written"), filepath.Join(service.workspace, "chapters")); err != nil {
+		t.Fatal(err)
+	}
+	ledgerPath := filepath.Join(service.workspace, ".denova", "changes", "ledger.jsonl")
+	if err := os.Rename(ledgerPath, ledgerPath+".original"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(ledgerPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = service.SaveFile(context.Background(), path, "local draft", Revision([]byte("draft")))
+	assertDurabilityPendingWithoutPath(t, err)
+	if !strings.Contains(err.Error(), "ledger") {
+		t.Fatalf("recovery did not reach redo finalization: %v", err)
+	}
+	if len(service.pendingParentSync) != 0 {
+		t.Fatalf("restored identity did not complete parent sync: %#v", service.pendingParentSync)
+	}
+	if _, ok := service.pendingSaves[path]; !ok {
+		t.Fatal("redo finalization failure discarded pending save truth")
+	}
+	if got := readTestFile(t, service.workspace, path); got != "local draft" {
+		t.Fatalf("restored target bytes = %q", got)
 	}
 }
 

@@ -27,6 +27,14 @@ type mutationResult struct {
 	ParentRel        string
 	WorkspaceMutated bool
 	PathUncertain    bool
+	writeIdentity    *visibleWriteIdentity
+}
+
+// visibleWriteIdentity binds in-process recovery to the root and parent
+// directory inodes used by a descriptor-based visible write.
+type visibleWriteIdentity struct {
+	root   os.FileInfo
+	parent os.FileInfo
 }
 
 type durabilityOps struct {
@@ -221,6 +229,18 @@ func verifyVisibleParentIdentity(root *os.Root, parent string, openedParent *os.
 	return nil
 }
 
+func openedVisibleWriteIdentity(root, parent *os.Root) (*visibleWriteIdentity, error) {
+	rootInfo, err := root.Lstat(".")
+	if err != nil {
+		return nil, err
+	}
+	parentInfo, err := parent.Lstat(".")
+	if err != nil {
+		return nil, err
+	}
+	return &visibleWriteIdentity{root: rootInfo, parent: parentInfo}, nil
+}
+
 func (s *Service) verifyVisibleWriteIdentity(root *os.Root, parent string, openedParent *os.Root) error {
 	visibleRoot, err := os.Lstat(s.workspace)
 	if err != nil {
@@ -256,11 +276,49 @@ func (s *Service) markPendingParentSync(path string, result mutationResult) {
 	if parent == "" {
 		parent = visibleParentRel(path)
 	}
-	pending := pendingParentSyncIntent{Path: path, PathUncertain: result.PathUncertain}
-	if existing, ok := s.pendingParentSync[parent]; ok && existing.PathUncertain {
-		pending.PathUncertain = true
+	pending := pendingParentSyncIntent{
+		Path:          path,
+		PathUncertain: result.PathUncertain,
+		writeIdentity: result.writeIdentity,
+	}
+	if existing, ok := s.pendingParentSync[parent]; ok {
+		pending.PathUncertain = pending.PathUncertain || existing.PathUncertain
+		if existing.writeIdentity != nil {
+			pending.writeIdentity = existing.writeIdentity
+		}
 	}
 	s.pendingParentSync[parent] = pending
+}
+
+func (s *Service) syncIdentityBoundParent(root *os.Root, parent string, identity *visibleWriteIdentity) (identityMatched bool, err error) {
+	parentRoot := root
+	if parent != "." {
+		parentRoot, err = openVerifiedVisibleParent(root, parent)
+		if err != nil {
+			return false, err
+		}
+		defer parentRoot.Close()
+	}
+	rootInfo, err := root.Lstat(".")
+	if err != nil {
+		return false, err
+	}
+	parentInfo, err := parentRoot.Lstat(".")
+	if err != nil {
+		return false, err
+	}
+	if identity == nil || identity.root == nil || identity.parent == nil ||
+		!os.SameFile(rootInfo, identity.root) || !os.SameFile(parentInfo, identity.parent) {
+		return false, newError(ErrorCodeConflict, "pending workspace parent no longer matches the mutated directory identity", nil)
+	}
+	if err := s.verifyVisibleWriteIdentity(root, parent, parentRoot); err != nil {
+		return false, err
+	}
+	syncErr := s.durability.syncRootDir(parentRoot, ".")
+	if identityErr := s.verifyVisibleWriteIdentity(root, parent, parentRoot); identityErr != nil {
+		return false, errors.Join(syncErr, identityErr)
+	}
+	return true, syncErr
 }
 
 func (s *Service) syncPendingParentsLocked() error {
@@ -276,6 +334,10 @@ func (s *Service) syncPendingParentsLocked() error {
 	if err != nil {
 		parent := parents[0]
 		pending := s.pendingParentSync[parent]
+		if pending.writeIdentity != nil {
+			pending.PathUncertain = true
+			s.pendingParentSync[parent] = pending
+		}
 		return durabilityPendingError(pending.Path, "", "", mutationResult{
 			Stage:            mutationStageVisible,
 			ParentRel:        parent,
@@ -286,19 +348,31 @@ func (s *Service) syncPendingParentsLocked() error {
 	defer root.Close()
 	for _, parent := range parents {
 		pending := s.pendingParentSync[parent]
-		if err := s.durability.syncRootDir(root, parent); err != nil {
+		identityMatched := true
+		var syncErr error
+		if pending.writeIdentity != nil {
+			identityMatched, syncErr = s.syncIdentityBoundParent(root, parent, pending.writeIdentity)
+		} else {
+			syncErr = s.durability.syncRootDir(root, parent)
+		}
+		if syncErr != nil {
+			if !identityMatched {
+				pending.PathUncertain = true
+				s.pendingParentSync[parent] = pending
+			}
 			return durabilityPendingError(pending.Path, "", "", mutationResult{
 				Stage:            mutationStageVisible,
 				ParentRel:        parent,
 				WorkspaceMutated: true,
 				PathUncertain:    pending.PathUncertain,
-			}, err)
+			}, syncErr)
 		}
 		delete(s.pendingParentSync, parent)
-		for rel, pending := range s.pendingSaves {
-			if pending.ParentRel == parent {
-				pending.Durable = true
-				s.pendingSaves[rel] = pending
+		for rel, pendingSave := range s.pendingSaves {
+			if pendingSave.ParentRel == parent {
+				pendingSave.Durable = true
+				pendingSave.PathUncertain = pendingSave.PathUncertain || pending.PathUncertain
+				s.pendingSaves[rel] = pendingSave
 			}
 		}
 	}
@@ -318,6 +392,7 @@ func (s *Service) reconcilePendingDurabilityLocked() error {
 				Stage:            mutationStageDurable,
 				ParentRel:        pending.ParentRel,
 				WorkspaceMutated: true,
+				PathUncertain:    pending.PathUncertain,
 			}, err)
 		}
 		pending.RedoInvalidated = true

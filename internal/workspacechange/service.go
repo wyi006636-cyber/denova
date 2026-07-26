@@ -55,11 +55,13 @@ type pendingSaveIntent struct {
 	Revision        string
 	Durable         bool
 	RedoInvalidated bool
+	PathUncertain   bool
 }
 
 type pendingParentSyncIntent struct {
 	Path          string
 	PathUncertain bool
+	writeIdentity *visibleWriteIdentity
 }
 
 // ForWorkspace returns the process-wide service shared by all callers for an

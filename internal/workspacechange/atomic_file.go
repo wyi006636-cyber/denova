@@ -28,6 +28,10 @@ func (s *Service) atomicWriteVisibleFile(rel string, content []byte) (mutationRe
 		}
 		defer parentRoot.Close()
 	}
+	result.writeIdentity, err = openedVisibleWriteIdentity(root, parentRoot)
+	if err != nil {
+		return result, err
+	}
 	targetName := filepath.FromSlash(path.Base(rel))
 	mode := os.FileMode(0o644)
 	if info, err := parentRoot.Lstat(targetName); err == nil {

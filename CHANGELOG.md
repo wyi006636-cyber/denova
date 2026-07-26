@@ -38,6 +38,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 工作区耐久性恢复现在会保留实际执行可见写入的根目录与父目录文件身份，只在当前路径仍指向同一身份时同步该已验证父目录；replacement workspace 或父目录不能再被恢复流程静默采用，且曾经不确定的编辑器保存即使身份恢复、同步成功，后续 redo 收尾错误仍不会泄漏未经确认的目标路径。
+- Workspace durability recovery now retains the root and parent file identities that performed the visible write and syncs only a verified parent still named by the current paths; a replacement workspace or parent can no longer be silently adopted, and an editor save that became identity-uncertain continues withholding its unconfirmed target from later redo-finalization errors even after identity restoration and successful sync.
 - 工作区可见文件替换现在还会核对当前工作区根路径与已打开根目录的文件身份，覆盖根目录及嵌套目标；若根路径在写入前被替换会拒绝写入，若在写入后变化则保留路径不确定状态，并在后续父目录同步失败时继续隐藏无法确认的目标路径。
 - Visible workspace-file replacement now also verifies the current workspace-root path against the opened root identity for both root-level and nested targets; a root replacement before mutation is rejected, while one after mutation preserves path uncertainty and continues withholding the unconfirmed target path from later parent-sync failures.
 - 工作区可见文件替换现在会同步已经执行重命名的父目录句柄，并在替换前与耐久成功前重新核对该句柄和当前可见父目录的文件身份；若目录项在写入后变化，确认会保留变更身份并报告不可重试的恢复待处理状态，但不会声称或刷新无法确认的目标路径。
