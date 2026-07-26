@@ -27,7 +27,7 @@ func (g *fanqieShortGenerator) Generate(ctx context.Context, source shortfiction
 	modelCfg := chatModelConfigFromResolved(resolved)
 	cm, err := openai.NewChatModel(ctx, &modelCfg)
 	if err != nil {
-		log.Printf("[short-fiction] create configured model failed profile=%q model=%q err=%v", resolved.ProfileID, resolved.OpenAIModel, err)
+		log.Printf("[short-fiction] create configured model failed profile=%q model=%q class=model_initialization", resolved.ProfileID, resolved.OpenAIModel)
 		return shortfiction.Generation{}, shortfiction.NewError("generation_failed", "configured model is unavailable", nil)
 	}
 	chatModel := providercompat.Wrap(cm, modelCfg)
@@ -36,7 +36,7 @@ func (g *fanqieShortGenerator) Generate(ctx context.Context, source shortfiction
 		schema.UserMessage(shortfiction.FormatSourcePacket(source)),
 	})
 	if err != nil {
-		log.Printf("[short-fiction] configured model generation failed profile=%q model=%q err=%v", resolved.ProfileID, resolved.OpenAIModel, err)
+		log.Printf("[short-fiction] configured model generation failed profile=%q model=%q class=provider_request", resolved.ProfileID, resolved.OpenAIModel)
 		return shortfiction.Generation{}, shortfiction.NewError("generation_failed", "configured model generation failed", nil)
 	}
 	if message == nil || strings.TrimSpace(message.Content) == "" {

@@ -1,8 +1,10 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -57,6 +59,58 @@ func TestFanqieGeneratorRejectsOversizedMarkdown(t *testing.T) {
 	_, err := NewFanqieShortGenerator(newFanqieGeneratorConfig(server.URL)).Generate(context.Background(), fanqieGeneratorTestSource(t))
 	if !shortfiction.IsCode(err, "candidate_too_large") {
 		t.Fatalf("error code = %#v, want candidate_too_large", err)
+	}
+}
+
+func TestFanqieGeneratorDoesNotLogProviderErrorDetails(t *testing.T) {
+	const (
+		endpointSentinel = "endpoint-sentinel"
+		bodySentinel     = "body-sentinel"
+		keySentinel      = "key-sentinel"
+		promptSentinel   = "prompt-sentinel"
+		storySentinel    = "story-sentinel"
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, strings.Join([]string{bodySentinel, keySentinel, promptSentinel, storySentinel}, " "), http.StatusBadGateway)
+	}))
+	t.Cleanup(server.Close)
+
+	var logs bytes.Buffer
+	previousOutput := log.Writer()
+	previousFlags := log.Flags()
+	previousPrefix := log.Prefix()
+	log.SetOutput(&logs)
+	log.SetFlags(0)
+	log.SetPrefix("")
+	t.Cleanup(func() {
+		log.SetOutput(previousOutput)
+		log.SetFlags(previousFlags)
+		log.SetPrefix(previousPrefix)
+	})
+
+	cfg := &config.Config{
+		ModelProfiles: []config.ModelProfileSettings{{
+			ID:            "fanqie-test-profile",
+			OpenAIAPIKey:  keySentinel,
+			OpenAIBaseURL: server.URL + "/" + endpointSentinel,
+			OpenAIModel:   "fanqie-test-model",
+		}},
+		AgentModels: config.AgentModelSettings{
+			IDE: config.AgentModelOverride{ProfileID: "fanqie-test-profile"},
+		},
+	}
+	source := fanqieGeneratorTestSource(t)
+	source.Brief = promptSentinel
+	source.Source = storySentinel
+
+	_, err := NewFanqieShortGenerator(cfg).Generate(context.Background(), source)
+	if !shortfiction.IsCode(err, "generation_failed") {
+		t.Fatalf("error code = %#v, want generation_failed", err)
+	}
+	for _, sentinel := range []string{endpointSentinel, bodySentinel, keySentinel, promptSentinel, storySentinel} {
+		if strings.Contains(logs.String(), sentinel) {
+			t.Fatalf("logs leaked %q: %s", sentinel, logs.String())
+		}
 	}
 }
 
