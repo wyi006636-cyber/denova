@@ -87,8 +87,13 @@ func mapShortFictionError(err error) (int, string, string, map[string]any) {
 	}
 
 	var changeErr *workspacechange.Error
-	if errors.As(err, &changeErr) && changeErr.Code == workspacechange.ErrorCodeRevisionConflict {
-		return consts.StatusConflict, changeErr.Code, "api.shortFiction.revisionConflict", details
+	if errors.As(err, &changeErr) {
+		switch changeErr.Code {
+		case workspacechange.ErrorCodeInvalidEdit:
+			return consts.StatusBadRequest, changeErr.Code, "api.shortFiction.noChange", details
+		case workspacechange.ErrorCodeRevisionConflict:
+			return consts.StatusConflict, changeErr.Code, "api.shortFiction.revisionConflict", details
+		}
 	}
 	if errors.Is(err, novaApp.ErrNoWorkspace) || errors.Is(err, novaApp.ErrWorkspaceChanged) {
 		return consts.StatusConflict, "workspace_conflict", "api.shortFiction.workspaceConflict", details

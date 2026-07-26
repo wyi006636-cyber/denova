@@ -134,6 +134,70 @@ func TestFanqieConfirmReturnsRevisionConflictWithoutWrite(t *testing.T) {
 	}
 }
 
+func TestFanqieConfirmRejectsIdenticalContentWithoutMutation(t *testing.T) {
+	tests := []struct {
+		locale  string
+		message string
+	}{
+		{locale: "zh-CN", message: "候选内容与目标文件相同，无需确认写入。"},
+		{locale: "en-US", message: "The candidate already matches the target file; no confirmation write is needed."},
+	}
+	for _, test := range tests {
+		t.Run(test.locale, func(t *testing.T) {
+			const (
+				target  = "chapters/short.md"
+				content = "# Same\n\nThe generated candidate is already current."
+			)
+			provider := newShortFictionAPIProvider(t, content, nil)
+			application := newShortFictionAPIApplication(t, provider.URL)
+			server := NewServer(application, "0")
+			writeShortFictionAPIFile(t, application.Workspace(), target, content)
+			baseline, err := application.CreateVersion(context.Background(), "baseline")
+			if err != nil || baseline.Version == nil {
+				t.Fatalf("initialize version history: result=%#v err=%v", baseline, err)
+			}
+			candidate := generateShortFictionAPICandidate(t, server, application, target, content, test.locale)
+			beforeWorkspace := snapshotShortFictionAPIWorkspace(t, application.Workspace())
+			beforeVersions, err := application.VersionHistory(context.Background(), 100)
+			if err != nil {
+				t.Fatal(err)
+			}
+			changeService, err := application.WorkspaceChangeService()
+			if err != nil {
+				t.Fatal(err)
+			}
+			beforeGroups, err := changeService.ListGroups(context.Background(), workspacechange.ChangeFilter{})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates/confirm", shortfiction.ConfirmRequest{Candidate: candidate}, test.locale)
+			assertShortFictionAPIError(t, response, http.StatusBadRequest, workspacechange.ErrorCodeInvalidEdit, test.message)
+			if got := readShortFictionAPIFile(t, application.Workspace(), target); got != content {
+				t.Fatalf("no-op confirmation changed target bytes: got=%q want=%q", got, content)
+			}
+			afterWorkspace := snapshotShortFictionAPIWorkspace(t, application.Workspace())
+			if !reflect.DeepEqual(afterWorkspace, beforeWorkspace) {
+				t.Fatalf("no-op confirmation mutated workspace: before=%#v after=%#v", beforeWorkspace, afterWorkspace)
+			}
+			afterVersions, err := application.VersionHistory(context.Background(), 100)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(afterVersions, beforeVersions) {
+				t.Fatalf("no-op confirmation changed checkpoints: before=%#v after=%#v", beforeVersions, afterVersions)
+			}
+			afterGroups, err := changeService.ListGroups(context.Background(), workspacechange.ChangeFilter{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(afterGroups, beforeGroups) {
+				t.Fatalf("no-op confirmation changed ChangeSets: before=%#v after=%#v", beforeGroups, afterGroups)
+			}
+		})
+	}
+}
+
 func TestFanqieConfirmReturnsHTTP200PartialSuccess(t *testing.T) {
 	const (
 		target    = "chapters/short.md"
