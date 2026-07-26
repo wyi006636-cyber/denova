@@ -60,7 +60,7 @@ func (s *Service) SaveFile(ctx context.Context, path, content, baseRevision stri
 	mutation, writeErr := s.atomicWriteVisibleFile(rel, after)
 	if writeErr != nil {
 		if mutation.Stage == mutationStageVisible {
-			s.markPendingParentSync(rel, mutation.ParentRel)
+			s.markPendingParentSync(rel, mutation)
 			s.pendingSaves[rel] = pendingSaveIntent{
 				Path:         rel,
 				ParentRel:    mutation.ParentRel,

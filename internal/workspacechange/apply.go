@@ -280,7 +280,7 @@ func (s *Service) commitChangeLocked(ctx context.Context, change *ChangeSet, bef
 	}
 	if writeErr != nil {
 		if result.Stage == mutationStageVisible {
-			s.markPendingParentSync(change.Path, result.ParentRel)
+			s.markPendingParentSync(change.Path, result)
 			return durabilityPendingError(change.Path, change.ID, "", result, writeErr)
 		}
 		currentRevision, currentExists := s.currentRevision(change.Path)

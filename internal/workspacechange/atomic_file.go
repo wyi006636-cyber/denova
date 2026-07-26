@@ -66,7 +66,7 @@ func (s *Service) atomicWriteVisibleFile(rel string, content []byte) (mutationRe
 	if err := s.durability.visibleWriteHook(visibleWriteStageBeforeReplace, rel); err != nil {
 		return result, err
 	}
-	if err := verifyVisibleParentIdentity(root, parent, parentRoot); err != nil {
+	if err := s.verifyVisibleWriteIdentity(root, parent, parentRoot); err != nil {
 		return result, err
 	}
 	if err := parentRoot.Rename(tempName, targetName); err != nil {
@@ -79,7 +79,7 @@ func (s *Service) atomicWriteVisibleFile(rel string, content []byte) (mutationRe
 		return result, err
 	}
 	syncErr := s.durability.syncRootDir(parentRoot, ".")
-	if identityErr := verifyVisibleParentIdentity(root, parent, parentRoot); identityErr != nil {
+	if identityErr := s.verifyVisibleWriteIdentity(root, parent, parentRoot); identityErr != nil {
 		result.PathUncertain = true
 		return result, errors.Join(syncErr, identityErr)
 	}

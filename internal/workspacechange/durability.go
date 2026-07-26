@@ -221,6 +221,27 @@ func verifyVisibleParentIdentity(root *os.Root, parent string, openedParent *os.
 	return nil
 }
 
+func (s *Service) verifyVisibleWriteIdentity(root *os.Root, parent string, openedParent *os.Root) error {
+	visibleRoot, err := os.Lstat(s.workspace)
+	if err != nil {
+		return newError(ErrorCodeConflict, "workspace root path is no longer available", map[string]any{"workspace": s.workspace})
+	}
+	if visibleRoot.Mode()&os.ModeSymlink != 0 {
+		return newError(ErrorCodeConflict, "workspace root path became a symbolic link", map[string]any{"workspace": s.workspace})
+	}
+	if !visibleRoot.IsDir() {
+		return newError(ErrorCodeConflict, "workspace root path is not a directory", map[string]any{"workspace": s.workspace})
+	}
+	openedRoot, err := root.Lstat(".")
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(visibleRoot, openedRoot) {
+		return newError(ErrorCodeConflict, "workspace root path no longer matches the opened directory", map[string]any{"workspace": s.workspace})
+	}
+	return verifyVisibleParentIdentity(root, parent, openedParent)
+}
+
 func (s *Service) syncVisibleParent(rel string) error {
 	root, err := os.OpenRoot(s.workspace)
 	if err != nil {
@@ -230,11 +251,16 @@ func (s *Service) syncVisibleParent(rel string) error {
 	return s.durability.syncRootDir(root, visibleParentRel(rel))
 }
 
-func (s *Service) markPendingParentSync(path, parent string) {
+func (s *Service) markPendingParentSync(path string, result mutationResult) {
+	parent := result.ParentRel
 	if parent == "" {
 		parent = visibleParentRel(path)
 	}
-	s.pendingParentSync[parent] = path
+	pending := pendingParentSyncIntent{Path: path, PathUncertain: result.PathUncertain}
+	if existing, ok := s.pendingParentSync[parent]; ok && existing.PathUncertain {
+		pending.PathUncertain = true
+	}
+	s.pendingParentSync[parent] = pending
 }
 
 func (s *Service) syncPendingParentsLocked() error {
@@ -249,20 +275,23 @@ func (s *Service) syncPendingParentsLocked() error {
 	root, err := os.OpenRoot(s.workspace)
 	if err != nil {
 		parent := parents[0]
-		return durabilityPendingError(s.pendingParentSync[parent], "", "", mutationResult{
+		pending := s.pendingParentSync[parent]
+		return durabilityPendingError(pending.Path, "", "", mutationResult{
 			Stage:            mutationStageVisible,
 			ParentRel:        parent,
 			WorkspaceMutated: true,
+			PathUncertain:    pending.PathUncertain,
 		}, err)
 	}
 	defer root.Close()
 	for _, parent := range parents {
-		path := s.pendingParentSync[parent]
+		pending := s.pendingParentSync[parent]
 		if err := s.durability.syncRootDir(root, parent); err != nil {
-			return durabilityPendingError(path, "", "", mutationResult{
+			return durabilityPendingError(pending.Path, "", "", mutationResult{
 				Stage:            mutationStageVisible,
 				ParentRel:        parent,
 				WorkspaceMutated: true,
+				PathUncertain:    pending.PathUncertain,
 			}, err)
 		}
 		delete(s.pendingParentSync, parent)

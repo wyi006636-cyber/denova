@@ -34,7 +34,7 @@ type Service struct {
 	operationTerminals map[string]string
 	undone             map[string]bool
 	redoInvalid        map[string]bool
-	pendingParentSync  map[string]string
+	pendingParentSync  map[string]pendingParentSyncIntent
 	pendingSaves       map[string]pendingSaveIntent
 	nextSequence       uint64
 
@@ -55,6 +55,11 @@ type pendingSaveIntent struct {
 	Revision        string
 	Durable         bool
 	RedoInvalidated bool
+}
+
+type pendingParentSyncIntent struct {
+	Path          string
+	PathUncertain bool
 }
 
 // ForWorkspace returns the process-wide service shared by all callers for an
@@ -134,7 +139,7 @@ func newServiceWithDurability(workspace string, durability *durabilityOps) (*Ser
 		operationTerminals: map[string]string{},
 		undone:             map[string]bool{},
 		redoInvalid:        map[string]bool{},
-		pendingParentSync:  map[string]string{},
+		pendingParentSync:  map[string]pendingParentSyncIntent{},
 		pendingSaves:       map[string]pendingSaveIntent{},
 	}
 	if err := s.load(); err != nil {
