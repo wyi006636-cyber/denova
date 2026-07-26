@@ -450,6 +450,7 @@ const chat = {
   'chat.fanqie.error.workspaceConflict': '工作区已经切换或失效。请回到当前工作区后重新生成预览。',
   'chat.fanqie.error.generateFailed': '完整短篇生成失败；创作要求和目标路径已保留。',
   'chat.fanqie.error.revisionConflict': '目标正文已变化。请返回创作要求，检查目标后重新生成预览，以绑定最新版本。',
+  'chat.fanqie.error.durabilityPending': '正文可能已经写入 {{path}}，但写入耐久性或日志恢复仍待完成。请先检查这个目标，不要重试本次确认。',
   'chat.fanqie.error.confirmFailed': '确认写入失败，候选预览仍保留；工作区正文未被这次确认改动。',
 } as const
 

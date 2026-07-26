@@ -93,7 +93,13 @@ func normalizeSourcePacket(source SourcePacket) (SourcePacket, error) {
 	}
 	source.Workspace = filepath.Clean(workspace)
 
-	target := filepath.FromSlash(source.TargetPath)
+	rawTarget := source.TargetPath
+	hasDrivePrefix := len(rawTarget) >= 2 && rawTarget[1] == ':' &&
+		((rawTarget[0] >= 'A' && rawTarget[0] <= 'Z') || (rawTarget[0] >= 'a' && rawTarget[0] <= 'z'))
+	if strings.Contains(rawTarget, `\`) || hasDrivePrefix {
+		return SourcePacket{}, NewError(ErrorCodeInvalidSource, "target path uses unsupported platform syntax", nil)
+	}
+	target := filepath.FromSlash(rawTarget)
 	if filepath.IsAbs(target) {
 		return SourcePacket{}, NewError(ErrorCodeInvalidSource, "target path must be relative", nil)
 	}

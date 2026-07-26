@@ -27,7 +27,7 @@ func (s *Service) ReplaceFileWithConsistentSnapshot(
 	defer s.mu.Unlock()
 	change, err := s.replaceFileLocked(ctx, req)
 	if err != nil {
-		return ChangeSet{}, err
+		return change, err
 	}
 	if err := snapshot(cloneChangeSet(change)); err != nil {
 		return change, err
@@ -43,7 +43,11 @@ func (s *Service) ReplaceFile(ctx context.Context, req ReplaceFileRequest) (Chan
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.replaceFileLocked(ctx, req)
+	change, err := s.replaceFileLocked(ctx, req)
+	if err != nil {
+		return ChangeSet{}, err
+	}
+	return change, nil
 }
 
 func (s *Service) replaceFileLocked(ctx context.Context, req ReplaceFileRequest) (ChangeSet, error) {
@@ -102,7 +106,7 @@ func (s *Service) replaceFileLocked(ctx context.Context, req ReplaceFileRequest)
 	}}
 	change := newChangeSet(rel, before, after, beforeExists, true, edits, metadata)
 	if err := s.commitChangeLocked(ctx, &change, before, after, metadata); err != nil {
-		return ChangeSet{}, err
+		return cloneChangeSet(change), err
 	}
 	return cloneChangeSet(change), nil
 }

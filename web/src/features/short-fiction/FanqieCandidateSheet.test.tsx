@@ -461,6 +461,72 @@ describe('FanqieCandidateSheet', () => {
     expect(confirmedCandidate).toEqual(expectedCandidate)
   })
 
+  it.each([
+    [
+      'zh-CN',
+      '正文可能已经写入 chapters/durability.md，但写入耐久性或日志恢复仍待完成。请先检查这个目标，不要重试本次确认。',
+      '确认写入正文',
+    ],
+    [
+      'en-US',
+      'The manuscript may already be visible at chapters/durability.md, but write durability or journal recovery is still pending. Inspect that target first and do not retry this confirmation.',
+      'Confirm manuscript write',
+    ],
+  ] as const)('treats durability_pending as a non-retryable possibly visible write in %s', async (locale, message, confirmLabel) => {
+    await act(async () => {
+      setConfiguredLocale(locale)
+      await i18next.changeLanguage(locale)
+    })
+    const user = userEvent.setup()
+    const onWorkspaceChanged = vi.fn()
+    const revision = `sha256:${'d'.repeat(64)}`
+    const expectedCandidate = candidateFixture({
+      target_path: 'chapters/durability.md',
+      base_revision: revision,
+      brief: 'durability pending',
+      candidate_id: 'sha256:durability-pending',
+      locale,
+    })
+    let confirmRequestCount = 0
+
+    server.use(
+      http.get('/api/workspace/file', () => HttpResponse.json({
+        workspace: '/workspace',
+        path: expectedCandidate.target_path,
+        content: expectedCandidate.source,
+        revision,
+      })),
+      http.post('/api/short-fiction/candidates', () => HttpResponse.json(expectedCandidate)),
+      http.post('/api/short-fiction/candidates/confirm', () => {
+        confirmRequestCount += 1
+        return HttpResponse.json({
+          error: 'generic server text must not imply the workspace stayed unchanged',
+          code: 'durability_pending',
+          details: {
+            workspace_mutated: true,
+            recovery_pending: true,
+            retryable: false,
+            target_path: 'chapters/untrusted-response-target.md',
+            write_revision: `sha256:${'e'.repeat(64)}`,
+          },
+        }, { status: 500 })
+      }),
+    )
+
+    renderSheet({ selectedFile: expectedCandidate.target_path, onWorkspaceChanged })
+    await user.type(screen.getByLabelText(locale === 'zh-CN' ? '创作要求' : 'Writing brief'), 'durability pending')
+    await user.click(screen.getByRole('button', { name: locale === 'zh-CN' ? '生成完整短篇预览' : 'Generate complete story preview' }))
+    const confirmButton = await screen.findByRole('button', { name: confirmLabel })
+    await user.click(confirmButton)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(message)
+    expect(screen.getByRole('button', { name: confirmLabel })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: confirmLabel }))
+    await waitFor(() => expect(onWorkspaceChanged).toHaveBeenCalledTimes(1))
+    expect(onWorkspaceChanged).toHaveBeenCalledWith(['chapters/durability.md'])
+    expect(confirmRequestCount).toBe(1)
+  })
+
   it('keeps the brief and target after a generation error', async () => {
     const user = userEvent.setup()
     const revision = `sha256:${'7'.repeat(64)}`

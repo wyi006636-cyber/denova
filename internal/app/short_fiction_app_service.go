@@ -19,9 +19,22 @@ import (
 
 // ShortFictionAppService binds no-write fiction previews to one workspace snapshot.
 type ShortFictionAppService struct {
-	app      *App
-	openRoot shortFictionRootOpener
+	app                *App
+	openRoot           shortFictionRootOpener
+	workspaceChangeFor shortFictionChangeServiceFactory
 }
+
+// shortFictionChangeService keeps confirmation dependent only on the one
+// mutation operation that must share its lease with the version checkpoint.
+type shortFictionChangeService interface {
+	ReplaceFileWithConsistentSnapshot(
+		context.Context,
+		workspacechange.ReplaceFileRequest,
+		workspacechange.ConsistentSnapshotFunc,
+	) (workspacechange.ChangeSet, error)
+}
+
+type shortFictionChangeServiceFactory func(string) (shortFictionChangeService, error)
 
 type shortFictionRoot interface {
 	Lstat(string) (os.FileInfo, error)
@@ -111,8 +124,31 @@ func (s *ShortFictionAppService) confirmCandidate(
 			map[string]any{"workspace_mutated": false},
 		)
 	}
+	_, activeRevision, exists, err := readShortFictionSource(
+		bookService,
+		candidate.TargetPath,
+		workspaceIdentity,
+		s.shortFictionRootOpener(),
+	)
+	if err != nil {
+		return shortfiction.ConfirmationResult{}, err
+	}
+	if !exists {
+		activeRevision = shortfiction.MissingRevision
+	}
+	if activeRevision != candidate.BaseRevision {
+		return shortfiction.ConfirmationResult{}, &workspacechange.Error{
+			Code:    workspacechange.ErrorCodeRevisionConflict,
+			Message: "base revision does not match the active target",
+			Details: map[string]any{
+				"expected_revision": candidate.BaseRevision,
+				"actual_revision":   activeRevision,
+				"workspace_mutated": false,
+			},
+		}
+	}
 
-	changeService, err := workspacechange.ForWorkspace(workspace)
+	changeService, err := s.workspaceChangeService(workspace)
 	if err != nil {
 		return shortfiction.ConfirmationResult{}, err
 	}
@@ -135,7 +171,10 @@ func (s *ShortFictionAppService) confirmCandidate(
 		return createErr
 	})
 	if err != nil {
-		if change.ID == "" {
+		if pending := shortFictionDurabilityPendingError(err, change, candidate); pending != nil {
+			return shortfiction.ConfirmationResult{}, pending
+		}
+		if change.ApplyState != workspacechange.ApplyStateApplied || change.ID == "" {
 			return shortfiction.ConfirmationResult{}, err
 		}
 		return shortfiction.ConfirmationResult{
@@ -166,6 +205,44 @@ func (s *ShortFictionAppService) confirmCandidate(
 		},
 		Retryable: false,
 	}, nil
+}
+
+func shortFictionDurabilityPendingError(
+	err error,
+	change workspacechange.ChangeSet,
+	candidate shortfiction.GeneratedCandidate,
+) error {
+	var pending *workspacechange.Error
+	if !errors.As(err, &pending) || pending.Code != workspacechange.ErrorCodeDurabilityPending || change.ApplyState == workspacechange.ApplyStateApplied {
+		return nil
+	}
+	details := map[string]any{
+		"workspace_mutated": pending.Details["workspace_mutated"] == true,
+		"recovery_pending":  pending.Details["recovery_pending"] == true,
+		"retryable":         false,
+		"target_path":       candidate.TargetPath,
+	}
+	if change.Revision != "" {
+		details["write_revision"] = change.Revision
+	}
+	if change.GroupID != "" {
+		details["change_group_id"] = change.GroupID
+	}
+	if change.ID != "" {
+		details["change_set_id"] = change.ID
+	}
+	return &workspacechange.Error{
+		Code:    workspacechange.ErrorCodeDurabilityPending,
+		Message: "workspace mutation durability or journal finalization is pending",
+		Details: details,
+	}
+}
+
+func (s *ShortFictionAppService) workspaceChangeService(workspace string) (shortFictionChangeService, error) {
+	if s != nil && s.workspaceChangeFor != nil {
+		return s.workspaceChangeFor(workspace)
+	}
+	return workspacechange.ForWorkspace(workspace)
 }
 
 func localizedConfirmationMessage(candidate shortfiction.GeneratedCandidate) string {
@@ -264,7 +341,15 @@ func (s *ShortFictionAppService) sourceSnapshot(
 		}
 		source.BaseRevision = shortfiction.MissingRevision
 	} else if source.BaseRevision != req.Source.BaseRevision {
-		return config.Config{}, shortfiction.SourcePacket{}, shortfiction.NewError(shortfiction.ErrorCodeInvalidSource, "base revision does not match the active target", nil)
+		return config.Config{}, shortfiction.SourcePacket{}, shortfiction.NewError(
+			shortfiction.ErrorCodeRevisionConflict,
+			"base revision does not match the active target",
+			map[string]any{
+				"expected_revision": req.Source.BaseRevision,
+				"actual_revision":   source.BaseRevision,
+				"workspace_mutated": false,
+			},
+		)
 	}
 	if _, err := shortfiction.NewCandidate(source, shortfiction.Generation{PreviewMarkdown: "validation"}); err != nil {
 		return config.Config{}, shortfiction.SourcePacket{}, err

@@ -3,6 +3,7 @@ package workspacechange
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 )
 
@@ -84,6 +85,41 @@ func TestReplaceFileWithConsistentSnapshotReturnsAppliedChangeOnCallbackError(t 
 	}
 	if content != "candidate" || revision != applied.Revision {
 		t.Fatalf("callback error hid committed bytes: content=%q revision=%q applied=%#v", content, revision, applied)
+	}
+}
+
+func TestReplaceFileWithConsistentSnapshotReturnsChangeIdentityWhenVisibleWriteDurabilityIsPending(t *testing.T) {
+	service, path := newConsistentSnapshotService(t, "before")
+	originalSync := service.durability.syncRootDirFn
+	chapterSyncs := 0
+	service.durability.syncRootDirFn = func(root *os.Root, rel string) error {
+		if rel == "chapters" {
+			chapterSyncs++
+			if chapterSyncs >= 2 {
+				return errInjectedParentSync
+			}
+		}
+		return originalSync(root, rel)
+	}
+	callbackCalled := false
+
+	change, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate",
+		BaseRevision: Revision([]byte("before")),
+	}, func(ChangeSet) error {
+		callbackCalled = true
+		return nil
+	})
+	assertDurabilityPending(t, err, true)
+	if callbackCalled {
+		t.Fatal("durability-pending write invoked the snapshot callback")
+	}
+	if change.ID == "" || change.GroupID == "" || change.Path != path || change.Revision != Revision([]byte("candidate")) {
+		t.Fatalf("durability-pending write lost change identity: %#v", change)
+	}
+	if got := readTestFile(t, service.workspace, path); got != "candidate" {
+		t.Fatalf("visible candidate bytes = %q", got)
 	}
 }
 

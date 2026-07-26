@@ -7,6 +7,7 @@ const (
 	ErrorCodeInvalidSource     = "invalid_source"
 	ErrorCodeInvalidProfile    = "invalid_profile"
 	ErrorCodeOversized         = "oversized"
+	ErrorCodeRevisionConflict  = "revision_conflict"
 )
 
 // Error is a stable, transport-neutral domain failure.

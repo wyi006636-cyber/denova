@@ -72,11 +72,16 @@ export type ShortFictionErrorCode =
   | 'generation_failed'
   | 'invalid_edit'
   | 'revision_conflict'
+  | 'durability_pending'
   | 'workspace_conflict'
   | 'internal_error'
 
 export interface ShortFictionErrorDetails extends Record<string, unknown> {
-  workspace_mutated: false
+  workspace_mutated: boolean
+  recovery_pending?: boolean
+  retryable?: false
+  target_path?: string
+  write_revision?: string
   max_bytes?: number
 }
 

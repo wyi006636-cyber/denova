@@ -16,6 +16,7 @@ import {
   type ShortFictionConfirmationResult,
 } from '@/lib/api-client/short-fiction'
 import { readFile } from '@/lib/api-client/workspace'
+import { getDurabilityPendingFailure } from './confirmation-error'
 
 type SheetState =
   | { step: 'brief' }
@@ -23,7 +24,7 @@ type SheetState =
   | { step: 'preview'; candidate: ShortFictionCandidate }
   | { step: 'confirming'; candidate: ShortFictionCandidate }
   | { step: 'result'; result: ShortFictionConfirmationResult; candidate: ShortFictionCandidate }
-  | { step: 'error'; phase: 'generate' | 'confirm'; message: string; candidate?: ShortFictionCandidate }
+  | { step: 'error'; phase: 'generate' | 'confirm'; message: string; candidate?: ShortFictionCandidate; confirmationBlocked?: boolean }
 
 interface GenerateContext {
   open: boolean
@@ -78,6 +79,7 @@ export function FanqieCandidateSheet({
   const confirmSequence = useRef(0)
   const confirmInFlight = useRef<ConfirmRequestIdentity | null>(null)
   const committedCandidates = useRef(new Set<string>())
+  const blockedConfirmations = useRef(new Set<string>())
   const refreshedCandidates = useRef(new Set<string>())
   generateContext.current = { open, workspace, selectedFile, locale }
   generateAuthority.current = {
@@ -192,9 +194,18 @@ export function FanqieCandidateSheet({
     onOpenChange(nextOpen)
   }
 
+  const refreshCandidateTargetOnce = (candidate: ShortFictionCandidate) => {
+    if (refreshedCandidates.current.has(candidate.candidate_id)) return
+    refreshedCandidates.current.add(candidate.candidate_id)
+    void Promise.resolve().then(() => onWorkspaceChanged?.([candidate.target_path])).catch((error) => {
+      console.error('[FanqieCandidateSheet] workspace refresh failed file=FanqieCandidateSheet.tsx path=%s', candidate.target_path, error)
+    })
+  }
+
   const confirm = async (candidate: ShortFictionCandidate) => {
     if (!candidate.preview_markdown.trim()) return
     if (committedCandidates.current.has(candidate.candidate_id)) return
+    if (blockedConfirmations.current.has(candidate.candidate_id)) return
     if (confirmInFlight.current?.candidateID === candidate.candidate_id) return
 
     const requestIdentity: ConfirmRequestIdentity = {
@@ -212,16 +223,25 @@ export function FanqieCandidateSheet({
         setState((currentState) => currentState.step === 'result'
           ? currentState
           : { step: 'result', result, candidate })
-        if (refreshedCandidates.current.has(candidate.candidate_id)) return
-        refreshedCandidates.current.add(candidate.candidate_id)
-        void Promise.resolve().then(() => onWorkspaceChanged?.([candidate.target_path])).catch((error) => {
-          console.error('[FanqieCandidateSheet] workspace refresh failed file=FanqieCandidateSheet.tsx path=%s', candidate.target_path, error)
-        })
+        refreshCandidateTargetOnce(candidate)
       }
     } catch (error) {
       if (committedCandidates.current.has(candidate.candidate_id)) return
       if (confirmInFlight.current?.id !== requestIdentity.id) return
       confirmInFlight.current = null
+      const durabilityPending = getDurabilityPendingFailure(error)
+      if (durabilityPending) {
+        blockedConfirmations.current.add(candidate.candidate_id)
+        setState({
+          step: 'error',
+          phase: 'confirm',
+          message: t('chat.fanqie.error.durabilityPending', { path: candidate.target_path }),
+          candidate,
+          confirmationBlocked: true,
+        })
+        if (durabilityPending.workspaceMutated) refreshCandidateTargetOnce(candidate)
+        return
+      }
       setState({ step: 'error', phase: 'confirm', message: confirmationErrorMessage(error, t), candidate })
     }
   }
@@ -296,6 +316,7 @@ export function FanqieCandidateSheet({
                 candidate={candidate}
                 confirming={state.step === 'confirming'}
                 disabled={disabled}
+                confirmationBlocked={state.step === 'error' && state.phase === 'confirm' && state.confirmationBlocked === true}
                 error={state.step === 'error' && state.phase === 'confirm' ? state.message : undefined}
                 onBack={() => setState({ step: 'brief' })}
                 onConfirm={() => void confirm(candidate)}
@@ -409,10 +430,11 @@ function BriefStep({
   )
 }
 
-function PreviewStep({ candidate, confirming, disabled, error, onBack, onConfirm, t }: {
+function PreviewStep({ candidate, confirming, disabled, confirmationBlocked, error, onBack, onConfirm, t }: {
   candidate: ShortFictionCandidate
   confirming: boolean
   disabled: boolean
+  confirmationBlocked: boolean
   error?: string
   onBack: () => void
   onConfirm: () => void
@@ -448,7 +470,7 @@ function PreviewStep({ candidate, confirming, disabled, error, onBack, onConfirm
         <Button type="button" variant="outline" disabled={disabled || confirming} onClick={onBack}>
           {t('chat.fanqie.action.back')}
         </Button>
-        <Button type="button" disabled={disabled || confirming || !candidate.preview_markdown.trim()} onClick={onConfirm}>
+        <Button type="button" disabled={disabled || confirming || confirmationBlocked || !candidate.preview_markdown.trim()} onClick={onConfirm}>
           {confirming ? <LoaderCircle className="animate-spin" /> : <CheckCircle2 />}
           {confirming ? t('chat.fanqie.action.confirming') : t('chat.fanqie.action.confirm')}
         </Button>

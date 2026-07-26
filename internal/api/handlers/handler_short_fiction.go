@@ -94,6 +94,8 @@ func mapShortFictionError(err error) (int, string, string, map[string]any) {
 			return consts.StatusBadRequest, domainErr.Code, "api.shortFiction.invalidSource", details
 		case shortfiction.ErrorCodeInvalidProfile:
 			return consts.StatusBadRequest, domainErr.Code, "api.shortFiction.invalidProfile", details
+		case shortfiction.ErrorCodeRevisionConflict:
+			return consts.StatusConflict, domainErr.Code, "api.shortFiction.revisionConflict", details
 		case shortfiction.ErrorCodeOversized:
 			return consts.StatusRequestEntityTooLarge, domainErr.Code, "api.shortFiction.oversized", details
 		case "generation_empty":
@@ -107,11 +109,16 @@ func mapShortFictionError(err error) (int, string, string, map[string]any) {
 
 	var changeErr *workspacechange.Error
 	if errors.As(err, &changeErr) {
+		for key, value := range changeErr.Details {
+			details[key] = value
+		}
 		switch changeErr.Code {
 		case workspacechange.ErrorCodeInvalidEdit:
 			return consts.StatusBadRequest, changeErr.Code, "api.shortFiction.noChange", details
 		case workspacechange.ErrorCodeRevisionConflict:
 			return consts.StatusConflict, changeErr.Code, "api.shortFiction.revisionConflict", details
+		case workspacechange.ErrorCodeDurabilityPending:
+			return consts.StatusInternalServerError, changeErr.Code, "api.shortFiction.durabilityPending", details
 		}
 	}
 	if errors.Is(err, novaApp.ErrNoWorkspace) || errors.Is(err, novaApp.ErrWorkspaceChanged) {

@@ -276,6 +276,9 @@ func TestFanqieGenerateRejectsStaleRevisionBeforeModelCall(t *testing.T) {
 	if err == nil {
 		t.Fatal("stale revision was accepted")
 	}
+	if !shortfiction.IsCode(err, "revision_conflict") {
+		t.Fatalf("stale revision error = %v, want revision_conflict", err)
+	}
 	if provider.calls.Load() != 0 {
 		t.Fatalf("provider calls = %d, want 0", provider.calls.Load())
 	}

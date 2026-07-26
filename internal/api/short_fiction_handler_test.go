@@ -106,6 +106,44 @@ func TestFanqieGenerationHTTPAcceptsFlatRequestWithoutWriteOrTools(t *testing.T)
 	}
 }
 
+func TestFanqieGenerationReturnsLocalizedRevisionConflictBeforeProvider(t *testing.T) {
+	const (
+		target = "chapters/short.md"
+		before = "revision A"
+		latest = "revision B"
+	)
+	var providerCalls atomic.Int64
+	provider := newShortFictionAPIProvider(t, "# forbidden candidate", func(map[string]any) {
+		providerCalls.Add(1)
+	})
+	application := newShortFictionAPIApplication(t, provider.URL)
+	server := NewServer(application, "0")
+	writeShortFictionAPIFile(t, application.Workspace(), target, before)
+	staleRevision := workspacechange.Revision([]byte(before))
+	writeShortFictionAPIFile(t, application.Workspace(), target, latest)
+
+	for _, test := range []struct {
+		locale  string
+		message string
+	}{
+		{locale: "zh-CN", message: "预览后目标文件已变化，请检查当前文件并重新生成。"},
+		{locale: "en-US", message: "The target changed after preview. Review the current file and generate again."},
+	} {
+		t.Run(test.locale, func(t *testing.T) {
+			response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", shortFictionGenerateAPIRequest(
+				application.Workspace(), "fanqie_short", target, staleRevision, "do not generate from stale source",
+			), test.locale)
+			assertShortFictionAPIError(t, response, http.StatusConflict, "revision_conflict", test.message)
+		})
+	}
+	if providerCalls.Load() != 0 {
+		t.Fatalf("stale generation reached provider %d times", providerCalls.Load())
+	}
+	if got := readShortFictionAPIFile(t, application.Workspace(), target); got != latest {
+		t.Fatalf("stale generation changed target: got=%q want=%q", got, latest)
+	}
+}
+
 func TestFanqieConfirmReturnsRevisionConflictWithoutWrite(t *testing.T) {
 	const (
 		target = "chapters/short.md"
@@ -280,6 +318,31 @@ func TestShortFictionUnknownProfileDoesNotFallback(t *testing.T) {
 	assertShortFictionAPIError(t, response, http.StatusBadRequest, shortfiction.ErrorCodeInvalidProfile, "This short-fiction profile is not supported.")
 	if providerCalls.Load() != 0 {
 		t.Fatalf("unknown profile reached provider %d times", providerCalls.Load())
+	}
+}
+
+func TestShortFictionPublicAPIRejectsPlatformSpecificTargets(t *testing.T) {
+	var providerCalls atomic.Int64
+	provider := newShortFictionAPIProvider(t, "# forbidden candidate", func(map[string]any) {
+		providerCalls.Add(1)
+	})
+	application := newShortFictionAPIApplication(t, provider.URL)
+	server := NewServer(application, "0")
+	beforeWorkspace := snapshotShortFictionAPIWorkspace(t, application.Workspace())
+
+	for _, target := range []string{"C:/x.md", `C:\x.md`, `chapters\short.md`} {
+		t.Run(target, func(t *testing.T) {
+			response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", shortFictionGenerateAPIRequest(
+				application.Workspace(), "fanqie_short", target, shortfiction.MissingRevision, "reject platform-specific path syntax",
+			), "en-US")
+			assertShortFictionAPIError(t, response, http.StatusBadRequest, shortfiction.ErrorCodeInvalidSource, "The short-fiction source information is invalid.")
+		})
+	}
+	if providerCalls.Load() != 0 {
+		t.Fatalf("invalid targets reached provider %d times", providerCalls.Load())
+	}
+	if afterWorkspace := snapshotShortFictionAPIWorkspace(t, application.Workspace()); !reflect.DeepEqual(afterWorkspace, beforeWorkspace) {
+		t.Fatalf("invalid targets mutated workspace: before=%#v after=%#v", beforeWorkspace, afterWorkspace)
 	}
 }
 

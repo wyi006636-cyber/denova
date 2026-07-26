@@ -38,6 +38,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 番茄短篇确认现在会在同一 App 租约内重新验证目标父目录与文件描述符身份，拒绝预览后替换的符号链接或同 revision 不同 inode；若原子替换已可见但耐久性/账本收尾失败，HTTP 会如实返回 `durability_pending`、`workspace_mutated:true`、`recovery_pending:true` 与 `retryable:false`，界面只刷新精确候选目标一次并禁止重试。
+- Fanqie confirmation now revalidates target-parent and file-descriptor identity under the same App lease, rejecting symlinks or same-revision inode swaps introduced after preview; if an atomic replacement is already visible but durability or ledger finalization fails, HTTP truthfully returns `durability_pending`, `workspace_mutated:true`, `recovery_pending:true`, and `retryable:false`, while the UI refreshes the exact candidate target at most once and blocks retry.
+- 番茄短篇生成的 stale target revision 现在稳定返回双语 HTTP 409 `revision_conflict`，不会调用模型或写入；领域与公开 API 同时在所有操作系统拒绝 drive-letter 路径及任意原始反斜杠路径，默认 MSW handler 也会对生成 5 字段、locale header 与确认完整 12 字段候选 fail-closed。
+- A stale target revision during Fanqie generation now returns a stable bilingual HTTP 409 `revision_conflict` without calling the model or writing; the domain and public API also reject drive-letter paths and any raw-backslash path on every OS, and default MSW handlers now fail closed on the five-field generation body, locale header, and complete 12-field confirmation candidate.
 - 番茄短篇 Sheet 现在用单调请求身份与完整生成 authority 丢弃关闭、上下文切换或新请求之后返回的旧预览；确认同步去重并将已提交结果保持为终态，每个候选最多刷新工作区一次，部分成功也始终显示实际写入的 Markdown 路径。
 - The Fanqie story Sheet now uses monotonic request identity and complete generation authority to discard previews that return after close, context changes, or a newer request; confirmation is synchronously deduplicated, committed results remain terminal, each candidate refreshes the workspace at most once, and partial success always shows the Markdown path that was actually written.
 - 番茄短篇公开生成请求现在与前端合同统一为扁平的 `workspace`、`profile_id`、`target_path`、`base_revision`、`brief` 五字段；正文 `source` 仍只从当前工作区读取，`locale` 仍只从请求头获取，不接受客户端覆盖。

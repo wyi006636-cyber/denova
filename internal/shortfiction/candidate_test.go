@@ -44,7 +44,18 @@ func TestFanqieCandidateRejectsUnknownProfileWithoutFallback(t *testing.T) {
 }
 
 func TestFanqieCandidateRejectsInvalidMarkdownTarget(t *testing.T) {
-	for _, target := range []string{"chapters/short.txt", "/tmp/short.md", "../short.md", ".draft/short.md", "chapters/.short.md", "chapters/../short.md", ".draft/../short.md"} {
+	for _, target := range []string{
+		"chapters/short.txt",
+		"/tmp/short.md",
+		"../short.md",
+		".draft/short.md",
+		"chapters/.short.md",
+		"chapters/../short.md",
+		".draft/../short.md",
+		"C:/x.md",
+		`C:\x.md`,
+		`chapters\short.md`,
+	} {
 		t.Run(target, func(t *testing.T) {
 			_, err := NewCandidate(
 				SourcePacket{Workspace: "/tmp/book", TargetPath: target, BaseRevision: MissingRevision, Brief: "一个人等待答案。", Locale: "zh-CN"},
