@@ -32,7 +32,6 @@ func TestProcessStreamingEventReclassifiesInteractiveToolPreambleAsThinking(t *t
 		0,
 		0,
 		agentEventMetadata{AgentKind: AgentKindInteractiveStory},
-		false,
 		nil,
 		func(event Event) { events = append(events, event) },
 	)
@@ -66,7 +65,6 @@ func TestProcessStreamingEventStreamsInteractiveCandidateBeforeTurnResult(t *tes
 		0,
 		0,
 		agentEventMetadata{AgentKind: AgentKindInteractiveStory},
-		false,
 		nil,
 		func(event Event) { events = append(events, event) },
 	)
@@ -84,7 +82,7 @@ func TestProcessStreamingEventStreamsInteractiveCandidateBeforeTurnResult(t *tes
 	}
 }
 
-func TestProcessStreamingEventStreamsInteractiveNarrativeAfterTurnResult(t *testing.T) {
+func TestProcessStreamingEventStreamsFirstInteractiveNarrativeWhenNoCandidateExists(t *testing.T) {
 	reader, writer := schema.Pipe[*schema.Message](1)
 	writer.Send(&schema.Message{Role: schema.Assistant, Content: "夜雨落在青石街上。"}, nil)
 	writer.Close()
@@ -100,7 +98,6 @@ func TestProcessStreamingEventStreamsInteractiveNarrativeAfterTurnResult(t *test
 		0,
 		0,
 		agentEventMetadata{AgentKind: AgentKindInteractiveStory},
-		true,
 		nil,
 		func(event Event) { events = append(events, event) },
 	)
@@ -115,6 +112,65 @@ func TestProcessStreamingEventStreamsInteractiveNarrativeAfterTurnResult(t *test
 	}
 	if len(events) != 1 || events[0].Type != "chunk" {
 		t.Fatalf("final narrative event = %#v, want chunk", events)
+	}
+}
+
+func TestProcessStreamingEventKeepsFirstInteractiveCandidateAfterReadinessAdvances(t *testing.T) {
+	reader, writer := schema.Pipe[*schema.Message](1)
+	writer.Send(&schema.Message{Role: schema.Assistant, Content: "后续模型调用生成了另一段正文。"}, nil)
+	writer.Close()
+
+	var content strings.Builder
+	content.WriteString("第一次有效候选。")
+	var thinking strings.Builder
+	var events []Event
+	_, err := processStreamingEvent(
+		context.Background(),
+		&adk.MessageVariant{IsStreaming: true, MessageStream: reader, Role: schema.Assistant},
+		&content,
+		&thinking,
+		0,
+		0,
+		agentEventMetadata{AgentKind: AgentKindInteractiveStory},
+		nil,
+		func(event Event) { events = append(events, event) },
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := content.String(); got != "第一次有效候选。" {
+		t.Fatalf("first candidate was replaced or extended: %q", got)
+	}
+	if got := thinking.String(); got != "后续模型调用生成了另一段正文。" {
+		t.Fatalf("later prose = %q, want thinking-only classification", got)
+	}
+	if len(events) != 1 || events[0].Type != "thinking" {
+		t.Fatalf("later prose events = %#v, want one thinking event", events)
+	}
+}
+
+func TestProcessNonStreamingEventKeepsFirstInteractiveCandidateAfterReadinessAdvances(t *testing.T) {
+	var content strings.Builder
+	content.WriteString("第一次有效候选。")
+	var thinking strings.Builder
+	var events []Event
+	processNonStreamingEvent(
+		&adk.MessageVariant{Message: schema.AssistantMessage("后续模型调用生成了另一段正文。", nil)},
+		&content,
+		&thinking,
+		0,
+		agentEventMetadata{AgentKind: AgentKindInteractiveStory},
+		nil,
+		func(event Event) { events = append(events, event) },
+	)
+	if got := content.String(); got != "第一次有效候选。" {
+		t.Fatalf("first candidate was replaced or extended: %q", got)
+	}
+	if got := thinking.String(); got != "后续模型调用生成了另一段正文。" {
+		t.Fatalf("later prose = %q, want thinking-only classification", got)
+	}
+	if len(events) != 1 || events[0].Type != "thinking" {
+		t.Fatalf("later prose events = %#v, want one thinking event", events)
 	}
 }
 
@@ -142,7 +198,6 @@ func TestProcessStreamingEventKeepsInteractiveCompletionRetryInternal(t *testing
 		0,
 		0,
 		agentEventMetadata{AgentKind: AgentKindInteractiveStory},
-		false,
 		nil,
 		func(event Event) { events = append(events, event) },
 	)
@@ -186,7 +241,6 @@ func TestProcessStreamingEventKeepsContentBeforeSubmitAsNarrative(t *testing.T) 
 		0,
 		0,
 		agentEventMetadata{AgentKind: AgentKindInteractiveStory},
-		false,
 		nil,
 		func(event Event) { events = append(events, event) },
 	)
