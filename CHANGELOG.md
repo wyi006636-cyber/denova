@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 写作 Agent 新增常驻番茄短篇入口与自适应单列候选 Sheet：作者可绑定可见的工作区相对 Markdown、预览当前 Writing / IDE 模型生成的完整短篇，并仅在显式确认后写入；生成与确认错误分别保留输入或候选，版本检查点失败会明确提示正文已写入及手动保存版本的恢复步骤。
+- The Writing Agent adds a persistent Fanqie story entry and an adaptive single-column candidate Sheet: authors can bind a visible workspace-relative Markdown target, preview a complete story from the current Writing / IDE model, and write only after explicit confirmation; generation and confirmation failures preserve the brief or candidate, while checkpoint failure clearly reports the committed manuscript and manual version-saving recovery steps.
 - 新增类型化的番茄短篇前端 API client：生成请求只发送工作区、闭合 profile、目标路径、base revision 与 brief，确认请求完整回传客户端持有的候选，并保留 locale header、检查点部分成功与稳定错误字段。
 - Added a typed Fanqie short-fiction frontend API client: generation sends only workspace, closed profile, target path, base revision, and brief; confirmation sends back the complete client-held candidate while preserving the locale header, truthful checkpoint partial-success result, and stable error fields.
 - 新增番茄短篇公开 HTTP 契约：`POST /api/short-fiction/candidates` 以请求语言生成无工具、无写入的完整候选，`POST /api/short-fiction/candidates/confirm` 仅确认客户端回传的完整候选；校验、工作区、revision、来源大小和模型错误返回稳定的双语错误 code，正文已写入但检查点失败仍如实返回 HTTP 200 部分成功。

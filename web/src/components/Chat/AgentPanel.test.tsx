@@ -93,6 +93,44 @@ describe('AgentPanel', () => {
     expect(handleCreateSession).toHaveBeenCalledTimes(1)
   })
 
+  it('从持久 header 打开和关闭番茄短篇时不发送消息也不改变内容模式', async () => {
+    const user = userEvent.setup()
+    const handleSend = vi.fn()
+    window.localStorage.setItem('nova:content-mode', 'interactive')
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+
+    try {
+      renderAgentPanel({
+        selectedFile: 'chapters/short.md',
+        fileSuggestions: ['chapters/short.md'],
+        messages: [{ id: 'assistant-1', role: 'assistant', parts: [{ type: 'text', text: '已有对话' }] }],
+        onSend: handleSend,
+      })
+
+      const entry = screen.getByRole('button', { name: '番茄短篇' })
+      expect(entry).toBeInTheDocument()
+      await user.click(entry)
+      expect(screen.getByRole('dialog', { name: '番茄完整短篇' })).toBeInTheDocument()
+      expect(screen.getByLabelText('目标 Markdown')).toHaveValue('chapters/short.md')
+
+      await user.click(screen.getByRole('button', { name: '关闭番茄短篇' }))
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: '番茄完整短篇' })).not.toBeInTheDocument())
+
+      expect(handleSend).not.toHaveBeenCalled()
+      expect(window.localStorage.getItem('nova:content-mode')).toBe('interactive')
+      expect(setItemSpy).not.toHaveBeenCalledWith('nova:content-mode', expect.anything())
+    } finally {
+      setItemSpy.mockRestore()
+      window.localStorage.removeItem('nova:content-mode')
+    }
+  })
+
+  it('在 Agent 正在流式回复时禁用持久番茄短篇入口', () => {
+    renderAgentPanel({ isStreaming: true })
+
+    expect(screen.getByRole('button', { name: '番茄短篇' })).toBeDisabled()
+  })
+
   it('创作 Agent 将思考和工具调用折叠到同一个思考过程', async () => {
     const user = userEvent.setup()
     renderAgentPanel({
