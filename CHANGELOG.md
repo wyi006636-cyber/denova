@@ -30,6 +30,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 番茄短篇候选现在会在路径清理前拒绝可折叠的父目录或隐藏目录；显式确认也会重新校验规范化 authority、revision、brief 与全部字节上限，避免自洽哈希掩盖非法候选。
+- Fanqie short-fiction candidates now reject collapsible parent or hidden target segments before path cleaning; explicit confirmation also rechecks canonical authority, revision, brief, and every byte bound so a self-consistent hash cannot mask an invalid candidate.
 - 写作模式现在会隔离参数不是合法 JSON 的工具调用及其结果；已经保存的异常调用链也会在下次请求前被过滤，长参数则使用合法 JSON 回执保留上下文，避免会话被永久冻结。
 - Writing Mode now isolates tool calls with invalid JSON arguments and their results; previously saved malformed pairs are filtered before the next request, while large arguments use a valid JSON receipt so sessions do not become permanently frozen.
 - 设置与 Agents 的分层草稿、自动保存和输入区偏好持久化现在会串行写入，并在 revision 冲突时按原始基线重新拉取、合并和重试；卸载或过期请求不再回写状态。

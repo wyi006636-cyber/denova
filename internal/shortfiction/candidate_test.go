@@ -1,6 +1,9 @@
 package shortfiction
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -41,7 +44,7 @@ func TestFanqieCandidateRejectsUnknownProfileWithoutFallback(t *testing.T) {
 }
 
 func TestFanqieCandidateRejectsInvalidMarkdownTarget(t *testing.T) {
-	for _, target := range []string{"chapters/short.txt", "/tmp/short.md", "../short.md", ".draft/short.md", "chapters/.short.md"} {
+	for _, target := range []string{"chapters/short.txt", "/tmp/short.md", "../short.md", ".draft/short.md", "chapters/.short.md", "chapters/../short.md", ".draft/../short.md"} {
 		t.Run(target, func(t *testing.T) {
 			_, err := NewCandidate(
 				SourcePacket{Workspace: "/tmp/book", TargetPath: target, BaseRevision: MissingRevision, Brief: "一个人等待答案。", Locale: "zh-CN"},
@@ -126,4 +129,73 @@ func TestFanqieCandidateRequiresWorkspaceChangeRevisionFormat(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateCandidateRejectsSelfConsistentInvalidAuthority(t *testing.T) {
+	base, err := NewCandidate(
+		SourcePacket{Workspace: "/tmp/book", TargetPath: "chapters/short.md", BaseRevision: MissingRevision, Brief: "一个人等待答案。", Locale: "zh-CN"},
+		Generation{PreviewMarkdown: "# 等待\n\n正文", ModelProfileID: "writer", Model: "test-model"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name   string
+		mutate func(*GeneratedCandidate)
+		code   string
+	}{
+		{name: "noncanonical workspace", mutate: func(candidate *GeneratedCandidate) { candidate.Workspace += "/." }, code: ErrorCodeInvalidSource},
+		{name: "noncanonical target", mutate: func(candidate *GeneratedCandidate) { candidate.TargetPath = "chapters//short.md" }, code: ErrorCodeInvalidSource},
+		{name: "invalid revision", mutate: func(candidate *GeneratedCandidate) { candidate.BaseRevision = "sha256:not-hex" }, code: ErrorCodeInvalidSource},
+		{name: "blank brief", mutate: func(candidate *GeneratedCandidate) { candidate.Brief = " \t" }, code: ErrorCodeInvalidSource},
+		{name: "oversized brief", mutate: func(candidate *GeneratedCandidate) { candidate.Brief = strings.Repeat("b", MaxBriefBytes+1) }, code: ErrorCodeOversized},
+		{name: "oversized source", mutate: func(candidate *GeneratedCandidate) { candidate.Source = strings.Repeat("s", MaxSourceBytes+1) }, code: ErrorCodeOversized},
+		{name: "oversized preview", mutate: func(candidate *GeneratedCandidate) {
+			candidate.PreviewMarkdown = strings.Repeat("m", MaxCandidateBytes+1)
+		}, code: ErrorCodeOversized},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			candidate := base
+			test.mutate(&candidate)
+			candidate = rehashCandidateForTest(t, candidate)
+			if err := ValidateCandidate(candidate); !IsCode(err, test.code) {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+}
+
+func rehashCandidateForTest(t *testing.T, candidate GeneratedCandidate) GeneratedCandidate {
+	t.Helper()
+	data, err := json.Marshal(struct {
+		ProfileID       ProfileID `json:"profile_id"`
+		ProfileVersion  string    `json:"profile_version"`
+		Workspace       string    `json:"workspace"`
+		TargetPath      string    `json:"target_path"`
+		BaseRevision    string    `json:"base_revision"`
+		Brief           string    `json:"brief"`
+		Source          string    `json:"source"`
+		Locale          string    `json:"locale"`
+		PreviewMarkdown string    `json:"preview_markdown"`
+		ModelProfileID  string    `json:"model_profile_id"`
+		Model           string    `json:"model"`
+	}{
+		ProfileID:       candidate.ProfileID,
+		ProfileVersion:  candidate.ProfileVersion,
+		Workspace:       candidate.Workspace,
+		TargetPath:      candidate.TargetPath,
+		BaseRevision:    candidate.BaseRevision,
+		Brief:           candidate.Brief,
+		Source:          candidate.Source,
+		Locale:          candidate.Locale,
+		PreviewMarkdown: candidate.PreviewMarkdown,
+		ModelProfileID:  candidate.ModelProfileID,
+		Model:           candidate.Model,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(data)
+	candidate.CandidateID = "sha256:" + hex.EncodeToString(sum[:])
+	return candidate
 }

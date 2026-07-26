@@ -23,23 +23,8 @@ type candidateHashInput struct {
 }
 
 func NewCandidate(source SourcePacket, generation Generation) (GeneratedCandidate, error) {
-	if strings.TrimSpace(source.Brief) == "" {
-		return GeneratedCandidate{}, NewError(ErrorCodeInvalidSource, "brief is required", nil)
-	}
-	if !validBaseRevision(source.BaseRevision) {
-		return GeneratedCandidate{}, NewError(ErrorCodeInvalidSource, "base revision must use the workspace change format", nil)
-	}
-	if len(source.Brief) > MaxBriefBytes {
-		return GeneratedCandidate{}, NewError(ErrorCodeOversized, "brief exceeds the maximum size", map[string]any{"max_bytes": MaxBriefBytes})
-	}
-	if len(source.Source) > MaxSourceBytes {
-		return GeneratedCandidate{}, NewError(ErrorCodeOversized, "source exceeds the maximum size", map[string]any{"max_bytes": MaxSourceBytes})
-	}
-	if len(generation.PreviewMarkdown) > MaxCandidateBytes {
-		return GeneratedCandidate{}, NewError(ErrorCodeOversized, "candidate preview exceeds the maximum size", map[string]any{"max_bytes": MaxCandidateBytes})
-	}
 	var err error
-	source, err = normalizeSourcePacket(source)
+	source, err = validateAuthority(source, generation.PreviewMarkdown, false)
 	if err != nil {
 		return GeneratedCandidate{}, err
 	}
@@ -63,6 +48,32 @@ func NewCandidate(source SourcePacket, generation Generation) (GeneratedCandidat
 	return candidate, nil
 }
 
+func validateAuthority(source SourcePacket, previewMarkdown string, requireCanonical bool) (SourcePacket, error) {
+	if strings.TrimSpace(source.Brief) == "" {
+		return SourcePacket{}, NewError(ErrorCodeInvalidSource, "brief is required", nil)
+	}
+	if !validBaseRevision(source.BaseRevision) {
+		return SourcePacket{}, NewError(ErrorCodeInvalidSource, "base revision must use the workspace change format", nil)
+	}
+	if len(source.Brief) > MaxBriefBytes {
+		return SourcePacket{}, NewError(ErrorCodeOversized, "brief exceeds the maximum size", map[string]any{"max_bytes": MaxBriefBytes})
+	}
+	if len(source.Source) > MaxSourceBytes {
+		return SourcePacket{}, NewError(ErrorCodeOversized, "source exceeds the maximum size", map[string]any{"max_bytes": MaxSourceBytes})
+	}
+	if len(previewMarkdown) > MaxCandidateBytes {
+		return SourcePacket{}, NewError(ErrorCodeOversized, "candidate preview exceeds the maximum size", map[string]any{"max_bytes": MaxCandidateBytes})
+	}
+	normalized, err := normalizeSourcePacket(source)
+	if err != nil {
+		return SourcePacket{}, err
+	}
+	if requireCanonical && (source.Workspace != normalized.Workspace || source.TargetPath != normalized.TargetPath) {
+		return SourcePacket{}, NewError(ErrorCodeInvalidSource, "candidate authority is not canonical", nil)
+	}
+	return normalized, nil
+}
+
 func validBaseRevision(revision string) bool {
 	if revision == MissingRevision {
 		return true
@@ -82,26 +93,48 @@ func normalizeSourcePacket(source SourcePacket) (SourcePacket, error) {
 	}
 	source.Workspace = filepath.Clean(workspace)
 
-	path := filepath.FromSlash(source.TargetPath)
-	if filepath.IsAbs(path) {
+	target := filepath.FromSlash(source.TargetPath)
+	if filepath.IsAbs(target) {
 		return SourcePacket{}, NewError(ErrorCodeInvalidSource, "target path must be relative", nil)
 	}
-	path = filepath.ToSlash(filepath.Clean(path))
-	if filepath.Ext(path) != ".md" {
+	if hasForbiddenTargetSegment(target) {
+		return SourcePacket{}, NewError(ErrorCodeInvalidSource, "target path contains a forbidden segment", nil)
+	}
+
+	target = filepath.ToSlash(filepath.Clean(target))
+	if filepath.IsAbs(filepath.FromSlash(target)) || hasForbiddenTargetSegment(filepath.FromSlash(target)) {
+		return SourcePacket{}, NewError(ErrorCodeInvalidSource, "target path is not workspace-relative", nil)
+	}
+	if filepath.Ext(target) != ".md" {
 		return SourcePacket{}, NewError(ErrorCodeInvalidSource, "target path must be a Markdown file", nil)
 	}
-	for _, segment := range strings.Split(path, "/") {
+	source.TargetPath = target
+	return source, nil
+}
+
+func hasForbiddenTargetSegment(target string) bool {
+	for _, segment := range strings.Split(target, string(filepath.Separator)) {
 		if segment == ".." || strings.HasPrefix(segment, ".") {
-			return SourcePacket{}, NewError(ErrorCodeInvalidSource, "target path contains a forbidden segment", nil)
+			return true
 		}
 	}
-	source.TargetPath = path
-	return source, nil
+	return false
 }
 
 func ValidateCandidate(candidate GeneratedCandidate) error {
 	if candidate.ProfileID != ProfileFanqieShort || candidate.ProfileVersion != FanqieProfileVersion {
 		return NewError(ErrorCodeInvalidProfile, "candidate profile is not supported", nil)
+	}
+	_, err := validateAuthority(SourcePacket{
+		Workspace:    candidate.Workspace,
+		TargetPath:   candidate.TargetPath,
+		BaseRevision: candidate.BaseRevision,
+		Brief:        candidate.Brief,
+		Source:       candidate.Source,
+		Locale:       candidate.Locale,
+	}, candidate.PreviewMarkdown, true)
+	if err != nil {
+		return err
 	}
 	id, err := candidateID(candidate)
 	if err != nil {
