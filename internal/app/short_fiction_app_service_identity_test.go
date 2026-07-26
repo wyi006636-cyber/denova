@@ -27,7 +27,7 @@ func TestFanqieGenerateRejectsDescriptorIdentityRacesBeforeModelCall(t *testing.
 				workspace := canonicalShortFictionTestWorkspace(t, t.TempDir())
 				writeShortFictionTestFile(t, workspace, "chapters/short.md", "visible target")
 				writeShortFictionTestFile(t, workspace, ".hidden/secret.md", hiddenSentinel)
-				return workspace, workspacechange.Revision([]byte("visible target"))
+				return workspace, workspacechange.Revision([]byte(hiddenSentinel))
 			},
 			openRoot: func(t *testing.T, workspace string) shortFictionRootOpener {
 				return swappingShortFictionRootOpener(t, workspace, func(delegate shortFictionRoot, name string) (*os.File, error) {
@@ -56,7 +56,7 @@ func TestFanqieGenerateRejectsDescriptorIdentityRacesBeforeModelCall(t *testing.
 				workspace := canonicalShortFictionTestWorkspace(t, t.TempDir())
 				writeShortFictionTestFile(t, workspace, "chapters/short.md", "visible parent target")
 				writeShortFictionTestFile(t, workspace, ".hidden-parent/short.md", hiddenSentinel)
-				return workspace, workspacechange.Revision([]byte("visible parent target"))
+				return workspace, workspacechange.Revision([]byte(hiddenSentinel))
 			},
 			openRoot: func(t *testing.T, workspace string) shortFictionRootOpener {
 				return swappingShortFictionRootOpener(t, workspace, func(delegate shortFictionRoot, name string) (*os.File, error) {
@@ -93,7 +93,7 @@ func TestFanqieGenerateRejectsDescriptorIdentityRacesBeforeModelCall(t *testing.
 				}
 				writeShortFictionTestFile(t, workspace, "chapters/short.md", "visible root target")
 				writeShortFictionTestFile(t, hiddenWorkspace, "chapters/short.md", hiddenSentinel)
-				return workspace, workspacechange.Revision([]byte("visible root target"))
+				return workspace, workspacechange.Revision([]byte(hiddenSentinel))
 			},
 			openRoot: func(t *testing.T, workspace string) shortFictionRootOpener {
 				return func(path string) (shortFictionRoot, error) {
