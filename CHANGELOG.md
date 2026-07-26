@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增有界的番茄短篇候选领域契约：生成仅返回不可篡改的 Markdown 预览，不会写入工作区；后续必须通过显式确认衔接写入，并可如实报告检查点已提交、后续步骤部分失败的结果。
+- Added a bounded Fanqie short-fiction candidate domain contract: generation returns only an integrity-bound Markdown preview and never writes the workspace; a later explicit confirmation is required to bridge into writing, while checkpoint-committed and later partial-failure outcomes can be reported truthfully.
 - 新增经确认的番茄完整短篇垂直切片设计：复用当前写作模型生成无工具候选，并在作者显式确认后通过一致性快照接缝写入正文；候选持久化、Harness runtime 和知乎盐选行为保持延后。
 - Added the approved complete Fanqie short-fiction vertical-slice design: reuse the current Writing model for a no-tool candidate, then write only after explicit author confirmation through the consistent-snapshot seam; candidate persistence, Harness runtime, and Zhihu Salt behavior remain deferred.
 - 工作区变更服务新增单文件替换与一致性快照接缝：在同一变更租约内完成现有 CAS、耐久 ChangeSet 提交和调用方快照；快照失败时仍返回已提交变更，供上层明确报告部分成功。
