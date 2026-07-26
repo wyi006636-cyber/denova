@@ -14,6 +14,7 @@ import (
 	"denova/internal/agent"
 	"denova/internal/book"
 	"denova/internal/shortfiction"
+	"denova/internal/workspacechange"
 )
 
 // ShortFictionAppService binds no-write fiction previews to one workspace snapshot.
@@ -50,6 +51,128 @@ func (a *App) GenerateShortFictionCandidate(
 	locale string,
 ) (shortfiction.GeneratedCandidate, error) {
 	return a.shortFiction().generateCandidate(ctx, req, locale)
+}
+
+// ConfirmShortFictionCandidate writes one integrity-bound candidate after an
+// explicit confirmation and checkpoints the exact committed revision.
+func (a *App) ConfirmShortFictionCandidate(
+	ctx context.Context,
+	req shortfiction.ConfirmRequest,
+) (shortfiction.ConfirmationResult, error) {
+	return a.shortFiction().confirmCandidate(ctx, req)
+}
+
+func (s *ShortFictionAppService) confirmCandidate(
+	ctx context.Context,
+	req shortfiction.ConfirmRequest,
+) (shortfiction.ConfirmationResult, error) {
+	if s == nil || s.app == nil {
+		return shortfiction.ConfirmationResult{}, ErrNoWorkspace
+	}
+	candidate := req.Candidate
+	if err := shortfiction.ValidateCandidate(candidate); err != nil {
+		return shortfiction.ConfirmationResult{}, err
+	}
+
+	app := s.app
+	app.mu.RLock()
+	defer app.mu.RUnlock()
+
+	workspace := app.workspace
+	bookService := app.bookService
+	versionService := app.versionService
+	if workspace == "" || bookService == nil || versionService == nil {
+		return shortfiction.ConfirmationResult{}, ErrNoWorkspace
+	}
+	workspaceIdentity, err := os.Lstat(workspace)
+	if err != nil {
+		return shortfiction.ConfirmationResult{}, err
+	}
+	if !workspaceIdentity.IsDir() || workspaceIdentity.Mode()&os.ModeSymlink != 0 {
+		return shortfiction.ConfirmationResult{}, shortfiction.NewError(
+			shortfiction.ErrorCodeInvalidSource,
+			"active workspace is not a regular directory",
+			map[string]any{"workspace_mutated": false},
+		)
+	}
+	absoluteWorkspace, err := filepath.Abs(workspace)
+	if err != nil {
+		return shortfiction.ConfirmationResult{}, err
+	}
+	canonicalWorkspace, err := filepath.EvalSymlinks(absoluteWorkspace)
+	if err != nil {
+		return shortfiction.ConfirmationResult{}, err
+	}
+	canonicalWorkspace = filepath.Clean(canonicalWorkspace)
+	if workspace != canonicalWorkspace || bookService.Workspace() != canonicalWorkspace || candidate.Workspace != canonicalWorkspace {
+		return shortfiction.ConfirmationResult{}, shortfiction.NewError(
+			shortfiction.ErrorCodeInvalidSource,
+			"candidate workspace does not match the active canonical workspace",
+			map[string]any{"workspace_mutated": false},
+		)
+	}
+
+	changeService, err := workspacechange.ForWorkspace(workspace)
+	if err != nil {
+		return shortfiction.ConfirmationResult{}, err
+	}
+	settings := versionAutoSettingsForConfig(app.cfg)
+	var versionResult book.VersionCommandResult
+	change, err := changeService.ReplaceFileWithConsistentSnapshot(ctx, workspacechange.ReplaceFileRequest{
+		Path:         candidate.TargetPath,
+		Content:      candidate.PreviewMarkdown,
+		BaseRevision: candidate.BaseRevision,
+		Metadata: workspacechange.ChangeMetadata{
+			Origin:     workspacechange.OriginAgent,
+			AutoAccept: true,
+		},
+	}, func(applied workspacechange.ChangeSet) error {
+		created, createErr := versionService.Create(localizedConfirmationMessage(candidate), book.VersionSourceManual, settings)
+		if createErr == nil && created.Version == nil {
+			return errors.New("version checkpoint returned no version")
+		}
+		versionResult = created
+		return createErr
+	})
+	if err != nil {
+		if change.ID == "" {
+			return shortfiction.ConfirmationResult{}, err
+		}
+		return shortfiction.ConfirmationResult{
+			Status:           shortfiction.ConfirmationWrittenCheckpointFailed,
+			CandidateID:      candidate.CandidateID,
+			WriteRevision:    change.Revision,
+			ChangeGroupID:    change.GroupID,
+			ChangeSetID:      change.ID,
+			WorkspaceMutated: true,
+			CheckpointStatus: shortfiction.CheckpointFailed,
+			Retryable:        false,
+		}, nil
+	}
+
+	return shortfiction.ConfirmationResult{
+		Status:           shortfiction.ConfirmationWritten,
+		CandidateID:      candidate.CandidateID,
+		WriteRevision:    change.Revision,
+		ChangeGroupID:    change.GroupID,
+		ChangeSetID:      change.ID,
+		WorkspaceMutated: true,
+		CheckpointStatus: shortfiction.CheckpointCreated,
+		Checkpoint: &shortfiction.ConfirmationCheckpoint{
+			VersionID: versionResult.Version.ID,
+			Source:    versionResult.Version.Source,
+			Path:      change.Path,
+			Revision:  change.Revision,
+		},
+		Retryable: false,
+	}, nil
+}
+
+func localizedConfirmationMessage(candidate shortfiction.GeneratedCandidate) string {
+	if strings.HasPrefix(strings.ToLower(candidate.Locale), "zh") {
+		return "确认番茄短篇：" + candidate.TargetPath
+	}
+	return "Confirm Fanqie short fiction: " + candidate.TargetPath
 }
 
 func (s *ShortFictionAppService) generateCandidate(

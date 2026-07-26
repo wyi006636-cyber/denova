@@ -11,6 +11,20 @@ const (
 	MaxCandidateBytes              = 1024 * 1024
 )
 
+type ConfirmationStatus string
+
+const (
+	ConfirmationWritten                 ConfirmationStatus = "written"
+	ConfirmationWrittenCheckpointFailed ConfirmationStatus = "written_checkpoint_failed"
+)
+
+type CheckpointStatus string
+
+const (
+	CheckpointCreated CheckpointStatus = "created"
+	CheckpointFailed  CheckpointStatus = "failed"
+)
+
 // SourcePacket is the bounded, auditable source for one candidate preview.
 type SourcePacket struct {
 	Workspace    string `json:"workspace"`
@@ -49,9 +63,24 @@ type ConfirmRequest struct {
 	Candidate GeneratedCandidate `json:"candidate"`
 }
 
-// ConfirmationResult reports the checkpoint outcome without implying a workspace write.
+// ConfirmationCheckpoint identifies the exact manual version created for a confirmed write.
+type ConfirmationCheckpoint struct {
+	VersionID string `json:"version_id"`
+	Source    string `json:"source"`
+	Path      string `json:"path"`
+	Revision  string `json:"revision"`
+}
+
+// ConfirmationResult distinguishes a complete confirmation from a durable
+// workspace write whose exact version checkpoint failed.
 type ConfirmationResult struct {
-	CandidateID string `json:"candidate_id"`
-	Confirmed   bool   `json:"confirmed"`
-	Checkpoint  string `json:"checkpoint"`
+	Status           ConfirmationStatus      `json:"status"`
+	CandidateID      string                  `json:"candidate_id"`
+	WriteRevision    string                  `json:"write_revision"`
+	ChangeGroupID    string                  `json:"change_group_id"`
+	ChangeSetID      string                  `json:"change_set_id"`
+	WorkspaceMutated bool                    `json:"workspace_mutated"`
+	CheckpointStatus CheckpointStatus        `json:"checkpoint_status"`
+	Checkpoint       *ConfirmationCheckpoint `json:"checkpoint,omitempty"`
+	Retryable        bool                    `json:"retryable"`
 }

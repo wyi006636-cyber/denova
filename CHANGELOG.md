@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 番茄短篇显式确认现在会重新校验完整候选及当前工作区 revision，再通过单一变更租约提交已接受的 Agent ChangeSet 和精确手动版本；若正文已提交但版本检查点失败，会如实返回写入 revision、变更 ID、`workspace_mutated:true`、`checkpoint_status:failed` 与 `retryable:false`，不提供重试或回滚承诺。
+- Fanqie short-fiction explicit confirmation now revalidates the complete candidate and active workspace revision, then commits an accepted Agent ChangeSet and exact manual version under one change lease; if the manuscript commits but its checkpoint fails, the result truthfully reports the write revision, change IDs, `workspace_mutated:true`, `checkpoint_status:failed`, and `retryable:false` without retry or rollback claims.
 - 新增有界的番茄短篇候选领域契约：生成仅返回不可篡改的 Markdown 预览，不会写入工作区；后续必须通过显式确认衔接写入，并可如实报告检查点已提交、后续步骤部分失败的结果。
 - Added a bounded Fanqie short-fiction candidate domain contract: generation returns only an integrity-bound Markdown preview and never writes the workspace; a later explicit confirmation is required to bridge into writing, while checkpoint-committed and later partial-failure outcomes can be reported truthfully.
 - 新增经确认的番茄完整短篇垂直切片设计：复用当前写作模型生成无工具候选，并在作者显式确认后通过一致性快照接缝写入正文；候选持久化、Harness runtime 和知乎盐选行为保持延后。
