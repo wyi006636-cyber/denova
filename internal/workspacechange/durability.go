@@ -103,15 +103,28 @@ func (s *Service) ensureVisibleParentDurable(root *os.Root, parent string) error
 	if parent == "." {
 		return nil
 	}
-	if err := root.MkdirAll(filepath.FromSlash(parent), 0o755); err != nil {
-		return err
-	}
 	current := "."
 	for _, component := range strings.Split(parent, "/") {
 		if component == "" || component == "." {
 			continue
 		}
 		next := path.Join(current, component)
+		info, err := root.Lstat(filepath.FromSlash(next))
+		if errors.Is(err, os.ErrNotExist) {
+			if err := root.Mkdir(filepath.FromSlash(next), 0o755); err != nil && !errors.Is(err, os.ErrExist) {
+				return err
+			}
+			info, err = root.Lstat(filepath.FromSlash(next))
+		}
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return newError(ErrorCodeConflict, "workspace parent path contains a symbolic link", map[string]any{"path": next})
+		}
+		if !info.IsDir() {
+			return &os.PathError{Op: "mkdir", Path: next, Err: errors.New("path is not a directory")}
+		}
 		if err := s.durability.syncRootDir(root, next); err != nil {
 			return err
 		}
@@ -121,6 +134,56 @@ func (s *Service) ensureVisibleParentDurable(root *os.Root, parent string) error
 		current = next
 	}
 	return nil
+}
+
+// openVerifiedVisibleParent returns an opened parent directory only after each
+// visible path entry is confirmed to be the directory the handle references.
+func openVerifiedVisibleParent(root *os.Root, parent string) (*os.Root, error) {
+	current := root
+	currentOwned := false
+	closeCurrent := func() {
+		if currentOwned {
+			_ = current.Close()
+		}
+	}
+	for _, component := range strings.Split(parent, "/") {
+		if component == "" || component == "." {
+			continue
+		}
+		entry, err := current.Lstat(component)
+		if err != nil {
+			closeCurrent()
+			return nil, err
+		}
+		if entry.Mode()&os.ModeSymlink != 0 {
+			closeCurrent()
+			return nil, newError(ErrorCodeConflict, "workspace parent path contains a symbolic link", map[string]any{"path": parent})
+		}
+		if !entry.IsDir() {
+			closeCurrent()
+			return nil, newError(ErrorCodeConflict, "workspace parent path is not a directory", map[string]any{"path": parent})
+		}
+		next, err := current.OpenRoot(component)
+		if err != nil {
+			closeCurrent()
+			return nil, err
+		}
+		opened, err := next.Lstat(".")
+		if err != nil {
+			_ = next.Close()
+			closeCurrent()
+			return nil, err
+		}
+		if !os.SameFile(entry, opened) {
+			_ = next.Close()
+			closeCurrent()
+			return nil, newError(ErrorCodeConflict, "workspace parent path changed while opening", map[string]any{"path": parent})
+		}
+		closeCurrent()
+		current = next
+		currentOwned = true
+	}
+	return current, nil
 }
 
 func (s *Service) syncVisibleParent(rel string) error {

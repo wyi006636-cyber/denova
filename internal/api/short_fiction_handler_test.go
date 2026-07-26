@@ -126,8 +126,8 @@ func TestFanqieGenerationReturnsLocalizedRevisionConflictBeforeProvider(t *testi
 		locale  string
 		message string
 	}{
-		{locale: "zh-CN", message: "预览后目标文件已变化，请检查当前文件并重新生成。"},
-		{locale: "en-US", message: "The target changed after preview. Review the current file and generate again."},
+		{locale: "zh-CN", message: "目标文件的版本与该候选不一致，请检查当前文件并重新生成。"},
+		{locale: "en-US", message: "The target file revision does not match this candidate. Review the current file and generate again."},
 	} {
 		t.Run(test.locale, func(t *testing.T) {
 			response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", shortFictionGenerateAPIRequest(
@@ -158,7 +158,7 @@ func TestFanqieConfirmReturnsRevisionConflictWithoutWrite(t *testing.T) {
 	writeShortFictionAPIFile(t, application.Workspace(), target, later)
 
 	response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates/confirm", shortfiction.ConfirmRequest{Candidate: candidate}, "en-US")
-	assertShortFictionAPIError(t, response, http.StatusConflict, "revision_conflict", "The target changed after preview. Review the current file and generate again.")
+	assertShortFictionAPIError(t, response, http.StatusConflict, "revision_conflict", "The target file revision does not match this candidate. Review the current file and generate again.")
 	if got := readShortFictionAPIFile(t, application.Workspace(), target); got != later {
 		t.Fatalf("revision conflict changed file: got=%q want=%q", got, later)
 	}

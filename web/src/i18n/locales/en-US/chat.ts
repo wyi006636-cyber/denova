@@ -451,6 +451,8 @@ const chat = {
   'chat.fanqie.error.generateFailed': 'Complete story generation failed. The brief and target path were preserved.',
   'chat.fanqie.error.revisionConflict': 'The target manuscript changed. Return to the brief, inspect the target, and generate a new preview bound to the latest revision.',
   'chat.fanqie.error.durabilityPending': 'The manuscript may already be visible at {{path}}, but write durability or journal recovery is still pending. Inspect that target first and do not retry this confirmation.',
+  'chat.fanqie.error.priorDurabilityPending': 'A previous workspace change may already be visible at {{path}}, but recovery is still pending; the current candidate was not confirmed. Inspect that path first and do not retry until recovery is resolved.',
+  'chat.fanqie.error.priorDurabilityPendingUnknown': 'A previous workspace change may already be visible, but recovery is still pending; the current candidate was not confirmed. Resolve recovery first and do not retry until then.',
   'chat.fanqie.error.confirmFailed': 'The write could not be confirmed. The candidate preview remains available, and this confirmation did not change the manuscript.',
 } as const
 

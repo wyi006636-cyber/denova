@@ -38,6 +38,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 番茄短篇确认遇到较早工作区变更的耐久性恢复时，不再把它归为当前候选的写入：响应明确 `workspace_mutated:false`、`recovery_pending:true`、`retryable:false` 与恢复路径，双语界面不会刷新当前目标；revision 冲突文案也改为不假设事件先后的候选/目标版本不匹配。
+- When Fanqie confirmation encounters durability recovery for an earlier workspace change, it no longer attributes that state to the current candidate: the response explicitly reports `workspace_mutated:false`, `recovery_pending:true`, `retryable:false`, and the recovery path, while the bilingual UI does not refresh the current target; revision-conflict copy is also chronology-neutral about the candidate and target revisions.
+- 工作区可见文件的原子替换现在以逐层 `Lstat`、`OpenRoot` 和 `SameFile` 验证的父目录句柄创建并重命名临时文件，拒绝目录路径中的符号链接或非目录，阻止同 revision 父目录替换把写入重定向到其他位置。
+- Visible workspace-file replacement now creates and renames its temporary file through a parent-directory handle verified component by component with `Lstat`, `OpenRoot`, and `SameFile`; symlink and non-directory parent entries are rejected so a same-revision parent swap cannot redirect the write elsewhere.
 - 番茄短篇确认现在会在同一 App 租约内重新验证目标父目录与文件描述符身份，拒绝预览后替换的符号链接或同 revision 不同 inode；若原子替换已可见但耐久性/账本收尾失败，HTTP 会如实返回 `durability_pending`、`workspace_mutated:true`、`recovery_pending:true` 与 `retryable:false`，界面只刷新精确候选目标一次并禁止重试。
 - Fanqie confirmation now revalidates target-parent and file-descriptor identity under the same App lease, rejecting symlinks or same-revision inode swaps introduced after preview; if an atomic replacement is already visible but durability or ledger finalization fails, HTTP truthfully returns `durability_pending`, `workspace_mutated:true`, `recovery_pending:true`, and `retryable:false`, while the UI refreshes the exact candidate target at most once and blocks retry.
 - 番茄短篇生成的 stale target revision 现在稳定返回双语 HTTP 409 `revision_conflict`，不会调用模型或写入；领域与公开 API 同时在所有操作系统拒绝 drive-letter 路径及任意原始反斜杠路径，默认 MSW handler 也会对生成 5 字段、locale header 与确认完整 12 字段候选 fail-closed。

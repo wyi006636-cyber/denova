@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -120,6 +121,54 @@ func TestReplaceFileWithConsistentSnapshotReturnsChangeIdentityWhenVisibleWriteD
 	}
 	if got := readTestFile(t, service.workspace, path); got != "candidate" {
 		t.Fatalf("visible candidate bytes = %q", got)
+	}
+}
+
+func TestReplaceFileWithConsistentSnapshotRefusesParentEntrySwappedAfterValidation(t *testing.T) {
+	service, path := newConsistentSnapshotService(t, "same revision before the parent swap")
+	const redirectedPath = "redirect/ch01.md"
+	writeTestFile(t, service.workspace, redirectedPath, "same revision before the parent swap")
+
+	originalSync := service.durability.syncRootDirFn
+	swapped := false
+	service.durability.syncRootDirFn = func(root *os.Root, rel string) error {
+		if rel == "chapters" && !swapped {
+			swapped = true
+			parent := filepath.Join(service.workspace, "chapters")
+			if err := os.Rename(parent, parent+".original"); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink("redirect", parent); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return originalSync(root, rel)
+	}
+
+	callbackCalled := false
+	change, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate must not reach either directory",
+		BaseRevision: Revision([]byte("same revision before the parent swap")),
+	}, func(ChangeSet) error {
+		callbackCalled = true
+		return nil
+	})
+	assertChangeErrorCode(t, err, ErrorCodeConflict)
+	if !swapped {
+		t.Fatal("test did not swap the validated parent entry")
+	}
+	if callbackCalled {
+		t.Fatal("parent entry race invoked the snapshot callback")
+	}
+	if change.ID == "" || change.Path != path {
+		t.Fatalf("parent entry race lost the prepared change identity: %#v", change)
+	}
+	if got := readTestFile(t, service.workspace, "chapters.original/ch01.md"); got != "same revision before the parent swap" {
+		t.Fatalf("original parent changed: %q", got)
+	}
+	if got := readTestFile(t, service.workspace, redirectedPath); got != "same revision before the parent swap" {
+		t.Fatalf("redirected parent changed: %q", got)
 	}
 }
 

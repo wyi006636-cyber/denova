@@ -81,6 +81,7 @@ export interface ShortFictionErrorDetails extends Record<string, unknown> {
   recovery_pending?: boolean
   retryable?: false
   target_path?: string
+  recovery_target_path?: string
   write_revision?: string
   max_bytes?: number
 }

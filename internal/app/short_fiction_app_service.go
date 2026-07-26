@@ -216,6 +216,23 @@ func shortFictionDurabilityPendingError(
 	if !errors.As(err, &pending) || pending.Code != workspacechange.ErrorCodeDurabilityPending || change.ApplyState == workspacechange.ApplyStateApplied {
 		return nil
 	}
+	pendingChangeSetID, _ := pending.Details["change_set_id"].(string)
+	currentChangeVisible := change.ID != "" && pendingChangeSetID != "" && change.ID == pendingChangeSetID
+	if !currentChangeVisible {
+		details := map[string]any{
+			"workspace_mutated": false,
+			"recovery_pending":  true,
+			"retryable":         false,
+		}
+		if recoveryTargetPath, ok := pending.Details["path"].(string); ok && recoveryTargetPath != "" {
+			details["recovery_target_path"] = recoveryTargetPath
+		}
+		return &workspacechange.Error{
+			Code:    workspacechange.ErrorCodeDurabilityPending,
+			Message: "a previous workspace mutation still requires durability recovery",
+			Details: details,
+		}
+	}
 	details := map[string]any{
 		"workspace_mutated": pending.Details["workspace_mutated"] == true,
 		"recovery_pending":  pending.Details["recovery_pending"] == true,

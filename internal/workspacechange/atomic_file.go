@@ -20,9 +20,18 @@ func (s *Service) atomicWriteVisibleFile(rel string, content []byte) (mutationRe
 	if err := s.ensureVisibleParentDurable(root, parent); err != nil {
 		return result, err
 	}
+	parentRoot := root
+	if parent != "." {
+		parentRoot, err = openVerifiedVisibleParent(root, parent)
+		if err != nil {
+			return result, err
+		}
+		defer parentRoot.Close()
+	}
+	targetName := filepath.FromSlash(path.Base(rel))
 	mode := os.FileMode(0o644)
-	if info, err := root.Stat(filepath.FromSlash(rel)); err == nil {
-		if !info.Mode().IsRegular() {
+	if info, err := parentRoot.Lstat(targetName); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
 			return result, newError(ErrorCodeConflict, "workspace path is not a regular file", map[string]any{"path": rel})
 		}
 		mode = info.Mode().Perm()
@@ -33,10 +42,8 @@ func (s *Service) atomicWriteVisibleFile(rel string, content []byte) (mutationRe
 	if _, err := cryptorand.Read(random[:]); err != nil {
 		return result, err
 	}
-	tempRel := path.Join(parent, fmt.Sprintf(".%s.denova-%x.tmp", path.Base(rel), random[:]))
-	tempPath := filepath.FromSlash(tempRel)
-	targetPath := filepath.FromSlash(rel)
-	file, err := root.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	tempName := filepath.FromSlash(fmt.Sprintf(".%s.denova-%x.tmp", path.Base(rel), random[:]))
+	file, err := parentRoot.OpenFile(tempName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
 	if err != nil {
 		return result, err
 	}
@@ -44,7 +51,7 @@ func (s *Service) atomicWriteVisibleFile(rel string, content []byte) (mutationRe
 	defer func() {
 		_ = file.Close()
 		if removeTemp {
-			_ = root.Remove(tempPath)
+			_ = parentRoot.Remove(tempName)
 		}
 	}()
 	if _, err := file.Write(content); err != nil {
@@ -56,7 +63,7 @@ func (s *Service) atomicWriteVisibleFile(rel string, content []byte) (mutationRe
 	if err := file.Close(); err != nil {
 		return result, err
 	}
-	if err := root.Rename(tempPath, targetPath); err != nil {
+	if err := parentRoot.Rename(tempName, targetName); err != nil {
 		return result, err
 	}
 	removeTemp = false

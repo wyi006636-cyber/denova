@@ -71,8 +71,13 @@ func (h *Handlers) HandleShortFictionCandidateConfirm(ctx context.Context, c *ap
 func writeShortFictionError(c *app.RequestContext, operation string, err error) {
 	status, code, messageKey, details := mapShortFictionError(err)
 	log.Printf("[short-fiction-api] request failed file=handler_short_fiction.go operation=%s status=%d code=%q", operation, status, code)
+	localizer := requestLocalizer(c)
+	message := localizer.T(messageKey)
+	if recoveryTargetPath, ok := details["recovery_target_path"].(string); ok && recoveryTargetPath != "" {
+		message = localizer.T(messageKey, "path", recoveryTargetPath)
+	}
 	writeJSON(c, status, shortFictionErrorResponse{
-		Error:   requestLocalizer(c).T(messageKey),
+		Error:   message,
 		Code:    code,
 		Details: details,
 	})
@@ -118,6 +123,11 @@ func mapShortFictionError(err error) (int, string, string, map[string]any) {
 		case workspacechange.ErrorCodeRevisionConflict:
 			return consts.StatusConflict, changeErr.Code, "api.shortFiction.revisionConflict", details
 		case workspacechange.ErrorCodeDurabilityPending:
+			if workspaceMutated, _ := details["workspace_mutated"].(bool); !workspaceMutated {
+				if recoveryTargetPath, _ := details["recovery_target_path"].(string); recoveryTargetPath != "" {
+					return consts.StatusInternalServerError, changeErr.Code, "api.shortFiction.priorDurabilityPending", details
+				}
+			}
 			return consts.StatusInternalServerError, changeErr.Code, "api.shortFiction.durabilityPending", details
 		}
 	}

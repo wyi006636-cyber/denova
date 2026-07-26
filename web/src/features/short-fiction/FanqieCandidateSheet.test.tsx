@@ -527,6 +527,76 @@ describe('FanqieCandidateSheet', () => {
     expect(confirmRequestCount).toBe(1)
   })
 
+  it.each([
+    [
+      'zh-CN',
+      '工作区之前的变更可能已经在 recovery/prior.md 可见，但恢复仍待完成；当前候选尚未确认写入。请先检查该路径，在恢复完成前不要重试。',
+      '创作要求',
+      '生成完整短篇预览',
+      '确认写入正文',
+    ],
+    [
+      'en-US',
+      'A previous workspace change may already be visible at recovery/prior.md, but recovery is still pending; the current candidate was not confirmed. Inspect that path first and do not retry until recovery is resolved.',
+      'Writing brief',
+      'Generate complete story preview',
+      'Confirm manuscript write',
+    ],
+  ] as const)('keeps prior durability recovery separate from the current candidate in %s', async (locale, message, briefLabel, generateLabel, confirmLabel) => {
+    await act(async () => {
+      setConfiguredLocale(locale)
+      await i18next.changeLanguage(locale)
+    })
+    const user = userEvent.setup()
+    const onWorkspaceChanged = vi.fn()
+    const revision = `sha256:${'a'.repeat(64)}`
+    const currentTarget = 'chapters/current.md'
+    const expectedCandidate = candidateFixture({
+      target_path: currentTarget,
+      base_revision: revision,
+      brief: 'prior recovery pending',
+      candidate_id: 'sha256:prior-recovery',
+      locale,
+    })
+    let confirmRequestCount = 0
+
+    server.use(
+      http.get('/api/workspace/file', () => HttpResponse.json({
+        workspace: '/workspace',
+        path: currentTarget,
+        content: expectedCandidate.source,
+        revision,
+      })),
+      http.post('/api/short-fiction/candidates', () => HttpResponse.json(expectedCandidate)),
+      http.post('/api/short-fiction/candidates/confirm', () => {
+        confirmRequestCount += 1
+        return HttpResponse.json({
+          error: 'prior recovery pending',
+          code: 'durability_pending',
+          details: {
+            workspace_mutated: false,
+            recovery_pending: true,
+            retryable: false,
+            recovery_target_path: 'recovery/prior.md',
+          },
+        }, { status: 500 })
+      }),
+    )
+
+    renderSheet({ selectedFile: currentTarget, onWorkspaceChanged })
+    await user.type(screen.getByLabelText(briefLabel), 'prior recovery pending')
+    await user.click(screen.getByRole('button', { name: generateLabel }))
+    await user.click(await screen.findByRole('button', { name: confirmLabel }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(message)
+    expect(alert).not.toHaveTextContent(currentTarget)
+    expect(screen.getByRole('button', { name: confirmLabel })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: confirmLabel }))
+    expect(onWorkspaceChanged).not.toHaveBeenCalled()
+    expect(confirmRequestCount).toBe(1)
+  })
+
   it('keeps the brief and target after a generation error', async () => {
     const user = userEvent.setup()
     const revision = `sha256:${'7'.repeat(64)}`

@@ -87,3 +87,114 @@ func TestShortFictionDurabilityPendingHTTPPreservesSanitizedMutationTruth(t *tes
 		})
 	}
 }
+
+func TestShortFictionRevisionConflictHTTPUsesChronologyNeutralCopy(t *testing.T) {
+	for _, test := range []struct {
+		locale  string
+		message string
+	}{
+		{
+			locale:  "zh-CN",
+			message: "目标文件的版本与该候选不一致，请检查当前文件并重新生成。",
+		},
+		{
+			locale:  "en-US",
+			message: "The target file revision does not match this candidate. Review the current file and generate again.",
+		},
+	} {
+		t.Run(test.locale, func(t *testing.T) {
+			server := hertzserver.Default()
+			server.POST("/short-fiction-revision-conflict", func(_ context.Context, c *app.RequestContext) {
+				writeShortFictionError(c, "confirm", &workspacechange.Error{
+					Code:    workspacechange.ErrorCodeRevisionConflict,
+					Message: "internal revision cause must not escape",
+					Details: map[string]any{
+						"workspace_mutated": false,
+					},
+				})
+			})
+			response := ut.PerformRequest(
+				server.Engine,
+				http.MethodPost,
+				"/short-fiction-revision-conflict",
+				nil,
+				ut.Header{Key: "X-Denova-Locale", Value: test.locale},
+			)
+			if response.Code != http.StatusConflict {
+				t.Fatalf("status = %d body=%s", response.Code, response.Body.String())
+			}
+			var payload shortFictionErrorResponse
+			if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+				t.Fatal(err)
+			}
+			if payload.Code != workspacechange.ErrorCodeRevisionConflict || payload.Error != test.message {
+				t.Fatalf("response = %#v", payload)
+			}
+			if got := payload.Details["workspace_mutated"]; got != false {
+				t.Fatalf("workspace_mutated = %#v, want false", got)
+			}
+		})
+	}
+}
+
+func TestShortFictionPriorDurabilityPendingHTTPNamesRecoveryTargetWithoutCurrentWriteClaim(t *testing.T) {
+	for _, test := range []struct {
+		locale  string
+		message string
+	}{
+		{
+			locale:  "zh-CN",
+			message: "工作区之前的变更可能已经在 recovery/prior.md 可见，但恢复仍待完成；当前候选尚未确认写入。请先检查该路径，在恢复完成前不要重试。",
+		},
+		{
+			locale:  "en-US",
+			message: "A previous workspace change may already be visible at recovery/prior.md, but recovery is still pending; the current candidate was not confirmed. Inspect that path first and do not retry until recovery is resolved.",
+		},
+	} {
+		t.Run(test.locale, func(t *testing.T) {
+			server := hertzserver.Default()
+			server.POST("/short-fiction-prior-recovery", func(_ context.Context, c *app.RequestContext) {
+				writeShortFictionError(c, "confirm", &workspacechange.Error{
+					Code:    workspacechange.ErrorCodeDurabilityPending,
+					Message: "prior recovery pending",
+					Details: map[string]any{
+						"workspace_mutated":    false,
+						"recovery_pending":     true,
+						"retryable":            false,
+						"recovery_target_path": "recovery/prior.md",
+					},
+				})
+			})
+			response := ut.PerformRequest(
+				server.Engine,
+				http.MethodPost,
+				"/short-fiction-prior-recovery",
+				nil,
+				ut.Header{Key: "X-Denova-Locale", Value: test.locale},
+			)
+			if response.Code != http.StatusInternalServerError {
+				t.Fatalf("status = %d body=%s", response.Code, response.Body.String())
+			}
+			var payload shortFictionErrorResponse
+			if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
+				t.Fatal(err)
+			}
+			if payload.Code != workspacechange.ErrorCodeDurabilityPending || payload.Error != test.message {
+				t.Fatalf("response = %#v", payload)
+			}
+			for key, want := range map[string]any{
+				"workspace_mutated":    false,
+				"recovery_pending":     true,
+				"retryable":            false,
+				"recovery_target_path": "recovery/prior.md",
+			} {
+				if got := payload.Details[key]; got != want {
+					t.Fatalf("details[%q] = %#v, want %#v; details=%#v", key, got, want, payload.Details)
+				}
+			}
+			if _, exists := payload.Details["target_path"]; exists {
+				t.Fatalf("prior recovery claimed the current target: %#v", payload.Details)
+			}
+		})
+	}
+}
