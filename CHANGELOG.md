@@ -34,6 +34,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 番茄短篇公开生成请求现在与前端合同统一为扁平的 `workspace`、`profile_id`、`target_path`、`base_revision`、`brief` 五字段；正文 `source` 仍只从当前工作区读取，`locale` 仍只从请求头获取，不接受客户端覆盖。
+- The public Fanqie short-fiction generation request now matches the frontend contract with exactly five flat fields: `workspace`, `profile_id`, `target_path`, `base_revision`, and `brief`; manuscript `source` still comes only from the active workspace, and `locale` still comes only from the request header, so clients cannot override either authority.
 - 番茄短篇确认现在会将候选正文与目标文件字节相同的预提交结果返回为稳定的 HTTP 400 `invalid_edit` 双语错误，并明确 `workspace_mutated:false`；不再把无需写入、未创建版本或 ChangeSet 的状态误报为 500 内部错误。
 - Fanqie short-fiction confirmation now returns a stable bilingual HTTP 400 `invalid_edit` error with `workspace_mutated:false` when the candidate already matches the target bytes; this pre-commit state creates no version or ChangeSet and is no longer misreported as a 500 internal error.
 - 番茄短篇应用预览现在通过 `OpenRoot` 按单个路径组件链式打开每层正文父目录，并校验每个已打开父目录的文件身份，防止中间目录在预检后被竞态替换为符号链接。

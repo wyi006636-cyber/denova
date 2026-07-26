@@ -19,12 +19,31 @@ type shortFictionErrorResponse struct {
 	Details map[string]any `json:"details,omitempty"`
 }
 
+// shortFictionCandidateGenerateRequest is the public wire shape. Source and
+// locale remain server-authoritative and are intentionally absent.
+type shortFictionCandidateGenerateRequest struct {
+	Workspace    string                 `json:"workspace"`
+	ProfileID    shortfiction.ProfileID `json:"profile_id"`
+	TargetPath   string                 `json:"target_path"`
+	BaseRevision string                 `json:"base_revision"`
+	Brief        string                 `json:"brief"`
+}
+
 // HandleShortFictionCandidateGenerate exposes stateless, no-write candidate generation.
 func (h *Handlers) HandleShortFictionCandidateGenerate(ctx context.Context, c *app.RequestContext) {
-	var req shortfiction.GenerateRequest
-	if err := c.BindJSON(&req); err != nil {
+	var body shortFictionCandidateGenerateRequest
+	if err := c.BindJSON(&body); err != nil {
 		writeShortFictionError(c, "generate_bind", shortfiction.NewError("invalid_request", "invalid request body", nil))
 		return
+	}
+	req := shortfiction.GenerateRequest{
+		ProfileID: body.ProfileID,
+		Source: shortfiction.SourcePacket{
+			Workspace:    body.Workspace,
+			TargetPath:   body.TargetPath,
+			BaseRevision: body.BaseRevision,
+			Brief:        body.Brief,
+		},
 	}
 	candidate, err := h.app.GenerateShortFictionCandidate(ctx, req, requestLocale(c))
 	if err != nil {

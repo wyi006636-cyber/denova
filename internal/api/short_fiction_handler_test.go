@@ -33,15 +33,9 @@ func TestFanqiePreviewThenConfirmUsesPublicHTTP(t *testing.T) {
 	server := NewServer(application, "0")
 	writeShortFictionAPIFile(t, application.Workspace(), target, before)
 
-	generateResponse := performJSONRequest(t, server, http.MethodPost, "/api/short-fiction/candidates", shortfiction.GenerateRequest{
-		ProfileID: shortfiction.ProfileFanqieShort,
-		Source: shortfiction.SourcePacket{
-			Workspace:    application.Workspace(),
-			TargetPath:   target,
-			BaseRevision: workspacechange.Revision([]byte(before)),
-			Brief:        "一名外卖员发现订单来自明天。",
-		},
-	})
+	generateResponse := performJSONRequest(t, server, http.MethodPost, "/api/short-fiction/candidates", shortFictionGenerateAPIRequest(
+		application.Workspace(), "fanqie_short", target, workspacechange.Revision([]byte(before)), "一名外卖员发现订单来自明天。",
+	))
 	if generateResponse.Code != http.StatusOK {
 		t.Fatalf("generate status = %d body=%s", generateResponse.Code, generateResponse.Body.String())
 	}
@@ -71,7 +65,7 @@ func TestFanqiePreviewThenConfirmUsesPublicHTTP(t *testing.T) {
 	}
 }
 
-func TestFanqieGenerationHTTPDoesNotWriteOrSendTools(t *testing.T) {
+func TestFanqieGenerationHTTPAcceptsFlatRequestWithoutWriteOrTools(t *testing.T) {
 	const (
 		target = "chapters/short.md"
 		before = "visible source must remain byte-identical"
@@ -85,22 +79,20 @@ func TestFanqieGenerationHTTPDoesNotWriteOrSendTools(t *testing.T) {
 	writeShortFictionAPIFile(t, application.Workspace(), target, before)
 	beforeWorkspace := snapshotShortFictionAPIWorkspace(t, application.Workspace())
 
-	response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", shortfiction.GenerateRequest{
-		ProfileID: shortfiction.ProfileFanqieShort,
-		Source: shortfiction.SourcePacket{
-			Workspace:    application.Workspace(),
-			TargetPath:   target,
-			BaseRevision: workspacechange.Revision([]byte(before)),
-			Brief:        "Generate a preview without invoking any tool.",
-		},
+	response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", map[string]any{
+		"workspace":     application.Workspace(),
+		"profile_id":    "fanqie_short",
+		"target_path":   target,
+		"base_revision": workspacechange.Revision([]byte(before)),
+		"brief":         "Generate a preview without invoking any tool.",
 	}, "en-US")
 	if response.Code != http.StatusOK {
 		t.Fatalf("generate status = %d body=%s", response.Code, response.Body.String())
 	}
 	var candidate shortfiction.GeneratedCandidate
 	decodeResponse(t, response.Body.Bytes(), &candidate)
-	if candidate.Locale != "en-US" {
-		t.Fatalf("candidate locale = %q, want en-US", candidate.Locale)
+	if candidate.Source != before || candidate.Locale != "en-US" {
+		t.Fatalf("candidate authority = source %q locale %q", candidate.Source, candidate.Locale)
 	}
 	if _, exists := providerPayload["tools"]; exists {
 		t.Fatalf("provider request leaked tools: %#v", providerPayload["tools"])
@@ -251,44 +243,26 @@ func TestFanqieErrorsUseChineseAndEnglishLocaleHeaders(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.locale, func(t *testing.T) {
-			response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", shortfiction.GenerateRequest{
-				ProfileID: "unknown",
-				Source: shortfiction.SourcePacket{
-					Workspace:    application.Workspace(),
-					TargetPath:   "chapters/short.md",
-					BaseRevision: shortfiction.MissingRevision,
-					Brief:        "locale-specific validation",
-				},
-			}, test.locale)
+			response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", shortFictionGenerateAPIRequest(
+				application.Workspace(), "unknown", "chapters/short.md", shortfiction.MissingRevision, "locale-specific validation",
+			), test.locale)
 			assertShortFictionAPIError(t, response, http.StatusBadRequest, shortfiction.ErrorCodeInvalidProfile, test.want)
 		})
 	}
 
 	oversizedSource := strings.Repeat("x", shortfiction.MaxSourceBytes+1)
 	writeShortFictionAPIFile(t, application.Workspace(), "chapters/oversized.md", oversizedSource)
-	oversizedResponse := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", shortfiction.GenerateRequest{
-		ProfileID: shortfiction.ProfileFanqieShort,
-		Source: shortfiction.SourcePacket{
-			Workspace:    application.Workspace(),
-			TargetPath:   "chapters/oversized.md",
-			BaseRevision: workspacechange.Revision([]byte(oversizedSource)),
-			Brief:        "reject an oversized existing source",
-		},
-	}, "en-US")
+	oversizedResponse := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", shortFictionGenerateAPIRequest(
+		application.Workspace(), "fanqie_short", "chapters/oversized.md", workspacechange.Revision([]byte(oversizedSource)), "reject an oversized existing source",
+	), "en-US")
 	assertShortFictionAPIError(t, oversizedResponse, http.StatusRequestEntityTooLarge, shortfiction.ErrorCodeOversized, "The short-fiction source exceeds the supported size.")
 
 	emptyProvider := newShortFictionAPIProvider(t, "   ", nil)
 	emptyApplication := newShortFictionAPIApplication(t, emptyProvider.URL)
 	emptyServer := NewServer(emptyApplication, "0")
-	emptyResponse := performShortFictionJSONRequest(t, emptyServer, "/api/short-fiction/candidates", shortfiction.GenerateRequest{
-		ProfileID: shortfiction.ProfileFanqieShort,
-		Source: shortfiction.SourcePacket{
-			Workspace:    emptyApplication.Workspace(),
-			TargetPath:   "chapters/short.md",
-			BaseRevision: shortfiction.MissingRevision,
-			Brief:        "provider returns empty output",
-		},
-	}, "en-US")
+	emptyResponse := performShortFictionJSONRequest(t, emptyServer, "/api/short-fiction/candidates", shortFictionGenerateAPIRequest(
+		emptyApplication.Workspace(), "fanqie_short", "chapters/short.md", shortfiction.MissingRevision, "provider returns empty output",
+	), "en-US")
 	assertShortFictionAPIError(t, emptyResponse, http.StatusBadGateway, "generation_empty", "The configured model returned an empty short-fiction candidate.")
 }
 
@@ -300,15 +274,9 @@ func TestShortFictionUnknownProfileDoesNotFallback(t *testing.T) {
 	application := newShortFictionAPIApplication(t, provider.URL)
 	server := NewServer(application, "0")
 
-	response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", shortfiction.GenerateRequest{
-		ProfileID: "future_profile",
-		Source: shortfiction.SourcePacket{
-			Workspace:    application.Workspace(),
-			TargetPath:   "chapters/short.md",
-			BaseRevision: shortfiction.MissingRevision,
-			Brief:        "must not fall back to Fanqie",
-		},
-	}, "en-US")
+	response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", shortFictionGenerateAPIRequest(
+		application.Workspace(), "future_profile", "chapters/short.md", shortfiction.MissingRevision, "must not fall back to Fanqie",
+	), "en-US")
 	assertShortFictionAPIError(t, response, http.StatusBadRequest, shortfiction.ErrorCodeInvalidProfile, "This short-fiction profile is not supported.")
 	if providerCalls.Load() != 0 {
 		t.Fatalf("unknown profile reached provider %d times", providerCalls.Load())
@@ -395,21 +363,25 @@ func readShortFictionAPIFile(t *testing.T, workspace, path string) string {
 
 func generateShortFictionAPICandidate(t *testing.T, server *Server, application *runtimeapp.App, target, source, locale string) shortfiction.GeneratedCandidate {
 	t.Helper()
-	response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", shortfiction.GenerateRequest{
-		ProfileID: shortfiction.ProfileFanqieShort,
-		Source: shortfiction.SourcePacket{
-			Workspace:    application.Workspace(),
-			TargetPath:   target,
-			BaseRevision: workspacechange.Revision([]byte(source)),
-			Brief:        "Generate a complete candidate for confirmation.",
-		},
-	}, locale)
+	response := performShortFictionJSONRequest(t, server, "/api/short-fiction/candidates", shortFictionGenerateAPIRequest(
+		application.Workspace(), "fanqie_short", target, workspacechange.Revision([]byte(source)), "Generate a complete candidate for confirmation.",
+	), locale)
 	if response.Code != http.StatusOK {
 		t.Fatalf("generate status = %d body=%s", response.Code, response.Body.String())
 	}
 	var candidate shortfiction.GeneratedCandidate
 	decodeResponse(t, response.Body.Bytes(), &candidate)
 	return candidate
+}
+
+func shortFictionGenerateAPIRequest(workspace, profileID, targetPath, baseRevision, brief string) map[string]any {
+	return map[string]any{
+		"workspace":     workspace,
+		"profile_id":    profileID,
+		"target_path":   targetPath,
+		"base_revision": baseRevision,
+		"brief":         brief,
+	}
 }
 
 func performShortFictionJSONRequest(t *testing.T, server *Server, path string, body any, locale string) *ut.ResponseRecorder {
