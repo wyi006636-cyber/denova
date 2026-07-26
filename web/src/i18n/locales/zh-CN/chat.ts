@@ -438,6 +438,7 @@ const chat = {
   'chat.fanqie.result.partialBody': 'Markdown 正文已写入 {{path}}，但版本检查点保存失败。请先检查该正文，再手动保存一个版本。',
   'chat.fanqie.result.writeRevision': '写入版本',
   'chat.fanqie.result.version': '版本检查点',
+  'chat.fanqie.result.writeAnother': '再写一篇',
   'chat.fanqie.error.generateTitle': '无法生成预览',
   'chat.fanqie.error.confirmTitle': '无法确认写入',
   'chat.fanqie.error.invalidTarget': '请输入工作区内可见的相对 .md 路径。不能使用绝对路径、隐藏目录或上级目录。',

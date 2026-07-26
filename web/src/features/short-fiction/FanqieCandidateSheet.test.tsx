@@ -873,6 +873,61 @@ describe('FanqieCandidateSheet', () => {
     })
     expect(confirmRequestCount).toBe(0)
   })
+
+  it('offers a write-another exit that returns to the brief after a committed result', async () => {
+    const user = userEvent.setup()
+    const revision = `sha256:${'7'.repeat(64)}`
+    const candidate = candidateFixture({ base_revision: revision, brief: '再写一篇场景', candidate_id: 'sha256:write-another' })
+
+    server.use(
+      http.get('/api/workspace/file', () => HttpResponse.json({ workspace: '/workspace', path: 'chapters/short.md', content: '# 旧正文', revision })),
+      http.post('/api/short-fiction/candidates', () => HttpResponse.json(candidate)),
+      http.post('/api/short-fiction/candidates/confirm', () => HttpResponse.json(writtenResult(candidate))),
+    )
+
+    renderSheet()
+    await user.type(screen.getByLabelText('创作要求'), '再写一篇场景')
+    await user.click(screen.getByRole('button', { name: '生成完整短篇预览' }))
+    await user.click(await screen.findByRole('button', { name: '确认写入正文' }))
+    expect(await screen.findByText('正文与版本已保存')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '再写一篇' }))
+    expect(screen.getByLabelText('创作要求')).toBeInTheDocument()
+    expect(screen.queryByText('正文与版本已保存')).not.toBeInTheDocument()
+  })
+
+  it('resets a displayed result to the brief when the author closes the sheet', async () => {
+    const user = userEvent.setup()
+    const revision = `sha256:${'8'.repeat(64)}`
+    const candidate = candidateFixture({ base_revision: revision, brief: '关闭重置场景', candidate_id: 'sha256:close-reset' })
+
+    server.use(
+      http.get('/api/workspace/file', () => HttpResponse.json({ workspace: '/workspace', path: 'chapters/short.md', content: '# 旧正文', revision })),
+      http.post('/api/short-fiction/candidates', () => HttpResponse.json(candidate)),
+      http.post('/api/short-fiction/candidates/confirm', () => HttpResponse.json(writtenResult(candidate))),
+    )
+
+    const props = {
+      open: true,
+      onOpenChange: vi.fn(),
+      workspace: '/workspace',
+      selectedFile: 'chapters/short.md',
+      fileSuggestions: ['chapters/short.md'],
+      disabled: false,
+      onWorkspaceChanged: vi.fn(),
+    }
+    const { rerender } = render(<FanqieCandidateSheet {...props} />)
+    await user.type(screen.getByLabelText('创作要求'), '关闭重置场景')
+    await user.click(screen.getByRole('button', { name: '生成完整短篇预览' }))
+    await user.click(await screen.findByRole('button', { name: '确认写入正文' }))
+    expect(await screen.findByText('正文与版本已保存')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '关闭番茄短篇' }))
+    rerender(<FanqieCandidateSheet {...props} open={false} />)
+    rerender(<FanqieCandidateSheet {...props} />)
+    expect(screen.getByLabelText('创作要求')).toBeInTheDocument()
+    expect(screen.queryByText('正文与版本已保存')).not.toBeInTheDocument()
+  })
 })
 
 function renderSheet(overrides: Partial<ComponentProps<typeof FanqieCandidateSheet>> = {}) {

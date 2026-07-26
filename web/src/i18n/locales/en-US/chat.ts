@@ -438,6 +438,7 @@ const chat = {
   'chat.fanqie.result.partialBody': 'The Markdown manuscript was written to {{path}}, but the version checkpoint failed. Inspect that manuscript first, then save a version manually.',
   'chat.fanqie.result.writeRevision': 'Write revision',
   'chat.fanqie.result.version': 'Version checkpoint',
+  'chat.fanqie.result.writeAnother': 'Write another',
   'chat.fanqie.error.generateTitle': 'Preview could not be generated',
   'chat.fanqie.error.confirmTitle': 'Write could not be confirmed',
   'chat.fanqie.error.invalidTarget': 'Enter a visible workspace-relative .md path. Absolute paths, hidden directories, and parent-directory segments are not allowed.',

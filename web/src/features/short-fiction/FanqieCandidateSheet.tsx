@@ -189,7 +189,9 @@ export function FanqieCandidateSheet({
     if (!nextOpen) {
       generateSequence.current += 1
       activeGenerateRequest.current = null
-      setState((currentState) => resetStaleCandidateState(currentState))
+      // An explicit close acknowledges a displayed result; only an in-flight
+      // confirmation must survive so its outcome can still be shown truthfully.
+      setState((currentState) => (currentState.step === 'confirming' ? currentState : { step: 'brief' }))
     }
     onOpenChange(nextOpen)
   }
@@ -224,6 +226,9 @@ export function FanqieCandidateSheet({
           ? currentState
           : { step: 'result', result, candidate })
         refreshCandidateTargetOnce(candidate)
+      } else {
+        if (confirmInFlight.current?.id === requestIdentity.id) confirmInFlight.current = null
+        setState({ step: 'error', phase: 'confirm', message: t('chat.fanqie.error.confirmFailed'), candidate })
       }
     } catch (error) {
       if (committedCandidates.current.has(candidate.candidate_id)) return
@@ -333,7 +338,17 @@ export function FanqieCandidateSheet({
               />
             ) : null}
 
-            {state.step === 'result' ? <ResultStep result={state.result} candidate={state.candidate} t={t} /> : null}
+            {state.step === 'result'
+              ? (
+                  <ResultStep
+                    result={state.result}
+                    candidate={state.candidate}
+                    disabled={disabled}
+                    onWriteAnother={() => setState({ step: 'brief' })}
+                    t={t}
+                  />
+                )
+              : null}
           </div>
         </ScrollArea>
       </SheetContent>
@@ -488,7 +503,13 @@ function PreviewStep({ candidate, confirming, disabled, confirmationBlocked, err
   )
 }
 
-function ResultStep({ result, candidate, t }: { result: ShortFictionConfirmationResult; candidate: ShortFictionCandidate; t: StepCopy }) {
+function ResultStep({ result, candidate, disabled, onWriteAnother, t }: {
+  result: ShortFictionConfirmationResult
+  candidate: ShortFictionCandidate
+  disabled: boolean
+  onWriteAnother: () => void
+  t: StepCopy
+}) {
   const partial = result.status === 'written_checkpoint_failed'
   const committedPath = result.status === 'written' ? result.checkpoint.path : candidate.target_path
   return (
@@ -511,6 +532,12 @@ function ResultStep({ result, candidate, t }: { result: ShortFictionConfirmation
         <Metadata label={t('chat.fanqie.result.writeRevision')} value={result.write_revision} />
         {result.status === 'written' ? <Metadata label={t('chat.fanqie.result.version')} value={result.checkpoint.version_id} /> : null}
       </dl>
+      <div className="flex justify-end">
+        <Button type="button" disabled={disabled} onClick={onWriteAnother}>
+          <FilePenLine />
+          {t('chat.fanqie.result.writeAnother')}
+        </Button>
+      </div>
     </section>
   )
 }

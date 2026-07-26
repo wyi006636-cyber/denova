@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- 番茄短篇结果页新增「再写一篇」出口，显式关闭 Sheet 后已展示的结果会重置回创作要求，作者无需刷新页面即可创作下一篇；确认进行中关闭仍保留写入结果以便如实展示。
+- The Fanqie short-fiction result step adds a "Write another" exit, and explicitly closing the Sheet resets a displayed result back to the brief so authors can start the next story without reloading; closing during an in-flight confirmation still preserves the outcome for truthful display.
+- 番茄短篇确认返回非预期状态时不再停留在「确认中」：界面会给出确认失败提示并允许重试。
+- An unexpected Fanqie confirmation status no longer leaves the sheet stuck in the confirming state: the UI reports the confirmation failure and allows retry.
+
 ### Added
 
 - 写作 Agent 新增常驻番茄短篇入口与自适应单列候选 Sheet：作者可绑定可见的工作区相对 Markdown、预览当前 Writing / IDE 模型生成的完整短篇，并仅在显式确认后写入；生成与确认错误分别保留输入或候选，版本检查点失败会明确提示正文已写入及手动保存版本的恢复步骤。
