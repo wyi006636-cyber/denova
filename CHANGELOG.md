@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增类型化的番茄短篇前端 API client：生成请求只发送工作区、闭合 profile、目标路径、base revision 与 brief，确认请求完整回传客户端持有的候选，并保留 locale header、检查点部分成功与稳定错误字段。
+- Added a typed Fanqie short-fiction frontend API client: generation sends only workspace, closed profile, target path, base revision, and brief; confirmation sends back the complete client-held candidate while preserving the locale header, truthful checkpoint partial-success result, and stable error fields.
 - 新增番茄短篇公开 HTTP 契约：`POST /api/short-fiction/candidates` 以请求语言生成无工具、无写入的完整候选，`POST /api/short-fiction/candidates/confirm` 仅确认客户端回传的完整候选；校验、工作区、revision、来源大小和模型错误返回稳定的双语错误 code，正文已写入但检查点失败仍如实返回 HTTP 200 部分成功。
 - Added the public Fanqie short-fiction HTTP contract: `POST /api/short-fiction/candidates` generates a complete, tool-free, no-write candidate in the request locale, while `POST /api/short-fiction/candidates/confirm` confirms only the complete client-held candidate; validation, workspace, revision, source-size, and model failures use stable bilingual error codes, and a committed manuscript with a failed checkpoint truthfully remains an HTTP 200 partial success.
 - 番茄短篇显式确认现在会重新校验完整候选及当前工作区 revision，再通过单一变更租约提交已接受的 Agent ChangeSet 和精确手动版本；若正文已提交但版本检查点失败，会如实返回写入 revision、变更 ID、`workspace_mutated:true`、`checkpoint_status:failed` 与 `retryable:false`，不提供重试或回滚承诺。

@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw'
+import type { ShortFictionConfirmRequest, ShortFictionGenerateRequest } from '@/lib/api-client/short-fiction'
 
 export const handlers = [
   http.get('/api/messages', () =>
@@ -160,6 +161,42 @@ export const handlers = [
       content: '# Characters',
     }),
   ),
+  http.post('/api/short-fiction/candidates', async ({ request }) => {
+    const body = (await request.json()) as ShortFictionGenerateRequest
+    return HttpResponse.json({
+      profile_id: body.profile_id,
+      profile_version: 'fanqie-short-v1',
+      candidate_id: 'sha256:candidate',
+      workspace: body.workspace,
+      target_path: body.target_path,
+      base_revision: body.base_revision,
+      brief: body.brief,
+      source: '',
+      locale: request.headers.get('X-Denova-Locale') || 'zh-CN',
+      preview_markdown: '# 完整短篇\n\n正文。',
+      model_profile_id: 'ide',
+      model: 'gpt-5.6',
+    })
+  }),
+  http.post('/api/short-fiction/candidates/confirm', async ({ request }) => {
+    const body = (await request.json()) as ShortFictionConfirmRequest
+    return HttpResponse.json({
+      status: 'written',
+      candidate_id: body.candidate.candidate_id,
+      write_revision: 'sha256:written',
+      change_group_id: 'group-1',
+      change_set_id: 'change-1',
+      workspace_mutated: true,
+      checkpoint_status: 'created',
+      checkpoint: {
+        version_id: 'version-1',
+        source: 'manual',
+        path: body.candidate.target_path,
+        revision: 'sha256:written',
+      },
+      retryable: false,
+    })
+  }),
   http.get('/api/workspace/summary', () =>
     HttpResponse.json({
       title: '末日开端',
