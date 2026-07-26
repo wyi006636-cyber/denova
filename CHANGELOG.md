@@ -30,6 +30,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 番茄短篇应用预览现在仅接受规范化且不含符号链接的正文来源路径，并改用纯读文件快照，避免冷工作区生成时创建变更账本元数据。
+- Fanqie short-fiction app previews now accept only canonical, non-symlink manuscript source paths and use a read-only file snapshot, preventing cold-workspace generation from creating change-ledger metadata.
 - 番茄短篇候选现在会在路径清理前拒绝可折叠的父目录或隐藏目录；显式确认也会重新校验规范化 authority、revision、brief 与全部字节上限，避免自洽哈希掩盖非法候选。
 - Fanqie short-fiction candidates now reject collapsible parent or hidden target segments before path cleaning; explicit confirmation also rechecks canonical authority, revision, brief, and every byte bound so a self-consistent hash cannot mask an invalid candidate.
 - 写作模式现在会隔离参数不是合法 JSON 的工具调用及其结果；已经保存的异常调用链也会在下次请求前被过滤，长参数则使用合法 JSON 回执保留上下文，避免会话被永久冻结。

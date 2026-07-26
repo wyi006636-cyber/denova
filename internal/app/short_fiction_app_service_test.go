@@ -3,19 +3,196 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
 
 	"denova/config"
 	"denova/internal/book"
+	"denova/internal/session"
 	"denova/internal/shortfiction"
 	"denova/internal/workspacechange"
 )
+
+func TestFanqieGenerateRejectsNonCanonicalAndSymlinkTargetsBeforeModelCall(t *testing.T) {
+	tests := []struct {
+		name    string
+		target  string
+		prepare func(*testing.T, string) string
+	}{
+		{
+			name:   "double separator",
+			target: "chapters//short.md",
+			prepare: func(t *testing.T, workspace string) string {
+				content := "canonical target bytes"
+				writeShortFictionTestFile(t, workspace, "chapters/short.md", content)
+				return workspacechange.Revision([]byte(content))
+			},
+		},
+		{
+			name:   "symlinked parent",
+			target: "chapters/short.md",
+			prepare: func(t *testing.T, workspace string) string {
+				content := "parent symlink bytes"
+				writeShortFictionTestFile(t, workspace, "real/short.md", content)
+				if err := os.Symlink("real", filepath.Join(workspace, "chapters")); err != nil {
+					t.Fatal(err)
+				}
+				return workspacechange.Revision([]byte(content))
+			},
+		},
+		{
+			name:   "target symlink to hidden content",
+			target: "chapters/short.md",
+			prepare: func(t *testing.T, workspace string) string {
+				content := "hidden source bytes"
+				writeShortFictionTestFile(t, workspace, ".hidden/secret.md", content)
+				if err := os.MkdirAll(filepath.Join(workspace, "chapters"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink("../.hidden/secret.md", filepath.Join(workspace, "chapters", "short.md")); err != nil {
+					t.Fatal(err)
+				}
+				return workspacechange.Revision([]byte(content))
+			},
+		},
+		{
+			name:   "dangling target symlink",
+			target: "chapters/short.md",
+			prepare: func(t *testing.T, workspace string) string {
+				if err := os.MkdirAll(filepath.Join(workspace, "chapters"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink("../missing/secret.md", filepath.Join(workspace, "chapters", "short.md")); err != nil {
+					t.Fatal(err)
+				}
+				return shortfiction.MissingRevision
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			workspace := canonicalShortFictionTestWorkspace(t, t.TempDir())
+			revision := test.prepare(t, workspace)
+			provider := newShortFictionTestProvider(t, "# forbidden candidate")
+			application := newShortFictionTestApp(t, workspace, provider.server.URL)
+			beforeTree := snapshotShortFictionTestTree(t, workspace)
+			beforeVersions := listShortFictionTestVersions(t, application)
+			beforeHistory := listShortFictionTestSessionHistory(t, application)
+
+			_, err := application.GenerateShortFictionCandidate(context.Background(), shortfiction.GenerateRequest{
+				ProfileID: shortfiction.ProfileFanqieShort,
+				Source: shortfiction.SourcePacket{
+					Workspace:    workspace,
+					TargetPath:   test.target,
+					BaseRevision: revision,
+					Brief:        "never follow aliases or symlinks",
+				},
+			}, "en-US")
+			if err == nil {
+				t.Fatal("non-canonical or symlink target was accepted")
+			}
+			if provider.calls.Load() != 0 {
+				t.Fatalf("provider calls = %d, want 0", provider.calls.Load())
+			}
+			assertShortFictionTestObservationsUnchanged(t, application, workspace, beforeTree, beforeVersions, beforeHistory)
+		})
+	}
+}
+
+func TestFanqieGenerateColdWorkspaceDoesNotWriteMetadataOrHistory(t *testing.T) {
+	workspace := canonicalShortFictionTestWorkspace(t, t.TempDir())
+	path := "chapters/short.md"
+	content := "cold workspace source"
+	writeShortFictionTestFile(t, workspace, path, content)
+	provider := newShortFictionTestProvider(t, "# candidate")
+	application := newShortFictionTestApp(t, workspace, provider.server.URL)
+	beforeTree := snapshotShortFictionTestTree(t, workspace)
+	beforeVersions := listShortFictionTestVersions(t, application)
+	beforeHistory := listShortFictionTestSessionHistory(t, application)
+
+	_, err := application.GenerateShortFictionCandidate(context.Background(), shortfiction.GenerateRequest{
+		ProfileID: shortfiction.ProfileFanqieShort,
+		Source: shortfiction.SourcePacket{
+			Workspace:    workspace,
+			TargetPath:   path,
+			BaseRevision: workspacechange.Revision([]byte(content)),
+			Brief:        "preview without cold-start metadata",
+		},
+	}, "en-US")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if provider.calls.Load() != 1 {
+		t.Fatalf("provider calls = %d, want 1", provider.calls.Load())
+	}
+	assertShortFictionTestObservationsUnchanged(t, application, workspace, beforeTree, beforeVersions, beforeHistory)
+	assertShortFictionTestNoChangeMetadata(t, workspace)
+}
+
+func TestFanqieGenerateColdRejectionDoesNotWriteMetadataOrHistory(t *testing.T) {
+	workspace := canonicalShortFictionTestWorkspace(t, t.TempDir())
+	provider := newShortFictionTestProvider(t, "# forbidden candidate")
+	application := newShortFictionTestApp(t, workspace, provider.server.URL)
+	beforeTree := snapshotShortFictionTestTree(t, workspace)
+	beforeVersions := listShortFictionTestVersions(t, application)
+	beforeHistory := listShortFictionTestSessionHistory(t, application)
+
+	_, err := application.GenerateShortFictionCandidate(context.Background(), shortfiction.GenerateRequest{
+		ProfileID: "unsupported",
+		Source: shortfiction.SourcePacket{
+			Workspace:    workspace,
+			TargetPath:   "chapters/short.md",
+			BaseRevision: shortfiction.MissingRevision,
+			Brief:        "reject without cold-start metadata",
+		},
+	}, "en-US")
+	if err == nil {
+		t.Fatal("unsupported profile was accepted")
+	}
+	if provider.calls.Load() != 0 {
+		t.Fatalf("provider calls = %d, want 0", provider.calls.Load())
+	}
+	assertShortFictionTestObservationsUnchanged(t, application, workspace, beforeTree, beforeVersions, beforeHistory)
+	assertShortFictionTestNoChangeMetadata(t, workspace)
+}
+
+func TestFanqieGenerateRejectsNonCanonicalActiveWorkspaceBeforeModelCall(t *testing.T) {
+	canonicalWorkspace := canonicalShortFictionTestWorkspace(t, t.TempDir())
+	workspaceAlias := canonicalWorkspace + string(filepath.Separator) + "."
+	path := "chapters/short.md"
+	content := "workspace alias source"
+	writeShortFictionTestFile(t, canonicalWorkspace, path, content)
+	provider := newShortFictionTestProvider(t, "# forbidden candidate")
+	application := newShortFictionTestApp(t, workspaceAlias, provider.server.URL)
+	beforeTree := snapshotShortFictionTestTree(t, canonicalWorkspace)
+	beforeVersions := listShortFictionTestVersions(t, application)
+	beforeHistory := listShortFictionTestSessionHistory(t, application)
+
+	_, err := application.GenerateShortFictionCandidate(context.Background(), shortfiction.GenerateRequest{
+		ProfileID: shortfiction.ProfileFanqieShort,
+		Source: shortfiction.SourcePacket{
+			Workspace:    workspaceAlias,
+			TargetPath:   path,
+			BaseRevision: workspacechange.Revision([]byte(content)),
+			Brief:        "reject a non-canonical active workspace",
+		},
+	}, "en-US")
+	if err == nil {
+		t.Fatal("non-canonical active workspace was accepted")
+	}
+	if provider.calls.Load() != 0 {
+		t.Fatalf("provider calls = %d, want 0", provider.calls.Load())
+	}
+	assertShortFictionTestObservationsUnchanged(t, application, canonicalWorkspace, beforeTree, beforeVersions, beforeHistory)
+}
 
 func TestFanqieGenerateBindsSourceWithoutMutation(t *testing.T) {
 	workspace := canonicalShortFictionTestWorkspace(t, t.TempDir())
@@ -32,7 +209,10 @@ func TestFanqieGenerateBindsSourceWithoutMutation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	beforeVersions := len(listShortFictionTestVersions(t, application))
+	beforeGroups := listShortFictionTestGroups(t, application)
+	beforeVersions := listShortFictionTestVersions(t, application)
+	beforeHistory := listShortFictionTestSessionHistory(t, application)
+	beforeTree := snapshotShortFictionTestTree(t, workspace)
 
 	candidate, err := application.GenerateShortFictionCandidate(context.Background(), shortfiction.GenerateRequest{
 		ProfileID: shortfiction.ProfileFanqieShort,
@@ -60,12 +240,10 @@ func TestFanqieGenerateBindsSourceWithoutMutation(t *testing.T) {
 	if got := readShortFictionTestFile(t, application.Workspace(), path); got != before {
 		t.Fatalf("generation mutated file: %q", got)
 	}
-	if len(listShortFictionTestGroups(t, application)) != 0 {
-		t.Fatal("generation created ChangeSet")
+	if groups := listShortFictionTestGroups(t, application); !reflect.DeepEqual(groups, beforeGroups) {
+		t.Fatalf("generation changed ChangeSets: before=%#v after=%#v", beforeGroups, groups)
 	}
-	if len(listShortFictionTestVersions(t, application)) != beforeVersions {
-		t.Fatal("generation created version")
-	}
+	assertShortFictionTestObservationsUnchanged(t, application, workspace, beforeTree, beforeVersions, beforeHistory)
 }
 
 func TestFanqieGenerateRejectsStaleRevisionBeforeModelCall(t *testing.T) {
@@ -324,6 +502,14 @@ func newShortFictionTestProvider(t *testing.T, content string) *shortFictionTest
 
 func newShortFictionTestApp(t *testing.T, workspace, providerURL string) *App {
 	t.Helper()
+	sessionStore, err := session.NewStore(filepath.Join(t.TempDir(), "sessions"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	activeSession, err := sessionStore.GetActiveOrCreate()
+	if err != nil {
+		t.Fatal(err)
+	}
 	application := &App{
 		cfg: &config.Config{
 			Workspace: workspace,
@@ -341,6 +527,8 @@ func newShortFictionTestApp(t *testing.T, workspace, providerURL string) *App {
 		workspace:      workspace,
 		bookService:    book.NewService(workspace),
 		versionService: book.NewVersionService(workspace),
+		sessionStore:   sessionStore,
+		session:        activeSession,
 	}
 	t.Cleanup(application.Close)
 	return application
@@ -395,4 +583,86 @@ func listShortFictionTestVersions(t *testing.T, application *App) []book.Version
 		t.Fatal(err)
 	}
 	return versions
+}
+
+func listShortFictionTestSessionHistory(t *testing.T, application *App) []session.HistoryEntry {
+	t.Helper()
+	history, err := application.SessionMessages("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return history
+}
+
+type shortFictionTestTreeEntry struct {
+	Mode fs.FileMode
+	Data string
+	Link string
+}
+
+func snapshotShortFictionTestTree(t *testing.T, workspace string) map[string]shortFictionTestTreeEntry {
+	t.Helper()
+	snapshot := map[string]shortFictionTestTreeEntry{}
+	err := filepath.WalkDir(workspace, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel(workspace, path)
+		if err != nil {
+			return err
+		}
+		if relative == "." {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		item := shortFictionTestTreeEntry{Mode: info.Mode()}
+		switch {
+		case info.Mode()&os.ModeSymlink != 0:
+			item.Link, err = os.Readlink(path)
+		case info.Mode().IsRegular():
+			var data []byte
+			data, err = os.ReadFile(path)
+			item.Data = string(data)
+		}
+		if err != nil {
+			return err
+		}
+		snapshot[filepath.ToSlash(relative)] = item
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return snapshot
+}
+
+func assertShortFictionTestObservationsUnchanged(
+	t *testing.T,
+	application *App,
+	workspace string,
+	beforeTree map[string]shortFictionTestTreeEntry,
+	beforeVersions []book.VersionEntry,
+	beforeHistory []session.HistoryEntry,
+) {
+	t.Helper()
+	if afterTree := snapshotShortFictionTestTree(t, workspace); !reflect.DeepEqual(afterTree, beforeTree) {
+		t.Fatalf("workspace tree changed:\nbefore=%#v\nafter=%#v", beforeTree, afterTree)
+	}
+	if afterVersions := listShortFictionTestVersions(t, application); !reflect.DeepEqual(afterVersions, beforeVersions) {
+		t.Fatalf("version history changed:\nbefore=%#v\nafter=%#v", beforeVersions, afterVersions)
+	}
+	if afterHistory := listShortFictionTestSessionHistory(t, application); !reflect.DeepEqual(afterHistory, beforeHistory) {
+		t.Fatalf("session history changed:\nbefore=%#v\nafter=%#v", beforeHistory, afterHistory)
+	}
+}
+
+func assertShortFictionTestNoChangeMetadata(t *testing.T, workspace string) {
+	t.Helper()
+	_, err := os.Lstat(filepath.Join(workspace, ".denova", "changes"))
+	if !os.IsNotExist(err) {
+		t.Fatalf("workspace change metadata exists after cold preview: %v", err)
+	}
 }
