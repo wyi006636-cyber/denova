@@ -26,6 +26,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 将 `golang.org/x/text` 从 v0.38.0 升级到 v0.39.0，修复可达漏洞 GO-2026-5970；Go 最小版本选择（MVS）同时把仅存在于传递构建列表、并非 Denova 运行时直接导入的 `golang.org/x/tools` 从 v0.46.0 选择为 v0.47.0。
+- Upgraded `golang.org/x/text` from v0.38.0 to v0.39.0 to fix reachable vulnerability GO-2026-5970; Go minimal version selection (MVS) also selects `golang.org/x/tools` v0.47.0 instead of v0.46.0 only in the transitive build list, not as a direct Denova runtime import.
 - 写作模式现在会隔离参数不是合法 JSON 的工具调用及其结果；已经保存的异常调用链也会在下次请求前被过滤，长参数则使用合法 JSON 回执保留上下文，避免会话被永久冻结。
 - Writing Mode now isolates tool calls with invalid JSON arguments and their results; previously saved malformed pairs are filtered before the next request, while large arguments use a valid JSON receipt so sessions do not become permanently frozen.
 - 设置与 Agents 的分层草稿、自动保存和输入区偏好持久化现在会串行写入，并在 revision 冲突时按原始基线重新拉取、合并和重试；卸载或过期请求不再回写状态。
