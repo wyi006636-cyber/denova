@@ -30,6 +30,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 番茄短篇应用预览现在将规范工作区与正文目标绑定到已打开描述符的文件身份，只从与预检目标身份一致的描述符读取并计算 revision，拒绝路径竞态中的符号链接替换。
+- Fanqie short-fiction app previews now bind the canonical workspace and manuscript target to opened-descriptor identities, reading and hashing only a descriptor that matches the preflight target and rejecting symlink swaps during path races.
 - 番茄短篇应用预览现在仅接受规范化且不含符号链接的正文来源路径，并改用纯读文件快照，避免冷工作区生成时创建变更账本元数据。
 - Fanqie short-fiction app previews now accept only canonical, non-symlink manuscript source paths and use a read-only file snapshot, preventing cold-workspace generation from creating change-ledger metadata.
 - 番茄短篇候选现在会在路径清理前拒绝可折叠的父目录或隐藏目录；显式确认也会重新校验规范化 authority、revision、brief 与全部字节上限，避免自洽哈希掩盖非法候选。
