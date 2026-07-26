@@ -2,6 +2,7 @@ import { APIError } from '@/lib/api-client/client'
 
 interface DurabilityPendingFailure {
   workspaceMutated: boolean
+  targetPathKnown: boolean
   recoveryTargetPath?: string
 }
 
@@ -14,6 +15,7 @@ export function getDurabilityPendingFailure(error: unknown): DurabilityPendingFa
     : undefined
   return {
     workspaceMutated: error.details?.workspace_mutated === true,
+    targetPathKnown: typeof error.details?.target_path === 'string' && error.details.target_path !== '',
     recoveryTargetPath,
   }
 }

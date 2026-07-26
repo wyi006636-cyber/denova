@@ -15,6 +15,9 @@ const (
 	mutationStageUnchanged mutationStage = "unchanged"
 	mutationStageVisible   mutationStage = "visible"
 	mutationStageDurable   mutationStage = "durable"
+
+	visibleWriteStageBeforeReplace = "before_replace"
+	visibleWriteStageAfterReplace  = "after_replace"
 )
 
 // mutationResult distinguishes a visible namespace mutation from one whose
@@ -23,10 +26,12 @@ type mutationResult struct {
 	Stage            mutationStage
 	ParentRel        string
 	WorkspaceMutated bool
+	PathUncertain    bool
 }
 
 type durabilityOps struct {
-	syncRootDirFn func(*os.Root, string) error
+	syncRootDirFn      func(*os.Root, string) error
+	visibleWriteHookFn func(stage, path string) error
 }
 
 func defaultDurabilityOps() *durabilityOps {
@@ -40,6 +45,13 @@ func (o *durabilityOps) syncRootDir(root *os.Root, rel string) error {
 		return syncRootDirectory(root, rel)
 	}
 	return o.syncRootDirFn(root, rel)
+}
+
+func (o *durabilityOps) visibleWriteHook(stage, path string) error {
+	if o == nil || o.visibleWriteHookFn == nil {
+		return nil
+	}
+	return o.visibleWriteHookFn(stage, path)
 }
 
 func syncRootDirectory(root *os.Root, rel string) error {
@@ -186,6 +198,29 @@ func openVerifiedVisibleParent(root *os.Root, parent string) (*os.Root, error) {
 	return current, nil
 }
 
+func verifyVisibleParentIdentity(root *os.Root, parent string, openedParent *os.Root) error {
+	if parent == "." {
+		return nil
+	}
+	currentParent, err := openVerifiedVisibleParent(root, parent)
+	if err != nil {
+		return err
+	}
+	defer currentParent.Close()
+	currentInfo, err := currentParent.Lstat(".")
+	if err != nil {
+		return err
+	}
+	openedInfo, err := openedParent.Lstat(".")
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(currentInfo, openedInfo) {
+		return newError(ErrorCodeConflict, "workspace parent path no longer matches the opened directory", map[string]any{"path": parent})
+	}
+	return nil
+}
+
 func (s *Service) syncVisibleParent(rel string) error {
 	root, err := os.OpenRoot(s.workspace)
 	if err != nil {
@@ -267,10 +302,12 @@ func (s *Service) reconcilePendingDurabilityLocked() error {
 
 func durabilityPendingError(path, changeSetID, operationID string, result mutationResult, cause error) error {
 	details := map[string]any{
-		"path":              path,
 		"mutation_stage":    result.Stage,
 		"recovery_pending":  true,
 		"workspace_mutated": result.WorkspaceMutated,
+	}
+	if path != "" && !result.PathUncertain {
+		details["path"] = path
 	}
 	if changeSetID != "" {
 		details["change_set_id"] = changeSetID

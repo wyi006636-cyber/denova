@@ -38,6 +38,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 工作区可见文件替换现在会同步已经执行重命名的父目录句柄，并在替换前与耐久成功前重新核对该句柄和当前可见父目录的文件身份；若目录项在写入后变化，确认会保留变更身份并报告不可重试的恢复待处理状态，但不会声称或刷新无法确认的目标路径。
+- Visible workspace-file replacement now syncs the same opened parent-directory handle used for rename and rechecks its identity against the visible parent before replacement and before reporting durable success; if the directory entry changes after mutation, confirmation preserves the change identity and reports non-retryable pending recovery without claiming or refreshing an unconfirmed target path.
 - 番茄短篇确认遇到较早工作区变更的耐久性恢复时，不再把它归为当前候选的写入：响应明确 `workspace_mutated:false`、`recovery_pending:true`、`retryable:false` 与恢复路径，双语界面不会刷新当前目标；revision 冲突文案也改为不假设事件先后的候选/目标版本不匹配。
 - When Fanqie confirmation encounters durability recovery for an earlier workspace change, it no longer attributes that state to the current candidate: the response explicitly reports `workspace_mutated:false`, `recovery_pending:true`, `retryable:false`, and the recovery path, while the bilingual UI does not refresh the current target; revision-conflict copy is also chronology-neutral about the candidate and target revisions.
 - 工作区可见文件的原子替换现在以逐层 `Lstat`、`OpenRoot` 和 `SameFile` 验证的父目录句柄创建并重命名临时文件，拒绝目录路径中的符号链接或非目录，阻止同 revision 父目录替换把写入重定向到其他位置。

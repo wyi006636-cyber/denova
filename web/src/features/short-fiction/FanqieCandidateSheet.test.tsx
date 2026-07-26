@@ -530,6 +530,77 @@ describe('FanqieCandidateSheet', () => {
   it.each([
     [
       'zh-CN',
+      '正文已经发生可见变更，但当前可见目标路径已无法确认；写入耐久性或日志恢复仍待完成。请检查工作区状态，不要重试本次确认。',
+      '创作要求',
+      '生成完整短篇预览',
+      '确认写入正文',
+    ],
+    [
+      'en-US',
+      'The manuscript changed visibly, but its current visible target path cannot be confirmed. Write durability or journal recovery is still pending. Inspect the workspace state and do not retry this confirmation.',
+      'Writing brief',
+      'Generate complete story preview',
+      'Confirm manuscript write',
+    ],
+  ] as const)('does not claim or refresh an uncertain visible target in %s', async (locale, message, briefLabel, generateLabel, confirmLabel) => {
+    await act(async () => {
+      setConfiguredLocale(locale)
+      await i18next.changeLanguage(locale)
+    })
+    const user = userEvent.setup()
+    const onWorkspaceChanged = vi.fn()
+    const revision = `sha256:${'f'.repeat(64)}`
+    const expectedCandidate = candidateFixture({
+      target_path: 'chapters/replaced-parent/story.md',
+      base_revision: revision,
+      brief: 'identity uncertain',
+      candidate_id: 'sha256:identity-uncertain',
+      locale,
+    })
+    let confirmRequestCount = 0
+
+    server.use(
+      http.get('/api/workspace/file', () => HttpResponse.json({
+        workspace: '/workspace',
+        path: expectedCandidate.target_path,
+        content: expectedCandidate.source,
+        revision,
+      })),
+      http.post('/api/short-fiction/candidates', () => HttpResponse.json(expectedCandidate)),
+      http.post('/api/short-fiction/candidates/confirm', () => {
+        confirmRequestCount += 1
+        return HttpResponse.json({
+          error: 'visible parent identity changed after replacement',
+          code: 'durability_pending',
+          details: {
+            workspace_mutated: true,
+            recovery_pending: true,
+            retryable: false,
+            write_revision: `sha256:${'0'.repeat(64)}`,
+            change_group_id: 'group-identity-uncertain',
+            change_set_id: 'change-identity-uncertain',
+          },
+        }, { status: 500 })
+      }),
+    )
+
+    renderSheet({ selectedFile: expectedCandidate.target_path, onWorkspaceChanged })
+    await user.type(screen.getByLabelText(briefLabel), 'identity uncertain')
+    await user.click(screen.getByRole('button', { name: generateLabel }))
+    await user.click(await screen.findByRole('button', { name: confirmLabel }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(message)
+    expect(alert).not.toHaveTextContent(expectedCandidate.target_path)
+    expect(screen.getByRole('button', { name: confirmLabel })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: confirmLabel }))
+    expect(onWorkspaceChanged).not.toHaveBeenCalled()
+    expect(confirmRequestCount).toBe(1)
+  })
+
+  it.each([
+    [
+      'zh-CN',
       '工作区之前的变更可能已经在 recovery/prior.md 可见，但恢复仍待完成；当前候选尚未确认写入。请先检查该路径，在恢复完成前不要重试。',
       '创作要求',
       '生成完整短篇预览',

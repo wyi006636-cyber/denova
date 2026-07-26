@@ -437,6 +437,47 @@ func TestFanqieConfirmPreservesVisibleWriteDurabilityPendingTruth(t *testing.T) 
 	}
 }
 
+func TestShortFictionDurabilityPendingErrorDoesNotClaimUncertainTargetPath(t *testing.T) {
+	const changeSetID = "change-identity-uncertain"
+	pending := &workspacechange.Error{
+		Code:    workspacechange.ErrorCodeDurabilityPending,
+		Message: "visible parent identity changed after replacement",
+		Details: map[string]any{
+			"change_set_id":     changeSetID,
+			"workspace_mutated": true,
+			"recovery_pending":  true,
+		},
+	}
+	change := workspacechange.ChangeSet{
+		ID:         changeSetID,
+		GroupID:    "group-identity-uncertain",
+		Revision:   "sha256:uncertain",
+		ApplyState: workspacechange.ApplyStatePrepared,
+	}
+	candidate := shortfiction.GeneratedCandidate{TargetPath: "chapters/replaced-parent/story.md"}
+
+	err := shortFictionDurabilityPendingError(pending, change, candidate)
+	var changeErr *workspacechange.Error
+	if !errors.As(err, &changeErr) || changeErr.Code != workspacechange.ErrorCodeDurabilityPending {
+		t.Fatalf("error = %v, want durability_pending", err)
+	}
+	for key, want := range map[string]any{
+		"workspace_mutated": true,
+		"recovery_pending":  true,
+		"retryable":         false,
+		"write_revision":    change.Revision,
+		"change_group_id":   change.GroupID,
+		"change_set_id":     change.ID,
+	} {
+		if got := changeErr.Details[key]; got != want {
+			t.Fatalf("details[%q] = %#v, want %#v; details=%#v", key, got, want, changeErr.Details)
+		}
+	}
+	if target, ok := changeErr.Details["target_path"]; ok {
+		t.Fatalf("uncertain target was claimed as %#v; details=%#v", target, changeErr.Details)
+	}
+}
+
 func TestFanqieConfirmDoesNotMislabelPreparedCommitFailureAsCheckpointFailure(t *testing.T) {
 	ctx := context.Background()
 	workspace := canonicalShortFictionTestWorkspace(t, t.TempDir())

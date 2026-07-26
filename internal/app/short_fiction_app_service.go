@@ -237,7 +237,9 @@ func shortFictionDurabilityPendingError(
 		"workspace_mutated": pending.Details["workspace_mutated"] == true,
 		"recovery_pending":  pending.Details["recovery_pending"] == true,
 		"retryable":         false,
-		"target_path":       candidate.TargetPath,
+	}
+	if targetPath, ok := pending.Details["path"].(string); ok && targetPath != "" {
+		details["target_path"] = candidate.TargetPath
 	}
 	if change.Revision != "" {
 		details["write_revision"] = change.Revision

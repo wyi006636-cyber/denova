@@ -92,13 +92,9 @@ func TestReplaceFileWithConsistentSnapshotReturnsAppliedChangeOnCallbackError(t 
 func TestReplaceFileWithConsistentSnapshotReturnsChangeIdentityWhenVisibleWriteDurabilityIsPending(t *testing.T) {
 	service, path := newConsistentSnapshotService(t, "before")
 	originalSync := service.durability.syncRootDirFn
-	chapterSyncs := 0
 	service.durability.syncRootDirFn = func(root *os.Root, rel string) error {
-		if rel == "chapters" {
-			chapterSyncs++
-			if chapterSyncs >= 2 {
-				return errInjectedParentSync
-			}
+		if isOpenedVisibleParentSync(service, root, rel) {
+			return errInjectedParentSync
 		}
 		return originalSync(root, rel)
 	}
@@ -169,6 +165,114 @@ func TestReplaceFileWithConsistentSnapshotRefusesParentEntrySwappedAfterValidati
 	}
 	if got := readTestFile(t, service.workspace, redirectedPath); got != "same revision before the parent swap" {
 		t.Fatalf("redirected parent changed: %q", got)
+	}
+}
+
+func TestReplaceFileWithConsistentSnapshotRejectsParentSwapAfterHandleOpenBeforeRename(t *testing.T) {
+	service, path := newConsistentSnapshotService(t, "same revision before the open-handle swap")
+	const redirectedPath = "redirect/ch01.md"
+	writeTestFile(t, service.workspace, redirectedPath, "same revision before the open-handle swap")
+
+	swapped := false
+	service.durability.visibleWriteHookFn = func(stage, hookPath string) error {
+		if stage != visibleWriteStageBeforeReplace {
+			return nil
+		}
+		if hookPath != path {
+			t.Fatalf("hook path = %q, want %q", hookPath, path)
+		}
+		swapped = true
+		swapVisibleParentForTest(t, service.workspace, "chapters.original")
+		return nil
+	}
+
+	callbackCalled := false
+	change, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate must not reach either directory",
+		BaseRevision: Revision([]byte("same revision before the open-handle swap")),
+	}, func(ChangeSet) error {
+		callbackCalled = true
+		return nil
+	})
+	assertChangeErrorCode(t, err, ErrorCodeConflict)
+	if !swapped {
+		t.Fatal("test did not swap the parent after its handle opened")
+	}
+	if callbackCalled {
+		t.Fatal("pre-replacement parent swap invoked the snapshot callback")
+	}
+	if change.ID == "" || change.Path != path {
+		t.Fatalf("pre-replacement parent swap lost change identity: %#v", change)
+	}
+	if got := readTestFile(t, service.workspace, "chapters.original/ch01.md"); got != "same revision before the open-handle swap" {
+		t.Fatalf("original parent changed: %q", got)
+	}
+	if got := readTestFile(t, service.workspace, path); got != "same revision before the open-handle swap" {
+		t.Fatalf("redirected parent changed: %q", got)
+	}
+}
+
+func TestReplaceFileWithConsistentSnapshotReportsPendingWhenParentChangesAfterRename(t *testing.T) {
+	service, path := newConsistentSnapshotService(t, "same revision before the post-rename swap")
+	const redirectedPath = "redirect/ch01.md"
+	writeTestFile(t, service.workspace, redirectedPath, "same revision before the post-rename swap")
+
+	swapped := false
+	service.durability.visibleWriteHookFn = func(stage, hookPath string) error {
+		if stage != visibleWriteStageAfterReplace {
+			return nil
+		}
+		if hookPath != path {
+			t.Fatalf("hook path = %q, want %q", hookPath, path)
+		}
+		swapped = true
+		swapVisibleParentForTest(t, service.workspace, "chapters.written")
+		return nil
+	}
+
+	callbackCalled := false
+	change, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate written through the opened parent",
+		BaseRevision: Revision([]byte("same revision before the post-rename swap")),
+	}, func(ChangeSet) error {
+		callbackCalled = true
+		return nil
+	})
+	assertDurabilityPending(t, err, true)
+	if !swapped {
+		t.Fatal("test did not swap the parent after the visible rename")
+	}
+	if callbackCalled {
+		t.Fatal("post-replacement parent swap invoked the snapshot callback")
+	}
+	if change.ID == "" || change.Path != path || change.Revision != Revision([]byte("candidate written through the opened parent")) {
+		t.Fatalf("post-replacement parent swap lost change identity: %#v", change)
+	}
+	var pending *Error
+	if !errors.As(err, &pending) {
+		t.Fatalf("pending error type = %T", err)
+	}
+	if _, claimed := pending.Details["path"]; claimed {
+		t.Fatalf("identity-uncertain write claimed an exact target: %#v", pending.Details)
+	}
+	if got := readTestFile(t, service.workspace, "chapters.written/ch01.md"); got != "candidate written through the opened parent" {
+		t.Fatalf("opened parent bytes = %q", got)
+	}
+	if got := readTestFile(t, service.workspace, path); got != "same revision before the post-rename swap" {
+		t.Fatalf("redirected parent changed: %q", got)
+	}
+}
+
+func swapVisibleParentForTest(t *testing.T, workspace, movedName string) {
+	t.Helper()
+	parent := filepath.Join(workspace, "chapters")
+	if err := os.Rename(parent, filepath.Join(workspace, movedName)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(workspace, "redirect"), parent); err != nil {
+		t.Fatal(err)
 	}
 }
 

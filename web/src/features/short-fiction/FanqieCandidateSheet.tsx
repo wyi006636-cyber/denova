@@ -232,19 +232,23 @@ export function FanqieCandidateSheet({
       const durabilityPending = getDurabilityPendingFailure(error)
       if (durabilityPending) {
         blockedConfirmations.current.add(candidate.candidate_id)
-		const message = durabilityPending.workspaceMutated
-		  ? t('chat.fanqie.error.durabilityPending', { path: candidate.target_path })
-		  : durabilityPending.recoveryTargetPath
-		    ? t('chat.fanqie.error.priorDurabilityPending', { path: durabilityPending.recoveryTargetPath })
-		    : t('chat.fanqie.error.priorDurabilityPendingUnknown')
+        const message = durabilityPending.workspaceMutated
+          ? durabilityPending.targetPathKnown
+            ? t('chat.fanqie.error.durabilityPending', { path: candidate.target_path })
+            : t('chat.fanqie.error.durabilityPendingUnknown')
+          : durabilityPending.recoveryTargetPath
+            ? t('chat.fanqie.error.priorDurabilityPending', { path: durabilityPending.recoveryTargetPath })
+            : t('chat.fanqie.error.priorDurabilityPendingUnknown')
         setState({
           step: 'error',
           phase: 'confirm',
-		  message,
+          message,
           candidate,
           confirmationBlocked: true,
         })
-        if (durabilityPending.workspaceMutated) refreshCandidateTargetOnce(candidate)
+        if (durabilityPending.workspaceMutated && durabilityPending.targetPathKnown) {
+          refreshCandidateTargetOnce(candidate)
+        }
         return
       }
       setState({ step: 'error', phase: 'confirm', message: confirmationErrorMessage(error, t), candidate })

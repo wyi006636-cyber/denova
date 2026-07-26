@@ -63,14 +63,28 @@ func (s *Service) atomicWriteVisibleFile(rel string, content []byte) (mutationRe
 	if err := file.Close(); err != nil {
 		return result, err
 	}
+	if err := s.durability.visibleWriteHook(visibleWriteStageBeforeReplace, rel); err != nil {
+		return result, err
+	}
+	if err := verifyVisibleParentIdentity(root, parent, parentRoot); err != nil {
+		return result, err
+	}
 	if err := parentRoot.Rename(tempName, targetName); err != nil {
 		return result, err
 	}
 	removeTemp = false
 	result.Stage = mutationStageVisible
 	result.WorkspaceMutated = true
-	if err := s.durability.syncRootDir(root, parent); err != nil {
+	if err := s.durability.visibleWriteHook(visibleWriteStageAfterReplace, rel); err != nil {
 		return result, err
+	}
+	syncErr := s.durability.syncRootDir(parentRoot, ".")
+	if identityErr := verifyVisibleParentIdentity(root, parent, parentRoot); identityErr != nil {
+		result.PathUncertain = true
+		return result, errors.Join(syncErr, identityErr)
+	}
+	if syncErr != nil {
+		return result, syncErr
 	}
 	result.Stage = mutationStageDurable
 	return result, nil
