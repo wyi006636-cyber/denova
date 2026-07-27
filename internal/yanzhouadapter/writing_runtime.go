@@ -227,7 +227,7 @@ func (runtime *WritingFrameRuntime) requestWritingContext(ctx context.Context, o
 	}
 }
 
-func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzhouprotocol.Envelope, output io.Writer) error {
+func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzhouprotocol.Envelope, output io.Writer) (handleErr error) {
 	if runtime == nil || output == nil {
 		return errors.New("writing frame runtime is unavailable")
 	}
@@ -266,8 +266,13 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	_, cancelPending := runtime.pendingCancels[request.RunID]
 	delete(runtime.pendingCancels, request.RunID)
 	runtime.mu.Unlock()
+	artifacts := []writingRuntimeArtifact{}
 	defer func() {
+		runWasCancelled := errors.Is(runCtx.Err(), context.Canceled)
 		cancel()
+		if handleErr != nil && ctx.Err() == nil && errors.Is(handleErr, context.Canceled) && runWasCancelled {
+			handleErr = runtime.emitCancelled(ctx, output, request, artifacts)
+		}
 		runtime.mu.Lock()
 		delete(runtime.runs, request.RunID)
 		runtime.mu.Unlock()
@@ -308,7 +313,6 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	}}); err != nil {
 		return err
 	}
-	artifacts := []writingRuntimeArtifact{}
 	modelCalls := 0
 	modelLimit := request.Budgets.MaxModelCalls
 	if profile.Budget.MaxModelCalls < modelLimit {
