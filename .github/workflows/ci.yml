@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - master
+      - "codex/**"
+      - "fix/**"
+      - "integration/**"
   pull_request:
 
 permissions:
@@ -56,6 +59,31 @@ jobs:
 
       - name: Build distribution
         run: ./scripts/build.sh
+
+  race-and-protocol-stress:
+    name: Race detector and protocol stress
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Race detector (agent package)
+        run: go test -race ./internal/agent -count=1
+
+      # 概率型时序缺陷（如互动回合首候选锁定竞态）单次运行经常漏检：
+      # 高重复 + GOMAXPROCS 扰动把漏检率压下去，但确定性回归测试才是主锁。
+      - name: Interactive protocol stress
+        run: |
+          go test ./internal/agent -run 'InteractiveTurnProtocol' -count=300 -cpu=1,2,4
+          go test -race ./internal/agent -run 'InteractiveTurnProtocol' -count=100
 
   windows-workspace-change:
     name: Windows workspace change regression
