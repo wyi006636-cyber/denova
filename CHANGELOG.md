@@ -81,6 +81,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Fanqie short-fiction app previews now accept only canonical, non-symlink manuscript source paths and use a read-only file snapshot, preventing cold-workspace generation from creating change-ledger metadata.
 - 番茄短篇候选现在会在路径清理前拒绝可折叠的父目录或隐藏目录；显式确认也会重新校验规范化 authority、revision、brief 与全部字节上限，避免自洽哈希掩盖非法候选。
 - Fanqie short-fiction candidates now reject collapsible parent or hidden target segments before path cleaning; explicit confirmation also rechecks canonical authority, revision, brief, and every byte bound so a self-consistent hash cannot mask an invalid candidate.
+- 用户影响：修复游戏模式交互回合中一个低概率正文串接问题。当模型已输出首个正文候选、结构化模块仍在重试，而后台工具结果先于显示事件完成时，后续模型正文不再被错误追加到首个候选；最终展示正文继续与已锁定候选及对应状态/选择保持一致。
+- User impact: fixed a low-probability interactive-game prose concatenation issue. When the model had already produced the first narrative candidate, structured modules were still retrying, and a background tool result completed ahead of display-event consumption, later model prose is no longer appended to the locked candidate; the final visible narrative remains aligned with that candidate and its state/choice submission.
+- 工程影响：流式与非流式交互正文分类现以当前 run 已接收的正文候选为稳定边界，不再读取可能超前于事件队列的异步 readiness。新增确定性 RED/GREEN 回归，并以原失败场景 1,000 次重复验证；未修改 API、配置、依赖或超时。
+- Engineering impact: streaming and non-streaming interactive prose classification now uses the narrative candidate already accepted by the current run as its stable boundary instead of asynchronous readiness that may advance ahead of the event queue. Deterministic RED/GREEN regressions and a 1,000-run repetition of the original failure scenario cover the fix; no API, configuration, dependency, or timeout changed.
+
 - 写作模式现在会隔离参数不是合法 JSON 的工具调用及其结果；已经保存的异常调用链也会在下次请求前被过滤，长参数则使用合法 JSON 回执保留上下文，避免会话被永久冻结。
 - Writing Mode now isolates tool calls with invalid JSON arguments and their results; previously saved malformed pairs are filtered before the next request, while large arguments use a valid JSON receipt so sessions do not become permanently frozen.
 - 设置与 Agents 的分层草稿、自动保存和输入区偏好持久化现在会串行写入，并在 revision 冲突时按原始基线重新拉取、合并和重试；卸载或过期请求不再回写状态。
