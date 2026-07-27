@@ -6,13 +6,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- 创作 Agent 的完整短篇入口改为明确的文字按钮；表单只需填写创作要求，系统会自动选择未占用的 `chapters/short*.md` 文件，连续生成无需手动输入技术路径，也不会覆盖上一篇。
+- The Writing Agent now exposes complete-story generation as a clear text action; authors only enter the brief while Denova automatically selects an unused `chapters/short*.md` file, so consecutive stories require no technical path input and do not overwrite the previous story.
+- 自动文件名流程的异步生成与重复确认回归测试已同步新交互，避免旧的手填路径假设阻塞 CI。
+- Deferred-generation and duplicate-confirmation regressions now follow the automatic filename flow instead of the removed manual-path interaction.
+- 番茄短篇结果页新增「再写一篇」出口，显式关闭 Sheet 后已展示的结果会重置回创作要求，作者无需刷新页面即可创作下一篇；确认进行中关闭仍保留写入结果以便如实展示。
+- The Fanqie short-fiction result step adds a "Write another" exit, and explicitly closing the Sheet resets a displayed result back to the brief so authors can start the next story without reloading; closing during an in-flight confirmation still preserves the outcome for truthful display.
+- 番茄短篇确认返回非预期状态时不再停留在「确认中」：界面会给出确认失败提示并允许重试。
+- An unexpected Fanqie confirmation status no longer leaves the sheet stuck in the confirming state: the UI reports the confirmation failure and allows retry.
+
 ### Added
 
+- 写作 Agent 新增常驻番茄短篇入口与自适应单列候选 Sheet：系统自动选择新的工作区 Markdown 文件，作者只需填写创作要求，即可预览当前 Writing / IDE 模型生成的完整短篇，并仅在显式确认后写入；生成与确认错误分别保留输入或候选，版本检查点失败会明确提示正文已写入及手动保存版本的恢复步骤。
+- The Writing Agent adds a persistent Fanqie story entry and an adaptive single-column candidate Sheet: Denova automatically selects a new workspace Markdown file, so authors only provide the brief before previewing a complete story from the current Writing / IDE model and writing it after explicit confirmation; generation and confirmation failures preserve the brief or candidate, while checkpoint failure clearly reports the committed manuscript and manual version-saving recovery steps.
+- 新增类型化的番茄短篇前端 API client：生成请求只发送工作区、闭合 profile、目标路径、base revision 与 brief，确认请求完整回传客户端持有的候选，并保留 locale header、检查点部分成功与稳定错误字段。
+- Added a typed Fanqie short-fiction frontend API client: generation sends only workspace, closed profile, target path, base revision, and brief; confirmation sends back the complete client-held candidate while preserving the locale header, truthful checkpoint partial-success result, and stable error fields.
+- 新增番茄短篇公开 HTTP 契约：`POST /api/short-fiction/candidates` 以请求语言生成无工具、无写入的完整候选，`POST /api/short-fiction/candidates/confirm` 仅确认客户端回传的完整候选；校验、工作区、revision、来源大小和模型错误返回稳定的双语错误 code，正文已写入但检查点失败仍如实返回 HTTP 200 部分成功。
+- Added the public Fanqie short-fiction HTTP contract: `POST /api/short-fiction/candidates` generates a complete, tool-free, no-write candidate in the request locale, while `POST /api/short-fiction/candidates/confirm` confirms only the complete client-held candidate; validation, workspace, revision, source-size, and model failures use stable bilingual error codes, and a committed manuscript with a failed checkpoint truthfully remains an HTTP 200 partial success.
+- 番茄短篇显式确认现在会重新校验完整候选及当前工作区 revision，再通过单一变更租约提交已接受的 Agent ChangeSet 和精确手动版本；若正文已提交但版本检查点失败，会如实返回写入 revision、变更 ID、`workspace_mutated:true`、`checkpoint_status:failed` 与 `retryable:false`，不提供重试或回滚承诺。
+- Fanqie short-fiction explicit confirmation now revalidates the complete candidate and active workspace revision, then commits an accepted Agent ChangeSet and exact manual version under one change lease; if the manuscript commits but its checkpoint fails, the result truthfully reports the write revision, change IDs, `workspace_mutated:true`, `checkpoint_status:failed`, and `retryable:false` without retry or rollback claims.
+- 新增有界的番茄短篇候选领域契约：生成仅返回不可篡改的 Markdown 预览，不会写入工作区；后续必须通过显式确认衔接写入，并可如实报告检查点已提交、后续步骤部分失败的结果。
+- Added a bounded Fanqie short-fiction candidate domain contract: generation returns only an integrity-bound Markdown preview and never writes the workspace; a later explicit confirmation is required to bridge into writing, while checkpoint-committed and later partial-failure outcomes can be reported truthfully.
+- 新增经确认的番茄完整短篇垂直切片设计：复用当前写作模型生成无工具候选，并在作者显式确认后通过一致性快照接缝写入正文；候选持久化、Harness runtime 和知乎盐选行为保持延后。
+- Added the approved complete Fanqie short-fiction vertical-slice design: reuse the current Writing model for a no-tool candidate, then write only after explicit author confirmation through the consistent-snapshot seam; candidate persistence, Harness runtime, and Zhihu Salt behavior remain deferred.
+- 工作区变更服务新增单文件替换与一致性快照接缝：在同一变更租约内完成现有 CAS、耐久 ChangeSet 提交和调用方快照；快照失败时仍返回已提交变更，供上层明确报告部分成功。
+- The workspace-change service adds a one-file replacement and consistent-snapshot seam that keeps existing CAS, durable ChangeSet commit, and the caller snapshot under one mutation lease; snapshot failures still return the committed change so callers can report partial success explicitly.
 - 写作模式编辑器查找栏新增替换与正则匹配：可展开替换输入框，支持替换当前匹配或全部替换；开启正则后查找与替换均按正则表达式执行，替换文本支持 `$1` 等捕获组引用。
 - The Writing Mode editor search bar now supports replace and regex matching: expand a replace field to replace the current match or all matches; with regex enabled, both find and replace use regular expressions, and the replacement text supports capture group references like `$1`.
 
 ### Changed
 
+- 番茄短篇生成提示词从占位版升级为番茄短篇写作方法论：明确结构（8~12 章、逐章钩子、冲突升级与结局兑现）、文风（第一人称、短句短段、直角引号对白）与三类 AI 味禁令。
+- The Fanqie short-fiction generation prompt is upgraded from the placeholder to the Fanqie writing methodology: explicit structure (8-12 chapters, per-chapter hooks, escalating conflict and payoff), prose style (first person, short lines and paragraphs, corner-bracket dialogue), and three banned AI-flavor patterns.
 - Home、Settings、Agents、Skills 和 Automations 统一使用共享页面框架、分区导航、表单字段、资源目录、空状态与确认弹窗；资料库和方案预设同时复用自适应面板与移动端入口。
 - Home, Settings, Agents, Skills, and Automations now share page shells, section navigation, form fields, resource directories, empty states, and confirmation dialogs; Lore and Presets also reuse adaptive panes and mobile entry points.
 - 写作与游戏模式的 Agent 对话统一为单一挂载的聊天面板，并共享持久化输入偏好、上下文分析展示、文本测量和底部滚动控制，避免布局切换时重复初始化会话状态。
@@ -24,6 +51,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 将 `golang.org/x/text` 从 v0.38.0 升级到 v0.39.0，修复可达漏洞 GO-2026-5970；Go 最小版本选择（MVS）同时把仅存在于传递构建列表、并非 Denova 运行时直接导入的 `golang.org/x/tools` 从 v0.46.0 选择为 v0.47.0。
+- Upgraded `golang.org/x/text` from v0.38.0 to v0.39.0 to fix reachable vulnerability GO-2026-5970; Go minimal version selection (MVS) also selects `golang.org/x/tools` v0.47.0 instead of v0.46.0 only in the transitive build list, not as a direct Denova runtime import.
+- 工作区耐久性恢复现在会保留实际执行可见写入的根目录与父目录文件身份，只在当前路径仍指向同一身份时同步该已验证父目录；replacement workspace 或父目录不能再被恢复流程静默采用，且曾经不确定的编辑器保存即使身份恢复、同步成功，后续 redo 收尾错误仍不会泄漏未经确认的目标路径。
+- Workspace durability recovery now retains the root and parent file identities that performed the visible write and syncs only a verified parent still named by the current paths; a replacement workspace or parent can no longer be silently adopted, and an editor save that became identity-uncertain continues withholding its unconfirmed target from later redo-finalization errors even after identity restoration and successful sync.
+- 工作区可见文件替换现在还会核对当前工作区根路径与已打开根目录的文件身份，覆盖根目录及嵌套目标；若根路径在写入前被替换会拒绝写入，若在写入后变化则保留路径不确定状态，并在后续父目录同步失败时继续隐藏无法确认的目标路径。
+- Visible workspace-file replacement now also verifies the current workspace-root path against the opened root identity for both root-level and nested targets; a root replacement before mutation is rejected, while one after mutation preserves path uncertainty and continues withholding the unconfirmed target path from later parent-sync failures.
+- 工作区可见文件替换现在会同步已经执行重命名的父目录句柄，并在替换前与耐久成功前重新核对该句柄和当前可见父目录的文件身份；若目录项在写入后变化，确认会保留变更身份并报告不可重试的恢复待处理状态，但不会声称或刷新无法确认的目标路径。
+- Visible workspace-file replacement now syncs the same opened parent-directory handle used for rename and rechecks its identity against the visible parent before replacement and before reporting durable success; if the directory entry changes after mutation, confirmation preserves the change identity and reports non-retryable pending recovery without claiming or refreshing an unconfirmed target path.
+- 番茄短篇确认遇到较早工作区变更的耐久性恢复时，不再把它归为当前候选的写入：响应明确 `workspace_mutated:false`、`recovery_pending:true`、`retryable:false` 与恢复路径，双语界面不会刷新当前目标；revision 冲突文案也改为不假设事件先后的候选/目标版本不匹配。
+- When Fanqie confirmation encounters durability recovery for an earlier workspace change, it no longer attributes that state to the current candidate: the response explicitly reports `workspace_mutated:false`, `recovery_pending:true`, `retryable:false`, and the recovery path, while the bilingual UI does not refresh the current target; revision-conflict copy is also chronology-neutral about the candidate and target revisions.
+- 工作区可见文件的原子替换现在以逐层 `Lstat`、`OpenRoot` 和 `SameFile` 验证的父目录句柄创建并重命名临时文件，拒绝目录路径中的符号链接或非目录，阻止同 revision 父目录替换把写入重定向到其他位置。
+- Visible workspace-file replacement now creates and renames its temporary file through a parent-directory handle verified component by component with `Lstat`, `OpenRoot`, and `SameFile`; symlink and non-directory parent entries are rejected so a same-revision parent swap cannot redirect the write elsewhere.
+- 番茄短篇确认现在会在同一 App 租约内重新验证目标父目录与文件描述符身份，拒绝预览后替换的符号链接或同 revision 不同 inode；若原子替换已可见但耐久性/账本收尾失败，HTTP 会如实返回 `durability_pending`、`workspace_mutated:true`、`recovery_pending:true` 与 `retryable:false`，界面只刷新精确候选目标一次并禁止重试。
+- Fanqie confirmation now revalidates target-parent and file-descriptor identity under the same App lease, rejecting symlinks or same-revision inode swaps introduced after preview; if an atomic replacement is already visible but durability or ledger finalization fails, HTTP truthfully returns `durability_pending`, `workspace_mutated:true`, `recovery_pending:true`, and `retryable:false`, while the UI refreshes the exact candidate target at most once and blocks retry.
+- 番茄短篇生成的 stale target revision 现在稳定返回双语 HTTP 409 `revision_conflict`，不会调用模型或写入；领域与公开 API 同时在所有操作系统拒绝 drive-letter 路径及任意原始反斜杠路径，默认 MSW handler 也会对生成 5 字段、locale header 与确认完整 12 字段候选 fail-closed。
+- A stale target revision during Fanqie generation now returns a stable bilingual HTTP 409 `revision_conflict` without calling the model or writing; the domain and public API also reject drive-letter paths and any raw-backslash path on every OS, and default MSW handlers now fail closed on the five-field generation body, locale header, and complete 12-field confirmation candidate.
+- 番茄短篇 Sheet 现在用单调请求身份与完整生成 authority 丢弃关闭、上下文切换或新请求之后返回的旧预览；确认同步去重并将已提交结果保持为终态，每个候选最多刷新工作区一次，部分成功也始终显示实际写入的 Markdown 路径。
+- The Fanqie story Sheet now uses monotonic request identity and complete generation authority to discard previews that return after close, context changes, or a newer request; confirmation is synchronously deduplicated, committed results remain terminal, each candidate refreshes the workspace at most once, and partial success always shows the Markdown path that was actually written.
+- 番茄短篇公开生成请求现在与前端合同统一为扁平的 `workspace`、`profile_id`、`target_path`、`base_revision`、`brief` 五字段；正文 `source` 仍只从当前工作区读取，`locale` 仍只从请求头获取，不接受客户端覆盖。
+- The public Fanqie short-fiction generation request now matches the frontend contract with exactly five flat fields: `workspace`, `profile_id`, `target_path`, `base_revision`, and `brief`; manuscript `source` still comes only from the active workspace, and `locale` still comes only from the request header, so clients cannot override either authority.
+- 番茄短篇确认现在会将候选正文与目标文件字节相同的预提交结果返回为稳定的 HTTP 400 `invalid_edit` 双语错误，并明确 `workspace_mutated:false`；不再把无需写入、未创建版本或 ChangeSet 的状态误报为 500 内部错误。
+- Fanqie short-fiction confirmation now returns a stable bilingual HTTP 400 `invalid_edit` error with `workspace_mutated:false` when the candidate already matches the target bytes; this pre-commit state creates no version or ChangeSet and is no longer misreported as a 500 internal error.
+- 番茄短篇应用预览现在通过 `OpenRoot` 按单个路径组件链式打开每层正文父目录，并校验每个已打开父目录的文件身份，防止中间目录在预检后被竞态替换为符号链接。
+- Fanqie short-fiction app previews now chain through each manuscript parent one component at a time with `OpenRoot` and verify every opened parent identity, preventing an intermediate directory from being race-swapped to a symlink after preflight.
+- 番茄短篇应用预览现在将规范工作区与正文目标绑定到已打开描述符的文件身份，只从与预检目标身份一致的描述符读取并计算 revision，拒绝路径竞态中的符号链接替换。
+- Fanqie short-fiction app previews now bind the canonical workspace and manuscript target to opened-descriptor identities, reading and hashing only a descriptor that matches the preflight target and rejecting symlink swaps during path races.
+- 番茄短篇应用预览现在仅接受规范化且不含符号链接的正文来源路径，并改用纯读文件快照，避免冷工作区生成时创建变更账本元数据。
+- Fanqie short-fiction app previews now accept only canonical, non-symlink manuscript source paths and use a read-only file snapshot, preventing cold-workspace generation from creating change-ledger metadata.
+- 番茄短篇候选现在会在路径清理前拒绝可折叠的父目录或隐藏目录；显式确认也会重新校验规范化 authority、revision、brief 与全部字节上限，避免自洽哈希掩盖非法候选。
+- Fanqie short-fiction candidates now reject collapsible parent or hidden target segments before path cleaning; explicit confirmation also rechecks canonical authority, revision, brief, and every byte bound so a self-consistent hash cannot mask an invalid candidate.
 - 写作模式现在会隔离参数不是合法 JSON 的工具调用及其结果；已经保存的异常调用链也会在下次请求前被过滤，长参数则使用合法 JSON 回执保留上下文，避免会话被永久冻结。
 - Writing Mode now isolates tool calls with invalid JSON arguments and their results; previously saved malformed pairs are filtered before the next request, while large arguments use a valid JSON receipt so sessions do not become permanently frozen.
 - 设置与 Agents 的分层草稿、自动保存和输入区偏好持久化现在会串行写入，并在 revision 冲突时按原始基线重新拉取、合并和重试；卸载或过期请求不再回写状态。
@@ -34,6 +91,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Game Mode now reconnects to the active Agent task for the current story and branch after a page refresh, replaying the player action, reasoning, tool calls, and streamed prose before merging the same turn on persistence confirmation.
 - Windows 新建或切换书籍时不再因工作区变更存储对 `.denova` 目录执行不受支持的同步而失败；账本、内容 blob 和作品文件仍保留完整的文件级持久化同步。
 - Creating or switching books on Windows no longer fails when workspace-change storage encounters unsupported directory synchronization under `.denova`; ledger, content blob, and manuscript files retain full file-level durability synchronization.
+- 自动化回调测试现在会在临时目录清理前等待后台协调器退出，稳定测试与 CI 生命周期；不改变产品行为。
+- Automation callback tests now wait for the background coordinator before temporary-directory cleanup, stabilizing the test and CI lifecycle without changing product behavior.
 
 ## [v0.3.0] - 2026-07-18
 

@@ -169,7 +169,7 @@ func (s *Service) commitGroupOperationLocked(
 				ParentRel:        visibleParentRel(planned.ChangeSet.Path),
 				WorkspaceMutated: true,
 			}
-			s.markPendingParentSync(planned.ChangeSet.Path, result.ParentRel)
+			s.markPendingParentSync(planned.ChangeSet.Path, result)
 			return durabilityPendingError(planned.ChangeSet.Path, "", operation.ID, result, err)
 		}
 	}
@@ -201,7 +201,7 @@ func (s *Service) rollForwardOperationPathLocked(operationID string, planned ope
 		// A previous attempt may have completed the namespace mutation before its
 		// progress record. Synchronize the parent before claiming durable progress.
 		if err := s.syncVisibleParent(change.Path); err != nil {
-			s.markPendingParentSync(change.Path, result.ParentRel)
+			s.markPendingParentSync(change.Path, result)
 			return durabilityPendingError(change.Path, "", operationID, result, err)
 		}
 		result.Stage = mutationStageDurable
@@ -216,7 +216,7 @@ func (s *Service) rollForwardOperationPathLocked(operationID string, planned ope
 		}
 		if err != nil {
 			if result.Stage == mutationStageVisible {
-				s.markPendingParentSync(change.Path, result.ParentRel)
+				s.markPendingParentSync(change.Path, result)
 				return durabilityPendingError(change.Path, "", operationID, result, err)
 			}
 			afterRevision, afterExists := s.currentRevision(change.Path)

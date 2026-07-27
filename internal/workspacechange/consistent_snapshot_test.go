@@ -1,0 +1,343 @@
+package workspacechange
+
+import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestReplaceFileWithConsistentSnapshotRejectsStaleBaseBeforeCallback(t *testing.T) {
+	service, path := newConsistentSnapshotService(t, "before")
+	callbackCalled := false
+
+	_, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate",
+		BaseRevision: Revision([]byte("stale")),
+	}, func(ChangeSet) error {
+		callbackCalled = true
+		return nil
+	})
+	assertChangeErrorCode(t, err, ErrorCodeRevisionConflict)
+	if callbackCalled {
+		t.Fatal("stale replacement invoked snapshot callback")
+	}
+	content, revision, err := service.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read visible file: %v", err)
+	}
+	if content != "before" || revision != Revision([]byte("before")) {
+		t.Fatalf("stale replacement changed visible file: content=%q revision=%q", content, revision)
+	}
+}
+
+func TestReplaceFileWithConsistentSnapshotRejectsNilInputsBeforeWrite(t *testing.T) {
+	var nilService *Service
+	_, err := nilService.ReplaceFileWithConsistentSnapshot(
+		context.Background(),
+		ReplaceFileRequest{},
+		func(ChangeSet) error { return nil },
+	)
+	assertChangeErrorCode(t, err, ErrorCodeConflict)
+
+	service, path := newConsistentSnapshotService(t, "before")
+	_, err = service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate",
+		BaseRevision: Revision([]byte("before")),
+	}, nil)
+	assertChangeErrorCode(t, err, ErrorCodeConflict)
+	content, revision, err := service.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read visible file: %v", err)
+	}
+	if content != "before" || revision != Revision([]byte("before")) {
+		t.Fatalf("nil callback changed visible file: content=%q revision=%q", content, revision)
+	}
+}
+
+func TestReplaceFileWithConsistentSnapshotReturnsAppliedChangeOnCallbackError(t *testing.T) {
+	service, path := newConsistentSnapshotService(t, "before")
+	snapshotErr := errors.New("snapshot failed")
+
+	applied, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate",
+		BaseRevision: Revision([]byte("before")),
+	}, func(change ChangeSet) error {
+		if change.ID == "" || change.Path != path || change.Revision != Revision([]byte("candidate")) ||
+			len(change.Edits) != 1 || change.Edits[0].NewString != "candidate" {
+			t.Fatalf("callback received unexpected applied change: %#v", change)
+		}
+		return snapshotErr
+	})
+	if !errors.Is(err, snapshotErr) {
+		t.Fatalf("error = %v, want original callback error", err)
+	}
+	if applied.ID == "" || applied.Path != path || applied.Revision != Revision([]byte("candidate")) ||
+		len(applied.Edits) != 1 || applied.Edits[0].NewString != "candidate" {
+		t.Fatalf("callback error hid the applied change: %#v", applied)
+	}
+	content, revision, err := service.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read visible file: %v", err)
+	}
+	if content != "candidate" || revision != applied.Revision {
+		t.Fatalf("callback error hid committed bytes: content=%q revision=%q applied=%#v", content, revision, applied)
+	}
+}
+
+func TestReplaceFileWithConsistentSnapshotReturnsChangeIdentityWhenVisibleWriteDurabilityIsPending(t *testing.T) {
+	service, path := newConsistentSnapshotService(t, "before")
+	originalSync := service.durability.syncRootDirFn
+	service.durability.syncRootDirFn = func(root *os.Root, rel string) error {
+		if isOpenedVisibleParentSync(service, root, rel) {
+			return errInjectedParentSync
+		}
+		return originalSync(root, rel)
+	}
+	callbackCalled := false
+
+	change, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate",
+		BaseRevision: Revision([]byte("before")),
+	}, func(ChangeSet) error {
+		callbackCalled = true
+		return nil
+	})
+	assertDurabilityPending(t, err, true)
+	if callbackCalled {
+		t.Fatal("durability-pending write invoked the snapshot callback")
+	}
+	if change.ID == "" || change.GroupID == "" || change.Path != path || change.Revision != Revision([]byte("candidate")) {
+		t.Fatalf("durability-pending write lost change identity: %#v", change)
+	}
+	if got := readTestFile(t, service.workspace, path); got != "candidate" {
+		t.Fatalf("visible candidate bytes = %q", got)
+	}
+}
+
+func TestReplaceFileWithConsistentSnapshotRefusesParentEntrySwappedAfterValidation(t *testing.T) {
+	service, path := newConsistentSnapshotService(t, "same revision before the parent swap")
+	const redirectedPath = "redirect/ch01.md"
+	writeTestFile(t, service.workspace, redirectedPath, "same revision before the parent swap")
+
+	originalSync := service.durability.syncRootDirFn
+	swapped := false
+	service.durability.syncRootDirFn = func(root *os.Root, rel string) error {
+		if rel == "chapters" && !swapped {
+			swapped = true
+			parent := filepath.Join(service.workspace, "chapters")
+			if err := os.Rename(parent, parent+".original"); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink("redirect", parent); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return originalSync(root, rel)
+	}
+
+	callbackCalled := false
+	change, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate must not reach either directory",
+		BaseRevision: Revision([]byte("same revision before the parent swap")),
+	}, func(ChangeSet) error {
+		callbackCalled = true
+		return nil
+	})
+	assertChangeErrorCode(t, err, ErrorCodeConflict)
+	if !swapped {
+		t.Fatal("test did not swap the validated parent entry")
+	}
+	if callbackCalled {
+		t.Fatal("parent entry race invoked the snapshot callback")
+	}
+	if change.ID == "" || change.Path != path {
+		t.Fatalf("parent entry race lost the prepared change identity: %#v", change)
+	}
+	if got := readTestFile(t, service.workspace, "chapters.original/ch01.md"); got != "same revision before the parent swap" {
+		t.Fatalf("original parent changed: %q", got)
+	}
+	if got := readTestFile(t, service.workspace, redirectedPath); got != "same revision before the parent swap" {
+		t.Fatalf("redirected parent changed: %q", got)
+	}
+}
+
+func TestReplaceFileWithConsistentSnapshotRejectsParentSwapAfterHandleOpenBeforeRename(t *testing.T) {
+	service, path := newConsistentSnapshotService(t, "same revision before the open-handle swap")
+	const redirectedPath = "redirect/ch01.md"
+	writeTestFile(t, service.workspace, redirectedPath, "same revision before the open-handle swap")
+
+	swapped := false
+	service.durability.visibleWriteHookFn = func(stage, hookPath string) error {
+		if stage != visibleWriteStageBeforeReplace {
+			return nil
+		}
+		if hookPath != path {
+			t.Fatalf("hook path = %q, want %q", hookPath, path)
+		}
+		swapped = true
+		swapVisibleParentForTest(t, service.workspace, "chapters.original")
+		return nil
+	}
+
+	callbackCalled := false
+	change, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate must not reach either directory",
+		BaseRevision: Revision([]byte("same revision before the open-handle swap")),
+	}, func(ChangeSet) error {
+		callbackCalled = true
+		return nil
+	})
+	assertChangeErrorCode(t, err, ErrorCodeConflict)
+	if !swapped {
+		t.Fatal("test did not swap the parent after its handle opened")
+	}
+	if callbackCalled {
+		t.Fatal("pre-replacement parent swap invoked the snapshot callback")
+	}
+	if change.ID == "" || change.Path != path {
+		t.Fatalf("pre-replacement parent swap lost change identity: %#v", change)
+	}
+	if got := readTestFile(t, service.workspace, "chapters.original/ch01.md"); got != "same revision before the open-handle swap" {
+		t.Fatalf("original parent changed: %q", got)
+	}
+	if got := readTestFile(t, service.workspace, path); got != "same revision before the open-handle swap" {
+		t.Fatalf("redirected parent changed: %q", got)
+	}
+}
+
+func TestReplaceFileWithConsistentSnapshotReportsPendingWhenParentChangesAfterRename(t *testing.T) {
+	service, path := newConsistentSnapshotService(t, "same revision before the post-rename swap")
+	const redirectedPath = "redirect/ch01.md"
+	writeTestFile(t, service.workspace, redirectedPath, "same revision before the post-rename swap")
+
+	swapped := false
+	service.durability.visibleWriteHookFn = func(stage, hookPath string) error {
+		if stage != visibleWriteStageAfterReplace {
+			return nil
+		}
+		if hookPath != path {
+			t.Fatalf("hook path = %q, want %q", hookPath, path)
+		}
+		swapped = true
+		swapVisibleParentForTest(t, service.workspace, "chapters.written")
+		return nil
+	}
+
+	callbackCalled := false
+	change, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate written through the opened parent",
+		BaseRevision: Revision([]byte("same revision before the post-rename swap")),
+	}, func(ChangeSet) error {
+		callbackCalled = true
+		return nil
+	})
+	assertDurabilityPending(t, err, true)
+	if !swapped {
+		t.Fatal("test did not swap the parent after the visible rename")
+	}
+	if callbackCalled {
+		t.Fatal("post-replacement parent swap invoked the snapshot callback")
+	}
+	if change.ID == "" || change.Path != path || change.Revision != Revision([]byte("candidate written through the opened parent")) {
+		t.Fatalf("post-replacement parent swap lost change identity: %#v", change)
+	}
+	var pending *Error
+	if !errors.As(err, &pending) {
+		t.Fatalf("pending error type = %T", err)
+	}
+	if _, claimed := pending.Details["path"]; claimed {
+		t.Fatalf("identity-uncertain write claimed an exact target: %#v", pending.Details)
+	}
+	if got := readTestFile(t, service.workspace, "chapters.written/ch01.md"); got != "candidate written through the opened parent" {
+		t.Fatalf("opened parent bytes = %q", got)
+	}
+	if got := readTestFile(t, service.workspace, path); got != "same revision before the post-rename swap" {
+		t.Fatalf("redirected parent changed: %q", got)
+	}
+}
+
+func swapVisibleParentForTest(t *testing.T, workspace, movedName string) {
+	t.Helper()
+	parent := filepath.Join(workspace, "chapters")
+	if err := os.Rename(parent, filepath.Join(workspace, movedName)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(workspace, "redirect"), parent); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReplaceFileWithConsistentSnapshotIsolatesReturnedChangeFromCallbackMutation(t *testing.T) {
+	service, path := newConsistentSnapshotService(t, "before")
+	snapshotErr := errors.New("snapshot failed after mutation")
+
+	applied, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate",
+		BaseRevision: Revision([]byte("before")),
+	}, func(change ChangeSet) error {
+		change.Edits[0].NewString = "tampered"
+		change.Edits[0].Hunks[0].AfterEnd = 0
+		return snapshotErr
+	})
+	if !errors.Is(err, snapshotErr) {
+		t.Fatalf("error = %v, want original callback error", err)
+	}
+	if len(applied.Edits) != 1 || applied.Edits[0].NewString != "candidate" ||
+		len(applied.Edits[0].Hunks) != 1 || applied.Edits[0].Hunks[0].AfterEnd != len("candidate") {
+		t.Fatalf("callback mutated returned applied change: %#v", applied)
+	}
+}
+
+func TestReplaceFileWithConsistentSnapshotHoldsLeaseThroughCallback(t *testing.T) {
+	service, path := newConsistentSnapshotService(t, "before")
+	applied, err := service.ReplaceFileWithConsistentSnapshot(context.Background(), ReplaceFileRequest{
+		Path:         path,
+		Content:      "candidate",
+		BaseRevision: Revision([]byte("before")),
+	}, func(ChangeSet) error {
+		if service.mu.TryLock() {
+			service.mu.Unlock()
+			t.Fatal("snapshot callback ran without the workspace mutation lease")
+		}
+		return nil
+	})
+	if err != nil || applied.Revision != Revision([]byte("candidate")) {
+		t.Fatalf("replacement result: change=%#v err=%v", applied, err)
+	}
+	if !service.mu.TryLock() {
+		t.Fatal("workspace mutation lease remained held after callback returned")
+	}
+	service.mu.Unlock()
+
+	result, err := service.SaveFile(context.Background(), path, "later", applied.Revision)
+	if err != nil || !result.Changed || result.Revision != Revision([]byte("later")) {
+		t.Fatalf("managed save after callback: result=%#v err=%v", result, err)
+	}
+	content, _, err := service.ReadFile(path)
+	if err != nil || content != "later" {
+		t.Fatalf("final visible file: content=%q err=%v", content, err)
+	}
+}
+
+func newConsistentSnapshotService(t *testing.T, content string) (*Service, string) {
+	t.Helper()
+	service, err := NewService(t.TempDir())
+	if err != nil {
+		t.Fatalf("create workspace change service: %v", err)
+	}
+	path := "chapters/ch01.md"
+	if _, err := service.SaveFile(context.Background(), path, content, "missing"); err != nil {
+		t.Fatalf("seed visible file: %v", err)
+	}
+	return service, path
+}

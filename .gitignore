@@ -19,6 +19,11 @@ internal/webfs/dist/
 plan.md
 docs/*
 !docs/workspace-change-engine.md
+!docs/superpowers/
+docs/superpowers/*
+!docs/superpowers/specs/
+docs/superpowers/specs/*
+!docs/superpowers/specs/2026-07-25-fanqie-short-fiction-vertical-slice-design.md
 .worktrees/
 .pnpm-store/
 .DS_Store

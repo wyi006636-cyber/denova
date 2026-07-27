@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, Bot, FileText, PenLine, Plus, SearchCheck, Sparkles, WandSparkles, X } from 'lucide-react'
+import { Activity, BookOpenText, Bot, FileText, PenLine, Plus, SearchCheck, Sparkles, WandSparkles, X } from 'lucide-react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -25,6 +25,7 @@ import { AgentChangeSummaryCard } from '@/features/changes/agent/AgentChangeSumm
 import { MAX_REVIEW_FEEDBACK_COMMENT_COUNT, MAX_REVIEW_FEEDBACK_CONTEXT_BYTES, reviewFeedbackCommentCount, reviewFeedbackContextBytes, type ReviewFeedbackBatch, type ReviewFeedbackSelection } from '@/features/changes/agent/ReviewFeedbackTray'
 import { toast } from 'sonner'
 import type { ChatSendOptions } from '@/hooks/useAgentChat'
+import { FanqieCandidateSheet } from '@/features/short-fiction/FanqieCandidateSheet'
 
 type AgentPanelView = 'chat' | 'sessions' | 'traces'
 
@@ -140,6 +141,7 @@ export function AgentPanel({
   const [contextAnalysisLoading, setContextAnalysisLoading] = useState(false)
   const [contextAnalysisError, setContextAnalysisError] = useState<string | null>(null)
   const [contextAnalysis, setContextAnalysis] = useState<ContextAnalysis | null>(null)
+  const [fanqieOpen, setFanqieOpen] = useState(false)
   const [activeSubAgentSessionKey, setActiveSubAgentSessionKey] = useState('')
   const [selectedTraceRunId, setSelectedTraceRunId] = useState('')
   const [inputAreaHeight, setInputAreaHeight] = useState(0)
@@ -443,6 +445,22 @@ export function AgentPanel({
       </div>
 
       {view === 'chat' ? (
+        <div className="flex shrink-0 border-b border-[var(--nova-border)] px-3 py-2">
+          <button
+            type="button"
+            disabled={isStreaming}
+            onClick={() => setFanqieOpen(true)}
+            className="nova-nav-item flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-45"
+            aria-label={t('chat.fanqie.entry')}
+            title={t('chat.fanqie.entry')}
+          >
+            <BookOpenText className="h-3.5 w-3.5" />
+            <span>{t('chat.fanqie.entry')}</span>
+          </button>
+        </div>
+      ) : null}
+
+      {view === 'chat' ? (
         <>
           <div className="relative flex min-h-0 flex-1">
             {!activeSubAgentSessionKey ? (
@@ -511,6 +529,15 @@ export function AgentPanel({
         <AgentTracePanel disabled={isStreaming} selectedRunId={selectedTraceRunId} />
       )}
       {chatPanePortal}
+      <FanqieCandidateSheet
+        open={fanqieOpen}
+        onOpenChange={setFanqieOpen}
+        workspace={workspace}
+        selectedFile={selectedFile}
+        fileSuggestions={fileSuggestions}
+        disabled={isStreaming}
+        onWorkspaceChanged={onWorkspaceChanged}
+      />
     </aside>
   )
 }
