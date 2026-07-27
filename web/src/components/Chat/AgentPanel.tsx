@@ -432,16 +432,6 @@ export function AgentPanel({
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
-        <button
-          type="button"
-          disabled={isStreaming}
-          onClick={() => setFanqieOpen(true)}
-          className="nova-nav-item flex h-7 w-7 shrink-0 items-center justify-center rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] disabled:cursor-not-allowed disabled:opacity-45"
-          aria-label={t('chat.fanqie.entry')}
-          title={t('chat.fanqie.entry')}
-        >
-          <BookOpenText className="h-3.5 w-3.5" />
-        </button>
         <div className="min-w-0 flex-1" />
         <button
           type="button"
@@ -453,6 +443,22 @@ export function AgentPanel({
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
+
+      {view === 'chat' ? (
+        <div className="flex shrink-0 border-b border-[var(--nova-border)] px-3 py-2">
+          <button
+            type="button"
+            disabled={isStreaming}
+            onClick={() => setFanqieOpen(true)}
+            className="nova-nav-item flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-45"
+            aria-label={t('chat.fanqie.entry')}
+            title={t('chat.fanqie.entry')}
+          >
+            <BookOpenText className="h-3.5 w-3.5" />
+            <span>{t('chat.fanqie.entry')}</span>
+          </button>
+        </div>
+      ) : null}
 
       {view === 'chat' ? (
         <>

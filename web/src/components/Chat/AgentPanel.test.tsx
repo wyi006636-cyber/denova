@@ -107,11 +107,12 @@ describe('AgentPanel', () => {
         onSend: handleSend,
       })
 
-      const entry = screen.getByRole('button', { name: '番茄短篇' })
+      const entry = screen.getByRole('button', { name: '直接生成短篇' })
       expect(entry).toBeInTheDocument()
+      expect(entry).toHaveTextContent('直接生成短篇')
       await user.click(entry)
       expect(screen.getByRole('dialog', { name: '番茄完整短篇' })).toBeInTheDocument()
-      expect(screen.getByLabelText('目标 Markdown')).toHaveValue('chapters/short.md')
+      expect(screen.getByTestId('fanqie-save-path')).toHaveTextContent('chapters/short-2.md')
 
       await user.click(screen.getByRole('button', { name: '关闭番茄短篇' }))
       await waitFor(() => expect(screen.queryByRole('dialog', { name: '番茄完整短篇' })).not.toBeInTheDocument())
@@ -128,7 +129,7 @@ describe('AgentPanel', () => {
   it('在 Agent 正在流式回复时禁用持久番茄短篇入口', async () => {
     renderAgentPanel({ isStreaming: true })
 
-    expect(screen.getByRole('button', { name: '番茄短篇' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '直接生成短篇' })).toBeDisabled()
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /切换模型/ })).not.toHaveTextContent('加载模型')
     })

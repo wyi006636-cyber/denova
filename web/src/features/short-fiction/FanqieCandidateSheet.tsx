@@ -67,10 +67,10 @@ export function FanqieCandidateSheet({
 }: FanqieCandidateSheetProps) {
   const { t } = useTranslation()
   const locale = getResolvedLocale()
-  const [targetPath, setTargetPath] = useState(() => normalizeMarkdownTarget(selectedFile || '') || '')
+  const automaticTargetPath = useMemo(() => nextShortFictionTarget(fileSuggestions), [fileSuggestions])
+  const [targetPath, setTargetPath] = useState(automaticTargetPath)
   const [brief, setBrief] = useState('')
   const [state, setState] = useState<SheetState>({ step: 'brief' })
-  const targetEdited = useRef(false)
   const generateSequence = useRef(0)
   const activeGenerateRequest = useRef<GenerateRequestIdentity | null>(null)
   const generateContext = useRef<GenerateContext>({ open, workspace, selectedFile, locale })
@@ -88,11 +88,6 @@ export function FanqieCandidateSheet({
     brief: brief.trim(),
   }
 
-  const targetSuggestions = useMemo(() => (
-    Array.from(new Set(fileSuggestions.map(normalizeMarkdownTarget).filter((path): path is string => Boolean(path))))
-      .slice(0, 6)
-  ), [fileSuggestions])
-
   useEffect(() => {
     const previous = previousGenerateContext.current
     const current = generateContext.current
@@ -103,10 +98,10 @@ export function FanqieCandidateSheet({
       activeGenerateRequest.current = null
       setState((currentState) => resetStaleCandidateState(currentState))
     }
-    if (open && !targetEdited.current) {
-      setTargetPath(normalizeMarkdownTarget(selectedFile || '') || '')
+    if (open) {
+      setTargetPath(automaticTargetPath)
     }
-  }, [locale, open, selectedFile, workspace])
+  }, [automaticTargetPath, locale, open, selectedFile, workspace])
 
   const generate = async () => {
     const normalizedTarget = normalizeMarkdownTarget(targetPath)
@@ -311,14 +306,9 @@ export function FanqieCandidateSheet({
               <BriefStep
                 targetPath={targetPath}
                 brief={brief}
-                suggestions={targetSuggestions}
                 busy={state.step === 'generating'}
                 disabled={disabled}
                 error={state.step === 'error' && state.phase === 'generate' ? state.message : undefined}
-                onTargetPathChange={(value) => {
-                  targetEdited.current = true
-                  setTargetPath(value)
-                }}
                 onBriefChange={setBrief}
                 onGenerate={() => void generate()}
                 t={t}
@@ -344,7 +334,11 @@ export function FanqieCandidateSheet({
                     result={state.result}
                     candidate={state.candidate}
                     disabled={disabled}
-                    onWriteAnother={() => setState({ step: 'brief' })}
+                    onWriteAnother={() => {
+                      setTargetPath(nextShortFictionTarget([...fileSuggestions, state.candidate.target_path]))
+                      setBrief('')
+                      setState({ step: 'brief' })
+                    }}
                     t={t}
                   />
                 )
@@ -363,22 +357,18 @@ interface StepCopy {
 function BriefStep({
   targetPath,
   brief,
-  suggestions,
   busy,
   disabled,
   error,
-  onTargetPathChange,
   onBriefChange,
   onGenerate,
   t,
 }: {
   targetPath: string
   brief: string
-  suggestions: string[]
   busy: boolean
   disabled: boolean
   error?: string
-  onTargetPathChange: (value: string) => void
   onBriefChange: (value: string) => void
   onGenerate: () => void
   t: StepCopy
@@ -392,41 +382,12 @@ function BriefStep({
 
       {error ? <ErrorNotice title={t('chat.fanqie.error.generateTitle')} message={error} /> : null}
 
-      <div className="flex min-w-0 flex-col gap-1.5">
-        <label className="text-xs font-medium text-[var(--nova-text)]" htmlFor="fanqie-target-path">{t('chat.fanqie.target.label')}</label>
-        <Textarea
-          id="fanqie-target-path"
-          value={targetPath}
-          aria-invalid={Boolean(error && !normalizeMarkdownTarget(targetPath))}
-          disabled={disabled || busy}
-          autoResize
-          minRows={1}
-          maxRows={3}
-          multilineMode="always"
-          className="min-h-9 rounded-[var(--nova-radius)] border-[var(--nova-border)] bg-[var(--nova-surface-2)] font-mono text-xs [overflow-wrap:anywhere]"
-          placeholder={t('chat.fanqie.target.placeholder')}
-          onChange={(event) => onTargetPathChange(event.target.value)}
-        />
-        <span className="text-[11px] leading-4 text-[var(--nova-text-faint)]">{t('chat.fanqie.target.help')}</span>
+      <div className="flex min-w-0 items-center gap-2 text-[11px] text-[var(--nova-text-faint)]">
+        <span>{t('chat.fanqie.target.label')}</span>
+        <code data-testid="fanqie-save-path" className="min-w-0 break-all rounded bg-[var(--nova-surface-2)] px-1.5 py-1 text-[var(--nova-text-muted)]">
+          {targetPath}
+        </code>
       </div>
-
-      {suggestions.length ? (
-        <div className="flex min-w-0 flex-wrap gap-1.5" aria-label={t('chat.fanqie.target.suggestions')}>
-          {suggestions.map((suggestion) => (
-            <Button
-              key={suggestion}
-              type="button"
-              variant="outline"
-              size="xs"
-              disabled={disabled || busy}
-              className="h-auto max-w-full whitespace-normal break-all py-1 text-left font-mono text-[10px] [overflow-wrap:anywhere]"
-              onClick={() => onTargetPathChange(suggestion)}
-            >
-              {suggestion}
-            </Button>
-          ))}
-        </div>
-      ) : null}
 
       <div className="flex min-w-0 flex-col gap-1.5">
         <label className="text-xs font-medium text-[var(--nova-text)]" htmlFor="fanqie-brief">{t('chat.fanqie.brief.label')}</label>
@@ -572,6 +533,14 @@ function normalizeMarkdownTarget(value: string): string | null {
 
   const normalized = segments.join('/')
   return normalized.endsWith('.md') ? normalized : null
+}
+
+function nextShortFictionTarget(paths: string[]): string {
+  const existing = new Set(paths.map(normalizeMarkdownTarget).filter((path): path is string => Boolean(path)))
+  for (let index = 1; ; index += 1) {
+    const candidate = index === 1 ? 'chapters/short.md' : `chapters/short-${index}.md`
+    if (!existing.has(candidate)) return candidate
+  }
 }
 
 function sameGenerateContext(left: GenerateContext, right: GenerateContext) {

@@ -27,12 +27,12 @@ describe('FanqieCandidateSheet', () => {
     const candidate: ShortFictionCandidate = {
       profile_id: 'fanqie_short',
       profile_version: 'fanqie-short-v1',
-      candidate_id: 'sha256:candidate-existing',
+      candidate_id: 'sha256:candidate-new',
       workspace: '/canonical/workspace',
-      target_path: 'chapters/short.md',
-      base_revision: `sha256:${'1'.repeat(64)}`,
+      target_path: 'chapters/short-2.md',
+      base_revision: 'missing',
       brief: '写一篇完整的都市反转短篇',
-      source: '# 旧正文',
+      source: '',
       locale: 'zh-CN',
       preview_markdown: '# 明日订单\n\n她接到了一份来自明天的外卖订单。',
       model_profile_id: 'ide',
@@ -41,13 +41,12 @@ describe('FanqieCandidateSheet', () => {
 
     server.use(
       http.get('/api/workspace/file', ({ request }) => {
-        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/short.md')
+        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/short-2.md')
         return HttpResponse.json({
-          workspace: '/canonical/workspace',
-          path: 'chapters/short.md',
-          content: '# 旧正文',
-          revision: `sha256:${'1'.repeat(64)}`,
-        })
+          error: '文件不存在',
+          code: 'not_found',
+          details: { workspace_mutated: false },
+        }, { status: 404 })
       }),
       http.post('/api/short-fiction/candidates', async ({ request }) => {
         generateLocale = request.headers.get('X-Denova-Locale') || ''
@@ -90,24 +89,24 @@ describe('FanqieCandidateSheet', () => {
       />,
     )
 
-    expect(screen.getByLabelText('目标 Markdown')).toHaveValue('chapters/short.md')
+    expect(screen.getByTestId('fanqie-save-path')).toHaveTextContent('chapters/short-2.md')
     await user.type(screen.getByLabelText('创作要求'), '写一篇完整的都市反转短篇')
     await user.click(screen.getByRole('button', { name: '生成完整短篇预览' }))
 
     expect(await screen.findByText('明日订单')).toBeInTheDocument()
     expect(generateLocale).toBe('zh-CN')
     expect(generateRequest).toEqual({
-      workspace: '/canonical/workspace',
+      workspace: '/workspace',
       profile_id: 'fanqie_short',
-      target_path: 'chapters/short.md',
-      base_revision: `sha256:${'1'.repeat(64)}`,
+      target_path: 'chapters/short-2.md',
+      base_revision: 'missing',
       brief: '写一篇完整的都市反转短篇',
     })
     expect(confirmRequestCount).toBe(0)
 
     await user.click(screen.getByRole('button', { name: '确认写入正文' }))
 
-    await waitFor(() => expect(onWorkspaceChanged).toHaveBeenCalledWith(['chapters/short.md']))
+    await waitFor(() => expect(onWorkspaceChanged).toHaveBeenCalledWith(['chapters/short-2.md']))
     expect(onWorkspaceChanged).toHaveBeenCalledTimes(1)
     expect(confirmRequestCount).toBe(1)
     expect(confirmedCandidate).toEqual(candidate)
@@ -116,14 +115,14 @@ describe('FanqieCandidateSheet', () => {
   it.each([
     ['absent', null],
     ['non-Markdown', 'notes/idea.txt'],
-  ])('requires an explicit Markdown path when selection is %s and binds a missing target to literal missing', async (_case, selectedFile) => {
+  ])('automatically selects a new Markdown path when selection is %s', async (_case, selectedFile) => {
     const user = userEvent.setup()
     let readRequestCount = 0
     let generateRequest: ShortFictionGenerateRequest | undefined
     let generateLocale = ''
     let confirmRequestCount = 0
     const expectedCandidate = candidateFixture({
-      target_path: 'chapters/new-short.md',
+      target_path: 'chapters/short.md',
       base_revision: 'missing',
       brief: '一篇悬疑反转短篇',
       source: '',
@@ -133,7 +132,7 @@ describe('FanqieCandidateSheet', () => {
     server.use(
       http.get('/api/workspace/file', ({ request }) => {
         readRequestCount += 1
-        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/new-short.md')
+        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/short.md')
         return HttpResponse.json({
           error: '文件不存在',
           code: 'not_found',
@@ -155,13 +154,9 @@ describe('FanqieCandidateSheet', () => {
 
     renderSheet({ selectedFile, fileSuggestions: ['notes/idea.txt'] })
 
-    expect(screen.getByLabelText('目标 Markdown')).toHaveValue('')
+    expect(screen.queryByLabelText('目标 Markdown')).not.toBeInTheDocument()
+    expect(screen.getByTestId('fanqie-save-path')).toHaveTextContent('chapters/short.md')
     await user.type(screen.getByLabelText('创作要求'), '一篇悬疑反转短篇')
-    await user.click(screen.getByRole('button', { name: '生成完整短篇预览' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('请输入工作区内可见的相对 .md 路径')
-    expect(readRequestCount).toBe(0)
-
-    await user.type(screen.getByLabelText('目标 Markdown'), 'chapters/new-short.md')
     await user.click(screen.getByRole('button', { name: '生成完整短篇预览' }))
 
     expect(await screen.findByText('明日订单')).toBeInTheDocument()
@@ -169,58 +164,14 @@ describe('FanqieCandidateSheet', () => {
     expect(generateRequest).toEqual({
       workspace: '/workspace',
       profile_id: 'fanqie_short',
-      target_path: 'chapters/new-short.md',
+      target_path: 'chapters/short.md',
       base_revision: 'missing',
       brief: '一篇悬疑反转短篇',
     })
     expect(confirmRequestCount).toBe(0)
   })
 
-  it.each([
-    '/abs.md',
-    '../x.md',
-    '.hidden/x.md',
-    'chapters/.draft/x.md',
-    'C:/x.md',
-    'chapters/x.txt',
-  ])('rejects explicit invalid target %s before any API request', async (invalidTarget) => {
-    const user = userEvent.setup()
-    const readPaths: string[] = []
-    const generateBodies: ShortFictionGenerateRequest[] = []
-    const generateLocales: string[] = []
-    const confirmCandidates: ShortFictionCandidate[] = []
-
-    server.use(
-      http.get('/api/workspace/file', ({ request }) => {
-        readPaths.push(new URL(request.url).searchParams.get('path') || '')
-        return HttpResponse.json({ workspace: '/workspace', path: invalidTarget, content: '', revision: `sha256:${'1'.repeat(64)}` })
-      }),
-      http.post('/api/short-fiction/candidates', async ({ request }) => {
-        generateLocales.push(request.headers.get('X-Denova-Locale') || '')
-        generateBodies.push(await request.json() as ShortFictionGenerateRequest)
-        return HttpResponse.json(candidateFixture({ target_path: invalidTarget }))
-      }),
-      http.post('/api/short-fiction/candidates/confirm', async ({ request }) => {
-        const body = await request.json() as { candidate: ShortFictionCandidate }
-        confirmCandidates.push(body.candidate)
-        expect(request.headers.get('X-Denova-Locale')).toBe('zh-CN')
-        return HttpResponse.json(writtenResult(body.candidate))
-      }),
-    )
-
-    renderSheet({ selectedFile: null, fileSuggestions: [] })
-    await user.type(screen.getByLabelText('目标 Markdown'), invalidTarget)
-    await user.type(screen.getByLabelText('创作要求'), '非法目标不得调用 API')
-    await user.click(screen.getByRole('button', { name: '生成完整短篇预览' }))
-
-    expect(screen.getByRole('alert')).toHaveTextContent('请输入工作区内可见的相对 .md 路径')
-    expect(readPaths).toEqual([])
-    expect(generateBodies).toEqual([])
-    expect(generateLocales).toEqual([])
-    expect(confirmCandidates).toEqual([])
-  })
-
-  it('defaults to the Markdown file selected before the first Sheet open', () => {
+  it('automatically chooses a new story file instead of the selected workspace file', () => {
     const baseProps: ComponentProps<typeof FanqieCandidateSheet> = {
       open: false,
       onOpenChange: vi.fn(),
@@ -234,65 +185,7 @@ describe('FanqieCandidateSheet', () => {
 
     rerender(<FanqieCandidateSheet {...baseProps} open selectedFile="chapters/late-selection.md" />)
 
-    expect(screen.getByLabelText('目标 Markdown')).toHaveValue('chapters/late-selection.md')
-  })
-
-  it('allows an explicit target override, normalizes it, and binds the fetched workspace and revision', async () => {
-    const user = userEvent.setup()
-    let readPath = ''
-    let generateRequest: ShortFictionGenerateRequest | undefined
-    let generateLocale = ''
-    let confirmRequestCount = 0
-    const revision = `sha256:${'3'.repeat(64)}`
-    const expectedCandidate = candidateFixture({
-      workspace: '/canonical/override',
-      target_path: 'chapters/override.md',
-      base_revision: revision,
-      brief: '覆盖当前目标',
-      source: '# 原正文',
-      candidate_id: 'sha256:override',
-    })
-
-    server.use(
-      http.get('/api/workspace/file', ({ request }) => {
-        readPath = new URL(request.url).searchParams.get('path') || ''
-        return HttpResponse.json({
-          workspace: '/canonical/override',
-          path: 'chapters/override.md',
-          content: '# 原正文',
-          revision,
-        })
-      }),
-      http.post('/api/short-fiction/candidates', async ({ request }) => {
-        generateLocale = request.headers.get('X-Denova-Locale') || ''
-        generateRequest = await request.json() as ShortFictionGenerateRequest
-        return HttpResponse.json(expectedCandidate)
-      }),
-      http.post('/api/short-fiction/candidates/confirm', async ({ request }) => {
-        confirmRequestCount += 1
-        expect(await request.json()).toEqual({ candidate: expectedCandidate })
-        expect(request.headers.get('X-Denova-Locale')).toBe('zh-CN')
-        return HttpResponse.json(writtenResult(expectedCandidate))
-      }),
-    )
-
-    renderSheet({ selectedFile: 'chapters/short.md' })
-    await user.clear(screen.getByLabelText('目标 Markdown'))
-    await user.type(screen.getByLabelText('目标 Markdown'), ' chapters//override.md ')
-    await user.type(screen.getByLabelText('创作要求'), '覆盖当前目标')
-    await user.click(screen.getByRole('button', { name: '生成完整短篇预览' }))
-
-    expect(await screen.findByText('明日订单')).toBeInTheDocument()
-    expect(readPath).toBe('chapters/override.md')
-    expect(generateLocale).toBe('zh-CN')
-    expect(generateRequest).toEqual({
-      workspace: '/canonical/override',
-      profile_id: 'fanqie_short',
-      target_path: 'chapters/override.md',
-      base_revision: revision,
-      brief: '覆盖当前目标',
-    })
-    expect(confirmRequestCount).toBe(0)
+    expect(screen.getByTestId('fanqie-save-path')).toHaveTextContent('chapters/short.md')
   })
 
   it('does not treat a non-404 read failure as a missing target and preserves author input', async () => {
@@ -302,7 +195,7 @@ describe('FanqieCandidateSheet', () => {
 
     server.use(
       http.get('/api/workspace/file', ({ request }) => {
-        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/locked.md')
+        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/short.md')
         return HttpResponse.json({
           error: '无权读取目标文件',
           code: 'forbidden',
@@ -335,19 +228,17 @@ describe('FanqieCandidateSheet', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('无法生成预览')
     expect(screen.getByRole('alert')).toHaveTextContent('无权读取目标文件')
-    expect(screen.getByLabelText('目标 Markdown')).toHaveValue('chapters/locked.md')
+    expect(screen.getByTestId('fanqie-save-path')).toHaveTextContent('chapters/short.md')
     expect(screen.getByLabelText('创作要求')).toHaveValue('保留我的创作要求')
     expect(generateRequestCount).toBe(0)
     expect(confirmRequestCount).toBe(0)
   })
 
-  it('renders a long target and preview without a horizontal overflow class', async () => {
+  it('renders a long preview without horizontal overflow', async () => {
     const user = userEvent.setup()
-    const longTarget = `chapters/${'very-long-story-segment-'.repeat(18)}end.md`
     const longMarkdown = `# 明日订单\n\n${'没有空格的超长正文'.repeat(140)}`
     const revision = `sha256:${'4'.repeat(64)}`
     const expectedCandidate = candidateFixture({
-      target_path: longTarget,
       base_revision: revision,
       brief: '长文本验证',
       source: '# 旧正文',
@@ -360,8 +251,8 @@ describe('FanqieCandidateSheet', () => {
 
     server.use(
       http.get('/api/workspace/file', ({ request }) => {
-        expect(new URL(request.url).searchParams.get('path')).toBe(longTarget)
-        return HttpResponse.json({ workspace: '/workspace', path: longTarget, content: '# 旧正文', revision })
+        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/short.md')
+        return HttpResponse.json({ workspace: '/workspace', path: 'chapters/short.md', content: '# 旧正文', revision })
       }),
       http.post('/api/short-fiction/candidates', async ({ request }) => {
         generateLocale = request.headers.get('X-Denova-Locale') || ''
@@ -375,12 +266,12 @@ describe('FanqieCandidateSheet', () => {
       }),
     )
 
-    renderSheet({ selectedFile: longTarget })
+    renderSheet()
     await user.type(screen.getByLabelText('创作要求'), '长文本验证')
     await user.click(screen.getByRole('button', { name: '生成完整短篇预览' }))
 
     const preview = await screen.findByTestId('fanqie-preview')
-    const targetMetadata = screen.getByText(longTarget)
+    const targetMetadata = screen.getByText('chapters/short.md')
     expect(preview).toHaveClass('overflow-x-hidden')
     expect(preview).not.toHaveClass('overflow-x-auto')
     expect(preview.querySelector('.overflow-x-auto')).toBeNull()
@@ -389,7 +280,7 @@ describe('FanqieCandidateSheet', () => {
     expect(generateRequest).toEqual({
       workspace: '/workspace',
       profile_id: 'fanqie_short',
-      target_path: longTarget,
+      target_path: 'chapters/short.md',
       base_revision: revision,
       brief: '长文本验证',
     })
@@ -677,8 +568,8 @@ describe('FanqieCandidateSheet', () => {
 
     server.use(
       http.get('/api/workspace/file', ({ request }) => {
-        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/error.md')
-        return HttpResponse.json({ workspace: '/workspace', path: 'chapters/error.md', content: '# 旧正文', revision })
+        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/short.md')
+        return HttpResponse.json({ workspace: '/workspace', path: 'chapters/short.md', content: '# 旧正文', revision })
       }),
       http.post('/api/short-fiction/candidates', async ({ request }) => {
         generateLocale = request.headers.get('X-Denova-Locale') || ''
@@ -702,13 +593,13 @@ describe('FanqieCandidateSheet', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('无法生成预览')
     expect(screen.getByRole('alert')).toHaveTextContent('上游模型暂不可用')
-    expect(screen.getByLabelText('目标 Markdown')).toHaveValue('chapters/error.md')
+    expect(screen.getByTestId('fanqie-save-path')).toHaveTextContent('chapters/short.md')
     expect(screen.getByLabelText('创作要求')).toHaveValue('错误后仍要保留的要求')
     expect(generateLocale).toBe('zh-CN')
     expect(generateRequest).toEqual({
       workspace: '/workspace',
       profile_id: 'fanqie_short',
-      target_path: 'chapters/error.md',
+      target_path: 'chapters/short.md',
       base_revision: revision,
       brief: '错误后仍要保留的要求',
     })
@@ -857,7 +748,8 @@ describe('FanqieCandidateSheet', () => {
 
     renderSheet({ selectedFile: 'chapters/short.md' })
     expect(screen.getByRole('dialog')).not.toHaveTextContent(/chat\.fanqie\./)
-    expect(screen.getByLabelText('Target Markdown')).toHaveValue('chapters/short.md')
+    expect(screen.getByText('Auto-save as')).toBeInTheDocument()
+    expect(screen.getByTestId('fanqie-save-path')).toHaveTextContent('chapters/short.md')
     await user.type(screen.getByLabelText('Writing brief'), 'Write a complete reversal story')
     await user.click(screen.getByRole('button', { name: 'Generate complete story preview' }))
 
@@ -912,7 +804,7 @@ describe('FanqieCandidateSheet', () => {
       onOpenChange: vi.fn(),
       workspace: '/workspace',
       selectedFile: 'chapters/short.md',
-      fileSuggestions: ['chapters/short.md'],
+      fileSuggestions: [],
       disabled: false,
       onWorkspaceChanged: vi.fn(),
     }
@@ -936,8 +828,8 @@ function renderSheet(overrides: Partial<ComponentProps<typeof FanqieCandidateShe
       open
       onOpenChange={vi.fn()}
       workspace="/workspace"
-      selectedFile="chapters/short.md"
-      fileSuggestions={['chapters/short.md']}
+      selectedFile={null}
+      fileSuggestions={[]}
       disabled={false}
       onWorkspaceChanged={vi.fn()}
       {...overrides}
