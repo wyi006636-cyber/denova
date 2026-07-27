@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - 创作 Agent 的完整短篇入口改为明确的文字按钮；表单只需填写创作要求，系统会自动选择未占用的 `chapters/short*.md` 文件，连续生成无需手动输入技术路径，也不会覆盖上一篇。
 - The Writing Agent now exposes complete-story generation as a clear text action; authors only enter the brief while Denova automatically selects an unused `chapters/short*.md` file, so consecutive stories require no technical path input and do not overwrite the previous story.
+- 自动文件名流程的异步生成与重复确认回归测试已同步新交互，避免旧的手填路径假设阻塞 CI。
+- Deferred-generation and duplicate-confirmation regressions now follow the automatic filename flow instead of the removed manual-path interaction.
 - 番茄短篇结果页新增「再写一篇」出口，显式关闭 Sheet 后已展示的结果会重置回创作要求，作者无需刷新页面即可创作下一篇；确认进行中关闭仍保留写入结果以便如实展示。
 - The Fanqie short-fiction result step adds a "Write another" exit, and explicitly closing the Sheet resets a displayed result back to the brief so authors can start the next story without reloading; closing during an in-flight confirmation still preserves the outcome for truthful display.
 - 番茄短篇确认返回非预期状态时不再停留在「确认中」：界面会给出确认失败提示并允许重试。

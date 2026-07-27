@@ -25,17 +25,16 @@ describe('FanqieCandidateSheet request authority', () => {
     const staleCandidate = candidateFixture({
       candidate_id: 'sha256:stale-context',
       workspace: '/canonical/a',
-      target_path: 'chapters/a.md',
       brief: '旧上下文要求',
       preview_markdown: '# 旧上下文候选',
     })
 
     server.use(
       http.get('/api/workspace/file', ({ request }) => {
-        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/a.md')
+        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/short.md')
         return HttpResponse.json({
           workspace: '/canonical/a',
-          path: 'chapters/a.md',
+          path: 'chapters/short.md',
           content: '# A',
           revision: staleCandidate.base_revision,
         })
@@ -71,14 +70,14 @@ describe('FanqieCandidateSheet request authority', () => {
       await response.promise
     })
 
-    expect(await screen.findByLabelText('Target Markdown')).toHaveValue('chapters/b.md')
+    expect(await screen.findByTestId('fanqie-save-path')).toHaveTextContent('chapters/short.md')
     expect(screen.getByRole('button', { name: 'Generate complete story preview' })).toBeEnabled()
     expect(screen.queryByText('旧上下文候选')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Confirm manuscript write' })).not.toBeInTheDocument()
     expect(generateRequests).toEqual([{
       workspace: '/canonical/a',
       profile_id: 'fanqie_short',
-      target_path: 'chapters/a.md',
+      target_path: 'chapters/short.md',
       base_revision: staleCandidate.base_revision,
       brief: '旧上下文要求',
     }])
@@ -173,7 +172,6 @@ describe('FanqieCandidateSheet request authority', () => {
     const confirmLocales: string[] = []
     const candidate = candidateFixture({
       candidate_id: 'sha256:committed',
-      target_path: 'chapters/committed.md',
       brief: '确认并保留精确路径',
       preview_markdown: '# 已确认候选',
     })
@@ -182,10 +180,10 @@ describe('FanqieCandidateSheet request authority', () => {
 
     server.use(
       http.get('/api/workspace/file', ({ request }) => {
-        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/committed.md')
+        expect(new URL(request.url).searchParams.get('path')).toBe('chapters/short.md')
         return HttpResponse.json({
           workspace: '/workspace',
-          path: 'chapters/committed.md',
+          path: 'chapters/short.md',
           content: '# Existing',
           revision: candidate.base_revision,
         })
@@ -244,16 +242,16 @@ describe('FanqieCandidateSheet request authority', () => {
     }
 
     expect(screen.getByText('正文已写入，版本检查点保存失败')).toBeInTheDocument()
-    expect(screen.getByText('Markdown 正文已写入 chapters/committed.md，但版本检查点保存失败。请先检查该正文，再手动保存一个版本。')).toBeInTheDocument()
-    expect(screen.getByText('chapters/committed.md')).toBeInTheDocument()
+    expect(screen.getByText('Markdown 正文已写入 chapters/short.md，但版本检查点保存失败。请先检查该正文，再手动保存一个版本。')).toBeInTheDocument()
+    expect(screen.getByText('chapters/short.md')).toBeInTheDocument()
     expect(screen.queryByText('chapters/elsewhere.md')).not.toBeInTheDocument()
     expect(onWorkspaceChanged).toHaveBeenCalledTimes(1)
-    expect(onWorkspaceChanged).toHaveBeenCalledWith(['chapters/committed.md'])
+    expect(onWorkspaceChanged).toHaveBeenCalledWith(['chapters/short.md'])
     expect(generateLocale).toBe('zh-CN')
     expect(generateRequest).toEqual({
       workspace: '/workspace',
       profile_id: 'fanqie_short',
-      target_path: 'chapters/committed.md',
+      target_path: 'chapters/short.md',
       base_revision: candidate.base_revision,
       brief: '确认并保留精确路径',
     })
@@ -267,8 +265,8 @@ function sheetProps(overrides: Partial<ComponentProps<typeof FanqieCandidateShee
     open: true,
     onOpenChange: vi.fn(),
     workspace: '/workspace',
-    selectedFile: 'chapters/short.md',
-    fileSuggestions: ['chapters/short.md'],
+    selectedFile: null,
+    fileSuggestions: [],
     disabled: false,
     onWorkspaceChanged: vi.fn(),
     ...overrides,
