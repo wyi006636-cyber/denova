@@ -43,6 +43,12 @@ type ChatRequest struct {
 	TellerID       string             `json:"teller_id"`
 	Locale         string             `json:"-"`
 
+	// WritingSkillContent is resolved by the app layer for writing Skills that
+	// must be active on every workflow turn. Supporting references stay on disk
+	// and are loaded by the Agent only when the entry instructions require them.
+	WritingSkillContent       string `json:"-"`
+	WritingSkillBaseDirectory string `json:"-"`
+
 	// StyleRules 由后端按当前导演配置注入（场景 → 共享文风参考索引）。
 	// StyleScenes 非空时只注入用户本轮通过 # 指定的场景；为空时作为场景化建议参与本轮上下文。
 	StyleRules []StyleRule `json:"-"`

@@ -299,6 +299,22 @@ export function ModeRouter(props: ModeRouterProps) {
       }))
     }, 0)
   }
+  const startFanqieShortStory = (request: { workspace: string; title: string; idea: string }) => {
+    onSetMode('ide')
+    onSetRightPanel('ai')
+    window.setTimeout(() => {
+      window.dispatchEvent(new CustomEvent(WRITING_AGENT_INIT_EVENT, {
+        detail: {
+          autoSend: true,
+          writingSkill: 'fanqie-short',
+          prompt: t('writingAgent.fanqieInitPrompt', {
+            title: request.title,
+            idea: request.idea || t('writingAgent.fanqieIdeaUnset'),
+          }),
+        },
+      }))
+    }, 0)
+  }
   const requestSkillsAgent = (prompt: string) => {
     onSetMode('ide')
     onSetRightPanel('ai')
@@ -639,6 +655,7 @@ export function ModeRouter(props: ModeRouterProps) {
             onBooksChange={onBooksChange}
             onOpenCharacterCardImport={onOpenCharacterCardImport}
             onClose={closeBooks}
+            onStartShortStory={startFanqieShortStory}
           />
         </MainRouteLayer>
       )}

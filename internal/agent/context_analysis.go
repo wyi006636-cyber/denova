@@ -816,7 +816,11 @@ func composeAgentInput(req ChatRequest, pending *session.Interruption, bookServi
 		contextLog.add("注入规则", "规划模式", prompts.PlanMode(""), "")
 	}
 	if strings.TrimSpace(req.WritingSkill) != "" {
-		agentMessage = appendWritingSkillLoadHint(agentMessage, req.WritingSkill, contextLog)
+		if strings.TrimSpace(req.WritingSkillContent) != "" {
+			agentMessage = appendWritingSkillEntry(agentMessage, req.WritingSkill, req.WritingSkillContent, req.WritingSkillBaseDirectory, contextLog)
+		} else {
+			agentMessage = appendWritingSkillLoadHint(agentMessage, req.WritingSkill, contextLog)
+		}
 	}
 	if len(req.References) > 0 {
 		agentMessage = appendReferenceContext(bookService, agentMessage, req.References, contextLog)

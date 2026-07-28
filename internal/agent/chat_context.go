@@ -12,8 +12,8 @@ import (
 
 const maxStyleRuleContextChars = 32000
 
-// appendWritingSkillLoadHint 只提示本轮选中的 Writing Skill 名称；完整
-// SKILL.md 必须由模型在判断需要正文续写/创作时通过 skill 工具自行加载。
+// appendWritingSkillLoadHint prompts the model to load Writing Skills that are
+// not preloaded by the app layer.
 func appendWritingSkillLoadHint(message, skillName string, logs ...*contextBuildLog) string {
 	skillName = strings.TrimSpace(skillName)
 	if skillName == "" {
@@ -25,13 +25,45 @@ func appendWritingSkillLoadHint(message, skillName string, logs ...*contextBuild
 	sb.WriteString("当前创作 Agent 选中的 Writing Skill 是 `")
 	sb.WriteString(skillName)
 	sb.WriteString("`。\n\n")
-	sb.WriteString("- 若本轮请求涉及小说正文续写、章节正文创作、正文重写或润色，且当前 Agent 已启用 `skill` 工具，请先调用 `skill` 工具加载 `")
-	sb.WriteString(skillName)
-	sb.WriteString("`，读取完整 SKILL.md 后再执行。\n")
-	sb.WriteString("- 若本轮请求是问答、分析、整理、大纲/设定讨论、配置或规划，不要加载 Writing Skill，直接按本轮请求处理。\n")
+	if skillName == "fanqie-short" {
+		sb.WriteString("- 这是覆盖完整短篇对话流程的 Skill。若本轮涉及短篇构思、故事方案、分章大纲、逐章写作或正文修改，且当前 Agent 已启用 `skill` 工具，请先调用 `skill` 工具加载 `fanqie-short`，读取完整 SKILL.md 后再执行。\n")
+		sb.WriteString("- 只有本轮与番茄短篇创作无关时才不加载；不要因为当前仍在讨论方案或大纲就跳过。\n")
+	} else {
+		sb.WriteString("- 若本轮请求涉及小说正文续写、章节正文创作、正文重写或润色，且当前 Agent 已启用 `skill` 工具，请先调用 `skill` 工具加载 `")
+		sb.WriteString(skillName)
+		sb.WriteString("`，读取完整 SKILL.md 后再执行。\n")
+		sb.WriteString("- 若本轮请求是问答、分析、整理、大纲/设定讨论、配置或规划，不要加载 Writing Skill，直接按本轮请求处理。\n")
+	}
 	sb.WriteString("- 在调用 `skill` 工具前，不要假装已经读取了该 Skill 的完整说明；写作范围仍只由用户本轮自然语言指令决定，不存在单独的 `writing_scope` 字段。\n")
 
 	addContextLog(logs, "注入规则", "Writing Skill 按需加载", sb.String()[len(message):], skillName)
+	return sb.String()
+}
+
+func appendWritingSkillEntry(message, skillName, content, baseDirectory string, logs ...*contextBuildLog) string {
+	skillName = strings.TrimSpace(skillName)
+	content = strings.TrimSpace(content)
+	baseDirectory = strings.TrimSpace(baseDirectory)
+	if skillName == "" || content == "" {
+		return appendWritingSkillLoadHint(message, skillName, logs...)
+	}
+
+	var sb strings.Builder
+	sb.WriteString(message)
+	sb.WriteString("\n\n# Writing Skill 主入口（已加载）\n\n")
+	sb.WriteString("当前创作 Agent 选中的 Writing Skill 是 `")
+	sb.WriteString(skillName)
+	sb.WriteString("`。以下主入口是本轮必须遵守的工作流，不需要再次调用 `skill` 工具加载。\n")
+	if baseDirectory != "" {
+		sb.WriteString("Skill Base directory：`")
+		sb.WriteString(baseDirectory)
+		sb.WriteString("`。主入口要求读取阶段资料时，从这里解析相对路径。\n")
+	}
+	sb.WriteString("\n--- Skill entry begins ---\n\n")
+	sb.WriteString(content)
+	sb.WriteString("\n\n--- Skill entry ends ---\n")
+
+	addContextLog(logs, "Writing Skill", skillName+" 主入口", content, "自动加载；Base directory: "+baseDirectory)
 	return sb.String()
 }
 

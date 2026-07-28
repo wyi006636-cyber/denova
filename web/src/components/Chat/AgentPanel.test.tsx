@@ -23,7 +23,7 @@ vi.mock('@/hooks/useSkillCommands', () => ({
 
 vi.mock('@/hooks/useWritingSkillOptions', () => ({
   DEFAULT_WRITING_SKILL: 'novel-lite',
-  BUILTIN_WRITING_SKILLS: ['novel-lite', 'novel-standard', 'novel-heavy'],
+  BUILTIN_WRITING_SKILLS: ['fanqie-short', 'novel-lite', 'novel-standard', 'novel-heavy'],
   useWritingSkillOptions: useWritingSkillOptionsMock,
 }))
 
@@ -53,6 +53,7 @@ describe('AgentPanel', () => {
     useWorkspaceChangeGroupsMock.mockReset()
     useWorkspaceChangeGroupsMock.mockReturnValue({ data: [] })
     useWritingSkillOptionsMock.mockReturnValue([
+      { name: 'fanqie-short', description: '番茄短篇', scope: 'builtin', path: '/skills/fanqie-short/SKILL.md', active: true, agent: 'ide' },
       { name: 'novel-lite', description: 'Lite', scope: 'builtin', path: '/skills/novel-lite/SKILL.md', active: true, agent: 'ide' },
       { name: 'novel-standard', description: 'Standard', scope: 'builtin', path: '/skills/novel-standard/SKILL.md', active: true, agent: 'ide' },
       { name: 'novel-heavy', description: 'Heavy', scope: 'builtin', path: '/skills/novel-heavy/SKILL.md', active: true, agent: 'ide' },
@@ -107,9 +108,9 @@ describe('AgentPanel', () => {
         onSend: handleSend,
       })
 
-      const entry = screen.getByRole('button', { name: '直接生成短篇' })
+      const entry = screen.getByRole('button', { name: '番茄完整短篇（快速）' })
       expect(entry).toBeInTheDocument()
-      expect(entry).toHaveTextContent('直接生成短篇')
+      expect(entry).toHaveTextContent('番茄完整短篇（快速）')
       await user.click(entry)
       expect(screen.getByRole('dialog', { name: '番茄完整短篇' })).toBeInTheDocument()
       expect(screen.getByTestId('fanqie-save-path')).toHaveTextContent('chapters/short-2.md')
@@ -129,7 +130,7 @@ describe('AgentPanel', () => {
   it('在 Agent 正在流式回复时禁用持久番茄短篇入口', async () => {
     renderAgentPanel({ isStreaming: true })
 
-    expect(screen.getByRole('button', { name: '直接生成短篇' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '番茄完整短篇（快速）' })).toBeDisabled()
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /切换模型/ })).not.toHaveTextContent('加载模型')
     })
@@ -238,6 +239,28 @@ describe('AgentPanel', () => {
         expect.objectContaining({ writingSkill: 'novel-lite', tellerId: 'classic' }),
       )
     })
+  })
+
+  it('收到新建短篇事件时切换并显示 fanqie-short，首轮也使用该 Skill', async () => {
+    const handleSend = vi.fn()
+    renderAgentPanel({ onSend: handleSend })
+
+    window.dispatchEvent(new CustomEvent('nova:writing-agent-init', {
+      detail: {
+        autoSend: true,
+        writingSkill: 'fanqie-short',
+        prompt: '我想写一个关于消失末班车的番茄短篇，请先和我交流故事想法。',
+      },
+    }))
+
+    await waitFor(() => {
+      expect(updateUserSettings).toHaveBeenCalledWith(expect.objectContaining({ writing_skill_default: 'fanqie-short' }))
+      expect(handleSend).toHaveBeenCalledWith(
+        expect.stringContaining('消失末班车'),
+        expect.objectContaining({ writingSkill: 'fanqie-short' }),
+      )
+    })
+    expect(screen.getByText('fanqie-short')).toBeVisible()
   })
 
   it('在输入选项中切换叙事风格后用于下一轮创作 Agent 请求', async () => {
