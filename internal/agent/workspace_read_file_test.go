@@ -114,6 +114,33 @@ func TestWorkspaceReadFileToolRejectsPathOutsideWorkspace(t *testing.T) {
 	}
 }
 
+func TestWorkspaceReadFileToolReadsConfiguredSkillReference(t *testing.T) {
+	workspace := t.TempDir()
+	skillRoot := t.TempDir()
+	referencePath := filepath.Join(skillRoot, "fanqie-short", "references", "story-concept.md")
+	if err := os.MkdirAll(filepath.Dir(referencePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(referencePath, []byte("故事方案方法"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	base, err := newWorkspaceReadFileTool(
+		newTestAgentFilesystemBackend(t, workspace, skillRoot),
+		workspace,
+		skillRoot,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := base.(tool.InvokableTool).InvokableRun(context.Background(), `{"file_path":"`+referencePath+`"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(result, "故事方案方法") {
+		t.Fatalf("skill reference content missing: %q", result)
+	}
+}
+
 func TestWorkspaceReadFileToolBoundsOneVeryLongLine(t *testing.T) {
 	workspace := t.TempDir()
 	path := filepath.Join(workspace, "long.txt")

@@ -173,11 +173,15 @@ export function AgentPanel({
 
   useEffect(() => {
     const handleWritingInitRequest = (event: Event) => {
-      const detail = (event as CustomEvent<{ prompt?: string; autoSend?: boolean }>).detail
+      const detail = (event as CustomEvent<{ prompt?: string; autoSend?: boolean; writingSkill?: string }>).detail
       const prompt = detail?.prompt || t('writingAgent.initPrompt')
+      const requestedWritingSkill = detail?.writingSkill?.trim() || writingSkill
       setView('chat')
+      if (requestedWritingSkill !== writingSkill) {
+        void persistedSettings.persist('writing_skill_default', requestedWritingSkill)
+      }
       if (detail?.autoSend && !isStreaming) {
-        onSend(prompt, { writingSkill, ideContext, imagePresetId, tellerId: ideTellerId })
+        onSend(prompt, { writingSkill: requestedWritingSkill, ideContext, imagePresetId, tellerId: ideTellerId })
         return
       }
       setInputPrefill((current) => ({ prompt, nonce: (current?.nonce || 0) + 1 }))
@@ -445,7 +449,7 @@ export function AgentPanel({
       </div>
 
       {view === 'chat' ? (
-        <div className="flex shrink-0 border-b border-[var(--nova-border)] px-3 py-2">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--nova-border)] px-3 py-2">
           <button
             type="button"
             disabled={isStreaming}
@@ -457,6 +461,14 @@ export function AgentPanel({
             <BookOpenText className="h-3.5 w-3.5" />
             <span>{t('chat.fanqie.entry')}</span>
           </button>
+          <span
+            className="inline-flex min-w-0 items-center gap-1 rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-2 py-1 text-[10px] text-[var(--nova-text-muted)]"
+            aria-label={`${t('chat.writingSkill')}: ${writingSkill}`}
+            title={t('chat.writingSkillTitle')}
+          >
+            <Sparkles className="h-3 w-3 shrink-0" />
+            <span className="truncate">{writingSkill}</span>
+          </span>
         </div>
       ) : null}
 

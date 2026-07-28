@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ArrowDownUp, BookOpen, Download, FileText, Folder, GripVertical, LibraryBig, Loader2, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { ArrowDownUp, BookOpen, Download, FileText, Folder, GripVertical, LibraryBig, Loader2, Pencil, Plus, Sparkles, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -49,15 +49,17 @@ interface HomeViewProps {
   onOpenCharacterCardImport?: () => void
   /** 关闭全局书籍管理弹窗 */
   onClose?: () => void
+  /** 创建短篇工作区后进入现有 Writing Agent 对话流程。 */
+  onStartShortStory?: (request: { workspace: string; title: string; idea: string }) => void
 }
 
 const ghostButtonCls = 'nova-nav-item border border-transparent bg-transparent text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]'
 const primaryButtonCls = 'border border-[var(--nova-border)] bg-[var(--nova-active)] text-[var(--nova-text)] hover:bg-[var(--nova-hover)]'
 const iconButtonCls = 'nova-nav-item text-[var(--nova-text-faint)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]'
-type BookDialogState = { mode: 'create'; book: null } | { mode: 'edit'; book: BookRecord }
+type BookDialogState = { mode: 'create'; book: null; creationKind: 'book' | 'short' } | { mode: 'edit'; book: BookRecord; creationKind?: never }
 
 /** 书籍管理视图：集中展示、创建、打开和编辑 Nova 数据目录中的书籍。 */
-export function HomeView({ workspace, novaDir, books, bookSortMode, onSwitch, onBeforeSwitch, onBooksChange, onOpenCharacterCardImport, onClose }: HomeViewProps) {
+export function HomeView({ workspace, novaDir, books, bookSortMode, onSwitch, onBeforeSwitch, onBooksChange, onOpenCharacterCardImport, onClose, onStartShortStory }: HomeViewProps) {
   const { t } = useTranslation()
   const [showNovelImport, setShowNovelImport] = useState(false)
   const [bookDialog, setBookDialog] = useState<BookDialogState | null>(null)
@@ -98,8 +100,8 @@ export function HomeView({ workspace, novaDir, books, bookSortMode, onSwitch, on
   }, [])
 
   /** 打开新建书籍弹窗，新书统一创建在用户 Nova 数据目录下。 */
-  const openCreateDialog = () => {
-    setBookDialog({ mode: 'create', book: null })
+  const openCreateDialog = (creationKind: 'book' | 'short' = 'book') => {
+    setBookDialog({ mode: 'create', book: null, creationKind })
   }
 
   /** 切换到指定书籍 */
@@ -300,17 +302,29 @@ export function HomeView({ workspace, novaDir, books, bookSortMode, onSwitch, on
                   </Button>
                 )}
                 {books.length > 0 && (
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="ghost"
-                    className={`${ghostButtonCls} max-w-full`}
-                    onClick={openCreateDialog}
-                    data-onboarding-anchor="books-create"
-                  >
-                    <Plus data-icon="inline-start" />
-                    {t('home.createBook')}
-                  </Button>
+                  <>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="ghost"
+                      className={`${ghostButtonCls} max-w-full`}
+                      onClick={() => openCreateDialog('short')}
+                    >
+                      <Sparkles data-icon="inline-start" />
+                      {t('home.createShortStory')}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="ghost"
+                      className={`${ghostButtonCls} max-w-full`}
+                      onClick={() => openCreateDialog('book')}
+                      data-onboarding-anchor="books-create"
+                    >
+                      <Plus data-icon="inline-start" />
+                      {t('home.createBook')}
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -323,16 +337,16 @@ export function HomeView({ workspace, novaDir, books, bookSortMode, onSwitch, on
                 description={t('home.emptyDescription')}
                 className="bg-[var(--nova-surface)] text-[var(--nova-text-faint)]"
                 content={(
-                  <Button
-                    type="button"
-                    size="xs"
-                    className={primaryButtonCls}
-                    onClick={openCreateDialog}
-                    data-onboarding-anchor="books-create"
-                  >
-                    <Plus data-icon="inline-start" />
-                    {t('home.createBook')}
-                  </Button>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Button type="button" size="xs" className={primaryButtonCls} onClick={() => openCreateDialog('short')}>
+                      <Sparkles data-icon="inline-start" />
+                      {t('home.createShortStory')}
+                    </Button>
+                    <Button type="button" size="xs" className={primaryButtonCls} onClick={() => openCreateDialog('book')} data-onboarding-anchor="books-create">
+                      <Plus data-icon="inline-start" />
+                      {t('home.createBook')}
+                    </Button>
+                  </div>
                 )}
               />
             ) : (
@@ -437,6 +451,7 @@ export function HomeView({ workspace, novaDir, books, bookSortMode, onSwitch, on
       <BookFormDialog
         open={Boolean(bookDialog)}
         mode={bookDialog?.mode || 'create'}
+        creationKind={bookDialog?.creationKind || 'book'}
         book={bookDialog?.book || null}
         novaDir={novaDir}
         imagePresetOptions={imagePresetOptions}
@@ -445,9 +460,11 @@ export function HomeView({ workspace, novaDir, books, bookSortMode, onSwitch, on
         onOpenChange={(open) => {
           if (!open) setBookDialog(null)
         }}
+        onBeforeSwitch={onBeforeSwitch}
         onSwitch={onSwitch}
         onBooksChange={onBooksChange}
         onCoverUpdated={handleCoverUpdated}
+        onCreated={bookDialog?.creationKind === 'short' ? onStartShortStory : undefined}
       />
       <ConfirmDialog
         open={Boolean(deleteTarget)}

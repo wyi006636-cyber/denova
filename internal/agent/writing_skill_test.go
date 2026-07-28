@@ -36,3 +36,41 @@ func TestComposeAgentInputAddsWritingSkillLoadHintWithoutSkillBody(t *testing.T)
 		}
 	}
 }
+
+func TestComposeAgentInputLoadsFanqieSkillForConversationStages(t *testing.T) {
+	composition := composeAgentInput(ChatRequest{
+		Message:      "我有一个短篇想法，先聊聊故事方案",
+		WritingSkill: "fanqie-short",
+	}, nil, nil, DefaultLoopPolicy())
+
+	for _, want := range []string{
+		"当前创作 Agent 选中的 Writing Skill 是 `fanqie-short`",
+		"构思、故事方案、分章大纲、逐章写作或正文修改",
+		"先调用 `skill` 工具加载 `fanqie-short`",
+	} {
+		if !strings.Contains(composition.AgentMessage, want) {
+			t.Fatalf("fanqie-short workflow hint missing %q:\n%s", want, composition.AgentMessage)
+		}
+	}
+	if strings.Contains(composition.AgentMessage, "大纲/设定讨论、配置或规划，不要加载 Writing Skill") {
+		t.Fatalf("fanqie-short planning turn must load its workflow Skill:\n%s", composition.AgentMessage)
+	}
+}
+
+func TestComposeAgentInputUsesPreloadedFanqieSkillEntry(t *testing.T) {
+	composition := composeAgentInput(ChatRequest{
+		Message:                   "这篇故事剧情太平了，先帮我看看怎么改",
+		WritingSkill:              "fanqie-short",
+		WritingSkillContent:       "# 番茄短篇对话创作\n\nPRELOADED_SKILL_MARKER",
+		WritingSkillBaseDirectory: "/skills/fanqie-short",
+	}, nil, nil, DefaultLoopPolicy())
+
+	for _, want := range []string{"Writing Skill 主入口", "PRELOADED_SKILL_MARKER", "/skills/fanqie-short"} {
+		if !strings.Contains(composition.AgentMessage, want) {
+			t.Fatalf("preloaded fanqie-short context missing %q:\n%s", want, composition.AgentMessage)
+		}
+	}
+	if strings.Contains(composition.AgentMessage, "请先调用 `skill` 工具加载 `fanqie-short`") {
+		t.Fatalf("preloaded fanqie-short should not rely on a later skill tool call:\n%s", composition.AgentMessage)
+	}
+}

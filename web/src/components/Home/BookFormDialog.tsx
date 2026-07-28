@@ -29,15 +29,18 @@ type BookFormMode = 'create' | 'edit'
 interface BookFormDialogProps {
   open: boolean
   mode: BookFormMode
+  creationKind?: 'book' | 'short'
   book: BookRecord | null
   novaDir: string
   imagePresetOptions: ImagePreset[]
   defaultImagePresetId: string
   coverVersion: (book: Pick<BookRecord, 'path' | 'cover_updated_at'>) => string
   onOpenChange: (open: boolean) => void
+  onBeforeSwitch?: () => Promise<boolean>
   onSwitch: (path: string) => void
   onBooksChange: () => void
   onCoverUpdated: (path: string, version: string) => void
+  onCreated?: (result: { workspace: string; title: string; idea: string }) => void
 }
 
 const inputCls = 'nova-field w-full rounded-[var(--nova-radius)] border px-2.5 py-1.5 outline-none placeholder:text-[var(--nova-text-faint)] focus:border-[var(--nova-field-focus-border)] focus:bg-[var(--nova-surface-3)]'
@@ -47,15 +50,18 @@ const primaryButtonCls = 'border border-[var(--nova-border)] bg-[var(--nova-acti
 export function BookFormDialog({
   open,
   mode,
+  creationKind = 'book',
   book,
   novaDir,
   imagePresetOptions,
   defaultImagePresetId,
   coverVersion,
   onOpenChange,
+  onBeforeSwitch,
   onSwitch,
   onBooksChange,
   onCoverUpdated,
+  onCreated,
 }: BookFormDialogProps) {
   const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -125,7 +131,9 @@ export function BookFormDialog({
     if (open) setCoverPresetId((current) => current || defaultImagePresetId || 'game-cg')
   }, [defaultImagePresetId, open])
 
-  const dialogTitle = mode === 'create' && !createdPath ? t('home.createBook') : t('home.editInfo')
+  const dialogTitle = mode === 'create' && !createdPath
+    ? t(creationKind === 'short' ? 'home.createShortStory' : 'home.createBook')
+    : t('home.editInfo')
   const dialogDescription = activePath
     ? activePath
     : `${t('home.createIn')} ${novaDir || t('home.novaDirLoading')}`
@@ -144,6 +152,7 @@ export function BookFormDialog({
     try {
       let path = activePath
       if (!path) {
+        if (onBeforeSwitch && !(await onBeforeSwitch())) return
         path = await createWorkspace()
       } else {
         await updateBookInfo(path, validTitle, author.trim(), description.trim())
@@ -155,6 +164,9 @@ export function BookFormDialog({
       }
       await Promise.resolve(onBooksChange())
       onOpenChange(false)
+      if (mode === 'create') {
+        onCreated?.({ workspace: path, title: validTitle, idea: description.trim() })
+      }
     } catch (error) {
       setFormError(error instanceof Error ? error.message : t(mode === 'create' && !createdPath ? 'home.createError' : 'home.saveError'))
     } finally {

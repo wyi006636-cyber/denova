@@ -212,7 +212,13 @@ func buildChatModelAgentAssembly(ctx context.Context, cfg *config.Config, spec c
 	if cfg != nil {
 		workspace = cfg.Workspace
 	}
-	backend := newAgentFilesystemBackend(localBackend, workspace)
+	readRoots := []string{workspace}
+	if cfg != nil {
+		for _, dir := range novaskills.NewDirectories(cfg.SkillsDir, cfg.DataDir(), cfg.Workspace) {
+			readRoots = append(readRoots, dir.Path)
+		}
+	}
+	backend := newAgentFilesystemBackend(localBackend, readRoots...)
 	executionGate := sharedToolExecutionGate(workspace)
 	settings := spec.ToolSettings
 	middlewares := []agenttools.MiddlewareRegistration{
@@ -220,7 +226,7 @@ func buildChatModelAgentAssembly(ctx context.Context, cfg *config.Config, spec c
 			Name:    "filesystem",
 			Enabled: agenttools.FilesystemAllowed,
 			Build: func(ctx context.Context, _ agenttools.Settings) (adk.ChatModelAgentMiddleware, error) {
-				return newFilesystemMiddleware(ctx, backend, newAgentStreamingShell(workspace), spec.ToolSettings, workspace)
+				return newFilesystemMiddleware(ctx, backend, newAgentStreamingShell(workspace), spec.ToolSettings, readRoots...)
 			},
 		},
 		{
@@ -597,7 +603,7 @@ func configManagerFactoryAllowed(settings config.ResolvedAgentToolSettings) bool
 		settings.AgentConfigWrite
 }
 
-func newFilesystemMiddleware(ctx context.Context, backend filesystem.Backend, streamingShell filesystem.StreamingShell, settings config.ResolvedAgentToolSettings, workspaces ...string) (adk.ChatModelAgentMiddleware, error) {
+func newFilesystemMiddleware(ctx context.Context, backend filesystem.Backend, streamingShell filesystem.StreamingShell, settings config.ResolvedAgentToolSettings, readRoots ...string) (adk.ChatModelAgentMiddleware, error) {
 	if backend == nil {
 		return nil, nil
 	}
@@ -605,10 +611,10 @@ func newFilesystemMiddleware(ctx context.Context, backend filesystem.Backend, st
 		return nil, nil
 	}
 	workspace := ""
-	if len(workspaces) > 0 {
-		workspace = strings.TrimSpace(workspaces[0])
+	if len(readRoots) > 0 {
+		workspace = strings.TrimSpace(readRoots[0])
 	}
-	readTool, err := newWorkspaceReadFileTool(backend, workspace)
+	readTool, err := newWorkspaceReadFileTool(backend, readRoots...)
 	if err != nil {
 		return nil, fmt.Errorf("创建 read_file 工具失败: %w", err)
 	}

@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 从书籍管理创建新书或短篇前，现在会先复用编辑器草稿保存流程；若当前正文无法保存，则停留在原工作区，不再因创建并切换工作区而丢失尚未落盘的修改。
+- Creating a book or short story from Book Management now reuses the editor draft flush before switching workspaces; if the current manuscript cannot be saved, Denova stays in the existing workspace instead of losing pending edits.
+- Gemini 3.5 Flash 通过 OpenAI 兼容接口调用工具后，现在会保留并原样回传 Google thought signature，创作 Agent 可继续完成追问、写作和改稿，不再在第一次工具调用后以 HTTP 400 中断。
+- Gemini 3.5 Flash now preserves and returns Google's thought signature after tool calls through the OpenAI-compatible endpoint, so the Writing Agent can continue questions, drafting, and revisions instead of stopping with HTTP 400 after the first tool call.
 - 创作 Agent 的完整短篇入口改为明确的文字按钮；表单只需填写创作要求，系统会自动选择未占用的 `chapters/short*.md` 文件，连续生成无需手动输入技术路径，也不会覆盖上一篇。
 - The Writing Agent now exposes complete-story generation as a clear text action; authors only enter the brief while Denova automatically selects an unused `chapters/short*.md` file, so consecutive stories require no technical path input and do not overwrite the previous story.
 - 自动文件名流程的异步生成与重复确认回归测试已同步新交互，避免旧的手填路径假设阻塞 CI。
@@ -19,6 +23,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 书架新增“新建短篇”入口：沿用现有建书弹窗和写作工作台，创建后自动打开创作 Agent、选中并显示内置 `fanqie-short` Skill，从故事想法、方案确认和分章大纲确认开始对话，再逐章写入现有编辑器与 Diff；无需填写 Markdown 路径。
+- The bookshelf adds a “New Short Story” entry that reuses the existing book dialog and Writing workbench, then opens the Writing Agent with the built-in `fanqie-short` Skill selected and visible; authors discuss the idea, confirm the story proposal and chapter outline, and then write chapter by chapter through the existing editor and Diff without entering a Markdown path.
+- 新增单一内置 `fanqie-short` Skill，并按阶段加载故事构思、短篇结构、番茄文风与章节钩子、逐章写作、逻辑/常识/动机/对白修改五类方法资料；主流程不启用 reviewer、fixer 或多 Agent 链，原“番茄完整短篇”保留为明确标注的快速模式。
+- Added one built-in `fanqie-short` Skill with stage-specific references for story conception, short-story structure, Fanqie prose and chapter hooks, chapter writing, and logic/common-sense/motivation/dialogue revision; the main flow uses no reviewer, fixer, or multi-agent chain, while the original complete-story action remains clearly labeled as a quick mode.
+- `fanqie-short` 补充“冲突升级”方法：要求压力源主动回应、局部胜利伴随代价，并在作者反馈“剧情太平”时先提出多章升级方案、确认后再进入 Diff 改稿。
+- `fanqie-short` adds conflict-escalation guidance: opposing forces respond actively, local wins carry costs, and feedback that a plot feels flat first produces a multi-chapter escalation proposal before confirmed edits enter Diff.
+- 选中 `fanqie-short` 后，Writing Agent 每轮会直接加载其主入口和阶段资料目录，不再依赖模型自行调用 Skill 工具，避免页面显示已选中但实际创作没有使用短篇方法。
+- When `fanqie-short` is selected, the Writing Agent now loads its entry instructions and stage-reference directory on every turn instead of relying on a model-initiated Skill tool call, preventing visible selection without actual use.
 - 写作 Agent 新增常驻番茄短篇入口与自适应单列候选 Sheet：系统自动选择新的工作区 Markdown 文件，作者只需填写创作要求，即可预览当前 Writing / IDE 模型生成的完整短篇，并仅在显式确认后写入；生成与确认错误分别保留输入或候选，版本检查点失败会明确提示正文已写入及手动保存版本的恢复步骤。
 - The Writing Agent adds a persistent Fanqie story entry and an adaptive single-column candidate Sheet: Denova automatically selects a new workspace Markdown file, so authors only provide the brief before previewing a complete story from the current Writing / IDE model and writing it after explicit confirmation; generation and confirmation failures preserve the brief or candidate, while checkpoint failure clearly reports the committed manuscript and manual version-saving recovery steps.
 - 新增类型化的番茄短篇前端 API client：生成请求只发送工作区、闭合 profile、目标路径、base revision 与 brief，确认请求完整回传客户端持有的候选，并保留 locale header、检查点部分成功与稳定错误字段。

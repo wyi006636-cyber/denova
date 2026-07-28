@@ -53,16 +53,12 @@ type workspaceFileSelectionReader interface {
 	ReadFileSelection(context.Context, *filesystem.ReadRequest) (string, error)
 }
 
-func newWorkspaceReadFileTool(backend filesystem.Backend, workspaces ...string) (tool.BaseTool, error) {
+func newWorkspaceReadFileTool(backend filesystem.Backend, readRoots ...string) (tool.BaseTool, error) {
 	if backend == nil {
 		return nil, fmt.Errorf("filesystem backend is nil")
 	}
-	workspace := ""
-	if len(workspaces) > 0 {
-		workspace = strings.TrimSpace(workspaces[0])
-	}
 	return utils.InferTool("read_file", workspaceReadFileToolDescription, func(ctx context.Context, input workspaceReadFileInput) (string, error) {
-		filePath, _, err := resolveWorkspaceReadPath(workspace, input.FilePath)
+		filePath, _, _, err := resolveWorkspaceReadPath(readRoots, input.FilePath)
 		if err != nil {
 			return "", err
 		}
@@ -115,13 +111,13 @@ func (b *agentFilesystemBackend) ReadFileSelection(ctx context.Context, req *fil
 	if b == nil || b.Backend == nil {
 		return "", fmt.Errorf("filesystem backend is nil")
 	}
-	filePath, rel, err := resolveWorkspaceReadPath(b.workspace, req.FilePath)
+	filePath, rootPath, rel, err := resolveWorkspaceReadPath(b.readRoots, req.FilePath)
 	if err != nil {
 		return "", err
 	}
 	var file *os.File
-	if b.workspace != "" {
-		root, rootErr := os.OpenRoot(b.workspace)
+	if rootPath != "" {
+		root, rootErr := os.OpenRoot(rootPath)
 		if rootErr != nil {
 			return "", rootErr
 		}
@@ -181,31 +177,36 @@ func selectWorkspaceFileWindow(ctx context.Context, source io.Reader, offset, li
 	return selected.String(), nil
 }
 
-func resolveWorkspaceReadPath(workspace, input string) (absolute, relative string, err error) {
+func resolveWorkspaceReadPath(readRoots []string, input string) (absolute, root, relative string, err error) {
 	input = strings.TrimSpace(input)
 	if input == "" {
-		return "", "", fmt.Errorf("file_path is required")
+		return "", "", "", fmt.Errorf("file_path is required")
 	}
 	if !filepath.IsAbs(input) {
-		return "", "", fmt.Errorf("file_path must be absolute: %s", input)
+		return "", "", "", fmt.Errorf("file_path must be absolute: %s", input)
 	}
 	absolute = filepath.Clean(input)
-	workspace = strings.TrimSpace(workspace)
-	if workspace == "" {
-		return absolute, "", nil
+	if len(readRoots) == 0 {
+		return absolute, "", "", nil
 	}
-	workspace, err = filepath.Abs(workspace)
-	if err != nil {
-		return "", "", err
+	for _, candidate := range readRoots {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		candidate, err = filepath.Abs(candidate)
+		if err != nil {
+			return "", "", "", err
+		}
+		relative, err = filepath.Rel(filepath.Clean(candidate), absolute)
+		if err != nil {
+			return "", "", "", err
+		}
+		if relative != "." && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			return absolute, filepath.Clean(candidate), filepath.ToSlash(relative), nil
+		}
 	}
-	relative, err = filepath.Rel(filepath.Clean(workspace), absolute)
-	if err != nil {
-		return "", "", err
-	}
-	if relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-		return "", "", fmt.Errorf("file_path is outside the active workspace: %s", absolute)
-	}
-	return absolute, filepath.ToSlash(relative), nil
+	return "", "", "", fmt.Errorf("file_path is outside the active workspace and configured Skill directories: %s", absolute)
 }
 
 type contextFileReader struct {
