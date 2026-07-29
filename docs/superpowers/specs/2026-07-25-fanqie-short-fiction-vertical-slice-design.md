@@ -77,6 +77,10 @@ After outline confirmation:
 - draft one chapter per turn unless the author explicitly requests more;
 - write through `write_file`, read back key passages, and leave the proposed change in the existing Diff.
 
+When the author explicitly requests multiple chapters in one turn, the Agent still processes them sequentially. Before each file, it separates the current chapter's required events from the next chapter's first irreversible action, decision, or result. It writes, reads back, and brings the current file to the confirmed length before resetting that boundary for the next chapter; it must not draft the whole range and split it afterward. Foreshadowing later pressure is allowed, but the current chapter cannot complete a later chapter's decisive result, climax, or ending.
+
+This corrects a reproduced prose defect in which a multi-chapter request realized later outline beats early and then repeated the climax or ending. It adds no workflow state, backend service, or review chain and stays within fewer than 20 production-content lines.
+
 ### 5. Revise through conversation or selection
 
 - Treat selected text and its file as the direct edit target.
@@ -134,6 +138,7 @@ Quick mode may keep its smaller one-call length profile. It is not invoked by `f
 | Pointed passage can be revised through Diff | Implemented with existing tools | Previously edited and accepted on the real page |
 | Direct mouse-selection revision | Reuses existing selection support | Verified on the real page: a mouse-selected sentence in chapter 8 produced a focused `+1/-1` Diff |
 | Full eight-chapter conversational story | Mechanism implemented | Verified on the real page with all eight chapters present after refresh |
+| Multi-chapter requests preserve chapter boundaries and confirmed length | Implemented in `fanqie-short` guidance | Verified on the real page with `方案署名不是我`: chapters 1-3 stopped at their confirmed hooks, no chapter 4 or later resolution was created, and the reproduced 2,117-2,262-character drafts were expanded sequentially to 3,028-3,107 characters without crossing those boundaries |
 | Chinese/English, light/dark, narrow/wide entry rendering | Copy and adaptive components implemented | Verified in both languages and themes, including a 390px viewport |
 | Complete-story Quick mode | Implemented | Merged in PR #6 and retained |
 
@@ -163,7 +168,7 @@ Past line count is not a reason to merge code. A future extraction should normal
 
 ## First-Version Budget
 
-The merged conversational implementation remains the product slice. This specification closeout may adjust Skill references and bilingual changelog copy but adds no new runtime architecture. Expected tracked change is documentation plus fewer than 20 production-content lines, well below the 500-line production target.
+The merged conversational implementation remains the product slice. This specification closeout and chapter-boundary refinement adjust Skill references and bilingual changelog copy but add no new runtime architecture. Expected tracked change is documentation plus fewer than 20 production-content lines, well below the 500-line production target.
 
 ## Historical Note
 

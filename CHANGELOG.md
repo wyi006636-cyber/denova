@@ -50,6 +50,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- 番茄短篇 Agent 在同轮连写多章时会逐章检查目标篇幅并重置事件边界，允许预示下一章压力，但不会在当前章未写足或提前兑现下一章的关键决定、结果、高潮或结局时继续，减少短章、章节串台和重复收尾。
+- When drafting multiple chapters in one turn, the Fanqie short-fiction Agent now checks the target length and resets event boundaries chapter by chapter: it does not continue from an under-length chapter or prematurely complete a later chapter's decisive choice, result, climax, or ending, reducing short drafts, cross-chapter spillover, and repeated conclusions.
 - `fanqie-short` 对话创作主流程的默认篇幅调整为 8 章、约 2.4 万～4 万字，每章 3000～5000 字；短章需要补足有效场景、人物回应、选择和后果，而不是重复解释凑字，作者明确指定篇幅时仍以作者要求为准。
 - The conversational `fanqie-short` workflow now defaults to eight chapters and roughly 24,000-40,000 Chinese characters, targeting 3,000-5,000 characters per chapter; short chapters add meaningful scenes, character responses, choices, and consequences instead of padding, while explicit author length requests still take precedence.
 - 番茄短篇权威设计已对齐当前产品：对话式 `fanqie-short` 是主流程，原完整短篇候选 Sheet 作为快速模式保留；关闭的 Quality Harness 分支按“主干保留、按需提取、分支归档、不恢复生成物”分类处理，不再被误认为待整体合并的产品欠账。
