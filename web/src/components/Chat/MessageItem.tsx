@@ -77,11 +77,12 @@ export const MessageItem = memo(function MessageItem({ message, highlightDialogu
       )
 
     case 'assistant': {
+      const assistantContent = stripFanqieProgressMarkers(content)
       if (message.subagent && subAgentPresentation === 'card') {
         return (
           <SubAgentOutputWindow
             message={message}
-            content={content}
+            content={assistantContent}
             highlightDialogue={highlightDialogue}
             messageStyle={messageStyle}
             onOpen={onOpenSubAgentSession}
@@ -92,9 +93,9 @@ export const MessageItem = memo(function MessageItem({ message, highlightDialogu
       // 流式期间正文可能尚未到达，或全是被隐藏的思考内容（清洗后为空）：
       // 此时显示"正在思考"占位，避免出现一个空白气泡、像卡死无响应。
       const streamingTargetContent = message.streaming === true && message.streaming_target_content && message.streaming_target_content !== content
-        ? message.streaming_target_content
+        ? stripFanqieProgressMarkers(message.streaming_target_content)
         : undefined
-      const visibleContent = sanitizeThinkTags(streamingTargetContent || content).trim()
+      const visibleContent = sanitizeThinkTags(streamingTargetContent || assistantContent).trim()
       const reserveMetaSpace = message.streaming === true || Boolean(canEditAssistantReply || onGenerateInteractiveImage || onRegenerate || onSwitchVersion)
       return (
         <AIMessage from="assistant" className="max-w-none">
@@ -104,15 +105,15 @@ export const MessageItem = memo(function MessageItem({ message, highlightDialogu
                 {message.streaming && !visibleContent ? (
                   <StreamingPlaceholder />
                 ) : message.streaming ? (
-                  <StreamingMarkdown content={content} targetContent={streamingTargetContent} highlightDialogue={highlightDialogue} />
+                  <StreamingMarkdown content={assistantContent} targetContent={streamingTargetContent} highlightDialogue={highlightDialogue} />
                 ) : (
-                  <MarkdownContent content={content} highlightDialogue={highlightDialogue} />
+                  <MarkdownContent content={assistantContent} highlightDialogue={highlightDialogue} />
                 )}
               </AIMessageContent>
               <InteractiveImageStrip message={message} />
               <MessageInlineMeta
                 message={message}
-                content={content}
+                content={assistantContent}
                 align="left"
                 reserveSpace={reserveMetaSpace}
                 hideActions={message.streaming === true}
@@ -1588,6 +1589,13 @@ function sanitizeThinkTags(text: string): string {
   }
   // 清理任何残留 think 标签
   return result.replace(/<\/?\s*think\s*>/gi, '')
+}
+
+function stripFanqieProgressMarkers(text: string): string {
+  return text.replace(
+    /(?:\\?<\\?!--|&lt;\\?!--)\s*fanqie-progress:\s*(?:idea|proposal|outline|chapter)\b[\s\S]*?(?:--\\?>|--&gt;|$)/gi,
+    '',
+  ).trimEnd()
 }
 
 const MarkdownContent = memo(function MarkdownContent({ content, highlightDialogue }: { content: string; highlightDialogue: boolean }) {

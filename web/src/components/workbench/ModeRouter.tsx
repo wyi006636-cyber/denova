@@ -685,6 +685,7 @@ export function ModeRouter(props: ModeRouterProps) {
 
   const rightPanelContent = rightPanel === 'ai' ? (
     <AgentPanel
+      contentMode={mode === 'interactive' ? 'game' : 'writing'}
       workspace={workspace}
       currentChapter={currentChapter}
       selectedFile={selectedFile}
