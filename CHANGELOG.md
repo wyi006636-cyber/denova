@@ -50,6 +50,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `fanqie-short` 对话创作主流程的默认篇幅调整为 8 章、约 2.4 万～4 万字，每章 3000～5000 字；短章需要补足有效场景、人物回应、选择和后果，而不是重复解释凑字，作者明确指定篇幅时仍以作者要求为准。
+- The conversational `fanqie-short` workflow now defaults to eight chapters and roughly 24,000-40,000 Chinese characters, targeting 3,000-5,000 characters per chapter; short chapters add meaningful scenes, character responses, choices, and consequences instead of padding, while explicit author length requests still take precedence.
+- 番茄短篇权威设计已对齐当前产品：对话式 `fanqie-short` 是主流程，原完整短篇候选 Sheet 作为快速模式保留；关闭的 Quality Harness 分支按“主干保留、按需提取、分支归档、不恢复生成物”分类处理，不再被误认为待整体合并的产品欠账。
+- The authoritative Fanqie design now matches the product: conversational `fanqie-short` is the primary workflow, the complete-story candidate Sheet remains Quick mode, and the closed Quality Harness branch is classified as keep-in-main, extract-on-demand, archive, or generated output not to restore instead of being treated as a product debt to merge wholesale.
 - 番茄短篇生成提示词从占位版升级为番茄短篇写作方法论：明确结构（8~12 章、逐章钩子、冲突升级与结局兑现）、文风（第一人称、短句短段、直角引号对白）与三类 AI 味禁令。
 - The Fanqie short-fiction generation prompt is upgraded from the placeholder to the Fanqie writing methodology: explicit structure (8-12 chapters, per-chapter hooks, escalating conflict and payoff), prose style (first person, short lines and paragraphs, corner-bracket dialogue), and three banned AI-flavor patterns.
 - Home、Settings、Agents、Skills 和 Automations 统一使用共享页面框架、分区导航、表单字段、资源目录、空状态与确认弹窗；资料库和方案预设同时复用自适应面板与移动端入口。

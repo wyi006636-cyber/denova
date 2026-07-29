@@ -1,161 +1,170 @@
-# Fanqie Short-Fiction Vertical Slice Design
+# Fanqie Short-Fiction Conversational Workflow Design
 
-Date: 2026-07-25
+Date: 2026-07-28
 
-Status: Approved in conversation; awaiting review of this written specification
+Status: Implemented as the primary workflow in PR #13; the earlier complete-story slice from PR #6 is retained as Quick mode
 
-Branch: `feat/fanqie-short-vertical-slice`
-
-Base capability: `ff12579` (`ReplaceFileWithConsistentSnapshot`)
+Product owner direction: one built-in Skill, one entry, and the existing Writing workbench
 
 ## Outcome
 
-Deliver one useful, end-to-end writing workflow before adding another platform layer:
+Deliver a useful author-visible loop inside the existing Writing workbench:
 
-1. the author enters a bounded brief and chooses a Markdown target;
-2. Denova asks the currently configured Writing/IDE model for one complete Fanqie-style short story;
-3. the author previews the complete candidate without changing workspace files;
-4. only an explicit confirmation may replace or create the target Markdown;
-5. the confirmed write and its version checkpoint run through the existing single-lease workspace seam;
-6. Zhihu Salt later reuses the same workflow with a different bounded profile.
+1. The author chooses **New Short Story** from Book Management.
+2. Denova creates the normal writing workspace, opens the existing Writing Agent, and visibly selects `fanqie-short`.
+3. The Agent discusses the idea with one to three adaptive questions at a time.
+4. The Agent proposes a story plan and waits for confirmation.
+5. After confirmation, the Agent proposes a chapter outline and waits again.
+6. After outline confirmation, the Agent writes one chapter at a time into the existing editor and workspace through the existing Diff.
+7. The author can continue by conversation, point to a passage, or select text, then accept or reject the resulting Diff.
 
-The historical golden-opening rules constrain the opening of the complete story. They do not reduce the first product slice to an opening-only generator.
+The author never supplies a Markdown path in this primary flow. The existing **Complete Fanqie Short Story (Quick)** action remains available for authors who explicitly want one-shot generation.
 
 ## Product Surface
 
-The persistent entry lives in the Writing Agent right panel and opens a single-column `Sheet`.
+- Reuse Book Management's current book dialog and the current Writing workbench.
+- Do not add a top-level menu, short-story page, second editor, or mode switch.
+- Selecting **New Short Story** may initialize Writing mode because the author explicitly chose a writing creation action; shared top-level navigation must not switch modes.
+- Open the existing Agent panel and show `fanqie-short` as the active built-in Skill.
+- Reuse current chat history, editor, file tree, selection, versions, `read_file`, `write_file`, `edit_file`, and Diff accept/reject.
+- Every new visible label, empty state, and error message must be paired in `zh-CN` and `en-US`.
 
-The Sheet contains three states:
+## Single Skill Boundary
 
-- Brief: target path, current base revision, and the author brief.
-- Preview: complete Markdown candidate, target metadata, model provenance, and an explicit confirm action.
-- Result: exact write/checkpoint outcome with recovery guidance when only the checkpoint fails.
+The product exposes only one built-in short-fiction Skill: `fanqie-short`.
 
-For an open Markdown file, that file is the default target. With no Markdown selection, the author must choose a visible workspace-relative `.md` path; Denova never silently chooses the first chapter. The author may override the default target.
+Its entry file owns stage recognition and conversation progression. It loads only the method reference needed for the current stage:
 
-The surface does not add a top-level menu and never writes `nova:content-mode`. Entering or leaving it therefore cannot switch Writing/Game mode. Desktop and mobile use the existing Agent panel and Sheet primitives rather than a third pane.
+- `references/story-concept.md`: premise, protagonist pressure, relationships, conflict, reversal, and ending direction;
+- `references/short-structure.md`: short-story beats, escalation, chapter jobs, and outline hooks;
+- `references/fanqie-style.md`: first-person prose, paragraph rhythm, dialogue, and chapter hooks;
+- `references/chapter-writing.md`: bounded context reading, chapter drafting, workspace writing, and readback;
+- `references/revision.md`: logic, common sense, motivation, continuity, dialogue, and flat-plot revision.
 
-## Architecture
+The Skill distills useful methods from the existing `lore-init`, `outline`, `continue`, `rewrite`, and `novel-lite` Skills and the former Fanqie system prompt. It does not expose those Skills as separate required product steps and does not start subagents.
 
-### Transport-neutral short-fiction core
+## Conversation Stages
 
-Add a focused `internal/shortfiction` package for:
+### 1. Discuss the idea
 
-- the closed profile ID `fanqie_short`;
-- bounded request, candidate, provenance, confirmation, and error types;
-- deterministic candidate identity and validation;
-- a small built-in Fanqie prompt seed;
-- a `Generator` interface.
+- Start from the title, idea, and emotion already provided by the author.
+- Ask only the one to three missing questions most likely to change the conflict, reversal, ending, or length.
+- Do not use a fixed questionnaire or ask the author to repeat known information.
 
-The package must not import `internal/quality`. It does not persist candidates, runs, receipts, or workflow state.
+### 2. Confirm the story proposal
 
-Candidate identity is a SHA-256 checksum over a fixed canonical structure containing profile, canonical workspace, normalized target path, base revision, Markdown, locale, profile version, model profile, and model. It detects accidental or client-side mutation; it is not an authorization token.
+When information is sufficient, propose:
 
-### Direct no-tool generation
+- one-sentence story;
+- two to four important character relationships;
+- core external and internal conflict;
+- main reversal with prior setup;
+- ending direction and price paid by the protagonist.
 
-Add one production adapter under `internal/agent` that reuses the current Writing/IDE model resolution and provider compatibility path. It makes one direct model `Generate` call with bounded messages.
+Wait for explicit confirmation or revision. Do not write an outline or workspace content before confirmation.
 
-It must not call the Agent builder, `/api/chat`, sessions, Skills, SubAgents, middleware, or any tool registry. The provider request contains neither `tools` nor `tool_choice`, so preview generation cannot mutate the workspace.
+### 3. Confirm the chapter outline
 
-The prompt requests one complete Markdown story with no explanation or code fence. It requires a clear premise, protagonist desire, immediate pressure, an early understandable hook, and a payoff consistent with the brief.
+After proposal confirmation, provide the complete chapter outline. Every chapter identifies its job, immediate conflict, change or revelation, consequence, and concrete end hook. Wait for confirmation again.
 
-### Application service
+### 4. Write chapter by chapter
 
-Add a focused short-fiction application service with two operations:
+After outline confirmation:
 
-- generate a stateless, client-held candidate after validating the active canonical workspace, visible `.md` target, exact base revision, and source bounds;
-- confirm the complete candidate after recomputing its identity and revalidating the active workspace and revision.
+- write the confirmed outline to `setting/outline.md` through the existing tool and Diff;
+- determine the next chapter path from the existing workspace naming convention;
+- read only the confirmed outline, the latest one or two chapters, and directly relevant bounded setting context;
+- draft one chapter per turn unless the author explicitly requests more;
+- write through `write_file`, read back key passages, and leave the proposed change in the existing Diff.
 
-Generation performs no file write, ChangeSet creation, version creation, chat message write, or candidate persistence.
+### 5. Revise through conversation or selection
 
-Confirmation calls `ReplaceFileWithConsistentSnapshot` exactly once. The replacement uses `OriginAgent` and `AutoAccept:true` because the author explicitly accepted the preview. The callback creates a manual version checkpoint while the same workspace lease remains held.
+- Treat selected text and its file as the direct edit target.
+- When the author points to a passage, read the real source before editing.
+- Use `edit_file` for the smallest sufficient change; use `write_file` only for an intentional whole-chapter rewrite.
+- Tell the author that the change is pending in Diff. Never claim a failed tool call changed the manuscript.
 
-### HTTP boundary
+## Writing Quality Contract
 
-Register only these endpoints:
+- Default to first person unless the confirmed proposal chooses another viewpoint.
+- Establish the protagonist, immediate goal, credible pressure, concrete stakes, and story promise in the opening scene.
+- Default to eight chapters and roughly 24,000-40,000 Chinese characters total. Each chapter targets 3,000-5,000 characters; explicit author instructions override the default.
+- Every chapter must change the action conditions through conflict, consequence, loss, choice, or revelation.
+- A local victory must expose a weakness, consume a resource, damage a relationship, or force a harder commitment.
+- An opposing character or pressure source responds according to an established interest and capability; conflict must not depend on sudden accidents, implausible platform behavior, or a newly invented institution.
+- Dialogue must pursue different character goals and change power, information, or action. Remove greetings and shared-information exposition.
+- When the author says the plot is flat, first offer one causal three-to-five-step escalation chain using existing people, relationships, and resources; revise only after confirmation.
 
-- `POST /api/short-fiction/candidates`
-- `POST /api/short-fiction/candidates/confirm`
+## Context and Tool Boundaries
 
-Generation returns a full client-held candidate. Confirmation returns one of:
+- Stage is inferred from the existing conversation, confirmed content, and workspace files; do not add a backend workflow state machine or a parallel confirmation protocol.
+- Model context is incrementally assembled and bounded. Use the outline, selection, recent chapters, or a relevant excerpt instead of unbounded manuscript history.
+- Keep display history separate from model context; tool cards, logs, and thinking previews do not become prose context by default.
+- Reuse the current Writing/IDE model configuration and its configurable timeout. Do not add a short-fiction-only model service.
 
-- `written`: Markdown and exact version checkpoint committed;
-- `written_checkpoint_failed`: Markdown and ChangeSet committed, checkpoint failed.
+## Existing Write Guardrails
 
-The partial outcome is HTTP 200 because the request was understood and the content mutation did occur. It must include the committed `write_revision`, `workspace_mutated:true`, `checkpoint_status:"failed"`, and `retryable:false`. It must not offer a retry token or imply an idempotent durable receipt.
+No new safety pipeline is introduced. The existing three user-data protections remain sufficient:
 
-Validation, workspace identity, source revision, or upstream model failures return stable non-2xx errors with `workspace_mutated:false`. Provider secrets, base URLs, full prompts, and raw upstream errors are never returned.
+| Threat source | Concrete loss | Existing protection |
+|---|---|---|
+| The author rejects or has not reviewed generated prose | Unwanted prose becomes manuscript content | Existing Diff preview with accept/reject |
+| The manuscript changes between proposal and acceptance | A newer local edit is overwritten | Existing revision conflict check |
+| The author later regrets an accepted change | Desired manuscript content is lost | Existing version rollback |
 
-### Frontend boundary
+## Quick Mode
 
-Keep the Agent panel integration thin and put the workflow in a focused feature component plus an explicit API client. Component state owns the brief and returned candidate only for the current page lifetime.
+PR #6's complete-story candidate Sheet remains a secondary, explicit Quick mode:
 
-The UI must distinguish:
+- the author enters a short brief;
+- Denova automatically chooses an unused `chapters/short*.md` target;
+- the configured Writing model generates one complete candidate without tools;
+- the author previews it and explicitly confirms before the existing snapshot seam writes it.
 
-- preview loading and generation failure;
-- empty or oversized model output;
-- revision conflict before confirmation;
-- confirmed write plus checkpoint;
-- confirmed write with checkpoint failure.
+Quick mode may keep its smaller one-call length profile. It is not invoked by `fanqie-short`, is not the default **New Short Story** flow, and must not reintroduce a Markdown-path field.
 
-On either committed outcome, refresh the affected workspace path through the existing workspace-change refresh hook. On checkpoint failure, tell the author that the Markdown was written and must be inspected before manually saving a version; do not present a generic retry button.
+## Implementation and Acceptance Status
 
-All visible copy is paired in `zh-CN` and `en-US`. Existing theme variables and components cover light/dark. The Sheet stays single-column at 1440x900 and 390x844, wraps long target paths, and scrolls long previews without horizontal overflow.
+| Requirement | Implementation | Evidence status |
+|---|---|---|
+| New Short Story reuses the Writing workbench | Implemented | Merged in PR #13 |
+| `fanqie-short` is selected and visible | Implemented | Merged and previously observed on the real page |
+| Proposal then outline confirmation | Implemented in Skill instructions | Previously completed on the real page |
+| First chapter enters editor/workspace Diff | Implemented with existing tools | Previously written, rejected, rewritten, and accepted on the real page |
+| Pointed passage can be revised through Diff | Implemented with existing tools | Previously edited and accepted on the real page |
+| Direct mouse-selection revision | Reuses existing selection support | Verified on the real page: a mouse-selected sentence in chapter 8 produced a focused `+1/-1` Diff |
+| Full eight-chapter conversational story | Mechanism implemented | Verified on the real page with all eight chapters present after refresh |
+| Chinese/English, light/dark, narrow/wide entry rendering | Copy and adaptive components implemented | Verified in both languages and themes, including a 390px viewport |
+| Complete-story Quick mode | Implemented | Merged in PR #6 and retained |
 
-## Bounds and Configuration
+Passing unit tests or receiving model text is not completion. Acceptance requires real prose written into the real editor, reviewed through Diff, and still present after refresh.
 
-Use fixed safety bounds above 128 KiB for the first slice:
+## Archived Quality Harness Asset Policy
 
-- brief: 256 KiB;
-- existing target/source: 256 KiB;
-- generated candidate: 1 MiB.
+The closed PR #1 and `feat/quality-harness-foundation` branch remain recoverable history. They are not a product dependency and must not be merged wholesale.
 
-Oversized input or output is rejected explicitly, never silently truncated. This slice adds no configuration item, model slot, directory convention, timeout, dependency, or migration. The existing Writing/IDE model configuration remains the single model choice.
+| Classification | Assets | Policy |
+|---|---|---|
+| Keep in main | Writing workbench, write/edit tools, selection, Diff, versions, workspace snapshot seam, Quick mode, extracted interactive candidate-order fix | These already serve author-visible behavior. |
+| Extract only for a named need | Quality profiles and rubrics, selected hand-written examples, a specific reproduced correctness fix | Name the user-visible consumer first, then port the smallest coherent slice. |
+| Archive on branch/PR | `internal/quality` runtime, evaluation engine, projection, repositories, Quality UI, `cmd/quality-eval` | Preserve for reference; do not maintain or integrate now. |
+| Do not restore to main | Generated discovery JSON, run output, caches, bulk evaluation artifacts, large generated fixtures | Regenerate if a future approved task genuinely needs them. |
 
-## Error and Recovery Rules
+Past line count is not a reason to merge code. A future extraction should normally remain within the 500-line first-version target and must demonstrate one author-visible capability that did not exist before.
 
-- Unknown profiles are rejected without falling back to Fanqie.
-- Missing targets require the literal base revision `missing`.
-- Existing targets require their exact byte revision before generation and again before confirmation.
-- A stale or switched workspace cannot be written.
-- Candidate mutation is rejected before any write.
-- A pre-commit error reports no mutation.
-- A post-commit checkpoint error reports truthful partial success; there is no rollback claim because the content write is already durable.
-- External programs that ignore Denova's workspace lease remain outside the managed atomicity guarantee.
+## Explicit Non-Goals
 
-## TDD Seams
+- No independent short-story workbench, page, editor, or top-level menu.
+- No short-fiction-only backend generator, durable candidate repository, workflow state machine, new confirmation protocol, file-security pipeline, dependency, or migration.
+- No Quality Harness, automatic ranking scan, crawler, evaluation platform, benchmark system, Context Pack Builder, or general Quality page.
+- No reviewer, fixer, final-gate, or multi-agent review chain.
+- No unrelated refactor, dependency upgrade, release preparation, compatibility project, or publication action.
+- No Zhihu Salt mode until the Fanqie conversational workflow has demonstrated enough real author value to justify another profile.
 
-Tests exercise public or stable seams, one vertical cycle at a time:
+## First-Version Budget
 
-1. `internal/shortfiction`: deterministic candidate identity, bound-field tampering, profile rejection, and size bounds.
-2. Direct model adapter with `httptest.Server`: configured IDE model/provider is used and the complete request has no tools or tool choice.
-3. Application service: generation is no-write, stale revisions prevent model calls, tampering cannot mutate, confirmation creates the exact checkpoint, and checkpoint failure returns truthful partial success.
-4. Public HTTP: preview then confirm, locale-specific errors, revision conflict, unknown profile, and HTTP 200 partial success.
-5. Frontend feature with MSW: target selection, preview/confirm, long/empty/error/partial states, bilingual copy, and no content-mode write.
-6. Real page: current hot-loaded Denova in zh-CN/en-US, light/dark, 1440x900/390x844, long preview, empty/error states, and mode preservation.
+The merged conversational implementation remains the product slice. This specification closeout may adjust Skill references and bilingual changelog copy but adds no new runtime architecture. Expected tracked change is documentation plus fewer than 20 production-content lines, well below the 500-line production target.
 
-Every new leaf test must complete within one second and none may be skipped.
+## Historical Note
 
-## Independent Prerequisites
-
-Two repository fixes remain separate from this product slice:
-
-- a focused security PR upgrades `golang.org/x/text` from `v0.38.0` to `v0.39.0` to address reachable `GO-2026-5970`;
-- a focused interactive-protocol PR ports the audited six-file `03d9122` first-candidate fix.
-
-Neither fix changes the short-fiction contract. Existing Draft PRs and the archived quality-harness branch remain unmerged and undeleted.
-
-## Explicitly Deferred
-
-- Quality Harness runtime, Quality page integration, projection, evaluation runs, and SSE progress;
-- persistent Run, candidate, confirmation receipt, or retry repositories;
-- workflow state machines, automatic invalidation, and Context Pack Builder;
-- Candidate/Review/Preference UI and Author Finalization;
-- Agent, Skills, tool, Automation, Tauri, or vector integration for generation;
-- Zhihu Salt behavior until the Fanqie vertical slice passes its focused PR gates.
-
-## Acceptance Boundary
-
-Completion means the Fanqie slice can generate a complete preview through the configured model, preserve the workspace before confirmation, commit only after explicit confirmation, create or truthfully fail its exact version checkpoint, and pass automated plus real-page verification.
-
-It does not mean the archived Quality Harness is merged, Phase 2 exists, Denova is Beta/release ready, or the product has a general short-fiction platform.
+The previous version of this file described the complete-story candidate/confirm vertical slice. That implementation was merged in PR #6 and remains available as Quick mode. Git history and PR #6 preserve its detailed transport, candidate, confirmation, and snapshot design; those details are no longer the primary short-story product contract.
