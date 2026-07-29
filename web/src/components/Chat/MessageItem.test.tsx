@@ -30,6 +30,20 @@ describe('MessageItem', () => {
     expect(screen.getByText('条目')).toBeInTheDocument()
   })
 
+  it('不把 fanqie-short 的精确进度标记展示或复制给作者', () => {
+    const { container, rerender } = render(
+      <MessageItem message={{ role: 'assistant', content: '正文已进入 Diff。\n\n<!-- fanqie-progress: chapter chapter=1 total=8 path="chapters/ch01.md" -->' }} />,
+    )
+
+    expect(container.querySelector('.chat-agent-message')).toHaveTextContent('正文已进入 Diff。')
+    expect(container).not.toHaveTextContent('fanqie-progress')
+
+    rerender(
+      <MessageItem message={{ role: 'assistant', content: '正文已进入 Diff。\n\n<\\!-- fanqie-progress: chapter chapter=1 total=8 path="chapters/ch01.md" -->' }} />,
+    )
+    expect(container).not.toHaveTextContent('fanqie-progress')
+  })
+
   it('assistant 消息不展示 Nova 标题和气泡容器', () => {
     const { container } = render(<MessageItem message={{ role: 'assistant', content: '直接展示正文' }} />)
 

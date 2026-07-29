@@ -26,6 +26,7 @@ import { MAX_REVIEW_FEEDBACK_COMMENT_COUNT, MAX_REVIEW_FEEDBACK_CONTEXT_BYTES, r
 import { toast } from 'sonner'
 import type { ChatSendOptions } from '@/hooks/useAgentChat'
 import { FanqieCandidateSheet } from '@/features/short-fiction/FanqieCandidateSheet'
+import { deriveFanqieProgress, FanqieProgressStatus } from './FanqieProgressStatus'
 
 type AgentPanelView = 'chat' | 'sessions' | 'traces'
 
@@ -37,6 +38,7 @@ const WRITING_COMPOSER_SETTING_DEFAULTS = {
 } as const
 
 interface AgentPanelProps {
+  contentMode: 'writing' | 'game'
   workspace: string
   currentChapter?: ChapterSummary
   selectedFile: string | null
@@ -87,6 +89,7 @@ interface AgentPanelProps {
 
 /** IDE 右侧创作 Agent 面板，内部支持在对话与完整会话管理之间切换。 */
 export function AgentPanel({
+  contentMode,
   workspace,
   currentChapter,
   selectedFile,
@@ -153,6 +156,9 @@ export function AgentPanel({
   const skillCommands = useSkillCommands({ agentKey: 'ide', workspace, fallbackEnabled: true })
   const writingSkillOptions = useWritingSkillOptions(workspace)
   const changeGroupsQuery = useWorkspaceChangeGroups(activeSessionId ? workspace : '', { sessionID: activeSessionId })
+  const fanqieProgress = useMemo(() => contentMode === 'writing' && writingSkill === 'fanqie-short'
+    ? deriveFanqieProgress({ messages, isStreaming, changeGroups: changeGroupsQuery.data ?? [] })
+    : null, [changeGroupsQuery.data, contentMode, isStreaming, messages, writingSkill])
   const tokenUsageMessages = useMemo(
     () => selectAgentTokenUsageRecords(messages),
     [messages],
@@ -471,6 +477,8 @@ export function AgentPanel({
           </span>
         </div>
       ) : null}
+
+      {view === 'chat' && fanqieProgress ? <FanqieProgressStatus progress={fanqieProgress} /> : null}
 
       {view === 'chat' ? (
         <>

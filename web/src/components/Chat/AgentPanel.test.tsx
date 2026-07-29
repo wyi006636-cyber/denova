@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ComponentProps } from 'react'
 import { VirtuosoMockContext } from 'react-virtuoso'
@@ -76,6 +76,7 @@ describe('AgentPanel', () => {
     expect(screen.getByText('写作 Skill')).toBeInTheDocument()
     expect(screen.getByText(/Lite/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Review' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: '番茄短篇创作进度' })).not.toBeInTheDocument()
   })
 
   it('将新建会话按钮放在标题切换器旁边并隐藏会话摘要和空闲状态文字', async () => {
@@ -114,6 +115,7 @@ describe('AgentPanel', () => {
       await user.click(entry)
       expect(screen.getByRole('dialog', { name: '番茄完整短篇' })).toBeInTheDocument()
       expect(screen.getByTestId('fanqie-save-path')).toHaveTextContent('chapters/short-2.md')
+      expect(screen.queryByRole('status', { name: '番茄短篇创作进度' })).not.toBeInTheDocument()
 
       await user.click(screen.getByRole('button', { name: '关闭番茄短篇' }))
       await waitFor(() => expect(screen.queryByRole('dialog', { name: '番茄完整短篇' })).not.toBeInTheDocument())
@@ -261,6 +263,23 @@ describe('AgentPanel', () => {
       )
     })
     expect(screen.getByText('fanqie-short')).toBeVisible()
+    expect(screen.getByRole('status', { name: '番茄短篇创作进度' })).toHaveTextContent('交流故事想法')
+  })
+
+  it('游戏模式不显示番茄短篇创作进度', async () => {
+    renderAgentPanel({ contentMode: 'game' })
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('nova:writing-agent-init', {
+        detail: { writingSkill: 'fanqie-short' },
+      }))
+    })
+
+    await waitFor(() => {
+      expect(updateUserSettings).toHaveBeenCalledWith(expect.objectContaining({ writing_skill_default: 'fanqie-short' }))
+    })
+    expect(screen.getByText('fanqie-short')).toBeVisible()
+    expect(screen.queryByRole('status', { name: '番茄短篇创作进度' })).not.toBeInTheDocument()
   })
 
   it('在输入选项中切换叙事风格后用于下一轮创作 Agent 请求', async () => {
@@ -390,6 +409,7 @@ function renderAgentPanel(overrides: Partial<ComponentProps<typeof AgentPanel>> 
   return render(
     <VirtuosoMockContext.Provider value={{ viewportHeight: 1200, itemHeight: 52 }}>
       <AgentPanel
+        contentMode="writing"
         workspace="/workspace"
         selectedFile={null}
         tellers={[{ id: 'classic', name: '默认叙事', style_rules: [] } as any]}

@@ -50,6 +50,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `fanqie-short` 对话创作在现有 Writing Agent 面板中新增清晰的双语进度提示，用“当前 / 修改 / 下一步”三行完整显示阶段、章节或文件和作者动作；状态复用会话、流式工具调用和现有 Diff，不影响普通写作、游戏或完整短篇快速模式。
+- The existing Writing Agent panel now shows clear bilingual progress for conversational `fanqie-short`, using full-width Current / Changed / Next rows for the stage, chapter or files, and author action; it reuses session, streaming tool, and Diff state without changing regular writing, game, or complete-story Quick mode.
 - 番茄短篇 Agent 在同轮连写多章时会逐章检查目标篇幅并重置事件边界，允许预示下一章压力，但不会在当前章未写足或提前兑现下一章的关键决定、结果、高潮或结局时继续，减少短章、章节串台和重复收尾。
 - When drafting multiple chapters in one turn, the Fanqie short-fiction Agent now checks the target length and resets event boundaries chapter by chapter: it does not continue from an under-length chapter or prematurely complete a later chapter's decisive choice, result, climax, or ending, reducing short drafts, cross-chapter spillover, and repeated conclusions.
 - `fanqie-short` 对话创作主流程的默认篇幅调整为 8 章、约 2.4 万～4 万字，每章 3000～5000 字；短章需要补足有效场景、人物回应、选择和后果，而不是重复解释凑字，作者明确指定篇幅时仍以作者要求为准。
