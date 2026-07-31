@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 
+	"denova/internal/session"
 	"denova/internal/yanzhouadapter"
 	"denova/internal/yanzhouprotocol"
 )
@@ -104,11 +105,15 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 		return fmt.Errorf("open runtime event store: %w", err)
 	}
 	defer eventStore.Close()
+	sessionStore, err := session.NewStore(filepath.Join(preparedRuntimeRoot, "agent-sessions"))
+	if err != nil {
+		return fmt.Errorf("open session store: %w", err)
+	}
 	planRuntime, err := yanzhouadapter.NewPlanFrameRuntime(eventStore, nil)
 	if err != nil {
 		return fmt.Errorf("initialize plan runtime: %w", err)
 	}
-	writingRuntime, err := yanzhouadapter.NewWritingFrameRuntime(eventStore, nil)
+	writingRuntime, err := yanzhouadapter.NewWritingFrameRuntime(eventStore, nil, sessionStore)
 	if err != nil {
 		return fmt.Errorf("initialize writing runtime: %w", err)
 	}

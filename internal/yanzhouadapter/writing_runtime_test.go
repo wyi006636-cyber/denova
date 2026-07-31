@@ -13,6 +13,9 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/cloudwego/eino/schema"
+
+	"denova/internal/session"
 	"denova/internal/yanzhouprotocol"
 )
 
@@ -75,6 +78,194 @@ func primeWritingContext(t *testing.T, runtime *WritingFrameRuntime, runID strin
 		RequestID: "tool-" + runID + "-context", RunID: runID, Seq: 1, Payload: payload,
 	}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWritingFrameRuntimeReusesDenovaSessionAcrossRuns(t *testing.T) {
+	var requests []map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		var payload map[string]any
+		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		requests = append(requests, payload)
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(map[string]any{
+			"choices": []map[string]any{{
+				"message": map[string]any{"role": "assistant", "content": "第一轮 Agent 回复"},
+			}},
+		})
+	}))
+	defer server.Close()
+
+	eventStore, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer eventStore.Close()
+	sessions, err := session.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewWritingFrameRuntime(eventStore, server.Client(), sessions)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for index, runID := range []string{"session-run-1", "session-run-2"} {
+		var payload map[string]any
+		if err := json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &payload); err != nil {
+			t.Fatal(err)
+		}
+		payload["runId"] = runID
+		payload["requestId"] = "request-" + runID
+		payload["idempotencyKey"] = "idem-" + runID
+		payload["sessionId"] = "author-book-session"
+		payload["userIntent"] = []string{"第一轮要求", "第二轮新要求"}[index]
+		encoded, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		primeWritingContext(t, runtime, runID)
+		if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{
+			Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+			RequestID: "request-" + runID, Payload: encoded,
+		}, io.Discard); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if len(requests) < 2 {
+		t.Fatalf("provider requests = %d, want two runs", len(requests))
+	}
+	messages, ok := requests[len(requests)-1]["messages"].([]any)
+	if !ok {
+		t.Fatalf("second run messages = %#v", requests[len(requests)-1]["messages"])
+	}
+	encoded, _ := json.Marshal(messages)
+	if !strings.Contains(string(encoded), "第一轮要求") || !strings.Contains(string(encoded), "第一轮 Agent 回复") {
+		t.Fatalf("second run did not reuse durable Denova session: %s", encoded)
+	}
+}
+
+func TestWritingFrameRuntimeOnlyResumesPendingTaskForExplicitContinue(t *testing.T) {
+	var captured []byte
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		captured, _ = io.ReadAll(request.Body)
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(map[string]any{
+			"choices": []map[string]any{{
+				"message": map[string]any{"role": "assistant", "content": "已续接未完成任务"},
+			}},
+		})
+	}))
+	defer server.Close()
+
+	eventStore, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer eventStore.Close()
+	sessions, err := session.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := sessions.GetOrCreate("author-book-session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := current.Append(schema.UserMessage("原先未完成的任务")); err != nil {
+		t.Fatal(err)
+	}
+	if err := current.MarkInterrupted("原先未完成的任务", "", "cancelled"); err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewWritingFrameRuntime(eventStore, server.Client(), sessions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &payload); err != nil {
+		t.Fatal(err)
+	}
+	payload["runId"] = "resume-run-1"
+	payload["requestId"] = "request-resume-run-1"
+	payload["idempotencyKey"] = "idem-resume-run-1"
+	payload["sessionId"] = "author-book-session"
+	payload["userIntent"] = "继续"
+	payload["explicitContinue"] = true
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	primeWritingContext(t, runtime, "resume-run-1")
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "request-resume-run-1", Payload: encoded,
+	}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(captured), "原先未完成的任务") || !strings.Contains(string(captured), "继续") {
+		t.Fatalf("explicit continue did not use the pending Denova interruption: %s", captured)
+	}
+	if pending := current.PendingInterruption(); pending != nil {
+		t.Fatalf("completed explicit continue left interruption pending: %#v", pending)
+	}
+}
+
+func TestWritingFrameRuntimeLeavesPendingTaskForNewRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(map[string]any{
+			"choices": []map[string]any{{
+				"message": map[string]any{"role": "assistant", "content": "新的任务已完成"},
+			}},
+		})
+	}))
+	defer server.Close()
+
+	eventStore, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer eventStore.Close()
+	sessions, err := session.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := sessions.GetOrCreate("author-book-session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := current.MarkInterrupted("未完成的旧任务", "", "cancelled"); err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewWritingFrameRuntime(eventStore, server.Client(), sessions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &payload); err != nil {
+		t.Fatal(err)
+	}
+	payload["runId"] = "new-run-1"
+	payload["requestId"] = "request-new-run-1"
+	payload["idempotencyKey"] = "idem-new-run-1"
+	payload["sessionId"] = "author-book-session"
+	payload["userIntent"] = "换个方向，先分析人物关系"
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	primeWritingContext(t, runtime, "new-run-1")
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "request-new-run-1", Payload: encoded,
+	}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if pending := current.PendingInterruption(); pending == nil || pending.UserMessage != "未完成的旧任务" {
+		t.Fatalf("ordinary new request consumed pending interruption: %#v", pending)
 	}
 }
 

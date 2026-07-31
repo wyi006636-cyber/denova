@@ -14,6 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cloudwego/eino/schema"
+
+	"denova/internal/session"
 	"denova/internal/yanzhouprotocol"
 )
 
@@ -44,6 +47,7 @@ type WritingFrameRuntime struct {
 	responseMu         sync.Mutex
 	store              RuntimeEventStore
 	client             *http.Client
+	sessions           *session.Store
 	runs               map[string]writingRuntimeState
 	idempotency        map[string]string
 	pendingResponses   map[string]chan yanzhouprotocol.Envelope
@@ -51,20 +55,27 @@ type WritingFrameRuntime struct {
 	pendingCancels     map[string]struct{}
 }
 
-func NewWritingFrameRuntime(store RuntimeEventStore, client *http.Client) (*WritingFrameRuntime, error) {
+func NewWritingFrameRuntime(store RuntimeEventStore, client *http.Client, stores ...*session.Store) (*WritingFrameRuntime, error) {
 	if store == nil {
 		return nil, errors.New("writing runtime event store is required")
+	}
+	if len(stores) > 1 {
+		return nil, errors.New("writing runtime session store is invalid")
 	}
 	if client == nil {
 		client = &http.Client{}
 	}
-	return &WritingFrameRuntime{
+	runtime := &WritingFrameRuntime{
 		store: store, client: client,
 		runs: map[string]writingRuntimeState{}, idempotency: map[string]string{},
 		pendingResponses:   map[string]chan yanzhouprotocol.Envelope{},
 		earlyToolResponses: map[string]yanzhouprotocol.Envelope{},
 		pendingCancels:     map[string]struct{}{},
-	}, nil
+	}
+	if len(stores) == 1 {
+		runtime.sessions = stores[0]
+	}
+	return runtime, nil
 }
 
 // CancelRun consumes the existing run.cancel authority. It only cancels model/tool
@@ -296,12 +307,20 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	_, cancelPending := runtime.pendingCancels[request.RunID]
 	delete(runtime.pendingCancels, request.RunID)
 	runtime.mu.Unlock()
+	writingSession, pendingInterruption, err := runtime.prepareSession(request)
+	if err != nil {
+		return err
+	}
+	interruptedUserMessage := request.UserIntent
+	if pendingInterruption != nil {
+		interruptedUserMessage = pendingInterruption.UserMessage
+	}
 	artifacts := []writingRuntimeArtifact{}
 	defer func() {
 		runWasCancelled := errors.Is(runCtx.Err(), context.Canceled)
 		cancel()
 		if handleErr != nil && ctx.Err() == nil && errors.Is(handleErr, context.Canceled) && runWasCancelled {
-			handleErr = runtime.emitCancelled(ctx, output, request, artifacts)
+			handleErr = runtime.emitCancelled(ctx, output, request, artifacts, writingSession, interruptedUserMessage)
 		}
 		runtime.mu.Lock()
 		delete(runtime.runs, request.RunID)
@@ -316,7 +335,7 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	}
 	if cancelPending {
 		cancel()
-		return runtime.emitCancelled(ctx, output, request, nil)
+		return runtime.emitCancelled(ctx, output, request, nil, writingSession, interruptedUserMessage)
 	}
 	if _, err := EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolRequested, Payload: map[string]any{
 		"toolId": "story.get_target", "agentId": "primary-writer",
@@ -331,7 +350,7 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	contextText, err := runtime.requestWritingContext(runCtx, output, request)
 	if err != nil {
 		if errors.Is(runCtx.Err(), context.Canceled) {
-			return runtime.emitCancelled(ctx, output, request, nil)
+			return runtime.emitCancelled(ctx, output, request, nil, writingSession, interruptedUserMessage)
 		}
 		failureCode := writingToolFailureCode(err)
 		if _, emitErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{
@@ -397,11 +416,11 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 				return err
 			}
 		}
-		response, callErr := runtime.callModel(runCtx, request, stage, artifacts, contextText)
+		response, callErr := runtime.callModel(runCtx, request, stage, artifacts, contextText, writingSession)
 		modelCalls++
 		if callErr != nil {
 			if errors.Is(runCtx.Err(), context.Canceled) {
-				return runtime.emitCancelled(ctx, output, request, artifacts)
+				return runtime.emitCancelled(ctx, output, request, artifacts, writingSession, interruptedUserMessage)
 			}
 			failureCode, failureMessage := writingModelFailureDetails(callErr)
 			_, terminalErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunFailed, Payload: map[string]any{
@@ -433,6 +452,16 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 			}
 		}
 	}
+	if writingSession != nil && candidateArtifactID != "" {
+		for index := len(artifacts) - 1; index >= 0; index-- {
+			if artifacts[index].ID == candidateArtifactID {
+				if err := writingSession.Append(schema.AssistantMessage(artifacts[index].Content, nil)); err != nil {
+					return err
+				}
+				break
+			}
+		}
+	}
 	if candidateArtifactID != "" && writingArtifactNeedsProposal(writingCapabilityKinds[request.CapabilityID]) {
 		if _, err = EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeProposalReady, Payload: map[string]any{
 			"artifactId": candidateArtifactID,
@@ -443,14 +472,44 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	_, err = EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunCompleted, Payload: map[string]any{
 		"schemaVersion": "1", "reason": "completed", "resumable": false, "partialArtifactRefs": writingArtifactIDs(artifacts),
 	}})
+	if err == nil && pendingInterruption != nil {
+		err = writingSession.ResolveInterruption(pendingInterruption.ID)
+	}
 	return err
 }
 
-func (runtime *WritingFrameRuntime) emitCancelled(ctx context.Context, output io.Writer, request planRunRequest, artifacts []writingRuntimeArtifact) error {
+func (runtime *WritingFrameRuntime) emitCancelled(ctx context.Context, output io.Writer, request planRunRequest, artifacts []writingRuntimeArtifact, writingSession *session.Session, userMessage string) error {
+	if writingSession != nil {
+		assistantContent := ""
+		if len(artifacts) > 0 {
+			assistantContent = artifacts[len(artifacts)-1].Content
+		}
+		if err := writingSession.MarkInterrupted(userMessage, assistantContent, "cancelled"); err != nil {
+			return err
+		}
+	}
 	_, err := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunAborted, Payload: map[string]any{
 		"schemaVersion": "1", "reason": "cancelled", "resumable": false, "partialArtifactRefs": writingArtifactIDs(artifacts),
 	}})
 	return err
+}
+
+func (runtime *WritingFrameRuntime) prepareSession(request planRunRequest) (*session.Session, *session.Interruption, error) {
+	if runtime.sessions == nil {
+		return nil, nil, nil
+	}
+	writingSession, err := runtime.sessions.GetOrCreate(request.SessionID)
+	if err != nil {
+		return nil, nil, err
+	}
+	var pending *session.Interruption
+	if request.ExplicitContinue {
+		pending = writingSession.PendingInterruption()
+	}
+	if err := writingSession.Append(schema.UserMessage(request.UserIntent)); err != nil {
+		return nil, nil, err
+	}
+	return writingSession, pending, nil
 }
 
 type writingRuntimeArtifact struct {
@@ -566,7 +625,7 @@ func validateWritingRunRequest(request planRunRequest, envelopeRequestID string)
 	return nil
 }
 
-func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planRunRequest, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string) (ModelResponse, error) {
+func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planRunRequest, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string, writingSession *session.Session) (ModelResponse, error) {
 	adapter, err := NewModelAdapter(request.EffectiveModelProfile.effective())
 	if err != nil {
 		return ModelResponse{}, &writingModelFailure{code: "model_configuration_invalid", message: "模型配置不可用，作品没有被修改"}
@@ -575,10 +634,11 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 	if request.Budgets.MaxOutputTokens != nil && *request.Budgets.MaxOutputTokens > 0 {
 		maxOutput = *request.Budgets.MaxOutputTokens
 	}
-	native, err := adapter.BuildRequest(ModelRequest{Messages: []ModelMessage{
-		{Role: "system", Content: writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, stage)},
-		{Role: "user", Content: writingStageInput(request.UserIntent, contextText, previous)},
-	}, MaxOutputTokens: maxOutput}, false)
+	native, err := adapter.BuildRequest(ModelRequest{Messages: writingModelMessages(
+		writingSession,
+		writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, stage),
+		writingStageInput(request.UserIntent, contextText, previous),
+	), MaxOutputTokens: maxOutput}, false)
 	if err != nil {
 		return ModelResponse{}, &writingModelFailure{code: "model_request_invalid", message: "模型请求无效，作品没有被修改"}
 	}
@@ -627,6 +687,24 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 		return ModelResponse{}, &writingModelFailure{code: "invalid_response", message: "模型返回内容无法使用，作品没有被修改"}
 	}
 	return modelResponse, nil
+}
+
+func writingModelMessages(writingSession *session.Session, systemInstruction, finalUserMessage string) []ModelMessage {
+	messages := []ModelMessage{{Role: "system", Content: systemInstruction}}
+	if writingSession == nil {
+		return append(messages, ModelMessage{Role: "user", Content: finalUserMessage})
+	}
+	for _, message := range writingSession.GetEffectiveMessages() {
+		if message == nil || (message.Role != schema.User && message.Role != schema.Assistant) || strings.TrimSpace(message.Content) == "" {
+			continue
+		}
+		messages = append(messages, ModelMessage{Role: string(message.Role), Content: message.Content})
+	}
+	if len(messages) == 1 || messages[len(messages)-1].Role != "user" {
+		return append(messages, ModelMessage{Role: "user", Content: finalUserMessage})
+	}
+	messages[len(messages)-1].Content = finalUserMessage
+	return messages
 }
 
 func boundedWritingChunks(value string, maxBytes int) []string {

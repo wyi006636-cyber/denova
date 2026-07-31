@@ -405,6 +405,7 @@ type planRunRequest struct {
 	Target                json.RawMessage   `json:"target"`
 	CapabilityID          string            `json:"capabilityId,omitempty"`
 	UserIntent            string            `json:"userIntent"`
+	ExplicitContinue      bool              `json:"explicitContinue,omitempty"`
 	PlanMode              bool              `json:"planMode"`
 	SelectedSkillIDs      []string          `json:"selectedSkillIds"`
 	HarnessProfile        string            `json:"harnessProfile,omitempty"`
