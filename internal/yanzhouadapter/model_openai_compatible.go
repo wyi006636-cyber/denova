@@ -9,6 +9,27 @@ type openAICompatibleAdapter struct {
 	modelAdapterBase
 }
 
+var modelToolAliases = map[string]string{
+	"story.get_target": "story_get_target", "story.get_outline": "story_get_outline",
+	"story.get_adjacent_chapters": "story_get_adjacent_chapters", "story.search_chapters": "story_search_chapters",
+	"story.get_characters": "story_get_characters", "story.get_open_threads": "story_get_open_threads",
+}
+
+func modelToolName(name string) string {
+	if alias := modelToolAliases[name]; alias != "" {
+		return alias
+	}
+	return name
+}
+func canonicalModelToolName(name string) string {
+	for canonical, alias := range modelToolAliases {
+		if name == alias {
+			return canonical
+		}
+	}
+	return name
+}
+
 func newOpenAICompatibleAdapter(profile EffectiveModelProfile, adapterID string) ModelAdapter {
 	return &openAICompatibleAdapter{
 		modelAdapterBase: modelAdapterBase{profile: profile, id: adapterID},
@@ -29,7 +50,7 @@ func (a *openAICompatibleAdapter) BuildRequest(request ModelRequest, stream bool
 					"id":   call.ID,
 					"type": "function",
 					"function": map[string]any{
-						"name":      call.Name,
+						"name":      modelToolName(call.Name),
 						"arguments": call.Arguments,
 					},
 				})
@@ -38,7 +59,7 @@ func (a *openAICompatibleAdapter) BuildRequest(request ModelRequest, stream bool
 		}
 		if message.Role == "tool" {
 			item["tool_call_id"] = message.ToolCallID
-			item["name"] = message.Name
+			item["name"] = modelToolName(message.Name)
 		}
 		messages = append(messages, item)
 	}
@@ -47,7 +68,7 @@ func (a *openAICompatibleAdapter) BuildRequest(request ModelRequest, stream bool
 		tools = append(tools, map[string]any{
 			"type": "function",
 			"function": map[string]any{
-				"name":        tool.Name,
+				"name":        modelToolName(tool.Name),
 				"description": tool.Description,
 				"parameters":  tool.InputSchema,
 			},
@@ -116,7 +137,7 @@ func (a *openAICompatibleAdapter) NormalizeResponse(data []byte) (ModelResponse,
 	for _, call := range choice.Message.ToolCalls {
 		toolCalls = append(toolCalls, ModelToolCall{
 			ID:        call.ID,
-			Name:      call.Function.Name,
+			Name:      canonicalModelToolName(call.Function.Name),
 			Arguments: call.Function.Arguments,
 		})
 	}
@@ -172,7 +193,7 @@ func (a *openAICompatibleAdapter) NormalizeStream(chunks []json.RawMessage) ([]M
 		for _, call := range choice.Delta.ToolCalls {
 			toolCall := ModelToolCall{
 				ID:        call.ID,
-				Name:      call.Function.Name,
+				Name:      canonicalModelToolName(call.Function.Name),
 				Arguments: call.Function.Arguments,
 			}
 			events = append(events, ModelStreamEvent{

@@ -122,7 +122,7 @@ func TestWritingFrameRuntimeFeedsToolFactBackToProvider(t *testing.T) {
 	if len(requests) < 2 || !bytes.Contains(requests[1], []byte("TASK4-TOOL-FACT")) || !bytes.Contains(requests[1], []byte("call-threads")) {
 		t.Fatalf("tool fact was not fed back: %q", requests)
 	}
-	for _, tool := range []string{"story.get_target", "story.get_outline", "story.get_adjacent_chapters", "story.search_chapters", "story.get_characters", "story.get_open_threads"} {
+	for _, tool := range []string{"story_get_target", "story_get_outline", "story_get_adjacent_chapters", "story_search_chapters", "story_get_characters", "story_get_open_threads"} {
 		if !bytes.Contains(requests[0], []byte(tool)) {
 			t.Fatalf("first request omitted %s", tool)
 		}

@@ -183,6 +183,24 @@ func TestModelLocalAdapterErrorWithoutCredentialIsNotCorrupted(t *testing.T) {
 	}
 }
 
+func TestOpenAICompatibleAdapterAliasesAuthorReadTools(t *testing.T) {
+	adapter, err := NewModelAdapter(modelProfile(ProviderOpenAICompatible))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := adapter.BuildRequest(ModelRequest{Tools: []ModelTool{{Name: "story.get_open_threads", InputSchema: map[string]any{"type": "object"}}}}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(request.Body, []byte("story_get_open_threads")) || bytes.Contains(request.Body, []byte("story.get_open_threads")) {
+		t.Fatalf("tool alias request=%s", request.Body)
+	}
+	response, err := adapter.NormalizeResponse([]byte(`{"choices":[{"message":{"tool_calls":[{"id":"call-1","function":{"name":"story_get_open_threads","arguments":"{}"}}]}}]}`))
+	if err != nil || len(response.ToolCalls) != 1 || response.ToolCalls[0].Name != "story.get_open_threads" {
+		t.Fatalf("tool alias response=%#v err=%v", response, err)
+	}
+}
+
 func assertNativeModelRequest(t *testing.T, provider ProviderType, request NativeModelRequest) {
 	t.Helper()
 	var body map[string]any
