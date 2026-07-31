@@ -81,6 +81,79 @@ func primeWritingContext(t *testing.T, runtime *WritingFrameRuntime, runID strin
 	}
 }
 
+func TestWritingFrameRuntimeFeedsToolFactBackToProvider(t *testing.T) {
+	var requests [][]byte
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		body, _ := io.ReadAll(request.Body)
+		requests = append(requests, body)
+		writer.Header().Set("Content-Type", "application/json")
+		if len(requests) == 1 {
+			_ = json.NewEncoder(writer).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "tool_calls": []map[string]any{{"id": "call-threads", "type": "function", "function": map[string]any{"name": "story.get_open_threads", "arguments": "{}"}}}}}}})
+			return
+		}
+		_ = json.NewEncoder(writer).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": "TASK4-TOOL-FACT 已用于候选"}}}})
+	}))
+	defer server.Close()
+	store, _ := NewFileRuntimeEventStore(t.TempDir())
+	defer store.Close()
+	runtime, err := NewWritingFrameRuntime(store, server.Client(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID := "task4-tool-run"
+	primeWritingContext(t, runtime, runID)
+	toolPayload, _ := json.Marshal(map[string]any{"schemaVersion": "1", "toolId": "story.get_open_threads", "success": true, "result": map[string]any{"kind": "read-result", "mutationPerformed": false, "data": map[string]any{"summary": "读取未回收伏笔", "fact": "TASK4-TOOL-FACT"}}})
+	if err := runtime.HandleToolResponse(yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindToolResponse, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "tool-" + runID + "-model-1-0", RunID: runID, Seq: 2, Payload: toolPayload}); err != nil {
+		t.Fatal(err)
+	}
+	payload := writingRunPayload(t, server.URL, "agent_chat")
+	var value map[string]any
+	_ = json.Unmarshal(payload, &value)
+	value["harnessProfile"] = "novel-heavy"
+	value["budgets"].(map[string]any)["maxToolRounds"] = 1
+	value["budgets"].(map[string]any)["maxModelCalls"] = 10
+	value["runId"] = runID
+	value["requestId"] = "request-" + runID
+	value["idempotencyKey"] = "idem-" + runID
+	payload, _ = json.Marshal(value)
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-" + runID, Payload: payload}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if len(requests) < 2 || !bytes.Contains(requests[1], []byte("TASK4-TOOL-FACT")) || !bytes.Contains(requests[1], []byte("call-threads")) {
+		t.Fatalf("tool fact was not fed back: %q", requests)
+	}
+	for _, tool := range []string{"story.get_target", "story.get_outline", "story.get_adjacent_chapters", "story.search_chapters", "story.get_characters", "story.get_open_threads"} {
+		if !bytes.Contains(requests[0], []byte(tool)) {
+			t.Fatalf("first request omitted %s", tool)
+		}
+	}
+	events, err := store.ReplayAfter(context.Background(), runID, 0, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requested, started, completed, terminal := -1, -1, -1, 0
+	for index, event := range events {
+		if event.Type == RunEventTypeToolRequested && event.Payload["toolId"] == "story.get_open_threads" {
+			requested = index
+		}
+		if event.Type == RunEventTypeToolStarted && event.Payload["toolId"] == "story.get_open_threads" {
+			started = index
+		}
+		if event.Type == RunEventTypeToolCompleted && event.Payload["toolId"] == "story.get_open_threads" {
+			completed = index
+			if event.Payload["summary"] != "读取未回收伏笔" {
+				t.Fatalf("tool summary = %#v", event.Payload)
+			}
+		}
+		if IsTerminalRunEventType(event.Type) {
+			terminal++
+		}
+	}
+	if requested < 0 || started <= requested || completed <= started || terminal != 1 || events[len(events)-1].Type != RunEventTypeRunCompleted {
+		t.Fatalf("tool/terminal events = %#v", events)
+	}
+}
+
 func TestWritingFrameRuntimeReusesDenovaSessionAcrossRuns(t *testing.T) {
 	var requests []map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

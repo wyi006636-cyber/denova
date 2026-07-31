@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -131,6 +132,15 @@ type writingToolResponsePayload struct {
 
 type writingToolFailure struct{ code string }
 
+func writingReadTool(id string) bool {
+	for _, candidate := range []string{"story.get_target", "story.get_outline", "story.get_adjacent_chapters", "story.search_chapters", "story.get_characters", "story.get_open_threads"} {
+		if id == candidate {
+			return true
+		}
+	}
+	return false
+}
+
 func (failure *writingToolFailure) Error() string { return "writing context tool failed" }
 
 type writingModelFailure struct {
@@ -160,11 +170,11 @@ func (runtime *WritingFrameRuntime) HandleToolResponse(frame yanzhouprotocol.Env
 	if runtime == nil {
 		return errors.New("writing frame runtime is unavailable")
 	}
-	if err := frame.Validate(); err != nil || frame.Kind != yanzhouprotocol.KindToolResponse || frame.RequestID != "tool-"+frame.RunID+"-context" {
+	if err := frame.Validate(); err != nil || frame.Kind != yanzhouprotocol.KindToolResponse || !strings.HasPrefix(frame.RequestID, "tool-"+frame.RunID+"-") {
 		return errors.New("writing tool response is invalid")
 	}
 	var payload writingToolResponsePayload
-	if err := decodeStrictPlanJSON(frame.Payload, yanzhouprotocol.DefaultMaxFrameBytes, &payload); err != nil || payload.SchemaVersion != "1" || payload.ToolID != "story.get_target" {
+	if err := decodeStrictPlanJSON(frame.Payload, yanzhouprotocol.DefaultMaxFrameBytes, &payload); err != nil || payload.SchemaVersion != "1" || !writingReadTool(payload.ToolID) {
 		return errors.New("writing tool response is invalid")
 	}
 	runtime.responseMu.Lock()
@@ -418,15 +428,21 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 				return err
 			}
 		}
-		response, callErr := runtime.callModel(runCtx, request, modelUserIntent, stage, artifacts, contextText, writingSession)
-		modelCalls++
+		response, callErr := runtime.callModel(runCtx, output, request, modelUserIntent, stage, artifacts, contextText, writingSession, &modelCalls, modelLimit)
 		if callErr != nil {
 			if errors.Is(runCtx.Err(), context.Canceled) {
 				return runtime.emitCancelled(ctx, output, request, artifacts, writingSession, interruptedUserMessage, pendingInterruption)
 			}
 			failureCode, failureMessage := writingModelFailureDetails(callErr)
+			reason := "provider_error"
+			var toolFailure *writingToolFailure
+			if errors.As(callErr, &toolFailure) {
+				reason = "tool_error"
+				failureCode = writingToolFailureCode(callErr)
+				failureMessage = "读取作品资料失败，作品没有被修改"
+			}
 			_, terminalErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunFailed, Payload: map[string]any{
-				"schemaVersion": "1", "reason": "provider_error", "resumable": false, "partialArtifactRefs": writingArtifactIDs(artifacts),
+				"schemaVersion": "1", "reason": reason, "resumable": false, "partialArtifactRefs": writingArtifactIDs(artifacts),
 				"code": failureCode, "message": failureMessage,
 			}})
 			return terminalErr
@@ -643,7 +659,68 @@ func validateWritingRunRequest(request planRunRequest, envelopeRequestID string)
 	return nil
 }
 
-func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planRunRequest, userIntent string, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string, writingSession *session.Session) (ModelResponse, error) {
+func writingModelTools() []ModelTool {
+	return []ModelTool{
+		{Name: "story.get_target", Description: "Read the current writing target.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{}}},
+		{Name: "story.get_outline", Description: "Read the relevant story outlines.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"query": map[string]any{"type": "string"}}}},
+		{Name: "story.get_adjacent_chapters", Description: "Read adjacent chapter summaries.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"count": map[string]any{"type": "integer"}}}},
+		{Name: "story.search_chapters", Description: "Search chapters by keyword.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"query": map[string]any{"type": "string"}}, "required": []string{"query"}}},
+		{Name: "story.get_characters", Description: "Read relevant character profiles.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"query": map[string]any{"type": "string"}}}},
+		{Name: "story.get_open_threads", Description: "Read unresolved story threads.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"query": map[string]any{"type": "string"}}}},
+	}
+}
+
+func (runtime *WritingFrameRuntime) requestModelTool(ctx context.Context, output io.Writer, request planRunRequest, tool ModelToolCall, round, index int) (json.RawMessage, error) {
+	if !writingReadTool(tool.Name) || strings.TrimSpace(tool.ID) == "" || !json.Valid([]byte(tool.Arguments)) {
+		return nil, &writingToolFailure{code: "tool_call_invalid"}
+	}
+	requestID := fmt.Sprintf("tool-%s-model-%d-%d", request.RunID, round, index)
+	response, early, err := runtime.registerToolResponse(requestID)
+	if err != nil {
+		return nil, err
+	}
+	defer runtime.clearToolResponse(requestID)
+	if _, err = EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolRequested, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "summary": "按任务读取作品资料"}}); err != nil {
+		return nil, err
+	}
+	if _, err = EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolStarted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "summary": "正在读取作品资料"}}); err != nil {
+		return nil, err
+	}
+	payload, _ := json.Marshal(map[string]any{"schemaVersion": "1", "toolId": tool.Name, "agentId": "primary-writer", "target": json.RawMessage(request.Target), "arguments": tool.Arguments})
+	if err = yanzhouprotocol.WriteFrame(output, yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindToolRequest, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: requestID, RunID: request.RunID, Seq: uint64(round*100 + index + 2), Payload: payload}); err != nil {
+		return nil, err
+	}
+	var frame yanzhouprotocol.Envelope
+	if early != nil {
+		frame = *early
+	} else {
+		select {
+		case frame = <-response:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+	var payloadResponse writingToolResponsePayload
+	if err = decodeStrictPlanJSON(frame.Payload, yanzhouprotocol.DefaultMaxFrameBytes, &payloadResponse); err != nil || payloadResponse.ToolID != tool.Name || !payloadResponse.Success || payloadResponse.ErrorCode != "" || len(payloadResponse.Result) == 0 {
+		_, _ = EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "status": "failed", "code": "tool_response_invalid", "message": "读取作品资料失败"}})
+		return nil, &writingToolFailure{code: "tool_response_invalid"}
+	}
+	summary := "已读取作品资料"
+	var resultSummary struct {
+		Data struct {
+			Summary string `json:"summary"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(payloadResponse.Result, &resultSummary) == nil && len([]rune(resultSummary.Data.Summary)) > 0 && len([]rune(resultSummary.Data.Summary)) <= 80 {
+		summary = resultSummary.Data.Summary
+	}
+	if _, err = EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "status": "succeeded", "summary": summary}}); err != nil {
+		return nil, err
+	}
+	return payloadResponse.Result, nil
+}
+
+func (runtime *WritingFrameRuntime) callModel(ctx context.Context, output io.Writer, request planRunRequest, userIntent string, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string, writingSession *session.Session, modelCalls *int, modelLimit int) (ModelResponse, error) {
 	adapter, err := NewModelAdapter(request.EffectiveModelProfile.effective())
 	if err != nil {
 		return ModelResponse{}, &writingModelFailure{code: "model_configuration_invalid", message: "模型配置不可用，作品没有被修改"}
@@ -652,11 +729,19 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 	if request.Budgets.MaxOutputTokens != nil && *request.Budgets.MaxOutputTokens > 0 {
 		maxOutput = *request.Budgets.MaxOutputTokens
 	}
-	native, err := adapter.BuildRequest(ModelRequest{Messages: writingModelMessages(
+	toolHistory := []ModelMessage{}
+	toolRounds := 0
+modelCall:
+	if *modelCalls >= modelLimit {
+		return ModelResponse{}, &writingModelFailure{code: "model_budget_exhausted", message: "模型调用次数已达上限，作品没有被修改"}
+	}
+	*modelCalls++
+	messages := append(writingModelMessages(
 		writingSession,
 		writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, stage),
 		writingStageInput(userIntent, contextText, previous),
-	), MaxOutputTokens: maxOutput}, false)
+	), toolHistory...)
+	native, err := adapter.BuildRequest(ModelRequest{Messages: messages, Tools: writingModelTools(), MaxOutputTokens: maxOutput}, false)
 	if err != nil {
 		return ModelResponse{}, &writingModelFailure{code: "model_request_invalid", message: "模型请求无效，作品没有被修改"}
 	}
@@ -701,7 +786,25 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 		return ModelResponse{}, &writingModelFailure{code: "http_status", message: "模型服务拒绝了请求，作品没有被修改"}
 	}
 	modelResponse, err := adapter.NormalizeResponse(body)
-	if err != nil || strings.TrimSpace(modelResponse.Content) == "" || len(modelResponse.ToolCalls) != 0 {
+	if err != nil {
+		return ModelResponse{}, &writingModelFailure{code: "invalid_response", message: "模型返回内容无法使用，作品没有被修改"}
+	}
+	if len(modelResponse.ToolCalls) > 0 {
+		toolRounds++
+		if toolRounds > request.Budgets.MaxToolRounds {
+			return ModelResponse{}, &writingModelFailure{code: "tool_budget_exhausted", message: "读取资料次数已达上限，作品没有被修改"}
+		}
+		toolHistory = append(toolHistory, ModelMessage{Role: "assistant", Content: modelResponse.Content, ToolCalls: modelResponse.ToolCalls})
+		for index, tool := range modelResponse.ToolCalls {
+			result, toolErr := runtime.requestModelTool(ctx, output, request, tool, toolRounds, index)
+			if toolErr != nil {
+				return ModelResponse{}, toolErr
+			}
+			toolHistory = append(toolHistory, ModelMessage{Role: "tool", Name: tool.Name, ToolCallID: tool.ID, Content: string(result)})
+		}
+		goto modelCall
+	}
+	if strings.TrimSpace(modelResponse.Content) == "" {
 		return ModelResponse{}, &writingModelFailure{code: "invalid_response", message: "模型返回内容无法使用，作品没有被修改"}
 	}
 	return modelResponse, nil
