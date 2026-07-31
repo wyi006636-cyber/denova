@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -2348,6 +2349,22 @@ func TestRuntimeEventConstructorDurablyCreatesNestedRuntimeRoot(t *testing.T) {
 	if !reflect.DeepEqual(phases[:len(wantConstructor)], wantConstructor) {
 		t.Fatalf("constructor durability prefix changed before stdout: %v", phases)
 	}
+}
+
+func TestRuntimeEventConstructorOpensExistingRootOnWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only runtime-root behavior")
+	}
+	parent := t.TempDir()
+	runtimeRoot := filepath.Join(parent, "agent-runtime")
+	if err := os.Mkdir(runtimeRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewFileRuntimeEventStore(runtimeRoot)
+	if err != nil {
+		t.Fatalf("open existing Windows runtime root: %v", err)
+	}
+	defer store.Close()
 }
 
 func TestRuntimeEventUncertainAppendQuarantinesRunAndCloseAfterSyncCommits(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -824,6 +825,10 @@ func (osRuntimeEventFileOps) syncDirectory(root *os.Root, name string) error {
 	if err := validateOpenedRuntimePath(root, name, directory, true); err != nil {
 		_ = directory.Close()
 		return err
+	}
+	if runtime.GOOS == "windows" {
+		_ = directory.Close()
+		return nil
 	}
 	if err := directory.Sync(); err != nil {
 		_ = directory.Close()
