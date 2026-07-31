@@ -741,7 +741,11 @@ modelCall:
 		writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, stage),
 		writingStageInput(userIntent, contextText, previous),
 	), toolHistory...)
-	native, err := adapter.BuildRequest(ModelRequest{Messages: messages, Tools: writingModelTools(), MaxOutputTokens: maxOutput}, false)
+	tools := []ModelTool(nil)
+	if len(previous) == 0 {
+		tools = writingModelTools()
+	}
+	native, err := adapter.BuildRequest(ModelRequest{Messages: messages, Tools: tools, MaxOutputTokens: maxOutput}, false)
 	if err != nil {
 		return ModelResponse{}, &writingModelFailure{code: "model_request_invalid", message: "模型请求无效，作品没有被修改"}
 	}
@@ -852,7 +856,11 @@ func boundedWritingChunks(value string, maxBytes int) []string {
 
 func writingStageInput(instruction, contextText string, previous []writingRuntimeArtifact) string {
 	var builder strings.Builder
-	builder.WriteString(instruction)
+	if len(previous) == 0 {
+		builder.WriteString(instruction)
+	} else {
+		builder.WriteString("Refine the prior Artifact for this stage. Preserve its verified story facts and do not repeat the initial data-gathering instruction.")
+	}
 	if contextText != "" {
 		builder.WriteString("\n\nMain-owned processed ContextPack:\n")
 		builder.WriteString(contextText)

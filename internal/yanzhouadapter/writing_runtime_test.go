@@ -827,6 +827,121 @@ func TestWritingFrameRuntimeExecutesTheExistingStandardHarnessGraph(t *testing.T
 	}
 }
 
+func TestWritingFrameRuntimeKeepsAuthorReadToolsInTheInitialStandardStage(t *testing.T) {
+	const instruction = "请先调用读取未回收伏笔工具，找出验收暗号。不要猜。"
+	const anchor = "TASK4-THREAD-ANCHOR-青铜钥匙缺口朝内"
+	var requests [][]byte
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		requests = append(requests, body)
+		writer.Header().Set("Content-Type", "application/json")
+		message := map[string]any{"role": "assistant"}
+		switch len(requests) {
+		case 1:
+			message["tool_calls"] = []map[string]any{{"id": "call-threads", "type": "function", "function": map[string]any{"name": "story.get_open_threads", "arguments": "{}"}}}
+		case 2:
+			message["tool_calls"] = []map[string]any{{"id": "call-characters", "type": "function", "function": map[string]any{"name": "story.get_characters", "arguments": "{}"}}}
+		case 3:
+			message["content"] = anchor + " 已写入首稿。"
+		case 4:
+			message["content"] = "审阅首稿并保留青铜钥匙伏笔。"
+		case 5:
+			message["content"] = anchor + " 修订稿。"
+		default:
+			t.Fatalf("unexpected provider request %d", len(requests))
+		}
+		_ = json.NewEncoder(writer).Encode(map[string]any{"choices": []map[string]any{{"message": message}}})
+	}))
+	defer server.Close()
+
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, err := NewWritingFrameRuntime(store, server.Client(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID := "task4-standard-read-run"
+	primeWritingContext(t, runtime, runID)
+	for _, tool := range []struct {
+		requestID string
+		toolID    string
+	}{
+		{requestID: "tool-" + runID + "-model-1-0", toolID: "story.get_open_threads"},
+		{requestID: "tool-" + runID + "-model-2-0", toolID: "story.get_characters"},
+	} {
+		response, marshalErr := json.Marshal(map[string]any{
+			"schemaVersion": "1", "toolId": tool.toolID, "success": true,
+			"result": map[string]any{"kind": "read-result", "mutationPerformed": false, "data": map[string]any{"summary": "读取作品资料", "fact": anchor}},
+		})
+		if marshalErr != nil {
+			t.Fatal(marshalErr)
+		}
+		if err := runtime.HandleToolResponse(yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindToolResponse, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: tool.requestID, RunID: runID, Seq: 2, Payload: response}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &payload); err != nil {
+		t.Fatal(err)
+	}
+	payload["harnessProfile"] = "novel-standard"
+	payload["userIntent"] = instruction
+	payload["runId"] = runID
+	payload["requestId"] = "request-" + runID
+	payload["idempotencyKey"] = "idem-" + runID
+	payload["budgets"].(map[string]any)["maxModelCalls"] = 5
+	payload["budgets"].(map[string]any)["maxToolRounds"] = 4
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-" + runID, Payload: encoded}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if len(requests) != 5 {
+		t.Fatalf("provider requests = %d, want two read rounds plus three standard stages", len(requests))
+	}
+	for index, request := range requests {
+		if index < 3 {
+			if !bytes.Contains(request, []byte("story_get_open_threads")) || !bytes.Contains(request, []byte(instruction)) {
+				t.Fatalf("initial-stage request %d lost read authority or instruction: %s", index, request)
+			}
+			continue
+		}
+		if bytes.Contains(request, []byte("story_get_open_threads")) || bytes.Contains(request, []byte(instruction)) {
+			t.Fatalf("later-stage request %d repeated initial read directive: %s", index, request)
+		}
+		if !bytes.Contains(request, []byte("Refine the prior Artifact")) || !bytes.Contains(request, []byte(anchor)) {
+			t.Fatalf("later-stage request %d lost the fact-bearing Artifact: %s", index, request)
+		}
+	}
+	events, err := store.ReplayAfter(context.Background(), runID, 0, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proposals, completed, terminals := 0, 0, 0
+	for _, event := range events {
+		if event.Type == RunEventTypeProposalReady {
+			proposals++
+		}
+		if event.Type == RunEventTypeRunCompleted {
+			completed++
+		}
+		if IsTerminalRunEventType(event.Type) {
+			terminals++
+		}
+	}
+	if proposals != 1 || completed != 1 || terminals != 1 || events[len(events)-1].Type != RunEventTypeRunCompleted {
+		t.Fatalf("standard task4 terminal events = %#v", events)
+	}
+}
+
 func equalAnySlice(left, right []any) bool {
 	if len(left) != len(right) {
 		return false

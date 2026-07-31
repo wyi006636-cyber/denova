@@ -18,11 +18,14 @@ func TestWritingHarnessProfilesMatchWP7Contract(t *testing.T) {
 		t.Fatalf("marshal WritingHarness contract: %v", err)
 	}
 	contractHash := sha256.Sum256(contractJSON)
-	if got, want := hex.EncodeToString(contractHash[:]), "0b33c1f9f2ddd03549bd3786ca05b992f77bc878576c7dc1d42a3e8d60059db6"; got != want {
+	if got, want := hex.EncodeToString(contractHash[:]), "b731d9e7e542b26187caa0fdba3948f4e51f24c87fa4cafb86fb520566815ce9"; got != want {
 		t.Fatalf("cross-language WritingHarness contract digest = %s, want %s", got, want)
 	}
 	if got, want := profileIDs(profiles), []WritingHarnessProfileID{HarnessProfileNovelLite, HarnessProfileNovelStandard, HarnessProfileNovelHeavy}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("profile ids = %v, want %v", got, want)
+	}
+	if got, want := profiles[0].Budget.MaxModelCalls, 2; got != want {
+		t.Fatalf("lite max model calls = %d, want %d", got, want)
 	}
 	if got, want := profiles[1].Budget.MaxModelCalls, 5; got != want {
 		t.Fatalf("standard max model calls = %d, want %d", got, want)
