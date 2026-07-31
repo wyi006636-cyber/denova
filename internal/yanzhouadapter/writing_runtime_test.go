@@ -117,6 +117,7 @@ func TestWritingFrameRuntimeRunsExistingStartFrameWithFakeProvider(t *testing.T)
 	want := []RunEventType{
 		RunEventTypeRunStarted,
 		RunEventTypeToolRequested,
+		RunEventTypeToolStarted,
 		RunEventTypeToolCompleted,
 		RunEventTypeContextAccepted,
 		RunEventTypeModelDelta,
@@ -135,14 +136,92 @@ func TestWritingFrameRuntimeRunsExistingStartFrameWithFakeProvider(t *testing.T)
 			t.Fatalf("event %d = %s, want %s", index, events[index].Type, want[index])
 		}
 	}
-	if got := events[4].Payload["text"]; got != "雨落在旧站台上，林青没有回头。" {
+	if got := events[5].Payload["text"]; got != "雨落在旧站台上，林青没有回头。" {
 		t.Fatalf("model delta text = %#v", got)
 	}
-	if got := events[5].Payload["artifactKind"]; got != "draft" {
+	if got := events[6].Payload["artifactKind"]; got != "draft" {
 		t.Fatalf("artifact kind = %#v", got)
 	}
-	if got := events[5].Payload["entrypoint"]; got != "agent_chat" {
+	if got := events[6].Payload["entrypoint"]; got != "agent_chat" {
 		t.Fatalf("entrypoint = %#v", got)
+	}
+}
+
+func TestWritingFrameRuntimeProjectsToolFailureBeforeItsSingleTerminal(t *testing.T) {
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, err := NewWritingFrameRuntime(store, http.DefaultClient)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(map[string]any{
+		"schemaVersion": "1", "toolId": "story.get_target", "success": false, "errorCode": "tool_unavailable",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.HandleToolResponse(yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindToolResponse, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "tool-plan-run-1-context", RunID: "plan-run-1", Seq: 1, Payload: payload,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "request-1", Payload: writingRunPayload(t, "http://fixture.invalid", "agent_chat"),
+	}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 5 || events[3].Type != RunEventTypeToolCompleted || events[4].Type != RunEventTypeRunFailed {
+		t.Fatalf("event sequence = %#v", events)
+	}
+	if events[3].Payload["status"] != "failed" || events[3].Payload["code"] != "tool_unavailable" {
+		t.Fatalf("tool failure projection = %#v", events[3].Payload)
+	}
+	if events[4].Payload["reason"] != "tool_error" || events[4].Payload["code"] != "tool_unavailable" {
+		t.Fatalf("terminal failure projection = %#v", events[4].Payload)
+	}
+}
+
+func TestWritingFrameRuntimePreservesProviderFailureCategoryWithoutItsRawResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = writer.Write([]byte(`{"error":{"message":"private provider response"}}`))
+	}))
+	defer server.Close()
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, err := NewWritingFrameRuntime(store, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	primeWritingContext(t, runtime, "plan-run-1")
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "request-1", Payload: writingRunPayload(t, server.URL, "agent_chat"),
+	}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	terminal := events[len(events)-1]
+	if terminal.Type != RunEventTypeRunFailed || terminal.Payload["code"] != "provider_unavailable" || terminal.Payload["message"] != "模型服务暂时不可用，请稍后重试" {
+		t.Fatalf("provider failure projection = %#v", terminal)
+	}
+	if strings.Contains(terminal.Payload["message"].(string), "private provider response") {
+		t.Fatalf("raw provider response leaked: %#v", terminal.Payload)
 	}
 }
 

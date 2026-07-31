@@ -1050,6 +1050,8 @@ func validateRuntimeTerminalPayload(eventType RunEventType, payload map[string]a
 		"partialArtifactRefs": {},
 		"checkpointId":        {},
 		"timeoutType":         {},
+		"code":                {},
+		"message":             {},
 	}
 	for field := range payload {
 		if _, allowed := allowedFields[field]; !allowed {
@@ -1075,9 +1077,20 @@ func validateRuntimeTerminalPayload(eventType RunEventType, payload map[string]a
 	if !reasonOK || !resumableOK || !refsOK {
 		return invalidRuntimeTerminalPayload()
 	}
+	code, codePresent := payload["code"].(string)
+	message, messagePresent := payload["message"].(string)
+	if codePresent != messagePresent || (codePresent && (!validPlanSchemaID(code) || len(message) == 0 || len(message) > 256 || containsSensitiveString(message))) {
+		return invalidRuntimeTerminalPayload()
+	}
 
 	if reason == "completed" {
 		if eventType != RunEventTypeRunCompleted || resumable || timeoutPresent {
+			return invalidRuntimeTerminalPayload()
+		}
+		return nil
+	}
+	if reason == "tool_error" {
+		if eventType != RunEventTypeRunFailed || resumable || timeoutPresent || !codePresent {
 			return invalidRuntimeTerminalPayload()
 		}
 		return nil

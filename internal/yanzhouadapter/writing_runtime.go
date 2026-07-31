@@ -118,6 +118,33 @@ type writingToolResponsePayload struct {
 	ErrorCode     string          `json:"errorCode,omitempty"`
 }
 
+type writingToolFailure struct{ code string }
+
+func (failure *writingToolFailure) Error() string { return "writing context tool failed" }
+
+type writingModelFailure struct {
+	code    string
+	message string
+}
+
+func (failure *writingModelFailure) Error() string { return failure.code }
+
+func writingToolFailureCode(err error) string {
+	var failure *writingToolFailure
+	if errors.As(err, &failure) && validPlanSchemaID(failure.code) {
+		return failure.code
+	}
+	return "tool_failed"
+}
+
+func writingModelFailureDetails(err error) (string, string) {
+	var failure *writingModelFailure
+	if errors.As(err, &failure) && validPlanSchemaID(failure.code) && failure.message != "" {
+		return failure.code, failure.message
+	}
+	return "model_request_failed", "模型请求失败，作品没有被修改"
+}
+
 func (runtime *WritingFrameRuntime) HandleToolResponse(frame yanzhouprotocol.Envelope) error {
 	if runtime == nil {
 		return errors.New("writing frame runtime is unavailable")
@@ -172,17 +199,20 @@ func (runtime *WritingFrameRuntime) clearToolResponse(requestID string) {
 
 func decodeWritingContextResponse(frame yanzhouprotocol.Envelope, request planRunRequest) (string, error) {
 	var payload writingToolResponsePayload
-	if err := decodeStrictPlanJSON(frame.Payload, yanzhouprotocol.DefaultMaxFrameBytes, &payload); err != nil || !payload.Success || payload.ErrorCode != "" {
-		return "", errors.New("writing context tool failed")
+	if err := decodeStrictPlanJSON(frame.Payload, yanzhouprotocol.DefaultMaxFrameBytes, &payload); err != nil {
+		return "", &writingToolFailure{code: "tool_response_invalid"}
+	}
+	if !payload.Success || payload.ErrorCode != "" {
+		return "", &writingToolFailure{code: payload.ErrorCode}
 	}
 	var result writingContextToolResult
 	if err := decodeStrictPlanJSON(payload.Result, yanzhouprotocol.DefaultMaxFrameBytes, &result); err != nil || result.Kind != "read-result" || result.MutationPerformed || result.Data.ContextPackRef != request.ContextPackRef.Ref || len(result.Data.Sections) == 0 || len(result.Data.Sections) > 64 {
-		return "", errors.New("writing context tool result is invalid")
+		return "", &writingToolFailure{code: "tool_result_invalid"}
 	}
 	var builder strings.Builder
 	for _, section := range result.Data.Sections {
 		if !validPlanSchemaID(section.Kind) || section.Content == "" || len(section.Content) > 128*1024 || !regexp.MustCompile(`^sha256:[a-f0-9]{64}$`).MatchString(section.Revision) || section.Truncated == nil {
-			return "", errors.New("writing context section is invalid")
+			return "", &writingToolFailure{code: "tool_result_invalid"}
 		}
 		builder.WriteString("[")
 		builder.WriteString(section.Kind)
@@ -190,7 +220,7 @@ func decodeWritingContextResponse(frame yanzhouprotocol.Envelope, request planRu
 		builder.WriteString(section.Content)
 		builder.WriteString("\n")
 		if builder.Len() > 512*1024 {
-			return "", errors.New("writing context tool result exceeds limit")
+			return "", &writingToolFailure{code: "tool_result_invalid"}
 		}
 	}
 	return builder.String(), nil
@@ -293,18 +323,31 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	}}); err != nil {
 		return err
 	}
+	if _, err := EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolStarted, Payload: map[string]any{
+		"toolId": "story.get_target", "agentId": "primary-writer",
+	}}); err != nil {
+		return err
+	}
 	contextText, err := runtime.requestWritingContext(runCtx, output, request)
 	if err != nil {
 		if errors.Is(runCtx.Err(), context.Canceled) {
 			return runtime.emitCancelled(ctx, output, request, nil)
 		}
+		failureCode := writingToolFailureCode(err)
+		if _, emitErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{
+			"toolId": "story.get_target", "agentId": "primary-writer", "status": "failed", "code": failureCode,
+			"message": "读取当前章节失败",
+		}}); emitErr != nil {
+			return emitErr
+		}
 		_, terminalErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunFailed, Payload: map[string]any{
 			"schemaVersion": "1", "reason": "tool_error", "resumable": false, "partialArtifactRefs": []string{},
+			"code": failureCode, "message": "无法读取当前章节，作品没有被修改",
 		}})
 		return terminalErr
 	}
 	if _, err = EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{
-		"toolId": "story.get_target", "agentId": "primary-writer", "contextPackRef": request.ContextPackRef.Ref,
+		"toolId": "story.get_target", "agentId": "primary-writer", "contextPackRef": request.ContextPackRef.Ref, "status": "succeeded",
 	}}); err != nil {
 		return err
 	}
@@ -360,8 +403,10 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 			if errors.Is(runCtx.Err(), context.Canceled) {
 				return runtime.emitCancelled(ctx, output, request, artifacts)
 			}
+			failureCode, failureMessage := writingModelFailureDetails(callErr)
 			_, terminalErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunFailed, Payload: map[string]any{
 				"schemaVersion": "1", "reason": "provider_error", "resumable": false, "partialArtifactRefs": writingArtifactIDs(artifacts),
+				"code": failureCode, "message": failureMessage,
 			}})
 			return terminalErr
 		}
@@ -524,7 +569,7 @@ func validateWritingRunRequest(request planRunRequest, envelopeRequestID string)
 func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planRunRequest, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string) (ModelResponse, error) {
 	adapter, err := NewModelAdapter(request.EffectiveModelProfile.effective())
 	if err != nil {
-		return ModelResponse{}, err
+		return ModelResponse{}, &writingModelFailure{code: "model_configuration_invalid", message: "模型配置不可用，作品没有被修改"}
 	}
 	maxOutput := 4096
 	if request.Budgets.MaxOutputTokens != nil && *request.Budgets.MaxOutputTokens > 0 {
@@ -535,7 +580,7 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 		{Role: "user", Content: writingStageInput(request.UserIntent, contextText, previous)},
 	}, MaxOutputTokens: maxOutput}, false)
 	if err != nil {
-		return ModelResponse{}, err
+		return ModelResponse{}, &writingModelFailure{code: "model_request_invalid", message: "模型请求无效，作品没有被修改"}
 	}
 	deadline := time.Duration(request.EffectiveModelProfile.TimeoutMS) * time.Millisecond
 	if wall := time.Duration(request.Budgets.MaxWallTimeMS) * time.Millisecond; wall < deadline {
@@ -545,23 +590,41 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 	defer cancel()
 	httpRequest, err := http.NewRequestWithContext(callCtx, native.Method, native.URL, bytes.NewReader(native.Body))
 	if err != nil {
-		return ModelResponse{}, err
+		return ModelResponse{}, &writingModelFailure{code: "model_request_invalid", message: "模型请求无效，作品没有被修改"}
 	}
 	for key, value := range native.Headers {
 		httpRequest.Header.Set(key, value)
 	}
 	response, err := runtime.client.Do(httpRequest)
 	if err != nil {
-		return ModelResponse{}, err
+		if errors.Is(callCtx.Err(), context.DeadlineExceeded) {
+			return ModelResponse{}, &writingModelFailure{code: "network_timeout", message: "模型服务响应超时，作品没有被修改"}
+		}
+		return ModelResponse{}, &writingModelFailure{code: "network_error", message: "无法连接模型服务，作品没有被修改"}
 	}
 	defer response.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(response.Body, 4*1024*1024+1))
-	if err != nil || len(body) > 4*1024*1024 || response.StatusCode < 200 || response.StatusCode >= 300 {
-		return ModelResponse{}, errors.New("writing model request failed")
+	if err != nil {
+		return ModelResponse{}, &writingModelFailure{code: "network_error", message: "读取模型响应失败，作品没有被修改"}
+	}
+	if len(body) > 4*1024*1024 {
+		return ModelResponse{}, &writingModelFailure{code: "response_too_large", message: "模型响应过大，作品没有被修改"}
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
+			return ModelResponse{}, &writingModelFailure{code: "authentication", message: "模型凭证不可用，作品没有被修改"}
+		}
+		if response.StatusCode == http.StatusTooManyRequests {
+			return ModelResponse{}, &writingModelFailure{code: "rate_limit", message: "模型服务请求过多，请稍后重试"}
+		}
+		if response.StatusCode >= http.StatusInternalServerError {
+			return ModelResponse{}, &writingModelFailure{code: "provider_unavailable", message: "模型服务暂时不可用，请稍后重试"}
+		}
+		return ModelResponse{}, &writingModelFailure{code: "http_status", message: "模型服务拒绝了请求，作品没有被修改"}
 	}
 	modelResponse, err := adapter.NormalizeResponse(body)
 	if err != nil || strings.TrimSpace(modelResponse.Content) == "" || len(modelResponse.ToolCalls) != 0 {
-		return ModelResponse{}, errors.New("writing model response is invalid")
+		return ModelResponse{}, &writingModelFailure{code: "invalid_response", message: "模型返回内容无法使用，作品没有被修改"}
 	}
 	return modelResponse, nil
 }
