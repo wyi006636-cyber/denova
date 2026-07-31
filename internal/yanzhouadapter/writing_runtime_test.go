@@ -154,6 +154,64 @@ func TestWritingFrameRuntimeFeedsToolFactBackToProvider(t *testing.T) {
 	}
 }
 
+func TestWritingFrameRuntimeToolLoopHonorsModelBudget(t *testing.T) {
+	requests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requests++
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "tool_calls": []map[string]any{{"id": "call-budget", "type": "function", "function": map[string]any{"name": "story.get_open_threads", "arguments": "{}"}}}}}}})
+	}))
+	defer server.Close()
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, err := NewWritingFrameRuntime(store, server.Client(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID := "task4-budget-run"
+	primeWritingContext(t, runtime, runID)
+	toolPayload, _ := json.Marshal(map[string]any{"schemaVersion": "1", "toolId": "story.get_open_threads", "success": true, "result": map[string]any{"kind": "read-result", "mutationPerformed": false, "data": map[string]any{"summary": "读取未回收伏笔", "fact": "TASK4-TOOL-FACT"}}})
+	if err := runtime.HandleToolResponse(yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindToolResponse, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "tool-" + runID + "-model-1-0", RunID: runID, Seq: 2, Payload: toolPayload}); err != nil {
+		t.Fatal(err)
+	}
+	payload := writingRunPayload(t, server.URL, "agent_chat")
+	var value map[string]any
+	_ = json.Unmarshal(payload, &value)
+	value["harnessProfile"] = "novel-heavy"
+	value["budgets"].(map[string]any)["maxToolRounds"] = 1
+	value["budgets"].(map[string]any)["maxModelCalls"] = 1
+	value["runId"] = runID
+	value["requestId"] = "request-" + runID
+	value["idempotencyKey"] = "idem-" + runID
+	payload, _ = json.Marshal(value)
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-" + runID, Payload: payload}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if requests != 1 {
+		t.Fatalf("provider requests=%d, want 1", requests)
+	}
+	events, err := store.ReplayAfter(context.Background(), runID, 0, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	terminals := 0
+	for _, event := range events {
+		if IsTerminalRunEventType(event.Type) {
+			terminals++
+		}
+		if event.Type == RunEventTypeProposalReady {
+			t.Fatal("budgeted run created proposal")
+		}
+	}
+	terminal := events[len(events)-1]
+	if terminals != 1 || terminal.Type != RunEventTypeRunFailed || terminal.Payload["code"] != "model_budget_exhausted" {
+		t.Fatalf("budget terminal=%#v", terminal)
+	}
+}
+
 func TestWritingFrameRuntimeReusesDenovaSessionAcrossRuns(t *testing.T) {
 	var requests []map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
