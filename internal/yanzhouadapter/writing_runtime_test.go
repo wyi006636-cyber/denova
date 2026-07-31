@@ -862,7 +862,11 @@ func TestWritingFrameRuntimeKeepsAuthorReadToolsInTheInitialStandardStage(t *tes
 		t.Fatal(err)
 	}
 	defer store.Close()
-	runtime, err := NewWritingFrameRuntime(store, server.Client(), nil)
+	sessions, err := session.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime, err := NewWritingFrameRuntime(store, server.Client(), sessions)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -895,6 +899,7 @@ func TestWritingFrameRuntimeKeepsAuthorReadToolsInTheInitialStandardStage(t *tes
 	payload["runId"] = runID
 	payload["requestId"] = "request-" + runID
 	payload["idempotencyKey"] = "idem-" + runID
+	payload["sessionId"] = "task4-standard-session"
 	payload["budgets"].(map[string]any)["maxModelCalls"] = 5
 	payload["budgets"].(map[string]any)["maxToolRounds"] = 4
 	encoded, err := json.Marshal(payload)
@@ -914,10 +919,10 @@ func TestWritingFrameRuntimeKeepsAuthorReadToolsInTheInitialStandardStage(t *tes
 			}
 			continue
 		}
-		if bytes.Contains(request, []byte("story_get_open_threads")) || bytes.Contains(request, []byte(instruction)) {
-			t.Fatalf("later-stage request %d repeated initial read directive: %s", index, request)
+		if bytes.Contains(request, []byte("story_get_open_threads")) {
+			t.Fatalf("later-stage request %d retained read authority: %s", index, request)
 		}
-		if !bytes.Contains(request, []byte("Refine the prior Artifact")) || !bytes.Contains(request, []byte(anchor)) {
+		if !bytes.Contains(request, []byte("Initial data gathering is complete.")) || !bytes.Contains(request, []byte(instruction)) || !bytes.Contains(request, []byte(anchor)) {
 			t.Fatalf("later-stage request %d lost the fact-bearing Artifact: %s", index, request)
 		}
 	}
@@ -939,6 +944,14 @@ func TestWritingFrameRuntimeKeepsAuthorReadToolsInTheInitialStandardStage(t *tes
 	}
 	if proposals != 1 || completed != 1 || terminals != 1 || events[len(events)-1].Type != RunEventTypeRunCompleted {
 		t.Fatalf("standard task4 terminal events = %#v", events)
+	}
+	writingSession, err := sessions.GetOrCreate("task4-standard-session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	messages := writingSession.GetEffectiveMessages()
+	if len(messages) == 0 || messages[len(messages)-1].Role != schema.Assistant || !strings.Contains(messages[len(messages)-1].Content, anchor) {
+		t.Fatalf("final proposal candidate lost task4 anchor: %#v", messages)
 	}
 }
 

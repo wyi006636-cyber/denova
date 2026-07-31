@@ -859,7 +859,8 @@ func writingStageInput(instruction, contextText string, previous []writingRuntim
 	if len(previous) == 0 {
 		builder.WriteString(instruction)
 	} else {
-		builder.WriteString("Refine the prior Artifact for this stage. Preserve its verified story facts and do not repeat the initial data-gathering instruction.")
+		builder.WriteString("Initial data gathering is complete. Do not repeat it; use the verified facts in the prior Artifact to complete this stage. Preserve the remaining output constraints from the original request:\n")
+		builder.WriteString(instruction)
 	}
 	if contextText != "" {
 		builder.WriteString("\n\nMain-owned processed ContextPack:\n")
