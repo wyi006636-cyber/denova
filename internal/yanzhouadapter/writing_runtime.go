@@ -312,15 +312,17 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 		return err
 	}
 	interruptedUserMessage := request.UserIntent
+	modelUserIntent := request.UserIntent
 	if pendingInterruption != nil {
 		interruptedUserMessage = pendingInterruption.UserMessage
+		modelUserIntent = writingResumeUserIntent(request.UserIntent, pendingInterruption)
 	}
 	artifacts := []writingRuntimeArtifact{}
 	defer func() {
 		runWasCancelled := errors.Is(runCtx.Err(), context.Canceled)
 		cancel()
 		if handleErr != nil && ctx.Err() == nil && errors.Is(handleErr, context.Canceled) && runWasCancelled {
-			handleErr = runtime.emitCancelled(ctx, output, request, artifacts, writingSession, interruptedUserMessage)
+			handleErr = runtime.emitCancelled(ctx, output, request, artifacts, writingSession, interruptedUserMessage, pendingInterruption)
 		}
 		runtime.mu.Lock()
 		delete(runtime.runs, request.RunID)
@@ -335,7 +337,7 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	}
 	if cancelPending {
 		cancel()
-		return runtime.emitCancelled(ctx, output, request, nil, writingSession, interruptedUserMessage)
+		return runtime.emitCancelled(ctx, output, request, nil, writingSession, interruptedUserMessage, pendingInterruption)
 	}
 	if _, err := EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolRequested, Payload: map[string]any{
 		"toolId": "story.get_target", "agentId": "primary-writer",
@@ -350,7 +352,7 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	contextText, err := runtime.requestWritingContext(runCtx, output, request)
 	if err != nil {
 		if errors.Is(runCtx.Err(), context.Canceled) {
-			return runtime.emitCancelled(ctx, output, request, nil, writingSession, interruptedUserMessage)
+			return runtime.emitCancelled(ctx, output, request, nil, writingSession, interruptedUserMessage, pendingInterruption)
 		}
 		failureCode := writingToolFailureCode(err)
 		if _, emitErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{
@@ -416,11 +418,11 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 				return err
 			}
 		}
-		response, callErr := runtime.callModel(runCtx, request, stage, artifacts, contextText, writingSession)
+		response, callErr := runtime.callModel(runCtx, request, modelUserIntent, stage, artifacts, contextText, writingSession)
 		modelCalls++
 		if callErr != nil {
 			if errors.Is(runCtx.Err(), context.Canceled) {
-				return runtime.emitCancelled(ctx, output, request, artifacts, writingSession, interruptedUserMessage)
+				return runtime.emitCancelled(ctx, output, request, artifacts, writingSession, interruptedUserMessage, pendingInterruption)
 			}
 			failureCode, failureMessage := writingModelFailureDetails(callErr)
 			_, terminalErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunFailed, Payload: map[string]any{
@@ -478,8 +480,8 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	return err
 }
 
-func (runtime *WritingFrameRuntime) emitCancelled(ctx context.Context, output io.Writer, request planRunRequest, artifacts []writingRuntimeArtifact, writingSession *session.Session, userMessage string) error {
-	if writingSession != nil {
+func (runtime *WritingFrameRuntime) emitCancelled(ctx context.Context, output io.Writer, request planRunRequest, artifacts []writingRuntimeArtifact, writingSession *session.Session, userMessage string, resumed *session.Interruption) error {
+	if writingSession != nil && resumed == nil {
 		assistantContent := ""
 		if len(artifacts) > 0 {
 			assistantContent = artifacts[len(artifacts)-1].Content
@@ -510,6 +512,22 @@ func (runtime *WritingFrameRuntime) prepareSession(request planRunRequest) (*ses
 		return nil, nil, err
 	}
 	return writingSession, pending, nil
+}
+
+func writingResumeUserIntent(userIntent string, pending *session.Interruption) string {
+	if pending == nil {
+		return userIntent
+	}
+	var builder strings.Builder
+	builder.WriteString("用户明确要求继续此前中断的任务。\n未完成任务：")
+	builder.WriteString(pending.UserMessage)
+	if partial := strings.TrimSpace(pending.AssistantContent); partial != "" {
+		builder.WriteString("\n已有部分输出：")
+		builder.WriteString(partial)
+	}
+	builder.WriteString("\n本次指令：")
+	builder.WriteString(userIntent)
+	return builder.String()
 }
 
 type writingRuntimeArtifact struct {
@@ -625,7 +643,7 @@ func validateWritingRunRequest(request planRunRequest, envelopeRequestID string)
 	return nil
 }
 
-func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planRunRequest, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string, writingSession *session.Session) (ModelResponse, error) {
+func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planRunRequest, userIntent string, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string, writingSession *session.Session) (ModelResponse, error) {
 	adapter, err := NewModelAdapter(request.EffectiveModelProfile.effective())
 	if err != nil {
 		return ModelResponse{}, &writingModelFailure{code: "model_configuration_invalid", message: "模型配置不可用，作品没有被修改"}
@@ -637,7 +655,7 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 	native, err := adapter.BuildRequest(ModelRequest{Messages: writingModelMessages(
 		writingSession,
 		writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, stage),
-		writingStageInput(request.UserIntent, contextText, previous),
+		writingStageInput(userIntent, contextText, previous),
 	), MaxOutputTokens: maxOutput}, false)
 	if err != nil {
 		return ModelResponse{}, &writingModelFailure{code: "model_request_invalid", message: "模型请求无效，作品没有被修改"}

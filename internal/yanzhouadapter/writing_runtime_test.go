@@ -213,6 +213,171 @@ func TestWritingFrameRuntimeOnlyResumesPendingTaskForExplicitContinue(t *testing
 	}
 }
 
+func TestWritingFrameRuntimeExplicitContinueUsesPendingTaskAfterNewRequest(t *testing.T) {
+	var requests [][]byte
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		payload, err := io.ReadAll(request.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		requests = append(requests, payload)
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(map[string]any{
+			"choices": []map[string]any{{
+				"message": map[string]any{"role": "assistant", "content": "本轮完成"},
+			}},
+		})
+	}))
+	defer server.Close()
+
+	eventStore, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer eventStore.Close()
+	sessions, err := session.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := sessions.GetOrCreate("author-book-session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := current.MarkInterrupted("旧任务：补完雨夜告别", "已有片段：雨停在她伞沿", "cancelled"); err != nil {
+		t.Fatal(err)
+	}
+	pending := current.PendingInterruption()
+	if pending == nil {
+		t.Fatal("pending interruption was not recorded")
+	}
+	runtime, err := NewWritingFrameRuntime(eventStore, server.Client(), sessions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := func(runID, userIntent string, explicitContinue bool) {
+		var payload map[string]any
+		if err := json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &payload); err != nil {
+			t.Fatal(err)
+		}
+		payload["runId"] = runID
+		payload["requestId"] = "request-" + runID
+		payload["idempotencyKey"] = "idem-" + runID
+		payload["sessionId"] = "author-book-session"
+		payload["userIntent"] = userIntent
+		payload["explicitContinue"] = explicitContinue
+		encoded, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		primeWritingContext(t, runtime, runID)
+		if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{
+			Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+			RequestID: "request-" + runID, Payload: encoded,
+		}, io.Discard); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	run("ordinary-new-run", "普通新要求：分析人物关系", false)
+	if got := string(requests[0]); strings.Contains(got, "旧任务：补完雨夜告别") || strings.Contains(got, "已有片段：雨停在她伞沿") {
+		t.Fatalf("ordinary new request used recovery prompt: %s", got)
+	}
+	if got := current.PendingInterruption(); got == nil || got.ID != pending.ID {
+		t.Fatalf("ordinary new request changed pending interruption: %#v", got)
+	}
+
+	run("explicit-resume-run", "继续刚才的任务", true)
+	if len(requests) != 2 {
+		t.Fatalf("provider requests = %d, want 2", len(requests))
+	}
+	resumed := string(requests[1])
+	if !strings.Contains(resumed, "旧任务：补完雨夜告别") || !strings.Contains(resumed, "已有片段：雨停在她伞沿") {
+		t.Fatalf("explicit continue did not include pending task and partial output: %s", resumed)
+	}
+	if got := current.PendingInterruption(); got != nil {
+		t.Fatalf("completed explicit continue left interruption pending: %#v", got)
+	}
+}
+
+func TestWritingFrameRuntimeCancelledResumeKeepsOriginalPendingInterruption(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(map[string]any{
+			"choices": []map[string]any{{
+				"message": map[string]any{"role": "assistant", "content": "已恢复完成"},
+			}},
+		})
+	}))
+	defer server.Close()
+	eventStore, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer eventStore.Close()
+	sessions, err := session.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := sessions.GetOrCreate("author-book-session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := current.MarkInterrupted("旧任务", "旧片段", "cancelled"); err != nil {
+		t.Fatal(err)
+	}
+	pending := current.PendingInterruption()
+	if pending == nil {
+		t.Fatal("pending interruption was not recorded")
+	}
+	runtime, err := NewWritingFrameRuntime(eventStore, server.Client(), sessions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &payload); err != nil {
+		t.Fatal(err)
+	}
+	payload["runId"] = "resume-cancel-run"
+	payload["requestId"] = "request-resume-cancel-run"
+	payload["idempotencyKey"] = "idem-resume-cancel-run"
+	payload["sessionId"] = "author-book-session"
+	payload["userIntent"] = "继续刚才的任务"
+	payload["explicitContinue"] = true
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.CancelRun("resume-cancel-run"); err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "request-resume-cancel-run", Payload: encoded,
+	}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if got := current.PendingInterruption(); got == nil || got.ID != pending.ID {
+		t.Fatalf("cancelled resume replaced original interruption: %#v", got)
+	}
+	payload["runId"] = "resume-after-cancel-run"
+	payload["requestId"] = "request-resume-after-cancel-run"
+	payload["idempotencyKey"] = "idem-resume-after-cancel-run"
+	encoded, err = json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	primeWritingContext(t, runtime, "resume-after-cancel-run")
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "request-resume-after-cancel-run", Payload: encoded,
+	}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if got := current.PendingInterruption(); got != nil {
+		t.Fatalf("completed retry left the original interruption pending: %#v", got)
+	}
+}
+
 func TestWritingFrameRuntimeLeavesPendingTaskForNewRequest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
