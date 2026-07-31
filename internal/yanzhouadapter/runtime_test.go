@@ -3668,6 +3668,30 @@ func TestRuntimeEventTerminalPayloadRejectsExplicitNullOptionalFields(t *testing
 				"timeoutType":         nil,
 			},
 		},
+		{
+			name:      "failed code and message null",
+			eventType: RunEventTypeRunFailed,
+			payload: map[string]any{
+				"schemaVersion": "1", "reason": "provider_error", "resumable": false, "partialArtifactRefs": []any{},
+				"code": nil, "message": nil,
+			},
+		},
+		{
+			name:      "failed code and message non-string",
+			eventType: RunEventTypeRunFailed,
+			payload: map[string]any{
+				"schemaVersion": "1", "reason": "provider_error", "resumable": false, "partialArtifactRefs": []any{},
+				"code": 1, "message": 2,
+			},
+		},
+		{
+			name:      "completed code and message",
+			eventType: RunEventTypeRunCompleted,
+			payload: map[string]any{
+				"schemaVersion": "1", "reason": "completed", "resumable": false, "partialArtifactRefs": []any{},
+				"code": "network_error", "message": "模型服务不可用",
+			},
+		},
 	}
 
 	assertGenericRejection := func(t *testing.T, err error) {

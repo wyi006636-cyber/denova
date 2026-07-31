@@ -1077,17 +1077,29 @@ func validateRuntimeTerminalPayload(eventType RunEventType, payload map[string]a
 	if !reasonOK || !resumableOK || !refsOK {
 		return invalidRuntimeTerminalPayload()
 	}
-	code, codePresent := payload["code"].(string)
-	message, messagePresent := payload["message"].(string)
-	if codePresent != messagePresent || (codePresent && (!validPlanSchemaID(code) || len(message) == 0 || len(message) > 256 || containsSensitiveString(message))) {
+	rawCode, codePresent := payload["code"]
+	rawMessage, messagePresent := payload["message"]
+	if codePresent != messagePresent {
 		return invalidRuntimeTerminalPayload()
+	}
+	code, message := "", ""
+	if codePresent {
+		var codeIsString, messageIsString bool
+		code, codeIsString = rawCode.(string)
+		message, messageIsString = rawMessage.(string)
+		if !codeIsString || !messageIsString || !validPlanSchemaID(code) || len(message) == 0 || len(message) > 256 || containsSensitiveString(message) {
+			return invalidRuntimeTerminalPayload()
+		}
 	}
 
 	if reason == "completed" {
-		if eventType != RunEventTypeRunCompleted || resumable || timeoutPresent {
+		if eventType != RunEventTypeRunCompleted || resumable || timeoutPresent || codePresent {
 			return invalidRuntimeTerminalPayload()
 		}
 		return nil
+	}
+	if codePresent && eventType != RunEventTypeRunFailed {
+		return invalidRuntimeTerminalPayload()
 	}
 	if reason == "tool_error" {
 		if eventType != RunEventTypeRunFailed || resumable || timeoutPresent || !codePresent {
