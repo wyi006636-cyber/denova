@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Yanzhou Plan Mode now permits the existing six story read tools before approval, returns structured question and proposal events through the Sidecar, and preserves the author plan loop without creating Artifacts or Proposals before approval.
+
 - 增加 Yanzhou WP7 三档写作 Harness adapter：暴露 novel-lite、novel-standard、novel-heavy 的闭合角色图、独立 model/tool/delegation/revision/time/token 预算、typed scope、Artifact 投影与中段 Skill→Capability 证据合同；仅生成候选与 Proposal 元数据，不获得作品路径或正式写权限。
 - Added the Yanzhou WP7 three-profile writing Harness adapter with closed novel-lite, novel-standard, and novel-heavy role graphs, independent model/tool/delegation/revision/time/token budgets, typed scopes, Artifact projections, and evidence-bound mid-writing Skill-to-Capability contracts; it exposes candidate and Proposal metadata only, with no manuscript path or canonical write authority.
 - 增加 Yanzhou WP4 Plan、Skill、SubAgent 与工具适配层：真实 Sidecar 支持多轮动态 Plan 与分离批准，Skill 摘要/显式加载回执，七个稳定 SubAgent 的三方权限交集，以及 Builder/Orchestrator 双重 default-deny 工具门；不开放作品文件写入。

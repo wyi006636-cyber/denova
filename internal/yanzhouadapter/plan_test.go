@@ -305,6 +305,67 @@ func TestPlanFrameRuntimeKeepsPlanModeAcrossTwoQuestionGroups(t *testing.T) {
 	}
 }
 
+func TestPlanFrameRuntimeReadsStoryBeforeQuestionsWithoutArtifacts(t *testing.T) {
+	responses := []map[string]any{
+		planToolResponse("story.get_outline", map[string]any{}),
+		planToolResponse("plan_questions", map[string]any{
+			"schemaVersion": "1", "id": "group-after-read", "round": 1, "goal": "根据大纲确认改写范围",
+			"questions":              []map[string]any{{"id": "q-scope", "topic": "structure", "prompt": "保留现有结尾吗？", "mode": "freeform", "allowCustom": true, "required": true}},
+			"remainingUncertainties": []string{},
+		}),
+	}
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(responses[calls])
+		calls++
+	}))
+	defer server.Close()
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, err := NewPlanFrameRuntime(store, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := testPlanRunRequestPayload(t, server.URL)
+	var request map[string]any
+	if err := json.Unmarshal(payload, &request); err != nil {
+		t.Fatal(err)
+	}
+	request["toolCapabilityManifest"] = map[string]any{"schemaVersion": "1", "capabilities": []map[string]any{{"id": "story.get_outline", "mode": "read"}}}
+	request["budgets"].(map[string]any)["maxToolRounds"] = 1
+	payload, _ = json.Marshal(request)
+	responsePayload, _ := json.Marshal(map[string]any{
+		"schemaVersion": "1", "toolId": "story.get_outline", "success": true,
+		"result": map[string]any{"kind": "read-result", "mutationPerformed": false, "data": map[string]any{"summary": "卷纲显示结尾尚未收束"}},
+	})
+	if err := runtime.HandleToolResponse(yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindToolResponse, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "tool-plan-run-1-plan-1", RunID: "plan-run-1", Seq: 1, Payload: responsePayload}); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-1", Payload: payload}, &output); err != nil {
+		t.Fatal(err)
+	}
+	events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]RunEventType, 0, len(events))
+	for _, event := range events {
+		got = append(got, event.Type)
+		if event.Type == RunEventTypeArtifactCreated || event.Type == RunEventTypeProposalReady {
+			t.Fatalf("unapproved Plan Mode created a candidate: %#v", event)
+		}
+	}
+	want := []RunEventType{RunEventTypeRunStarted, RunEventTypeToolRequested, RunEventTypeToolStarted, RunEventTypeToolCompleted, RunEventTypePlanQuestions, RunEventTypeRunWaitingAuthor}
+	if fmt.Sprint(got) != fmt.Sprint(want) || calls != 2 || !strings.Contains(output.String(), `"toolId":"story.get_outline"`) {
+		t.Fatalf("events=%v calls=%d output=%s", got, calls, output.String())
+	}
+}
+
 func TestPlanFrameRuntimeRejectsExplicitSkillWithoutLoadedReceipt(t *testing.T) {
 	store, err := NewFileRuntimeEventStore(t.TempDir())
 	if err != nil {

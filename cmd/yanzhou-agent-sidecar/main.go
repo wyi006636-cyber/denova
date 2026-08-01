@@ -121,6 +121,8 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 	writingHarnessNegotiated := containsFeature(response.SupportedFeatures, "writing-harness")
 	var writingRuns sync.WaitGroup
 	defer writingRuns.Wait()
+	var planRuns sync.WaitGroup
+	defer planRuns.Wait()
 	for {
 		frame, err := reader.ReadFrame()
 		if errors.Is(err, io.EOF) {
@@ -130,6 +132,14 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 			return fmt.Errorf("read post-handshake frame: %w", err)
 		}
 		if frame.Kind == yanzhouprotocol.KindToolResponse {
+			if strings.Contains(frame.RequestID, "-plan-") {
+				if !planModeNegotiated || planRuntime.HandleToolResponse(frame) != nil {
+					if err := writeRuntimeError(stdout, frame, "tool_response_rejected"); err != nil {
+						return err
+					}
+				}
+				continue
+			}
 			if !writingHarnessNegotiated || writingRuntime.HandleToolResponse(frame) != nil {
 				if err := writeRuntimeError(stdout, frame, "tool_response_rejected"); err != nil {
 					return err
@@ -154,11 +164,13 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 					return err
 				}
 			case planMode && planModeNegotiated:
-				if err := planRuntime.HandleFrame(ctx, frame, stdout); err != nil {
-					if writeErr := writeRuntimeError(stdout, frame, "plan_frame_rejected"); writeErr != nil {
-						return writeErr
+				planRuns.Add(1)
+				go func(input yanzhouprotocol.Envelope) {
+					defer planRuns.Done()
+					if handleErr := planRuntime.HandleFrame(ctx, input, stdout); handleErr != nil {
+						_ = writeRuntimeError(stdout, input, "plan_frame_rejected")
 					}
-				}
+				}(frame)
 			case !planMode && writingHarnessNegotiated:
 				writingRuns.Add(1)
 				go func(input yanzhouprotocol.Envelope) {
@@ -180,11 +192,13 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 			}
 			continue
 		}
-		if err := planRuntime.HandleFrame(ctx, frame, stdout); err != nil {
-			if writeErr := writeRuntimeError(stdout, frame, "plan_frame_rejected"); writeErr != nil {
-				return writeErr
+		planRuns.Add(1)
+		go func(input yanzhouprotocol.Envelope) {
+			defer planRuns.Done()
+			if handleErr := planRuntime.HandleFrame(ctx, input, stdout); handleErr != nil {
+				_ = writeRuntimeError(stdout, input, "plan_frame_rejected")
 			}
-		}
+		}(frame)
 	}
 }
 

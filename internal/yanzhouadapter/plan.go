@@ -438,19 +438,24 @@ type planRuntimeState struct {
 	lastGroup                *PlanQuestionGroup
 	proposal                 *ProposedPlan
 	modelCalls               int
+	questionRounds           int
 	planApproved             bool
 	executionApproved        bool
 	expectedProposalRevision int
+	toolRounds               int
 }
 
 // PlanFrameRuntime owns only ephemeral orchestration. Public state is emitted
 // through EmitRunEvent, whose append-before-write ordering is the authority.
 type PlanFrameRuntime struct {
-	mu          sync.Mutex
-	store       RuntimeEventStore
-	client      *http.Client
-	runs        map[string]*planRuntimeState
-	idempotency map[string]string
+	mu                 sync.Mutex
+	store              RuntimeEventStore
+	client             *http.Client
+	runs               map[string]*planRuntimeState
+	idempotency        map[string]string
+	responseMu         sync.Mutex
+	pendingResponses   map[string]chan yanzhouprotocol.Envelope
+	earlyToolResponses map[string]yanzhouprotocol.Envelope
 }
 
 func NewPlanFrameRuntime(store RuntimeEventStore, client *http.Client) (*PlanFrameRuntime, error) {
@@ -462,7 +467,56 @@ func NewPlanFrameRuntime(store RuntimeEventStore, client *http.Client) (*PlanFra
 	}
 	return &PlanFrameRuntime{
 		store: store, client: client, runs: map[string]*planRuntimeState{}, idempotency: map[string]string{},
+		pendingResponses: map[string]chan yanzhouprotocol.Envelope{}, earlyToolResponses: map[string]yanzhouprotocol.Envelope{},
 	}, nil
+}
+
+// HandleToolResponse reuses the Sidecar's existing tool.response exchange for
+// Plan Mode. Only the Task 4 story read tools are admitted before approval.
+func (runtime *PlanFrameRuntime) HandleToolResponse(frame yanzhouprotocol.Envelope) error {
+	if runtime == nil || frame.Validate() != nil || frame.Kind != yanzhouprotocol.KindToolResponse || !strings.HasPrefix(frame.RequestID, "tool-"+frame.RunID+"-") {
+		return errors.New("plan tool response is invalid")
+	}
+	var payload writingToolResponsePayload
+	if err := decodeStrictPlanJSON(frame.Payload, yanzhouprotocol.DefaultMaxFrameBytes, &payload); err != nil || payload.SchemaVersion != "1" || !writingReadTool(payload.ToolID) {
+		return errors.New("plan tool response is invalid")
+	}
+	runtime.responseMu.Lock()
+	defer runtime.responseMu.Unlock()
+	if pending := runtime.pendingResponses[frame.RequestID]; pending != nil {
+		select {
+		case pending <- frame:
+			return nil
+		default:
+			return errors.New("plan tool response is duplicated")
+		}
+	}
+	if _, exists := runtime.earlyToolResponses[frame.RequestID]; exists || len(runtime.earlyToolResponses) >= 128 {
+		return errors.New("plan tool response is invalid")
+	}
+	runtime.earlyToolResponses[frame.RequestID] = frame
+	return nil
+}
+
+func (runtime *PlanFrameRuntime) registerToolResponse(requestID string) (chan yanzhouprotocol.Envelope, *yanzhouprotocol.Envelope, error) {
+	runtime.responseMu.Lock()
+	defer runtime.responseMu.Unlock()
+	if runtime.pendingResponses[requestID] != nil {
+		return nil, nil, errors.New("plan tool request is duplicated")
+	}
+	if early, ok := runtime.earlyToolResponses[requestID]; ok {
+		delete(runtime.earlyToolResponses, requestID)
+		return nil, &early, nil
+	}
+	response := make(chan yanzhouprotocol.Envelope, 1)
+	runtime.pendingResponses[requestID] = response
+	return response, nil, nil
+}
+
+func (runtime *PlanFrameRuntime) clearToolResponse(requestID string) {
+	runtime.responseMu.Lock()
+	delete(runtime.pendingResponses, requestID)
+	runtime.responseMu.Unlock()
 }
 
 func (runtime *PlanFrameRuntime) HandleFrame(ctx context.Context, frame yanzhouprotocol.Envelope, output io.Writer) error {
@@ -861,12 +915,16 @@ func (runtime *PlanFrameRuntime) runModelRound(ctx context.Context, state *planR
 		return errors.New("plan model call budget is exhausted")
 	}
 	state.modelCalls++
+	tools := []ModelTool{
+		{Name: "plan_questions", Description: "Ask one bounded group of planning questions", InputSchema: map[string]any{"type": "object"}},
+		{Name: "proposed_plan", Description: "Propose a discussable plan after uncertainties are resolved", InputSchema: map[string]any{"type": "object"}},
+	}
+	for _, id := range planReadTools(state.request.ToolManifest) {
+		tools = append(tools, ModelTool{Name: id, Description: "Read the current story before proposing a plan", InputSchema: map[string]any{"type": "object"}})
+	}
 	request := ModelRequest{
-		Messages: state.messages,
-		Tools: []ModelTool{
-			{Name: "plan_questions", Description: "Ask one bounded group of planning questions", InputSchema: map[string]any{"type": "object"}},
-			{Name: "proposed_plan", Description: "Propose a discussable plan after uncertainties are resolved", InputSchema: map[string]any{"type": "object"}},
-		},
+		Messages:        state.messages,
+		Tools:           tools,
 		MaxOutputTokens: 4096,
 	}
 	native, err := state.adapter.BuildRequest(request, false)
@@ -898,11 +956,90 @@ func (runtime *PlanFrameRuntime) runModelRound(ctx context.Context, state *planR
 	if err != nil {
 		return errors.New("plan model response is invalid")
 	}
+	if len(modelResponse.ToolCalls) == 1 && strings.TrimSpace(modelResponse.Content) == "" && planReadToolAllowed(state.request.ToolManifest, modelResponse.ToolCalls[0].Name) {
+		return runtime.requestPlanReadTool(ctx, state, output, modelResponse.ToolCalls[0])
+	}
 	block, err := parsePlanModelResponse(modelResponse)
 	if err != nil {
 		return err
 	}
 	return runtime.acceptPlanBlock(ctx, state, block, output)
+}
+
+func planReadTools(raw json.RawMessage) []string {
+	var manifest struct {
+		Capabilities []struct {
+			ID   string `json:"id"`
+			Mode string `json:"mode"`
+		} `json:"capabilities"`
+	}
+	if json.Unmarshal(raw, &manifest) != nil {
+		return nil
+	}
+	tools := make([]string, 0, len(manifest.Capabilities))
+	for _, capability := range manifest.Capabilities {
+		if capability.Mode == string(ToolCapabilityRead) && writingReadTool(capability.ID) {
+			tools = append(tools, capability.ID)
+		}
+	}
+	return tools
+}
+
+func planReadToolAllowed(raw json.RawMessage, toolID string) bool {
+	for _, candidate := range planReadTools(raw) {
+		if candidate == toolID {
+			return true
+		}
+	}
+	return false
+}
+
+func (runtime *PlanFrameRuntime) requestPlanReadTool(ctx context.Context, state *planRuntimeState, output io.Writer, tool ModelToolCall) error {
+	if state.toolRounds >= state.request.Budgets.MaxToolRounds {
+		return errors.New("plan tool round budget is exhausted")
+	}
+	state.toolRounds++
+	requestID := fmt.Sprintf("tool-%s-plan-%d", state.request.RunID, state.toolRounds)
+	response, early, err := runtime.registerToolResponse(requestID)
+	if err != nil {
+		return err
+	}
+	defer runtime.clearToolResponse(requestID)
+	if _, err = EmitRunEvent(ctx, runtime.store, output, state.request.RunID, RuntimeEventInput{Type: RunEventTypeToolRequested, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "summary": "为计划读取作品资料"}}); err != nil {
+		return err
+	}
+	if _, err = EmitRunEvent(ctx, runtime.store, output, state.request.RunID, RuntimeEventInput{Type: RunEventTypeToolStarted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "summary": "正在读取作品资料"}}); err != nil {
+		return err
+	}
+	payload, err := json.Marshal(map[string]any{"schemaVersion": "1", "toolId": tool.Name, "agentId": "primary-writer", "target": json.RawMessage(state.request.Target), "arguments": tool.Arguments})
+	if err != nil {
+		return err
+	}
+	if err = yanzhouprotocol.WriteFrame(output, yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindToolRequest, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: requestID, RunID: state.request.RunID, Seq: uint64(10_000 + state.toolRounds), Payload: payload}); err != nil {
+		return err
+	}
+	frame := early
+	if frame == nil {
+		select {
+		case received := <-response:
+			frame = &received
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	var responsePayload writingToolResponsePayload
+	if err = decodeStrictPlanJSON(frame.Payload, yanzhouprotocol.DefaultMaxFrameBytes, &responsePayload); err != nil || !responsePayload.Success || responsePayload.ToolID != tool.Name || len(responsePayload.Result) == 0 {
+		_, _ = EmitRunEvent(ctx, runtime.store, output, state.request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "status": "failed", "code": "tool_response_invalid", "message": "读取作品资料失败"}})
+		return errors.New("plan tool response is invalid")
+	}
+	if _, err = EmitRunEvent(ctx, runtime.store, output, state.request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "status": "succeeded", "summary": "已读取作品资料"}}); err != nil {
+		return err
+	}
+	state.messages = append(state.messages,
+		ModelMessage{Role: "assistant", Content: fmt.Sprintf("调用了 %s", tool.Name)},
+		ModelMessage{Role: "user", Content: fmt.Sprintf("%s 返回：%s", tool.Name, string(responsePayload.Result))},
+	)
+	return runtime.runModelRound(ctx, state, output)
 }
 
 func parsePlanModelResponse(response ModelResponse) (PlanBlock, error) {
@@ -939,7 +1076,7 @@ func (runtime *PlanFrameRuntime) acceptPlanBlock(ctx context.Context, state *pla
 	switch block.Kind {
 	case PlanBlockQuestions:
 		group, err := DecodePlanQuestionGroup([]byte(block.Content))
-		if err != nil || group.Round != state.modelCalls {
+		if err != nil || group.Round != state.questionRounds+1 {
 			return errors.New("plan question group is invalid")
 		}
 		for _, question := range group.Questions {
@@ -962,6 +1099,7 @@ func (runtime *PlanFrameRuntime) acceptPlanBlock(ctx context.Context, state *pla
 		for _, question := range group.Questions {
 			state.asked[question.ID] = true
 		}
+		state.questionRounds++
 		state.lastGroup = &group
 		encoded, _ := json.Marshal(group)
 		state.messages = append(state.messages, ModelMessage{Role: "assistant", Content: string(encoded)})
