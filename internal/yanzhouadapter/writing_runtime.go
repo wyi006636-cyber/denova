@@ -132,6 +132,15 @@ type writingToolResponsePayload struct {
 
 type writingToolFailure struct{ code string }
 
+// writingTodo mirrors Denova/Eino's existing write_todos contract. The list is
+// run-local display state derived from the active Harness stages; it is not a
+// second plan store or workspace mutation path.
+type writingTodo struct {
+	Content    string `json:"content"`
+	ActiveForm string `json:"activeForm"`
+	Status     string `json:"status"`
+}
+
 func writingReadTool(id string) bool {
 	for _, candidate := range []string{"story.get_target", "story.get_outline", "story.get_adjacent_chapters", "story.search_chapters", "story.get_characters", "story.get_open_threads"} {
 		if id == candidate {
@@ -164,6 +173,84 @@ func writingModelFailureDetails(err error) (string, string) {
 		return failure.code, failure.message
 	}
 	return "model_request_failed", "模型请求失败，作品没有被修改"
+}
+
+func writingTodoLabels(stage WritingHarnessStage) (string, string) {
+	switch stage.RoleID {
+	case HarnessRoleReviewer:
+		return "审阅正文候选", "正在审阅正文候选"
+	case HarnessRoleFixer:
+		return "按审阅意见修订", "正在按审阅意见修订"
+	case HarnessRoleFinalGate:
+		return "检查最终候选", "正在检查最终候选"
+	case HarnessRoleDeterministicChecker:
+		return "完成确定性检查", "正在完成确定性检查"
+	default:
+		if stage.ID == "primary-revision" {
+			return "生成改写后的最终候选", "正在生成改写后的最终候选"
+		}
+		return "按所选 Skill 生成候选", "正在按所选 Skill 生成候选"
+	}
+}
+
+func writingTodos(profile WritingHarnessProfile, active int) []writingTodo {
+	todos := make([]writingTodo, 0, len(profile.Stages))
+	for index, stage := range profile.Stages {
+		content, activeForm := writingTodoLabels(stage)
+		status := "pending"
+		if index < active {
+			status = "completed"
+		} else if index == active {
+			status = "in_progress"
+		}
+		todos = append(todos, writingTodo{Content: content, ActiveForm: activeForm, Status: status})
+	}
+	return todos
+}
+
+func (runtime *WritingFrameRuntime) emitTodoUpdate(ctx context.Context, output io.Writer, request planRunRequest, profile WritingHarnessProfile, active int) error {
+	if len(request.SelectedSkillIDs) == 0 {
+		return nil
+	}
+	todos := writingTodos(profile, active)
+	completed := 0
+	for _, todo := range todos {
+		if todo.Status == "completed" {
+			completed++
+		}
+	}
+	summary := fmt.Sprintf("任务清单 %d/%d", completed, len(todos))
+	for _, eventType := range []RunEventType{RunEventTypeToolRequested, RunEventTypeToolStarted, RunEventTypeToolCompleted} {
+		payload := map[string]any{"toolId": "write_todos", "agentId": "primary-writer", "summary": summary}
+		if eventType == RunEventTypeToolCompleted {
+			payload["status"] = "succeeded"
+			payload["todos"] = todos
+		}
+		if _, err := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: eventType, Payload: payload}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (runtime *WritingFrameRuntime) emitSkillLoadEvidence(ctx context.Context, output io.Writer, request planRunRequest) error {
+	if request.SkillSnapshot == nil {
+		return nil
+	}
+	for _, receipt := range request.SkillSnapshot.Skills {
+		if _, err := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeSkillLoadRequested, Payload: map[string]any{
+			"id": receipt.ID, "revision": receipt.Revision, "source": receipt.Source,
+		}}); err != nil {
+			return err
+		}
+		if _, err := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeSkillLoaded, Payload: map[string]any{
+			"id": receipt.ID, "revision": receipt.Revision, "skillChecksum": receipt.Checksum,
+			"source": receipt.Source, "resourceCount": len(receipt.Resources),
+		}}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (runtime *WritingFrameRuntime) HandleToolResponse(frame yanzhouprotocol.Envelope) error {
@@ -345,6 +432,12 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	}}); err != nil {
 		return err
 	}
+	if err := runtime.emitSkillLoadEvidence(runCtx, output, request); err != nil {
+		return err
+	}
+	if err := runtime.emitTodoUpdate(runCtx, output, request, profile, 0); err != nil {
+		return err
+	}
 	if cancelPending {
 		cancel()
 		return runtime.emitCancelled(ctx, output, request, nil, writingSession, interruptedUserMessage, pendingInterruption)
@@ -404,6 +497,9 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 			if _, emitErr = EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeCheckCompleted, Payload: map[string]any{
 				"artifactId": candidateArtifactID, "statuses": []map[string]any{{"id": "output-not-empty", "status": "pass"}},
 			}}); emitErr != nil {
+				return emitErr
+			}
+			if emitErr = runtime.emitTodoUpdate(runCtx, output, request, profile, stageIndex+1); emitErr != nil {
 				return emitErr
 			}
 			continue
@@ -474,6 +570,9 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 			}}); err != nil {
 				return err
 			}
+		}
+		if err = runtime.emitTodoUpdate(runCtx, output, request, profile, stageIndex+1); err != nil {
+			return err
 		}
 	}
 	if writingSession != nil && candidateArtifactID != "" {
@@ -651,6 +750,27 @@ func validateWritingRunRequest(request planRunRequest, envelopeRequestID string)
 		}
 		seenSkills[skillID] = true
 	}
+	if len(request.SelectedSkillIDs) == 0 {
+		if request.SkillSnapshot != nil {
+			return errors.New("writing Skill snapshot is unexpected")
+		}
+	} else {
+		if request.SkillSnapshot == nil || request.SkillSnapshot.SchemaVersion != "1" || request.SkillSnapshot.RunID != request.RunID || len(request.SkillSnapshot.Skills) != len(request.SelectedSkillIDs) {
+			return errors.New("writing Skill snapshot is invalid")
+		}
+		receipts := map[string]SkillLoadReceipt{}
+		for _, receipt := range request.SkillSnapshot.Skills {
+			if receipt.Validate() != nil || receipts[receipt.ID].ID != "" {
+				return errors.New("writing Skill snapshot is invalid")
+			}
+			receipts[receipt.ID] = receipt
+		}
+		for _, skillID := range request.SelectedSkillIDs {
+			if receipts[skillID].ID == "" {
+				return errors.New("writing Skill snapshot does not match selection")
+			}
+		}
+	}
 	if request.Budgets.MaxModelCalls < 1 || request.Budgets.MaxWallTimeMS < 1 || request.Budgets.MaxWallTimeMS > 24*60*60*1000 || !regexp.MustCompile(`^sha256:[a-f0-9]{64}$`).MatchString(request.ContextPackRef.Ref) {
 		return invalidPlanPayload()
 	}
@@ -744,6 +864,9 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, output io.Wri
 	if toolRoundLimit < 0 {
 		toolRoundLimit = 0
 	}
+	if len(request.SelectedSkillIDs) > 0 {
+		toolRoundLimit = 0
+	}
 modelCall:
 	if *modelCalls >= modelLimit {
 		return ModelResponse{}, &writingModelFailure{code: "model_budget_exhausted", message: "模型调用次数已达上限，作品没有被修改"}
@@ -754,7 +877,7 @@ modelCall:
 	if len(previous) == 0 && toolRounds < toolRoundLimit {
 		tools = writingModelTools()
 	} else if len(previous) == 0 {
-		systemInstruction += " Context gathering is complete. Produce the requested stage result now."
+		systemInstruction += " Context gathering is complete. Tool use is now forbidden: do not emit tool_calls, DSML, XML, tool names, or requests for more data. Produce only the requested final stage result now."
 	}
 	messages := append(writingModelMessages(
 		writingSession,
@@ -916,7 +1039,7 @@ func writingStageInput(instruction, contextText string, previous []writingRuntim
 func writingSystemInstruction(capabilityID, harnessProfile string, skillIDs []string, stage WritingHarnessStage) string {
 	instruction := "Produce only the requested bounded stage result. Capability: " + capabilityID + ". Harness: " + harnessProfile + ". Stage: " + stage.ID + ". Role: " + string(stage.RoleID) + "."
 	if len(skillIDs) > 0 {
-		instruction += " Skill: " + strings.Join(skillIDs, ", ") + "."
+		instruction += " Skill: " + strings.Join(skillIDs, ", ") + ". Follow the exact loaded Skill document in the [skill_reference] section of the Main-owned ContextPack; it is part of this request, not a command alias or Harness name. In Yanzhou, satisfy legacy Skill read steps with the available story.* tools or the supplied ContextPack, and deliver every legacy write step as a reviewable candidate only. Do not call read_file or write_file."
 	}
 	return instruction + " Never claim the work was committed, never expose reasoning, and never request a filesystem path."
 }

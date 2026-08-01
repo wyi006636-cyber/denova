@@ -59,15 +59,19 @@ func writingRunPayload(t *testing.T, baseURL string, entrypoint string) json.Raw
 	return encoded
 }
 
-func primeWritingContext(t *testing.T, runtime *WritingFrameRuntime, runID string) {
+func primeWritingContext(t *testing.T, runtime *WritingFrameRuntime, runID string, skillDocuments ...string) {
 	t.Helper()
+	sections := []map[string]any{{"kind": "chapter_text", "content": "已处理的章节上下文", "revision": "sha256:" + strings.Repeat("b", 64), "truncated": false}}
+	for _, document := range skillDocuments {
+		sections = append(sections, map[string]any{"kind": "skill_reference", "content": document, "revision": "sha256:" + strings.Repeat("c", 64), "truncated": false})
+	}
 	payload, err := json.Marshal(map[string]any{
 		"schemaVersion": "1", "toolId": "story.get_target", "success": true,
 		"result": map[string]any{
 			"kind": "read-result", "mutationPerformed": false,
 			"data": map[string]any{
 				"contextPackRef": "sha256:" + strings.Repeat("a", 64),
-				"sections":       []map[string]any{{"kind": "chapter_text", "content": "已处理的章节上下文", "revision": "sha256:" + strings.Repeat("b", 64), "truncated": false}},
+				"sections":       sections,
 			},
 		},
 	})
@@ -1039,14 +1043,20 @@ func TestWritingFrameRuntimeRejectsPlanAndUnknownCapabilityWithoutEvents(t *test
 }
 
 func TestWritingFrameRuntimeAcceptsValidatedSkillSelectionAndProjectsItIntoTheModelInstruction(t *testing.T) {
+	const skillDocument = "# 章节重写与修改\nTASK7-FULL-SKILL-DOCUMENT\n保持角色性格和说话方式的一致性"
+	var requests [][]byte
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		body, err := io.ReadAll(request.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !bytes.Contains(body, []byte("Skill: rewrite")) {
+		if !bytes.Contains(body, []byte("Skill: rewrite")) || !bytes.Contains(body, []byte("TASK7-FULL-SKILL-DOCUMENT")) {
 			t.Fatalf("model request did not contain validated Skill selection: %s", body)
 		}
+		if !bytes.Contains(body, []byte("Do not call read_file or write_file")) || !bytes.Contains(body, []byte("story.*")) {
+			t.Fatalf("model request did not map legacy Skill file steps onto Yanzhou tools: %s", body)
+		}
+		requests = append(requests, body)
 		writer.Header().Set("Content-Type", "application/json")
 		_, _ = writer.Write([]byte(`{"choices":[{"message":{"content":"更自然的正文"}}]}`))
 	}))
@@ -1061,12 +1071,22 @@ func TestWritingFrameRuntimeAcceptsValidatedSkillSelectionAndProjectsItIntoTheMo
 	if err != nil {
 		t.Fatal(err)
 	}
-	primeWritingContext(t, runtime, "plan-run-1")
+	primeWritingContext(t, runtime, "plan-run-1", skillDocument)
 	var request map[string]any
 	if err := json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &request); err != nil {
 		t.Fatal(err)
 	}
 	request["selectedSkillIds"] = []string{"rewrite"}
+	request["capabilityId"] = "chapter.rewrite"
+	request["budgets"].(map[string]any)["maxToolRounds"] = 4
+	request["skillSnapshot"] = map[string]any{
+		"schemaVersion": "1", "runId": "plan-run-1",
+		"skills": []map[string]any{{
+			"schemaVersion": "1", "id": "rewrite", "revision": 1,
+			"checksum": "sha256:" + strings.Repeat("d", 64), "source": "builtin",
+			"resources": []map[string]any{{"path": "SKILL.md", "checksum": "sha256:" + strings.Repeat("e", 64), "size": len(skillDocument)}},
+		}},
+	}
 	payload, err := json.Marshal(request)
 	if err != nil {
 		t.Fatal(err)
@@ -1075,6 +1095,74 @@ func TestWritingFrameRuntimeAcceptsValidatedSkillSelectionAndProjectsItIntoTheMo
 	var output bytes.Buffer
 	if err := runtime.HandleFrame(context.Background(), frame, &output); err != nil {
 		t.Fatalf("HandleFrame rejected validated Skill selection: %v", err)
+	}
+	if len(requests) != 1 || bytes.Contains(requests[0], []byte(`"tools"`)) || !bytes.Contains(requests[0], []byte("Tool use is now forbidden")) {
+		t.Fatalf("selected Skill did not use the supplied ContextPack directly: %q", requests)
+	}
+	events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var loaded bool
+	var todoStates [][]string
+	for _, event := range events {
+		if event.Type == RunEventTypeSkillLoaded && event.Payload["id"] == "rewrite" {
+			loaded = true
+		}
+		if event.Type == RunEventTypeToolCompleted && event.Payload["toolId"] == "write_todos" {
+			raw, _ := json.Marshal(event.Payload["todos"])
+			var todos []writingTodo
+			if json.Unmarshal(raw, &todos) == nil {
+				states := make([]string, len(todos))
+				for index := range todos {
+					states[index] = todos[index].Status
+				}
+				todoStates = append(todoStates, states)
+			}
+		}
+	}
+	if !loaded || len(todoStates) < 2 || todoStates[0][0] != "in_progress" || todoStates[len(todoStates)-1][0] != "completed" {
+		t.Fatalf("Skill/Todo run evidence is incomplete: loaded=%v states=%v", loaded, todoStates)
+	}
+}
+
+func TestWritingFrameRuntimeRejectsMissingOrMismatchedSkillSnapshotBeforeModel(t *testing.T) {
+	modelCalls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		modelCalls++
+		writer.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	for name, snapshot := range map[string]any{
+		"missing":     nil,
+		"wrong-run":   map[string]any{"schemaVersion": "1", "runId": "other-run", "skills": []any{}},
+		"wrong-skill": map[string]any{"schemaVersion": "1", "runId": "plan-run-1", "skills": []map[string]any{{"schemaVersion": "1", "id": "continue", "revision": 1, "checksum": "sha256:" + strings.Repeat("d", 64), "source": "builtin", "resources": []any{}}}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			store, _ := NewFileRuntimeEventStore(t.TempDir())
+			defer store.Close()
+			runtime, err := NewWritingFrameRuntime(store, server.Client())
+			if err != nil {
+				t.Fatal(err)
+			}
+			var request map[string]any
+			_ = json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &request)
+			request["selectedSkillIds"] = []string{"rewrite"}
+			if snapshot != nil {
+				request["skillSnapshot"] = snapshot
+			}
+			payload, _ := json.Marshal(request)
+			var output bytes.Buffer
+			if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-1", Payload: payload}, &output); err == nil {
+				t.Fatal("invalid Skill snapshot was accepted")
+			}
+			if output.Len() != 0 {
+				t.Fatalf("invalid Skill snapshot emitted run output: %q", output.Bytes())
+			}
+		})
+	}
+	if modelCalls != 0 {
+		t.Fatalf("invalid Skill snapshot reached model %d times", modelCalls)
 	}
 }
 

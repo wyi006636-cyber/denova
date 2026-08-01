@@ -408,6 +408,7 @@ type planRunRequest struct {
 	ExplicitContinue      bool              `json:"explicitContinue,omitempty"`
 	PlanMode              bool              `json:"planMode"`
 	SelectedSkillIDs      []string          `json:"selectedSkillIds"`
+	SkillSnapshot         *SkillSnapshot    `json:"skillSnapshot,omitempty"`
 	HarnessProfile        string            `json:"harnessProfile,omitempty"`
 	EffectiveModelProfile planModelProfile  `json:"effectiveModelProfile"`
 	ContextPackRef        planContentRef    `json:"contextPackRef"`
