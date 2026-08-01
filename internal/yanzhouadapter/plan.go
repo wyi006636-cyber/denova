@@ -1230,6 +1230,7 @@ func (runtime *PlanFrameRuntime) acceptPlanBlock(ctx context.Context, state *pla
 		}); err != nil {
 			return err
 		}
+		state.messages = append(state.messages, ModelMessage{Role: "assistant", Content: block.Content})
 		state.proposal = &proposal
 		state.expectedProposalRevision = 0
 		return nil
@@ -1267,5 +1268,5 @@ func publicPlanPayload(value any) (map[string]any, error) {
 }
 
 func planModeSystemInstruction() string {
-	return "Stay in Plan Mode and return exactly one supplied tool call with no prose. Use read-only story tools when facts are needed. Otherwise call plan_questions with every required schema field and unique question ids while critical uncertainty remains; when resolved, call proposed_plan with every required schema field. The first question round and plan revision are 1, then increment them after each author answer or modification request. Never imply plan, execution, or write approval; all proposed approvals must be false."
+	return "Stay in Plan Mode and return exactly one supplied tool call with no prose. Use read-only story tools when facts are needed. Otherwise call plan_questions with every required schema field and unique question ids while critical uncertainty remains; when resolved, call proposed_plan with every required schema field. The first question round is 1 and increments after each author answer. The first proposed plan revision is 1 and only increments after an author modification request. Never imply plan, execution, or write approval; all proposed approvals must be false."
 }

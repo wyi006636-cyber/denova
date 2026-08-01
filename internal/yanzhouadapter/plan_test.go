@@ -200,11 +200,19 @@ func TestPlanFrameRuntimeKeepsPlanModeAcrossTwoQuestionGroups(t *testing.T) {
 		}),
 	}
 	calls := 0
+	var lastMessages []ModelMessage
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if calls >= len(responses) {
 			http.Error(writer, "unexpected call", http.StatusInternalServerError)
 			return
 		}
+		var payload struct {
+			Messages []ModelMessage `json:"messages"`
+		}
+		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		lastMessages = payload.Messages
 		writer.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(writer).Encode(responses[calls]); err != nil {
 			t.Fatal(err)
@@ -264,6 +272,15 @@ func TestPlanFrameRuntimeKeepsPlanModeAcrossTwoQuestionGroups(t *testing.T) {
 		if err := runtime.HandleFrame(context.Background(), frame, &output); err != nil {
 			t.Fatal(err)
 		}
+	}
+	proposalVisible := false
+	for _, message := range lastMessages {
+		if message.Role == "assistant" && strings.Contains(message.Content, `"revision":1`) && strings.Contains(message.Content, `"id":"plan-1"`) {
+			proposalVisible = true
+		}
+	}
+	if !proposalVisible {
+		t.Fatal("plan modification request omitted the current proposal from model history")
 	}
 
 	events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 30)
@@ -410,6 +427,11 @@ func TestPlanModelToolsPublishTheExactQuestionAndProposalSchemas(t *testing.T) {
 	}
 	questions := byName["plan_questions"]
 	proposal := byName["proposed_plan"]
+	messages := requestBody["messages"].([]any)
+	system := messages[0].(map[string]any)["content"].(string)
+	if !strings.Contains(system, "The first proposed plan revision is 1 and only increments after an author modification request") {
+		t.Fatalf("Plan revision instruction is ambiguous after question answers: %s", system)
+	}
 	if questions["additionalProperties"] != false || proposal["additionalProperties"] != false {
 		t.Fatal("Plan tool schemas must be closed")
 	}
