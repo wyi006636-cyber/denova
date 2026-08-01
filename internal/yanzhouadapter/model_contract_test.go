@@ -195,6 +195,9 @@ func TestOpenAICompatibleAdapterAliasesAuthorReadTools(t *testing.T) {
 	if !bytes.Contains(request.Body, []byte("story_get_open_threads")) || bytes.Contains(request.Body, []byte("story.get_open_threads")) {
 		t.Fatalf("tool alias request=%s", request.Body)
 	}
+	if !bytes.Contains(request.Body, []byte(`"parallel_tool_calls":false`)) {
+		t.Fatalf("tool request allowed parallel calls: %s", request.Body)
+	}
 	response, err := adapter.NormalizeResponse([]byte(`{"choices":[{"message":{"tool_calls":[{"id":"call-1","function":{"name":"story_get_open_threads","arguments":"{}"}}]}}]}`))
 	if err != nil || len(response.ToolCalls) != 1 || response.ToolCalls[0].Name != "story.get_open_threads" {
 		t.Fatalf("tool alias response=%#v err=%v", response, err)

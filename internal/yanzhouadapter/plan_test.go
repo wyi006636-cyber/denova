@@ -168,6 +168,8 @@ func TestPlanResumeValidatesExclusiveAnswerSkipAndRecommendedModes(t *testing.T)
 
 func TestPlanFrameRuntimeKeepsPlanModeAcrossTwoQuestionGroups(t *testing.T) {
 	responses := []map[string]any{
+		{"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": "我先说明一下计划。"}, "finish_reason": "stop"}}},
+		planToolResponse("plan_questions", map[string]any{"questions": []map[string]any{{"id": "missing-required-fields"}}}),
 		planToolResponse("plan_questions", map[string]any{
 			"schemaVersion": "1", "id": "group-1", "round": 1, "goal": "范围",
 			"questions": []map[string]any{{
@@ -297,8 +299,8 @@ func TestPlanFrameRuntimeKeepsPlanModeAcrossTwoQuestionGroups(t *testing.T) {
 			questionIDs[id] = true
 		}
 	}
-	if calls != 4 {
-		t.Fatalf("model calls=%d want=4", calls)
+	if calls != 6 {
+		t.Fatalf("model calls=%d want=6", calls)
 	}
 	if strings.Contains(output.String(), "WP4_FAKE_KEY") || strings.Contains(output.String(), server.URL) {
 		t.Fatal("private model profile material leaked to protocol output")
@@ -364,6 +366,152 @@ func TestPlanFrameRuntimeReadsStoryBeforeQuestionsWithoutArtifacts(t *testing.T)
 	if fmt.Sprint(got) != fmt.Sprint(want) || calls != 2 || !strings.Contains(output.String(), `"toolId":"story.get_outline"`) {
 		t.Fatalf("events=%v calls=%d output=%s", got, calls, output.String())
 	}
+}
+
+func TestPlanModelToolsPublishTheExactQuestionAndProposalSchemas(t *testing.T) {
+	var requestBody map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if err := json.NewDecoder(request.Body).Decode(&requestBody); err != nil {
+			t.Fatal(err)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(planToolResponse("plan_questions", map[string]any{
+			"schemaVersion": "1", "id": "group-schema", "round": 1, "goal": "确认冲突强度",
+			"questions": []map[string]any{{
+				"id": "q-conflict", "topic": "conflict", "prompt": "保留冲突吗？", "mode": "freeform",
+				"allowCustom": true, "required": true,
+			}},
+			"remainingUncertainties": []string{},
+		}))
+	}))
+	defer server.Close()
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, err := NewPlanFrameRuntime(store, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	start := yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-1", Payload: testPlanRunRequestPayload(t, server.URL)}
+	if err := runtime.HandleFrame(context.Background(), start, &output); err != nil {
+		t.Fatal(err)
+	}
+	tools, ok := requestBody["tools"].([]any)
+	if !ok {
+		t.Fatalf("tools=%#v", requestBody["tools"])
+	}
+	byName := map[string]map[string]any{}
+	for _, raw := range tools {
+		function := raw.(map[string]any)["function"].(map[string]any)
+		byName[function["name"].(string)] = function["parameters"].(map[string]any)
+	}
+	questions := byName["plan_questions"]
+	proposal := byName["proposed_plan"]
+	if questions["additionalProperties"] != false || proposal["additionalProperties"] != false {
+		t.Fatal("Plan tool schemas must be closed")
+	}
+	for _, field := range []string{"schemaVersion", "id", "round", "goal", "questions", "remainingUncertainties"} {
+		if !jsonStringSliceContains(questions["required"], field) {
+			t.Fatalf("plan_questions required field missing: %s in %#v", field, questions)
+		}
+	}
+	questionItems := questions["properties"].(map[string]any)["questions"].(map[string]any)["items"].(map[string]any)
+	if variants, ok := questionItems["allOf"].([]any); !ok || len(variants) != 3 {
+		t.Fatalf("question mode constraints = %#v, want option/freeform/scale variants", questionItems["allOf"])
+	}
+	for _, field := range []string{"id", "topic", "prompt", "mode", "allowCustom", "required"} {
+		if !jsonStringSliceContains(questionItems["required"], field) {
+			t.Fatalf("question required field missing: %s in %#v", field, questionItems)
+		}
+	}
+	for _, field := range []string{"schemaVersion", "id", "revision", "status", "summary", "sections", "approvals"} {
+		if !jsonStringSliceContains(proposal["required"], field) {
+			t.Fatalf("proposed_plan required field missing: %s in %#v", field, proposal)
+		}
+	}
+}
+
+func TestPlanModelInvalidLegacyPayloadEndsTheRunWithoutCandidate(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(planToolResponse("plan_questions", map[string]any{
+			"questions": []map[string]any{{"id": "legacy", "question": "保留冲突吗？", "options": []string{"保留", "缓和"}}},
+		}))
+	}))
+	defer server.Close()
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, err := NewPlanFrameRuntime(store, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	start := yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-1", Payload: testPlanRunRequestPayload(t, server.URL)}
+	if err := runtime.HandleFrame(context.Background(), start, &output); err != nil {
+		t.Fatalf("a durable Plan failure must settle the frame: %v", err)
+	}
+	events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 2 || events[0].Type != RunEventTypeRunStarted || events[1].Type != RunEventTypeRunFailed {
+		t.Fatalf("events=%#v", events)
+	}
+	if events[1].Payload["code"] != "plan_response_invalid" || events[1].Payload["reason"] != "provider_error" {
+		t.Fatalf("terminal=%#v", events[1])
+	}
+	for _, event := range events {
+		if event.Type == RunEventTypeArtifactCreated || event.Type == RunEventTypeProposalReady {
+			t.Fatalf("failed Plan created a candidate: %#v", event)
+		}
+	}
+}
+
+func TestPlanCancelRunEndsAWaitingPlanOnce(t *testing.T) {
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, err := NewPlanFrameRuntime(store, http.DefaultClient)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime.runs["plan-run-1"] = &planRuntimeState{request: planRunRequest{RunID: "plan-run-1", IdempotencyKey: "idem-plan-1"}}
+	runtime.idempotency["idem-plan-1"] = "plan-run-1"
+	var output bytes.Buffer
+	if err := runtime.CancelRun(context.Background(), "plan-run-1", &output); err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.CancelRun(context.Background(), "plan-run-1", &output); err == nil {
+		t.Fatal("second cancel must reject a terminal plan run")
+	}
+	events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 || events[0].Type != RunEventTypeRunAborted {
+		t.Fatalf("events = %#v, want one run.aborted", events)
+	}
+}
+
+func jsonStringSliceContains(value any, expected string) bool {
+	items, ok := value.([]any)
+	if !ok {
+		return false
+	}
+	for _, item := range items {
+		if item == expected {
+			return true
+		}
+	}
+	return false
 }
 
 func TestPlanRunRequestDoesNotRejectSelectedSkillDuringTaskFive(t *testing.T) {
@@ -559,7 +707,7 @@ func testPlanRunRequestPayload(t *testing.T, baseURL string) json.RawMessage {
 		"contextPackRef":         map[string]any{"ref": "sha256:" + strings.Repeat("a", 64)},
 		"toolCapabilityManifest": map[string]any{"schemaVersion": "1", "capabilities": []any{}},
 		"budgets": map[string]any{
-			"maxModelCalls": 4, "maxToolRounds": 0, "maxDelegations": 0,
+			"maxModelCalls": 6, "maxToolRounds": 0, "maxDelegations": 0,
 			"maxRevisionRounds": 2, "maxWallTimeMs": 30000,
 		},
 		"baseRevisions": map[string]string{"book": "revision-1"}, "displayLocale": "zh-CN",

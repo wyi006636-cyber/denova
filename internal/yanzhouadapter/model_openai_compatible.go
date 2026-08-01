@@ -83,6 +83,7 @@ func (a *openAICompatibleAdapter) BuildRequest(request ModelRequest, stream bool
 	}
 	if len(tools) > 0 {
 		body["tools"] = tools
+		body["parallel_tool_calls"] = false
 	}
 	if stream {
 		body["stream_options"] = map[string]any{"include_usage": true}

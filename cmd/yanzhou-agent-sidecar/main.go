@@ -149,7 +149,14 @@ func run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer) 
 		}
 		if frame.Kind == yanzhouprotocol.KindRunCancel {
 			runID, decodeErr := runCancelRunID(frame.Payload)
-			if !writingHarnessNegotiated || decodeErr != nil || writingRuntime.CancelRun(runID) != nil {
+			cancelErr := decodeErr
+			if decodeErr == nil && writingHarnessNegotiated {
+				cancelErr = writingRuntime.CancelRun(runID)
+			}
+			if cancelErr != nil && planModeNegotiated {
+				cancelErr = planRuntime.CancelRun(ctx, runID, stdout)
+			}
+			if cancelErr != nil {
 				if err := writeRuntimeError(stdout, frame, "run_cancel_rejected"); err != nil {
 					return err
 				}

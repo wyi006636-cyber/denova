@@ -445,6 +445,10 @@ type planRuntimeState struct {
 	toolRounds               int
 }
 
+type planGenerationError struct{ code, message string }
+
+func (failure *planGenerationError) Error() string { return failure.code }
+
 // PlanFrameRuntime owns only ephemeral orchestration. Public state is emitted
 // through EmitRunEvent, whose append-before-write ordering is the authority.
 type PlanFrameRuntime struct {
@@ -469,6 +473,26 @@ func NewPlanFrameRuntime(store RuntimeEventStore, client *http.Client) (*PlanFra
 		store: store, client: client, runs: map[string]*planRuntimeState{}, idempotency: map[string]string{},
 		pendingResponses: map[string]chan yanzhouprotocol.Envelope{}, earlyToolResponses: map[string]yanzhouprotocol.Envelope{},
 	}, nil
+}
+
+func (runtime *PlanFrameRuntime) CancelRun(ctx context.Context, runID string, output io.Writer) error {
+	if runtime == nil || !validPlanSchemaID(runID) || output == nil {
+		return errors.New("plan run cancel is invalid")
+	}
+	runtime.mu.Lock()
+	defer runtime.mu.Unlock()
+	state := runtime.runs[runID]
+	if state == nil {
+		return errors.New("plan run is not active")
+	}
+	_, err := EmitRunEvent(ctx, runtime.store, output, runID, RuntimeEventInput{Type: RunEventTypeRunAborted, Payload: map[string]any{
+		"schemaVersion": "1", "reason": "cancelled", "resumable": false, "partialArtifactRefs": []string{},
+	}})
+	if err == nil {
+		delete(runtime.runs, runID)
+		delete(runtime.idempotency, state.request.IdempotencyKey)
+	}
+	return err
 }
 
 // HandleToolResponse reuses the Sidecar's existing tool.response exchange for
@@ -575,7 +599,7 @@ func (runtime *PlanFrameRuntime) handleStart(ctx context.Context, frame yanzhoup
 		delete(runtime.idempotency, request.IdempotencyKey)
 		return err
 	}
-	return runtime.runModelRound(ctx, state, output)
+	return runtime.runModelRoundSettled(ctx, state, output)
 }
 
 func (runtime *PlanFrameRuntime) handleResume(ctx context.Context, frame yanzhouprotocol.Envelope, output io.Writer) error {
@@ -611,7 +635,7 @@ func (runtime *PlanFrameRuntime) handleResume(ctx context.Context, frame yanzhou
 	}
 	state.messages = append(state.messages, ModelMessage{Role: "user", Content: string(answerJSON)})
 	state.lastGroup = nil
-	return runtime.runModelRound(ctx, state, output)
+	return runtime.runModelRoundSettled(ctx, state, output)
 }
 
 func (request planRunRequest) Validate(envelopeRequestID string) error {
@@ -725,7 +749,7 @@ func (runtime *PlanFrameRuntime) handlePlanCommand(ctx context.Context, state *p
 		state.proposal = nil
 		state.planApproved = false
 		state.executionApproved = false
-		return runtime.runModelRound(ctx, state, output)
+		return runtime.runModelRoundSettled(ctx, state, output)
 	case "approve_plan":
 		if state.planApproved {
 			return errors.New("plan is already approved")
@@ -916,12 +940,12 @@ func planInteger(value any) (int, bool) {
 
 func (runtime *PlanFrameRuntime) runModelRound(ctx context.Context, state *planRuntimeState, output io.Writer) error {
 	if state.modelCalls >= state.request.Budgets.MaxModelCalls {
-		return errors.New("plan model call budget is exhausted")
+		return &planGenerationError{"plan_budget_exhausted", "计划生成调用次数已达上限，正文没有修改"}
 	}
 	state.modelCalls++
 	tools := []ModelTool{
-		{Name: "plan_questions", Description: "Ask one bounded group of planning questions", InputSchema: map[string]any{"type": "object"}},
-		{Name: "proposed_plan", Description: "Propose a discussable plan after uncertainties are resolved", InputSchema: map[string]any{"type": "object"}},
+		{Name: "plan_questions", Description: "Ask one bounded group of planning questions using the exact schema", InputSchema: planQuestionsToolSchema()},
+		{Name: "proposed_plan", Description: "Propose a discussable plan using the exact schema after uncertainties are resolved", InputSchema: proposedPlanToolSchema()},
 	}
 	for _, id := range planReadTools(state.request.ToolManifest) {
 		tools = append(tools, ModelTool{Name: id, Description: "Read the current story before proposing a plan", InputSchema: map[string]any{"type": "object"}})
@@ -933,41 +957,115 @@ func (runtime *PlanFrameRuntime) runModelRound(ctx context.Context, state *planR
 	}
 	native, err := state.adapter.BuildRequest(request, false)
 	if err != nil {
-		return errors.New("plan model request could not be built")
+		return &planGenerationError{"plan_request_invalid", "计划请求无效，正文没有修改"}
 	}
 	callCtx, cancel := context.WithTimeout(ctx, time.Duration(state.request.EffectiveModelProfile.TimeoutMS)*time.Millisecond)
 	defer cancel()
 	httpRequest, err := http.NewRequestWithContext(callCtx, native.Method, native.URL, bytes.NewReader(native.Body))
 	if err != nil {
-		return errors.New("plan model request is invalid")
+		return &planGenerationError{"plan_request_invalid", "计划请求无效，正文没有修改"}
 	}
 	for key, value := range native.Headers {
 		httpRequest.Header.Set(key, value)
 	}
 	response, err := runtime.client.Do(httpRequest)
 	if err != nil {
-		return errors.New("plan model request failed")
+		if errors.Is(callCtx.Err(), context.DeadlineExceeded) {
+			return &planGenerationError{"network_timeout", "计划模型响应超时，正文没有修改"}
+		}
+		return &planGenerationError{"network_error", "无法连接计划模型，正文没有修改"}
 	}
 	defer response.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(response.Body, 1024*1024+1))
 	if err != nil || len(body) > 1024*1024 {
-		return errors.New("plan model response is invalid")
+		return &planGenerationError{"plan_response_invalid", "计划模型响应无效，正文没有修改"}
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return errors.New("plan model request failed")
+		modelError := state.adapter.NormalizeError(response.StatusCode, body)
+		message := "计划模型服务拒绝请求，正文没有修改"
+		if modelError.Code == "authentication" {
+			message = "计划模型凭证不可用，正文没有修改"
+		} else if modelError.Retryable {
+			message = "计划模型服务暂时不可用，请稍后重试"
+		}
+		return &planGenerationError{modelError.Code, message}
 	}
 	modelResponse, err := state.adapter.NormalizeResponse(body)
 	if err != nil {
-		return errors.New("plan model response is invalid")
+		return &planGenerationError{"plan_response_invalid", "计划模型响应无效，正文没有修改"}
 	}
 	if len(modelResponse.ToolCalls) == 1 && strings.TrimSpace(modelResponse.Content) == "" && planReadToolAllowed(state.request.ToolManifest, modelResponse.ToolCalls[0].Name) {
 		return runtime.requestPlanReadTool(ctx, state, output, modelResponse.ToolCalls[0])
 	}
 	block, err := parsePlanModelResponse(modelResponse)
-	if err != nil {
-		return err
+	if err == nil {
+		err = runtime.acceptPlanBlock(ctx, state, block, output)
 	}
-	return runtime.acceptPlanBlock(ctx, state, block, output)
+	if err != nil {
+		if state.modelCalls < state.request.Budgets.MaxModelCalls {
+			state.messages = append(state.messages, ModelMessage{Role: "user", Content: "Your previous response was invalid. Call exactly one supplied tool with every required field now and return no prose."})
+			return runtime.runModelRound(ctx, state, output)
+		}
+		return &planGenerationError{"plan_response_invalid", "计划模型没有返回有效问题或计划，正文没有修改"}
+	}
+	return nil
+}
+
+func (runtime *PlanFrameRuntime) runModelRoundSettled(ctx context.Context, state *planRuntimeState, output io.Writer) error {
+	if err := runtime.runModelRound(ctx, state, output); err != nil {
+		failure := &planGenerationError{code: "plan_generation_failed", message: "计划生成失败，请重试，正文没有修改"}
+		var typed *planGenerationError
+		if errors.As(err, &typed) {
+			failure = typed
+		}
+		delete(runtime.runs, state.request.RunID)
+		delete(runtime.idempotency, state.request.IdempotencyKey)
+		_, emitErr := EmitRunEvent(ctx, runtime.store, output, state.request.RunID, RuntimeEventInput{Type: RunEventTypeRunFailed, Payload: map[string]any{
+			"schemaVersion": "1", "reason": "provider_error", "resumable": false, "partialArtifactRefs": []string{},
+			"code": failure.code, "message": failure.message,
+		}})
+		return emitErr
+	}
+	return nil
+}
+
+func closedPlanSchema(required []string, properties map[string]any) map[string]any {
+	return map[string]any{"type": "object", "additionalProperties": false, "required": required, "properties": properties}
+}
+
+func planQuestionsToolSchema() map[string]any {
+	option := closedPlanSchema([]string{"id", "label"}, map[string]any{"id": map[string]any{"type": "string"}, "label": map[string]any{"type": "string"}, "rationale": map[string]any{"type": "string"}})
+	dependency := closedPlanSchema([]string{"questionId", "answer"}, map[string]any{"questionId": map[string]any{"type": "string"}, "answer": map[string]any{}})
+	scale := closedPlanSchema([]string{"min", "max", "step"}, map[string]any{"min": map[string]any{"type": "integer"}, "max": map[string]any{"type": "integer"}, "step": map[string]any{"type": "integer", "minimum": 1}})
+	question := closedPlanSchema([]string{"id", "topic", "prompt", "mode", "allowCustom", "required"}, map[string]any{
+		"id": map[string]any{"type": "string"}, "topic": map[string]any{"type": "string", "enum": planQuestionTopics},
+		"prompt": map[string]any{"type": "string"}, "mode": map[string]any{"type": "string", "enum": planQuestionModes},
+		"options":              map[string]any{"type": "array", "items": option},
+		"recommendedOptionIds": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+		"allowCustom":          map[string]any{"type": "boolean"}, "required": map[string]any{"type": "boolean"},
+		"dependsOn": map[string]any{"type": "array", "items": dependency}, "scale": scale,
+	})
+	question["allOf"] = []any{map[string]any{"if": map[string]any{"properties": map[string]any{"mode": map[string]any{"enum": []string{"single", "multi", "rank"}}}}, "then": map[string]any{"required": []string{"options"}, "properties": map[string]any{"options": map[string]any{"minItems": 2, "maxItems": 32}, "scale": false}}}, map[string]any{"if": map[string]any{"properties": map[string]any{"mode": map[string]any{"const": "freeform"}}}, "then": map[string]any{"properties": map[string]any{"options": false, "recommendedOptionIds": false, "scale": false}}}, map[string]any{"if": map[string]any{"properties": map[string]any{"mode": map[string]any{"const": "scale"}}}, "then": map[string]any{"required": []string{"scale"}, "properties": map[string]any{"options": false, "recommendedOptionIds": false}}}}
+	return closedPlanSchema([]string{"schemaVersion", "id", "round", "goal", "questions", "remainingUncertainties"}, map[string]any{
+		"schemaVersion": map[string]any{"type": "string", "enum": []string{"1"}},
+		"id":            map[string]any{"type": "string"}, "round": map[string]any{"type": "integer", "minimum": 1}, "goal": map[string]any{"type": "string"},
+		"questions":              map[string]any{"type": "array", "minItems": 1, "items": question},
+		"remainingUncertainties": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+	})
+}
+
+func proposedPlanToolSchema() map[string]any {
+	section := closedPlanSchema([]string{"id", "title", "objective"}, map[string]any{"id": map[string]any{"type": "string"}, "title": map[string]any{"type": "string"}, "objective": map[string]any{"type": "string"}})
+	approvals := closedPlanSchema([]string{"planApproved", "executionApproved", "writeApproved"}, map[string]any{
+		"planApproved":      map[string]any{"type": "boolean", "enum": []bool{false}},
+		"executionApproved": map[string]any{"type": "boolean", "enum": []bool{false}},
+		"writeApproved":     map[string]any{"type": "boolean", "enum": []bool{false}},
+	})
+	return closedPlanSchema([]string{"schemaVersion", "id", "revision", "status", "summary", "sections", "approvals"}, map[string]any{
+		"schemaVersion": map[string]any{"type": "string", "enum": []string{"1"}}, "id": map[string]any{"type": "string"},
+		"revision": map[string]any{"type": "integer", "minimum": 1}, "status": map[string]any{"type": "string", "enum": []string{"proposed"}},
+		"summary": map[string]any{"type": "string"}, "sections": map[string]any{"type": "array", "minItems": 1, "items": section}, "approvals": approvals,
+	})
 }
 
 func planReadTools(raw json.RawMessage) []string {
@@ -1169,5 +1267,5 @@ func publicPlanPayload(value any) (map[string]any, error) {
 }
 
 func planModeSystemInstruction() string {
-	return "Stay in Plan Mode. Ask a new plan_questions group while critical uncertainty remains; otherwise return exactly one proposed_plan. Never imply plan approval, execution approval, or write approval. Do not repeat question ids."
+	return "Stay in Plan Mode and return exactly one supplied tool call with no prose. Use read-only story tools when facts are needed. Otherwise call plan_questions with every required schema field and unique question ids while critical uncertainty remains; when resolved, call proposed_plan with every required schema field. The first question round and plan revision are 1, then increment them after each author answer or modification request. Never imply plan, execution, or write approval; all proposed approvals must be false."
 }
