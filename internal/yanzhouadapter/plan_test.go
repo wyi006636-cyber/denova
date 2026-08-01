@@ -366,7 +366,19 @@ func TestPlanFrameRuntimeReadsStoryBeforeQuestionsWithoutArtifacts(t *testing.T)
 	}
 }
 
-func TestPlanFrameRuntimeRejectsExplicitSkillWithoutLoadedReceipt(t *testing.T) {
+func TestPlanRunRequestDoesNotRejectSelectedSkillDuringTaskFive(t *testing.T) {
+	payload := testPlanRunRequestPayload(t, "https://fixture.invalid/v1")
+	var request planRunRequest
+	if err := json.Unmarshal(payload, &request); err != nil {
+		t.Fatal(err)
+	}
+	request.SelectedSkillIDs = []string{"outline"}
+	if err := request.Validate("request-1"); err != nil {
+		t.Fatalf("Task 5 keeps Skills inert rather than rejecting Plan Mode: %v", err)
+	}
+}
+
+func TestPlanExitWorksBeforeAProposalExists(t *testing.T) {
 	store, err := NewFileRuntimeEventStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -376,26 +388,17 @@ func TestPlanFrameRuntimeRejectsExplicitSkillWithoutLoadedReceipt(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	payload := testPlanRunRequestPayload(t, "https://fixture.invalid/v1")
-	var request map[string]any
-	if err := json.Unmarshal(payload, &request); err != nil {
+	state := &planRuntimeState{request: planRunRequest{RunID: "plan-run-1"}}
+	resume := planRunResume{SchemaVersion: "1", RunID: "plan-run-1", Action: "exit", PlanID: "stale-plan", Revision: 9}
+	if err := runtime.handlePlanCommand(context.Background(), state, resume, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
-	request["selectedSkillIds"] = []string{"outline"}
-	payload, err = json.Marshal(request)
-	if err != nil {
-		t.Fatal(err)
+	if err := resume.Validate(); err != nil {
+		t.Fatalf("question-stage exit must be a valid resume: %v", err)
 	}
-	var output bytes.Buffer
-	err = runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{
-		Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
-		RequestID: "request-1", Payload: payload,
-	}, &output)
-	if err == nil {
-		t.Fatal("explicit Skill without a matching loaded receipt must fail")
-	}
-	if output.Len() != 0 {
-		t.Fatalf("rejected run emitted output: %s", output.String())
+	events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 2)
+	if err != nil || len(events) != 1 || events[0].Type != RunEventTypeRunAborted {
+		t.Fatalf("exit events=%#v err=%v", events, err)
 	}
 }
 

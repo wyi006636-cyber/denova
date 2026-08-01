@@ -624,12 +624,6 @@ func (request planRunRequest) Validate(envelopeRequestID string) error {
 	if len(request.SelectedSkillIDs) > 64 || request.Budgets.MaxModelCalls < 1 || request.Budgets.MaxModelCalls > 100 || request.Budgets.MaxWallTimeMS < 1 || request.Budgets.MaxWallTimeMS > 24*60*60*1000 {
 		return invalidPlanPayload()
 	}
-	// RunRequest carries only selected IDs. Until a matching loaded
-	// revision/checksum snapshot has been accepted, an explicit selection must
-	// fail before run.started rather than masquerade as loaded.
-	if len(request.SelectedSkillIDs) > 0 {
-		return errors.New("explicit Skill requires a matching loaded receipt")
-	}
 	seenSkills := map[string]bool{}
 	for _, id := range request.SelectedSkillIDs {
 		if !validPlanSchemaID(id) || seenSkills[id] {
@@ -673,7 +667,16 @@ func (resume planRunResume) Validate() error {
 		}
 		return nil
 	}
-	if resume.GroupID != "" || len(resume.Answers) != 0 || resume.Skip || resume.UseRecommended || !validPlanSchemaID(resume.PlanID) || resume.Revision < 1 || resume.Revision > 1_000_000 {
+	if resume.GroupID != "" || len(resume.Answers) != 0 || resume.Skip || resume.UseRecommended {
+		return invalidPlanPayload()
+	}
+	if resume.Action == "exit" {
+		if resume.Message != "" || ((resume.PlanID == "") != (resume.Revision == 0)) || (resume.PlanID != "" && (!validPlanSchemaID(resume.PlanID) || resume.Revision < 1 || resume.Revision > 1_000_000)) {
+			return invalidPlanPayload()
+		}
+		return nil
+	}
+	if !validPlanSchemaID(resume.PlanID) || resume.Revision < 1 || resume.Revision > 1_000_000 {
 		return invalidPlanPayload()
 	}
 	switch resume.Action {
@@ -692,6 +695,15 @@ func (resume planRunResume) Validate() error {
 }
 
 func (runtime *PlanFrameRuntime) handlePlanCommand(ctx context.Context, state *planRuntimeState, resume planRunResume, output io.Writer) error {
+	if resume.Action == "exit" {
+		_, err := EmitRunEvent(ctx, runtime.store, output, state.request.RunID, RuntimeEventInput{
+			Type: RunEventTypeRunAborted,
+			Payload: map[string]any{
+				"schemaVersion": "1", "reason": "cancelled", "resumable": false, "partialArtifactRefs": []string{},
+			},
+		})
+		return err
+	}
 	if state.proposal == nil || state.proposal.ID != resume.PlanID || state.proposal.Revision != resume.Revision {
 		return errors.New("plan command revision is stale")
 	}
@@ -714,14 +726,6 @@ func (runtime *PlanFrameRuntime) handlePlanCommand(ctx context.Context, state *p
 		state.planApproved = false
 		state.executionApproved = false
 		return runtime.runModelRound(ctx, state, output)
-	case "exit":
-		_, err := EmitRunEvent(ctx, runtime.store, output, state.request.RunID, RuntimeEventInput{
-			Type: RunEventTypeRunAborted,
-			Payload: map[string]any{
-				"schemaVersion": "1", "reason": "cancelled", "resumable": false, "partialArtifactRefs": []string{},
-			},
-		})
-		return err
 	case "approve_plan":
 		if state.planApproved {
 			return errors.New("plan is already approved")

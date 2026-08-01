@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Plan Mode now treats a stop request as an abort while waiting for either questions or a proposal, and keeps selected Skills inert for the desktop-owned Plan flow.
+
 - Yanzhou Plan Mode now permits the existing six story read tools before approval, returns structured question and proposal events through the Sidecar, and preserves the author plan loop without creating Artifacts or Proposals before approval.
 
 - 增加 Yanzhou WP7 三档写作 Harness adapter：暴露 novel-lite、novel-standard、novel-heavy 的闭合角色图、独立 model/tool/delegation/revision/time/token 预算、typed scope、Artifact 投影与中段 Skill→Capability 证据合同；仅生成候选与 Proposal 元数据，不获得作品路径或正式写权限。
