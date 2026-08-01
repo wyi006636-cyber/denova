@@ -96,6 +96,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复 Yanzhou 标准写作 Harness 把全部模型调用消耗在资料工具上的问题：现有预算现在会为正文、审阅与修订阶段保留生成调用，真实页面可稳定产出候选 Diff。
+- Fixed the Yanzhou standard writing Harness exhausting every model call on context tools; the existing budget now reserves generation calls for draft, review, and revision stages so the real page can reliably produce a candidate Diff.
+
 - Fixed Yanzhou Plan Mode revisions so an author modification sends the current proposal back to the model and requests the next revision instead of losing the plan context.
 
 - 修复 Agent `prefill failed: unexpected control character ... char 2000`：上下文层不再按 JSON 外形猜测并截断或替换工具结果，OpenAI 请求始终把 tool content 作为不透明字符串发送。

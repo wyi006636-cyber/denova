@@ -393,7 +393,7 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 		modelLimit = profile.Budget.MaxModelCalls
 	}
 	candidateArtifactID := ""
-	for _, stage := range profile.Stages {
+	for stageIndex, stage := range profile.Stages {
 		if stage.ID == "deterministic-checks" {
 			report := `{"status":"pass","checks":["output-not-empty"]}`
 			artifact, emitErr := runtime.emitArtifact(runCtx, output, request, stage, report, artifacts, "deterministic")
@@ -428,7 +428,13 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 				return err
 			}
 		}
-		response, callErr := runtime.callModel(runCtx, output, request, modelUserIntent, stage, artifacts, contextText, writingSession, &modelCalls, modelLimit)
+		laterModelStages := 0
+		for _, later := range profile.Stages[stageIndex+1:] {
+			if later.ID != "deterministic-checks" {
+				laterModelStages++
+			}
+		}
+		response, callErr := runtime.callModel(runCtx, output, request, modelUserIntent, stage, artifacts, contextText, writingSession, &modelCalls, modelLimit, laterModelStages)
 		if callErr != nil {
 			if errors.Is(runCtx.Err(), context.Canceled) {
 				return runtime.emitCancelled(ctx, output, request, artifacts, writingSession, interruptedUserMessage, pendingInterruption)
@@ -720,7 +726,7 @@ func (runtime *WritingFrameRuntime) requestModelTool(ctx context.Context, output
 	return payloadResponse.Result, nil
 }
 
-func (runtime *WritingFrameRuntime) callModel(ctx context.Context, output io.Writer, request planRunRequest, userIntent string, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string, writingSession *session.Session, modelCalls *int, modelLimit int) (ModelResponse, error) {
+func (runtime *WritingFrameRuntime) callModel(ctx context.Context, output io.Writer, request planRunRequest, userIntent string, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string, writingSession *session.Session, modelCalls *int, modelLimit, laterModelStages int) (ModelResponse, error) {
 	adapter, err := NewModelAdapter(request.EffectiveModelProfile.effective())
 	if err != nil {
 		return ModelResponse{}, &writingModelFailure{code: "model_configuration_invalid", message: "模型配置不可用，作品没有被修改"}
@@ -731,20 +737,30 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, output io.Wri
 	}
 	toolHistory := []ModelMessage{}
 	toolRounds := 0
+	toolRoundLimit := request.Budgets.MaxToolRounds
+	if available := modelLimit - *modelCalls - laterModelStages - 1; available < toolRoundLimit {
+		toolRoundLimit = available
+	}
+	if toolRoundLimit < 0 {
+		toolRoundLimit = 0
+	}
 modelCall:
 	if *modelCalls >= modelLimit {
 		return ModelResponse{}, &writingModelFailure{code: "model_budget_exhausted", message: "模型调用次数已达上限，作品没有被修改"}
 	}
 	*modelCalls++
+	systemInstruction := writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, stage)
+	tools := []ModelTool(nil)
+	if len(previous) == 0 && toolRounds < toolRoundLimit {
+		tools = writingModelTools()
+	} else if len(previous) == 0 {
+		systemInstruction += " Context gathering is complete. Produce the requested stage result now."
+	}
 	messages := append(writingModelMessages(
 		writingSession,
-		writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, stage),
+		systemInstruction,
 		writingStageInput(userIntent, contextText, previous),
 	), toolHistory...)
-	tools := []ModelTool(nil)
-	if len(previous) == 0 {
-		tools = writingModelTools()
-	}
 	native, err := adapter.BuildRequest(ModelRequest{Messages: messages, Tools: tools, MaxOutputTokens: maxOutput}, false)
 	if err != nil {
 		return ModelResponse{}, &writingModelFailure{code: "model_request_invalid", message: "模型请求无效，作品没有被修改"}
@@ -795,7 +811,10 @@ modelCall:
 	}
 	if len(modelResponse.ToolCalls) > 0 {
 		toolRounds++
-		if toolRounds > request.Budgets.MaxToolRounds {
+		if toolRounds > toolRoundLimit {
+			if toolRoundLimit == 0 && modelLimit <= *modelCalls+laterModelStages {
+				return ModelResponse{}, &writingModelFailure{code: "model_budget_exhausted", message: "模型调用次数已达上限，作品没有被修改"}
+			}
 			return ModelResponse{}, &writingModelFailure{code: "tool_budget_exhausted", message: "读取资料次数已达上限，作品没有被修改"}
 		}
 		toolHistory = append(toolHistory, ModelMessage{Role: "assistant", Content: modelResponse.Content, ToolCalls: modelResponse.ToolCalls})

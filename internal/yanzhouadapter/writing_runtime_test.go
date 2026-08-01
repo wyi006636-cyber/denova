@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -209,6 +210,45 @@ func TestWritingFrameRuntimeToolLoopHonorsModelBudget(t *testing.T) {
 	terminal := events[len(events)-1]
 	if terminals != 1 || terminal.Type != RunEventTypeRunFailed || terminal.Payload["code"] != "model_budget_exhausted" {
 		t.Fatalf("budget terminal=%#v", terminal)
+	}
+}
+
+func TestWritingFrameRuntimeReservesAStandardDraftCallAfterToolGathering(t *testing.T) {
+	requests := [][]byte{}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		body, _ := io.ReadAll(request.Body)
+		requests = append(requests, body)
+		message := map[string]any{"role": "assistant", "content": "候选阶段完成"}
+		if bytes.Contains(body, []byte(`"tools"`)) {
+			message = map[string]any{"role": "assistant", "tool_calls": []map[string]any{{"id": fmt.Sprintf("call-%d", len(requests)), "type": "function", "function": map[string]any{"name": "story.get_target", "arguments": "{}"}}}}
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(map[string]any{"choices": []map[string]any{{"message": message}}})
+	}))
+	defer server.Close()
+	store, _ := NewFileRuntimeEventStore(t.TempDir())
+	defer store.Close()
+	runtime, _ := NewWritingFrameRuntime(store, server.Client())
+	runID := "task6-reserved-draft-run"
+	primeWritingContext(t, runtime, runID)
+	for round := 1; round <= 4; round++ {
+		response, _ := json.Marshal(map[string]any{"schemaVersion": "1", "toolId": "story.get_target", "success": true, "result": map[string]any{"kind": "read-result", "mutationPerformed": false, "data": map[string]any{"summary": "已读取当前章节"}}})
+		if err := runtime.HandleToolResponse(yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindToolResponse, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: fmt.Sprintf("tool-%s-model-%d-0", runID, round), RunID: runID, Seq: 2, Payload: response}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var request map[string]any
+	_ = json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &request)
+	request["harnessProfile"], request["runId"], request["requestId"], request["idempotencyKey"] = "novel-standard", runID, "request-"+runID, "idem-"+runID
+	request["budgets"].(map[string]any)["maxModelCalls"] = 5
+	request["budgets"].(map[string]any)["maxToolRounds"] = 4
+	payload, _ := json.Marshal(request)
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-" + runID, Payload: payload}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	events, _ := store.ReplayAfter(context.Background(), runID, 0, 100)
+	if len(requests) != 5 || bytes.Contains(requests[2], []byte(`"tools"`)) || events[len(events)-1].Type != RunEventTypeRunCompleted {
+		t.Fatalf("standard run did not reserve its draft call: requests=%d third=%s terminal=%#v", len(requests), requests[2], events[len(events)-1])
 	}
 }
 
