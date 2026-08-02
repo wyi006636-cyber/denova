@@ -213,6 +213,88 @@ func TestTask10WritingModelToolsReuseManifestAndRequireRealResults(t *testing.T)
 	if instruction := writingSystemInstruction("image.generate", "novel-lite", []string{"chapter-illustration"}, WritingHarnessStage{ID: "primary-draft", RoleID: HarnessRolePrimaryWriter}); !strings.Contains(instruction, "Call image.generate exactly once") || !strings.Contains(instruction, "chapter-illustration") {
 		t.Fatalf("image instruction does not preserve the existing Skill chain: %s", instruction)
 	}
+	searchResult := json.RawMessage(`{"kind":"read-result","data":{"query":"Codex CLI","results":[{"title":"OpenAI Codex","url":"https://developers.openai.com/codex/cli","summary":"Official docs"}]}}`)
+	if answer := writingDirectToolAnswer("web.search", searchResult); !strings.Contains(answer, "[OpenAI Codex](https://developers.openai.com/codex/cli)") {
+		t.Fatalf("web result did not become a real Markdown source: %s", answer)
+	}
+	imageResult := json.RawMessage(`{"kind":"receipt","data":{"summary":"插图已生成","markdown":"![章节插图](file:///tmp/chapter.png)","localPath":"/tmp/chapter.png"}}`)
+	if answer := writingDirectToolAnswer("image.generate", imageResult); !strings.Contains(answer, "![章节插图](file:///tmp/chapter.png)") || !strings.Contains(answer, "/tmp/chapter.png") {
+		t.Fatalf("image result did not preserve the existing preview/asset result: %s", answer)
+	}
+	imageCall := writingImageToolCall("run-task10", "生成非剧透插图")
+	if imageCall.Name != "image.generate" || !strings.Contains(imageCall.Arguments, "生成非剧透插图") || !strings.Contains(imageCall.Arguments, "1024x1024") {
+		t.Fatalf("direct image tool call=%#v", imageCall)
+	}
+	if kind := writingStageArtifactKind(WritingHarnessStage{RoleID: HarnessRolePrimaryWriter, OutputKind: "draft"}, "web.search"); kind != "report" {
+		t.Fatalf("web result artifact kind=%s, want report", kind)
+	}
+}
+
+func TestTask10AuthorToolStopsAfterRealResultAndForcesFinalAnswer(t *testing.T) {
+	var requests [][]byte
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		body, _ := io.ReadAll(request.Body)
+		requests = append(requests, body)
+		writer.Header().Set("Content-Type", "application/json")
+		if len(requests) == 1 {
+			_ = json.NewEncoder(writer).Encode(map[string]any{
+				"choices": []map[string]any{{
+					"message": map[string]any{
+						"role": "assistant",
+						"tool_calls": []map[string]any{{
+							"id": "call-command", "type": "function",
+							"function": map[string]any{"name": "command_run", "arguments": `{"command":"pwd"}`},
+						}, {
+							"id": "call-command-duplicate", "type": "function",
+							"function": map[string]any{"name": "command_run", "arguments": `{"command":"pwd"}`},
+						}},
+					},
+					"finish_reason": "tool_calls",
+				}},
+			})
+			return
+		}
+		_ = json.NewEncoder(writer).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": "真实目录是 TASK10-PWD"}}}})
+	}))
+	defer server.Close()
+	store, _ := NewFileRuntimeEventStore(t.TempDir())
+	defer store.Close()
+	runtime, err := NewWritingFrameRuntime(store, server.Client(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID := "task10-command-final-run"
+	primeWritingContext(t, runtime, runID)
+	toolPayload, _ := json.Marshal(map[string]any{"schemaVersion": "1", "toolId": "command.run", "success": true, "result": map[string]any{"kind": "read-result", "mutationPerformed": false, "data": map[string]any{"summary": "前台命令完成", "stdout": "TASK10-PWD"}}})
+	if err := runtime.HandleToolResponse(yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindToolResponse, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "tool-" + runID + "-model-1-0", RunID: runID, Seq: 2, Payload: toolPayload}); err != nil {
+		t.Fatal(err)
+	}
+	payload := writingRunPayload(t, server.URL, "agent_chat")
+	var value map[string]any
+	_ = json.Unmarshal(payload, &value)
+	target := ToolTarget{SchemaVersion: "1", Kind: "book", BookID: "book-1", TargetID: "book-1"}
+	value["runId"], value["requestId"], value["idempotencyKey"] = runID, "request-"+runID, "idem-"+runID
+	value["capabilityId"] = "command.run"
+	value["toolCapabilityManifest"] = ToolCapabilityManifest{SchemaVersion: "1", RunID: runID, AgentID: "primary-writer", Target: target, DeniedByDefault: true, Capabilities: []ToolCapability{{ID: "command.run", Mode: ToolCapabilityExecute, MaxCalls: 1, MaxResultBytes: 4096}}}
+	value["budgets"].(map[string]any)["maxToolRounds"] = 3
+	value["budgets"].(map[string]any)["maxModelCalls"] = 3
+	payload, _ = json.Marshal(value)
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-" + runID, Payload: payload}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if len(requests) != 2 {
+		t.Fatalf("provider requests=%d, want tool call then final answer", len(requests))
+	}
+	var second map[string]any
+	if err := json.Unmarshal(requests[1], &second); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := second["tools"]; ok {
+		t.Fatalf("author tool remained available after success: %s", requests[1])
+	}
+	if !bytes.Contains(requests[1], []byte("TASK10-PWD")) || !bytes.Contains(requests[1], []byte("requested real author tool has completed")) {
+		t.Fatalf("real result/final-only instruction missing: %s", requests[1])
+	}
 }
 
 func TestWritingFrameRuntimeToolLoopHonorsModelBudget(t *testing.T) {

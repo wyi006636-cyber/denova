@@ -155,6 +155,30 @@ func writingReadTool(id string) bool {
 	return false
 }
 
+func writingAuthorTool(id string) bool {
+	switch id {
+	case "command.run", "web.search", "image.generate":
+		return true
+	default:
+		return false
+	}
+}
+
+func writingToolCallsForRound(calls []ModelToolCall) []ModelToolCall {
+	filtered := make([]ModelToolCall, 0, len(calls))
+	authorToolIncluded := false
+	for _, call := range calls {
+		if writingAuthorTool(call.Name) {
+			if authorToolIncluded {
+				continue
+			}
+			authorToolIncluded = true
+		}
+		filtered = append(filtered, call)
+	}
+	return filtered
+}
+
 func (failure *writingToolFailure) Error() string { return "writing context tool failed" }
 
 func writingToolActivityCopy(toolID string) (requested, started, failed string) {
@@ -506,6 +530,17 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	candidateArtifactID := ""
 	for stageIndex, stage := range profile.Stages {
 		if stage.ID == "deterministic-checks" {
+			if writingAuthorTool(request.CapabilityID) {
+				if _, emitErr := EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeCheckCompleted, Payload: map[string]any{
+					"artifactId": candidateArtifactID, "statuses": []map[string]any{{"id": "output-not-empty", "status": "pass"}},
+				}}); emitErr != nil {
+					return emitErr
+				}
+				if emitErr := runtime.emitTodoUpdate(runCtx, output, request, profile, stageIndex+1); emitErr != nil {
+					return emitErr
+				}
+				continue
+			}
 			report := `{"status":"pass","checks":["output-not-empty"]}`
 			artifact, emitErr := runtime.emitArtifact(runCtx, output, request, stage, report, artifacts, "deterministic")
 			if emitErr != nil {
@@ -811,10 +846,10 @@ func valueOrDefault(value *int, fallback int) int {
 }
 
 func writingStageArtifactKind(stage WritingHarnessStage, capabilityID string) string {
+	if writingAuthorTool(capabilityID) {
+		return writingCapabilityKinds[capabilityID]
+	}
 	if writingCandidateRole(stage.RoleID) {
-		if capabilityID == "image.generate" {
-			return "image"
-		}
 		if strings.HasPrefix(capabilityID, "outline.") {
 			return "outline"
 		}
@@ -1026,7 +1061,90 @@ func (runtime *WritingFrameRuntime) requestWebSearch(ctx context.Context, output
 	return result, nil
 }
 
+func writingDirectToolAnswer(toolName string, result json.RawMessage) string {
+	var payload struct {
+		Data struct {
+			Summary    string `json:"summary"`
+			Query      string `json:"query"`
+			Markdown   string `json:"markdown"`
+			PreviewURL string `json:"previewUrl"`
+			LocalPath  string `json:"localPath"`
+			Results    []struct {
+				Title   string `json:"title"`
+				URL     string `json:"url"`
+				Summary string `json:"summary"`
+			} `json:"results"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(result, &payload) != nil {
+		return ""
+	}
+	if toolName == "image.generate" {
+		if strings.TrimSpace(payload.Data.Markdown) == "" {
+			return ""
+		}
+		return strings.TrimSpace(payload.Data.Summary) + "\n\n" + strings.TrimSpace(payload.Data.Markdown) + "\n\n文件：`" + strings.TrimSpace(payload.Data.LocalPath) + "`"
+	}
+	if toolName != "web.search" {
+		return ""
+	}
+	var builder strings.Builder
+	builder.WriteString("已完成真实网页搜索")
+	if query := strings.TrimSpace(payload.Data.Query); query != "" {
+		builder.WriteString("：")
+		builder.WriteString(query)
+	}
+	builder.WriteString("。\n\n")
+	count := 0
+	for _, item := range payload.Data.Results {
+		link := strings.TrimSpace(item.URL)
+		if !strings.HasPrefix(link, "https://") && !strings.HasPrefix(link, "http://") {
+			continue
+		}
+		title := strings.NewReplacer("[", "", "]", "").Replace(strings.TrimSpace(item.Title))
+		if title == "" {
+			title = link
+		}
+		count++
+		fmt.Fprintf(&builder, "%d. [%s](%s)", count, title, link)
+		if summary := strings.TrimSpace(item.Summary); summary != "" {
+			builder.WriteString(" — ")
+			builder.WriteString(summary)
+		}
+		builder.WriteString("\n")
+		if count == 10 {
+			break
+		}
+	}
+	if count == 0 {
+		return "网页搜索没有找到可用来源，未使用模型常识补写结果。"
+	}
+	return strings.TrimSpace(builder.String())
+}
+
+func writingImageToolCall(runID, userIntent string) ModelToolCall {
+	arguments, _ := json.Marshal(map[string]any{
+		"prompt": strings.TrimSpace(userIntent),
+		"size":   "1024x1024",
+	})
+	return ModelToolCall{ID: "call-image-" + runID, Name: "image.generate", Arguments: string(arguments)}
+}
+
 func (runtime *WritingFrameRuntime) callModel(ctx context.Context, output io.Writer, request planRunRequest, userIntent string, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string, writingSession *session.Session, modelCalls *int, modelLimit, laterModelStages int, subAgentPrompt string) (ModelResponse, error) {
+	if request.CapabilityID == "image.generate" && len(previous) == 0 {
+		if request.Budgets.MaxToolRounds < 1 {
+			return ModelResponse{}, &writingToolFailure{code: "tool_budget_exhausted", message: "图像工具调用次数已达上限，正文没有被修改"}
+		}
+		result, toolErr := runtime.requestModelTool(ctx, output, request, writingImageToolCall(request.RunID, userIntent), 1, 0)
+		if toolErr != nil {
+			return ModelResponse{}, toolErr
+		}
+		answer := writingDirectToolAnswer("image.generate", result)
+		if answer == "" {
+			return ModelResponse{}, &writingToolFailure{code: "tool_response_invalid", message: "图像生成结果无法显示，正文没有被修改"}
+		}
+		return ModelResponse{Role: "assistant", Content: answer, FinishReason: "stop"}, nil
+	}
 	adapter, err := NewModelAdapter(request.EffectiveModelProfile.effective())
 	if err != nil {
 		return ModelResponse{}, &writingModelFailure{code: "model_configuration_invalid", message: "模型配置不可用，作品没有被修改"}
@@ -1037,6 +1155,7 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, output io.Wri
 	}
 	toolHistory := []ModelMessage{}
 	toolRounds := 0
+	authorToolCompleted := false
 	toolRoundLimit := request.Budgets.MaxToolRounds
 	if available := modelLimit - *modelCalls - laterModelStages - 1; available < toolRoundLimit {
 		toolRoundLimit = available
@@ -1057,10 +1176,14 @@ modelCall:
 		systemInstruction += " Configured SubAgent instruction: " + subAgentPrompt
 	}
 	tools := []ModelTool(nil)
-	if len(previous) == 0 && toolRounds < toolRoundLimit {
+	if len(previous) == 0 && toolRounds < toolRoundLimit && !authorToolCompleted {
 		tools = writingModelTools(request)
 	} else if len(previous) == 0 {
-		systemInstruction += " Context gathering is complete. Tool use is now forbidden: do not emit tool_calls, DSML, XML, tool names, or requests for more data. Produce only the requested final stage result now."
+		if authorToolCompleted {
+			systemInstruction += " The requested real author tool has completed and its result is in the tool message. Tool use is now forbidden: do not emit tool_calls, DSML, XML, tool names, or requests for more data. Answer the author directly using that real result now."
+		} else {
+			systemInstruction += " Context gathering is complete. Tool use is now forbidden: do not emit tool_calls, DSML, XML, tool names, or requests for more data. Produce only the requested final stage result now."
+		}
 	}
 	messages := append(writingModelMessages(
 		writingSession,
@@ -1116,6 +1239,8 @@ modelCall:
 		return ModelResponse{}, &writingModelFailure{code: "invalid_response", message: "模型返回内容无法使用，作品没有被修改"}
 	}
 	if len(modelResponse.ToolCalls) > 0 {
+		toolCalls := writingToolCallsForRound(modelResponse.ToolCalls)
+		directAnswer := ""
 		toolRounds++
 		if toolRounds > toolRoundLimit {
 			if toolRoundLimit == 0 && modelLimit <= *modelCalls+laterModelStages {
@@ -1123,13 +1248,22 @@ modelCall:
 			}
 			return ModelResponse{}, &writingModelFailure{code: "tool_budget_exhausted", message: "读取资料次数已达上限，作品没有被修改"}
 		}
-		toolHistory = append(toolHistory, ModelMessage{Role: "assistant", Content: modelResponse.Content, ToolCalls: modelResponse.ToolCalls})
-		for index, tool := range modelResponse.ToolCalls {
+		toolHistory = append(toolHistory, ModelMessage{Role: "assistant", Content: modelResponse.Content, ToolCalls: toolCalls})
+		for index, tool := range toolCalls {
 			result, toolErr := runtime.requestModelTool(ctx, output, request, tool, toolRounds, index)
 			if toolErr != nil {
 				return ModelResponse{}, toolErr
 			}
 			toolHistory = append(toolHistory, ModelMessage{Role: "tool", Name: tool.Name, ToolCallID: tool.ID, Content: string(result)})
+			if writingAuthorTool(tool.Name) {
+				authorToolCompleted = true
+				if answer := writingDirectToolAnswer(tool.Name, result); answer != "" {
+					directAnswer = answer
+				}
+			}
+		}
+		if directAnswer != "" {
+			return ModelResponse{Role: "assistant", Content: directAnswer, FinishReason: "stop"}, nil
 		}
 		goto modelCall
 	}
