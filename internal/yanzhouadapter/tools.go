@@ -27,6 +27,7 @@ var yanzhouReadToolIDs = []string{
 	"story.search_chapters",
 	"story.get_outline",
 	"story.get_characters",
+	"story.get_open_threads",
 	"story.get_settings",
 	"story.get_relationships",
 	"story.get_timeline",

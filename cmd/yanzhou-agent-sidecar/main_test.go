@@ -23,18 +23,29 @@ func writeInputFrame(t *testing.T, buffer *bytes.Buffer, frame yanzhouprotocol.E
 func sidecarWritingPayload(t *testing.T, baseURL, runID, entrypoint, harnessProfile string, maxModelCalls int) json.RawMessage {
 	t.Helper()
 	requestID := "request-" + runID
+	target := map[string]any{"schemaVersion": "1", "kind": "chapter", "bookId": "book-wp8", "targetId": "chapter-wp8", "parentIds": []string{"volume-wp8"}}
+	agentIDs := []string{"general", "context-planner", "writer", "reviewer", "fixer", "final-gate", "memory-patcher"}
+	agents := make([]map[string]any, 0, len(agentIDs))
+	for _, id := range agentIDs {
+		capabilities := []string{}
+		if id == "reviewer" {
+			capabilities = []string{"story.get_target"}
+		}
+		agents = append(agents, map[string]any{"id": id, "name": id, "prompt": "configured prompt for " + id, "profileId": nil, "enabled": true, "capabilities": capabilities})
+	}
 	payload, err := json.Marshal(map[string]any{
 		"schemaVersion": "1", "requestId": requestID, "idempotencyKey": "idem-" + runID,
 		"runId": runID, "sessionId": "session-" + runID, "agentKind": "ide",
-		"entrypoint": entrypoint, "target": map[string]any{"schemaVersion": "1", "kind": "chapter", "bookId": "book-wp8", "targetId": "chapter-wp8", "parentIds": []string{"volume-wp8"}},
+		"entrypoint": entrypoint, "target": target,
 		"capabilityId": "chapter.generate_from_outline", "userIntent": "根据章纲成文", "planMode": false,
 		"selectedSkillIds": []string{}, "harnessProfile": harnessProfile,
+		"subAgentSnapshot": map[string]any{"schemaVersion": "1", "revision": 1, "agents": agents},
 		"effectiveModelProfile": map[string]any{
 			"profileId": "profile-wp8", "providerType": "openai-compatible", "adapterId": "openai-compatible", "baseUrl": baseURL, "model": "fixture-model",
 			"capabilities": map[string]any{"streaming": true}, "timeoutMs": 30000, "runtimeAuth": map[string]any{"mode": "none"}, "resolution": map[string]any{"source": "run"},
 		},
 		"contextPackRef":         map[string]any{"ref": "sha256:" + strings.Repeat("f", 64)},
-		"toolCapabilityManifest": map[string]any{"schemaVersion": "1", "runId": runID, "agentKind": "ide", "target": map[string]any{"kind": "chapter"}, "deniedByDefault": true, "capabilities": []any{}},
+		"toolCapabilityManifest": map[string]any{"schemaVersion": "1", "runId": runID, "agentId": "primary-writer", "target": target, "deniedByDefault": true, "capabilities": []map[string]any{{"id": "story.get_target", "mode": "read", "maxCalls": 8, "maxResultBytes": 262144}}},
 		"budgets":                map[string]any{"maxModelCalls": maxModelCalls, "maxToolRounds": 4, "maxDelegations": 1, "maxRevisionRounds": 1, "maxWallTimeMs": 30000, "maxInputTokens": 64000, "maxOutputTokens": 16000},
 		"baseRevisions":          map[string]string{"chapter-wp8": "revision-1"}, "displayLocale": "zh-CN",
 	})

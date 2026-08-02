@@ -395,27 +395,28 @@ type planContentRef struct {
 }
 
 type planRunRequest struct {
-	SchemaVersion         string            `json:"schemaVersion"`
-	RequestID             string            `json:"requestId"`
-	IdempotencyKey        string            `json:"idempotencyKey"`
-	RunID                 string            `json:"runId"`
-	SessionID             string            `json:"sessionId"`
-	AgentKind             string            `json:"agentKind"`
-	Entrypoint            string            `json:"entrypoint"`
-	Target                json.RawMessage   `json:"target"`
-	CapabilityID          string            `json:"capabilityId,omitempty"`
-	UserIntent            string            `json:"userIntent"`
-	ExplicitContinue      bool              `json:"explicitContinue,omitempty"`
-	PlanMode              bool              `json:"planMode"`
-	SelectedSkillIDs      []string          `json:"selectedSkillIds"`
-	SkillSnapshot         *SkillSnapshot    `json:"skillSnapshot,omitempty"`
-	HarnessProfile        string            `json:"harnessProfile,omitempty"`
-	EffectiveModelProfile planModelProfile  `json:"effectiveModelProfile"`
-	ContextPackRef        planContentRef    `json:"contextPackRef"`
-	ToolManifest          json.RawMessage   `json:"toolCapabilityManifest"`
-	Budgets               planRunBudget     `json:"budgets"`
-	BaseRevisions         map[string]string `json:"baseRevisions"`
-	DisplayLocale         string            `json:"displayLocale"`
+	SchemaVersion         string               `json:"schemaVersion"`
+	RequestID             string               `json:"requestId"`
+	IdempotencyKey        string               `json:"idempotencyKey"`
+	RunID                 string               `json:"runId"`
+	SessionID             string               `json:"sessionId"`
+	AgentKind             string               `json:"agentKind"`
+	Entrypoint            string               `json:"entrypoint"`
+	Target                json.RawMessage      `json:"target"`
+	CapabilityID          string               `json:"capabilityId,omitempty"`
+	UserIntent            string               `json:"userIntent"`
+	ExplicitContinue      bool                 `json:"explicitContinue,omitempty"`
+	PlanMode              bool                 `json:"planMode"`
+	SelectedSkillIDs      []string             `json:"selectedSkillIds"`
+	SkillSnapshot         *SkillSnapshot       `json:"skillSnapshot,omitempty"`
+	HarnessProfile        string               `json:"harnessProfile,omitempty"`
+	SubAgentSnapshot      *RunSubAgentSnapshot `json:"subAgentSnapshot,omitempty"`
+	EffectiveModelProfile planModelProfile     `json:"effectiveModelProfile"`
+	ContextPackRef        planContentRef       `json:"contextPackRef"`
+	ToolManifest          json.RawMessage      `json:"toolCapabilityManifest"`
+	Budgets               planRunBudget        `json:"budgets"`
+	BaseRevisions         map[string]string    `json:"baseRevisions"`
+	DisplayLocale         string               `json:"displayLocale"`
 }
 
 type planRunResume struct {

@@ -510,7 +510,31 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 			}})
 			return terminalErr
 		}
-		if stage.Delegated {
+		var activeDelegation *DelegationRequest
+		stageSubAgentPrompt := ""
+		realReviewerDelegation := request.HarnessProfile == string(HarnessProfileNovelStandard) && stage.RoleID == HarnessRoleReviewer
+		if realReviewerDelegation {
+			delegation, child, grant, delegationErr := prepareWritingDelegation(request, stage, artifacts)
+			if delegationErr != nil {
+				_, terminalErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunFailed, Payload: map[string]any{
+					"schemaVersion": "1", "reason": "provider_error", "resumable": false,
+					"partialArtifactRefs": writingArtifactIDs(artifacts), "code": "delegation_invalid",
+					"message": "reviewer 委派不可用，作品没有被修改",
+				}})
+				return terminalErr
+			}
+			if _, err = EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeDelegationStarted, Payload: map[string]any{
+				"taskId": delegation.TaskID, "parentRunId": delegation.ParentRunID,
+				"subAgentId": delegation.SubAgentID, "inputArtifactRefs": delegation.InputArtifactRefs,
+				"outputContract": delegation.OutputContract, "capabilityIds": toolCapabilityIDs(grant),
+				"authorizationKind": "user", "authorizationRef": "harness-" + request.HarnessProfile,
+				"status": "running",
+			}}); err != nil {
+				return err
+			}
+			stageSubAgentPrompt = child.SystemPrompt
+			activeDelegation = &delegation
+		} else if stage.Delegated {
 			if _, err = EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeDelegationStarted, Payload: map[string]any{
 				"stageId": stage.ID, "role": stage.RoleID,
 			}}); err != nil {
@@ -530,7 +554,7 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 				laterModelStages++
 			}
 		}
-		response, callErr := runtime.callModel(runCtx, output, request, modelUserIntent, stage, artifacts, contextText, writingSession, &modelCalls, modelLimit, laterModelStages)
+		response, callErr := runtime.callModel(runCtx, output, request, modelUserIntent, stage, artifacts, contextText, writingSession, &modelCalls, modelLimit, laterModelStages, stageSubAgentPrompt)
 		if callErr != nil {
 			if errors.Is(runCtx.Err(), context.Canceled) {
 				return runtime.emitCancelled(ctx, output, request, artifacts, writingSession, interruptedUserMessage, pendingInterruption)
@@ -564,7 +588,16 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 				return err
 			}
 		}
-		if stage.Delegated {
+		if realReviewerDelegation {
+			if _, err = EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeDelegationCompleted, Payload: map[string]any{
+				"taskId": activeDelegation.TaskID, "parentRunId": activeDelegation.ParentRunID,
+				"subAgentId": activeDelegation.SubAgentID, "inputArtifactRefs": activeDelegation.InputArtifactRefs,
+				"outputArtifactRefs": []string{artifact.ID}, "outputContract": activeDelegation.OutputContract,
+				"status": "completed",
+			}}); err != nil {
+				return err
+			}
+		} else if stage.Delegated {
 			if _, err = EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeDelegationCompleted, Payload: map[string]any{
 				"stageId": stage.ID, "role": stage.RoleID, "artifactId": artifact.ID,
 			}}); err != nil {
@@ -681,6 +714,79 @@ func writingArtifactIDs(artifacts []writingRuntimeArtifact) []string {
 		ids[index] = artifact.ID
 	}
 	return ids
+}
+
+func toolCapabilityIDs(capabilities []ToolCapability) []string {
+	ids := make([]string, len(capabilities))
+	for index, capability := range capabilities {
+		ids[index] = capability.ID
+	}
+	return ids
+}
+
+func prepareWritingDelegation(request planRunRequest, stage WritingHarnessStage, artifacts []writingRuntimeArtifact) (DelegationRequest, SubAgentDefinition, []ToolCapability, error) {
+	if request.SubAgentSnapshot == nil || len(artifacts) == 0 || !stage.Delegated {
+		return DelegationRequest{}, SubAgentDefinition{}, nil, errors.New("delegation input is unavailable")
+	}
+	child, err := request.SubAgentSnapshot.resolve(string(stage.RoleID))
+	if err != nil {
+		return DelegationRequest{}, SubAgentDefinition{}, nil, err
+	}
+	var target ToolTarget
+	var manifest ToolCapabilityManifest
+	if json.Unmarshal(request.Target, &target) != nil || json.Unmarshal(request.ToolManifest, &manifest) != nil || target.Validate() != nil {
+		return DelegationRequest{}, SubAgentDefinition{}, nil, errors.New("delegation target is invalid")
+	}
+	if manifest.RunID != request.RunID || manifest.Target != target {
+		return DelegationRequest{}, SubAgentDefinition{}, nil, errors.New("delegation target does not match parent run")
+	}
+	childIDs := map[string]bool{}
+	for _, capability := range child.Capabilities {
+		childIDs[capability.ID] = true
+	}
+	runCapabilities := map[string]ToolCapability{}
+	for _, capability := range manifest.Capabilities {
+		runCapabilities[capability.ID] = capability
+	}
+	allowed := make([]string, 0, len(stage.Permissions))
+	for _, capabilityID := range stage.Permissions {
+		if childIDs[capabilityID] && runCapabilities[capabilityID].ID != "" {
+			allowed = append(allowed, capabilityID)
+		}
+	}
+	if len(allowed) == 0 {
+		return DelegationRequest{}, SubAgentDefinition{}, nil, errors.New("delegation has no effective capability")
+	}
+	inputArtifactRefs := []string{artifacts[len(artifacts)-1].ID}
+	delegation := DelegationRequest{
+		TaskID: "task-" + request.RunID + "-" + stage.ID, ParentRunID: request.RunID,
+		SubAgentID: string(stage.RoleID), Objective: request.UserIntent + "\n\nReview requirement: " + child.SystemPrompt,
+		Target: target, InputArtifactRefs: inputArtifactRefs, AllowedCapabilities: allowed,
+		OutputContract: "harness-" + stage.ID + "-v1", MayProposeWrite: false,
+		TokenBudget: valueOrDefault(request.Budgets.MaxOutputTokens, 4096), WallTimeMS: request.Budgets.MaxWallTimeMS,
+	}
+	grant, err := ValidateDelegation(delegation, child, manifest.Capabilities, manifest.Capabilities, DelegationAuthorization{Kind: "user", Ref: "harness-" + request.HarnessProfile})
+	if err != nil {
+		return DelegationRequest{}, SubAgentDefinition{}, nil, err
+	}
+	if err := validateWritingDelegationLink(delegation, request, stage, artifacts, target); err != nil {
+		return DelegationRequest{}, SubAgentDefinition{}, nil, err
+	}
+	return delegation, child, grant, nil
+}
+
+func validateWritingDelegationLink(delegation DelegationRequest, request planRunRequest, stage WritingHarnessStage, artifacts []writingRuntimeArtifact, target ToolTarget) error {
+	if len(artifacts) == 0 || delegation.ParentRunID != request.RunID || delegation.SubAgentID != string(stage.RoleID) || delegation.Target != target || len(delegation.InputArtifactRefs) != 1 || delegation.InputArtifactRefs[0] != artifacts[len(artifacts)-1].ID {
+		return errors.New("delegation does not match parent run artifacts")
+	}
+	return nil
+}
+
+func valueOrDefault(value *int, fallback int) int {
+	if value != nil && *value > 0 {
+		return *value
+	}
+	return fallback
 }
 
 func writingStageArtifactKind(stage WritingHarnessStage, capabilityID string) string {
@@ -846,7 +952,7 @@ func (runtime *WritingFrameRuntime) requestModelTool(ctx context.Context, output
 	return payloadResponse.Result, nil
 }
 
-func (runtime *WritingFrameRuntime) callModel(ctx context.Context, output io.Writer, request planRunRequest, userIntent string, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string, writingSession *session.Session, modelCalls *int, modelLimit, laterModelStages int) (ModelResponse, error) {
+func (runtime *WritingFrameRuntime) callModel(ctx context.Context, output io.Writer, request planRunRequest, userIntent string, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string, writingSession *session.Session, modelCalls *int, modelLimit, laterModelStages int, subAgentPrompt string) (ModelResponse, error) {
 	adapter, err := NewModelAdapter(request.EffectiveModelProfile.effective())
 	if err != nil {
 		return ModelResponse{}, &writingModelFailure{code: "model_configuration_invalid", message: "模型配置不可用，作品没有被修改"}
@@ -873,6 +979,9 @@ modelCall:
 	}
 	*modelCalls++
 	systemInstruction := writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, stage)
+	if subAgentPrompt != "" {
+		systemInstruction += " Configured SubAgent instruction: " + subAgentPrompt
+	}
 	tools := []ModelTool(nil)
 	if len(previous) == 0 && toolRounds < toolRoundLimit {
 		tools = writingModelTools()

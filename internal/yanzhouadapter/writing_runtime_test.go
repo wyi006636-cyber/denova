@@ -51,12 +51,41 @@ func writingRunPayload(t *testing.T, baseURL string, entrypoint string) json.Raw
 	value["entrypoint"] = entrypoint
 	value["capabilityId"] = "chapter.generate_from_outline"
 	value["harnessProfile"] = "novel-lite"
+	value["subAgentSnapshot"] = writingSubAgentSnapshot(true)
 	value["selectedSkillIds"] = []string{}
 	encoded, err := json.Marshal(value)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return encoded
+}
+
+func writingSubAgentSnapshot(reviewerEnabled bool) map[string]any {
+	ids := []string{"general", "context-planner", "writer", "reviewer", "fixer", "final-gate", "memory-patcher"}
+	agents := make([]map[string]any, 0, len(ids))
+	for _, id := range ids {
+		capabilities := []string{}
+		if id == "reviewer" {
+			capabilities = []string{"story.get_target"}
+		}
+		agents = append(agents, map[string]any{
+			"id": id, "name": id, "prompt": "configured prompt for " + id,
+			"profileId": nil, "enabled": id != "reviewer" || reviewerEnabled,
+			"capabilities": capabilities,
+		})
+	}
+	return map[string]any{"schemaVersion": "1", "revision": 1, "agents": agents}
+}
+
+func writingDelegationManifest(runID string, target any) map[string]any {
+	return map[string]any{
+		"schemaVersion": "1", "runId": runID, "agentId": "primary-writer",
+		"target": target, "deniedByDefault": true,
+		"capabilities": []map[string]any{
+			{"id": "story.get_target", "mode": "read", "maxCalls": 8, "maxResultBytes": 262144},
+			{"id": "story.get_open_threads", "mode": "read", "maxCalls": 4, "maxResultBytes": 262144},
+		},
+	}
 }
 
 func primeWritingContext(t *testing.T, runtime *WritingFrameRuntime, runID string, skillDocuments ...string) {
@@ -244,6 +273,7 @@ func TestWritingFrameRuntimeReservesAStandardDraftCallAfterToolGathering(t *test
 	var request map[string]any
 	_ = json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &request)
 	request["harnessProfile"], request["runId"], request["requestId"], request["idempotencyKey"] = "novel-standard", runID, "request-"+runID, "idem-"+runID
+	request["toolCapabilityManifest"] = writingDelegationManifest(runID, request["target"])
 	request["budgets"].(map[string]any)["maxModelCalls"] = 5
 	request["budgets"].(map[string]any)["maxToolRounds"] = 4
 	payload, _ := json.Marshal(request)
@@ -805,8 +835,14 @@ func TestWritingFrameRuntimeConsumesMainOwnedContextThroughExistingToolFrames(t 
 
 func TestWritingFrameRuntimeExecutesTheExistingStandardHarnessGraph(t *testing.T) {
 	calls := 0
+	requestBodies := [][]byte{}
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		calls++
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		requestBodies = append(requestBodies, body)
 		writer.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(writer).Encode(map[string]any{
 			"choices": []map[string]any{{
@@ -833,6 +869,8 @@ func TestWritingFrameRuntimeExecutesTheExistingStandardHarnessGraph(t *testing.T
 		t.Fatal(err)
 	}
 	request["harnessProfile"] = "novel-standard"
+	request["subAgentSnapshot"] = writingSubAgentSnapshot(true)
+	request["toolCapabilityManifest"] = writingDelegationManifest("plan-run-1", request["target"])
 	payload, _ := json.Marshal(request)
 	var output bytes.Buffer
 	frame := yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-1", Payload: payload}
@@ -845,13 +883,21 @@ func TestWritingFrameRuntimeExecutesTheExistingStandardHarnessGraph(t *testing.T
 		t.Fatal(err)
 	}
 	artifactKinds := []any{}
+	artifactIDs := []any{}
 	for _, event := range events {
 		if event.Type == RunEventTypeArtifactCreated {
 			artifactKinds = append(artifactKinds, event.Payload["artifactKind"])
+			artifactIDs = append(artifactIDs, event.Payload["artifactId"])
 		}
 	}
 	if calls != 3 {
-		t.Fatalf("model calls = %d, want draft + reviewer + revision", calls)
+		t.Fatalf("model calls = %d, want draft + reviewer + revision; terminal=%#v", calls, events[len(events)-1])
+	}
+	if !bytes.Contains(requestBodies[1], []byte("configured prompt for reviewer")) || !bytes.Contains(requestBodies[1], []byte("stage-1")) {
+		t.Fatalf("reviewer request does not contain its prompt and draft Artifact: %s", requestBodies[1])
+	}
+	if !bytes.Contains(requestBodies[2], []byte("stage-2")) {
+		t.Fatalf("primary revision request does not contain review Artifact: %s", requestBodies[2])
 	}
 	wantKinds := []any{"draft", "review", "transform", "report"}
 	if !equalAnySlice(artifactKinds, wantKinds) {
@@ -868,6 +914,116 @@ func TestWritingFrameRuntimeExecutesTheExistingStandardHarnessGraph(t *testing.T
 		if !found {
 			t.Fatalf("standard Harness event %s is missing", required)
 		}
+	}
+	var started, completed *RunEvent
+	for index := range events {
+		switch events[index].Type {
+		case RunEventTypeDelegationStarted:
+			started = &events[index]
+		case RunEventTypeDelegationCompleted:
+			completed = &events[index]
+		}
+	}
+	if started == nil || completed == nil {
+		t.Fatal("delegation event pair is missing")
+	}
+	draftID, reviewID := artifactIDs[0], artifactIDs[1]
+	for _, event := range []*RunEvent{started, completed} {
+		if event.Payload["taskId"] != "task-plan-run-1-review" || event.Payload["parentRunId"] != "plan-run-1" || event.Payload["subAgentId"] != "reviewer" {
+			t.Fatalf("delegation identity = %#v", event.Payload)
+		}
+		if !equalAnySlice(event.Payload["inputArtifactRefs"].([]any), []any{draftID}) {
+			t.Fatalf("delegation input refs = %#v", event.Payload["inputArtifactRefs"])
+		}
+	}
+	if completed.Payload["status"] != "completed" || !equalAnySlice(completed.Payload["outputArtifactRefs"].([]any), []any{reviewID}) {
+		t.Fatalf("delegation completion = %#v", completed.Payload)
+	}
+}
+
+func TestWritingFrameRuntimeStopsBeforeInvalidReviewerModelCall(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		mutate func(map[string]any)
+	}{
+		{name: "disabled reviewer", mutate: func(request map[string]any) {
+			request["subAgentSnapshot"] = writingSubAgentSnapshot(false)
+		}},
+		{name: "target mismatch", mutate: func(request map[string]any) {
+			manifest := writingDelegationManifest("plan-run-1", map[string]any{"schemaVersion": "1", "kind": "chapter", "bookId": "book-other", "targetId": "chapter-other"})
+			request["toolCapabilityManifest"] = manifest
+		}},
+		{name: "capability expansion", mutate: func(request map[string]any) {
+			snapshot := writingSubAgentSnapshot(true)
+			snapshot["agents"].([]map[string]any)[3]["capabilities"] = []string{"story.get_target", "writing.create_artifact"}
+			request["subAgentSnapshot"] = snapshot
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			calls := 0
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				calls++
+				writer.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(writer).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": "draft only"}}}})
+			}))
+			defer server.Close()
+			store, err := NewFileRuntimeEventStore(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer store.Close()
+			runtime, err := NewWritingFrameRuntime(store, server.Client())
+			if err != nil {
+				t.Fatal(err)
+			}
+			primeWritingContext(t, runtime, "plan-run-1")
+			var request map[string]any
+			if err := json.Unmarshal(writingRunPayload(t, server.URL, "structured_action"), &request); err != nil {
+				t.Fatal(err)
+			}
+			request["harnessProfile"] = "novel-standard"
+			request["toolCapabilityManifest"] = writingDelegationManifest("plan-run-1", request["target"])
+			test.mutate(request)
+			payload, _ := json.Marshal(request)
+			if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-1", Payload: payload}, io.Discard); err != nil {
+				t.Fatal(err)
+			}
+			events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 40)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if calls != 1 {
+				t.Fatalf("model calls = %d, want draft only", calls)
+			}
+			for _, event := range events {
+				if event.Type == RunEventTypeDelegationStarted || event.Type == RunEventTypeDelegationCompleted || event.Type == RunEventTypeReviewCompleted || event.Type == RunEventTypeProposalReady {
+					t.Fatalf("invalid reviewer emitted %s", event.Type)
+				}
+				if event.Type == RunEventTypeArtifactCreated && event.Payload["artifactKind"] != "draft" {
+					t.Fatalf("invalid reviewer created %#v", event.Payload)
+				}
+			}
+			terminal := events[len(events)-1]
+			if terminal.Type != RunEventTypeRunFailed || terminal.Payload["code"] != "delegation_invalid" {
+				t.Fatalf("terminal = %#v", terminal)
+			}
+		})
+	}
+}
+
+func TestWritingDelegationLinkRejectsInputArtifactMismatch(t *testing.T) {
+	target := ToolTarget{SchemaVersion: "1", Kind: "chapter", BookID: "book-1", TargetID: "chapter-1"}
+	targetJSON, _ := json.Marshal(target)
+	request := planRunRequest{RunID: "run-1", Target: targetJSON}
+	stage := WritingHarnessStage{ID: "review", RoleID: HarnessRoleReviewer, Delegated: true}
+	artifacts := []writingRuntimeArtifact{{ID: "artifact-draft-1", Kind: "draft"}}
+	base := DelegationRequest{
+		TaskID: "task-run-1-review", ParentRunID: "run-1", SubAgentID: "reviewer",
+		Target: target, InputArtifactRefs: []string{"artifact-draft-1"}, OutputContract: "harness-review-v1",
+	}
+	base.InputArtifactRefs = []string{"artifact-other"}
+	if validateWritingDelegationLink(base, request, stage, artifacts, target) == nil {
+		t.Fatal("mismatched delegation link was accepted")
 	}
 }
 
@@ -939,6 +1095,7 @@ func TestWritingFrameRuntimeKeepsAuthorReadToolsInTheInitialStandardStage(t *tes
 		t.Fatal(err)
 	}
 	payload["harnessProfile"] = "novel-standard"
+	payload["toolCapabilityManifest"] = writingDelegationManifest(runID, payload["target"])
 	payload["userIntent"] = instruction
 	payload["runId"] = runID
 	payload["requestId"] = "request-" + runID

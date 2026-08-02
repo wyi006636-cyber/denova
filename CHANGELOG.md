@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Yanzhou 的 `novel-standard` Harness 现在会把主 Agent 的真实 draft Artifact 委派给已配置的 `reviewer` 发起独立模型审阅，再由主 Agent 读取 review Artifact 生成最终候选；委派事件携带同一 task/run 与输入输出 Artifact 引用，`novel-lite` 仍不委派。
+- Yanzhou's `novel-standard` Harness now delegates the primary Agent's real draft Artifact to the configured `reviewer` for an independent model review, then feeds the review Artifact back to the primary Agent for the final candidate. Delegation events retain matching task/run and input/output Artifact references, while `novel-lite` remains non-delegated.
+
 - Plan Mode now treats a stop request as an abort while waiting for either questions or a proposal, and keeps selected Skills inert for the desktop-owned Plan flow.
 
 - Yanzhou Plan Mode now permits the existing six story read tools before approval, returns structured question and proposal events through the Sidecar, and preserves the author plan loop without creating Artifacts or Proposals before approval.

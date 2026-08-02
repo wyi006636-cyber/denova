@@ -14,7 +14,7 @@ func testToolTarget() ToolTarget {
 }
 
 func TestToolHarnessBuilderAndOrchestratorDefaultDeny(t *testing.T) {
-	if len(YanzhouReadToolIDs()) != 13 || len(YanzhouProposeToolIDs()) != 6 || len(DefaultForbiddenToolIDs()) != 6 || len(ToolCapabilityModes()) != 3 {
+	if len(YanzhouReadToolIDs()) != 14 || len(YanzhouProposeToolIDs()) != 6 || len(DefaultForbiddenToolIDs()) != 6 || len(ToolCapabilityModes()) != 3 {
 		t.Fatalf("tool counts read=%d propose=%d forbidden=%d modes=%d", len(YanzhouReadToolIDs()), len(YanzhouProposeToolIDs()), len(DefaultForbiddenToolIDs()), len(ToolCapabilityModes()))
 	}
 	var calls atomic.Int32

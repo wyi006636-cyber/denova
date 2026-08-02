@@ -33,6 +33,55 @@ type DelegationAuthorization struct {
 	Ref  string `json:"ref"`
 }
 
+type RunSubAgentConfig struct {
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Prompt       string   `json:"prompt"`
+	ProfileID    *string  `json:"profileId"`
+	Enabled      bool     `json:"enabled"`
+	Capabilities []string `json:"capabilities"`
+}
+
+type RunSubAgentSnapshot struct {
+	SchemaVersion string              `json:"schemaVersion"`
+	Revision      int                 `json:"revision"`
+	Agents        []RunSubAgentConfig `json:"agents"`
+}
+
+func (snapshot RunSubAgentSnapshot) resolve(id string) (SubAgentDefinition, error) {
+	builtins := BuiltinSubAgentDefinitions()
+	if snapshot.SchemaVersion != "1" || snapshot.Revision < 1 || len(snapshot.Agents) != len(builtins) {
+		return SubAgentDefinition{}, fmt.Errorf("SubAgent snapshot is invalid")
+	}
+	for index, builtin := range builtins {
+		config := snapshot.Agents[index]
+		if config.ID != builtin.ID || !boundedPlanText(config.Name, 256) || !boundedPlanText(config.Prompt, 16*1024) || len(config.Capabilities) > 256 {
+			return SubAgentDefinition{}, fmt.Errorf("SubAgent snapshot is invalid")
+		}
+		allowed := map[string]ToolCapability{}
+		for _, capability := range builtin.Capabilities {
+			allowed[capability.ID] = capability
+		}
+		seen := map[string]bool{}
+		capabilities := make([]ToolCapability, 0, len(config.Capabilities))
+		for _, capabilityID := range config.Capabilities {
+			capability, ok := allowed[capabilityID]
+			if !ok || seen[capabilityID] {
+				return SubAgentDefinition{}, fmt.Errorf("SubAgent snapshot capability is invalid")
+			}
+			seen[capabilityID] = true
+			capabilities = append(capabilities, capability)
+		}
+		if config.ID == id {
+			return SubAgentDefinition{
+				ID: config.ID, Name: config.Name, Description: builtin.Description,
+				SystemPrompt: config.Prompt, Enabled: config.Enabled, Capabilities: capabilities,
+			}, nil
+		}
+	}
+	return SubAgentDefinition{}, fmt.Errorf("SubAgent is unavailable")
+}
+
 func BuiltinSubAgentDefinitions() []SubAgentDefinition {
 	read := ToolCapability{ID: "story.get_target", Mode: ToolCapabilityRead, MaxCalls: 32, MaxResultBytes: 64 * 1024}
 	artifact := ToolCapability{ID: "writing.create_artifact", Mode: ToolCapabilityPropose, MaxCalls: 8, MaxResultBytes: 64 * 1024}
