@@ -71,6 +71,22 @@ type webSearchResponse struct {
 	Results []webSearchResult `json:"results,omitempty"`
 }
 
+// SearchPublicWeb reuses Denova's configured multi-engine search for the Yanzhou Sidecar.
+func SearchPublicWeb(ctx context.Context, query, timeRange string) (map[string]any, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, fmt.Errorf("search query is required")
+	}
+	response := newDefaultWebSearchAggregator().run(ctx, webSearchRequest{Query: query, TimeRange: timeRange})
+	results := make([]map[string]any, 0, len(response.Results))
+	for _, result := range response.Results {
+		results = append(results, map[string]any{
+			"title": result.Title, "url": result.URL, "summary": result.Summary, "engine": result.Engine,
+		})
+	}
+	return map[string]any{"message": response.Message, "results": results}, nil
+}
+
 type webSearchEngine interface {
 	Name() string
 	Search(ctx context.Context, req webSearchRequest) ([]webSearchResult, error)

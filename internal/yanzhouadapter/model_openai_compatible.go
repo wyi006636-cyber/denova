@@ -13,6 +13,7 @@ var modelToolAliases = map[string]string{
 	"story.get_target": "story_get_target", "story.get_outline": "story_get_outline",
 	"story.get_adjacent_chapters": "story_get_adjacent_chapters", "story.search_chapters": "story_search_chapters",
 	"story.get_characters": "story_get_characters", "story.get_open_threads": "story_get_open_threads",
+	"command.run": "command_run", "web.search": "web_search", "image.generate": "image_generate",
 }
 
 func modelToolName(name string) string {

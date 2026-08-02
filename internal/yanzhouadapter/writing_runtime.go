@@ -17,6 +17,7 @@ import (
 
 	"github.com/cloudwego/eino/schema"
 
+	denovaagent "denova/internal/agent"
 	"denova/internal/session"
 	"denova/internal/yanzhouprotocol"
 )
@@ -32,6 +33,7 @@ var writingCapabilityKinds = map[string]string{
 	"chapter.naturalize": "transform", "chapter.dialogue": "transform",
 	"chapter.scene_description": "transform", "chapter.review": "review",
 	"book.review": "review", "review.repair": "repair", "setting.sync": "state_patch",
+	"command.run": "report", "web.search": "report",
 	"image.generate": "image", "game.turn.generate": "game_turn",
 	"game.turn.adapt_to_novel": "adaptation",
 }
@@ -130,7 +132,10 @@ type writingToolResponsePayload struct {
 	ErrorCode     string          `json:"errorCode,omitempty"`
 }
 
-type writingToolFailure struct{ code string }
+type writingToolFailure struct {
+	code    string
+	message string
+}
 
 // writingTodo mirrors Denova/Eino's existing write_todos contract. The list is
 // run-local display state derived from the active Harness stages; it is not a
@@ -142,7 +147,7 @@ type writingTodo struct {
 }
 
 func writingReadTool(id string) bool {
-	for _, candidate := range []string{"story.get_target", "story.get_outline", "story.get_adjacent_chapters", "story.search_chapters", "story.get_characters", "story.get_open_threads"} {
+	for _, candidate := range []string{"story.get_target", "story.get_outline", "story.get_adjacent_chapters", "story.search_chapters", "story.get_characters", "story.get_open_threads", "command.run", "web.search", "image.generate"} {
 		if id == candidate {
 			return true
 		}
@@ -151,6 +156,19 @@ func writingReadTool(id string) bool {
 }
 
 func (failure *writingToolFailure) Error() string { return "writing context tool failed" }
+
+func writingToolActivityCopy(toolID string) (requested, started, failed string) {
+	switch toolID {
+	case "command.run":
+		return "准备运行作者要求的前台命令", "正在运行前台命令", "前台命令执行失败，正文没有被修改"
+	case "web.search":
+		return "准备搜索公开网页", "正在搜索公开网页", "网页搜索失败，未伪造搜索结果"
+	case "image.generate":
+		return "准备生成章节插图", "正在调用图像服务", "图像生成失败，正文没有被修改"
+	default:
+		return "按任务读取作品资料", "正在读取作品资料", "读取作品资料失败，作品没有被修改"
+	}
+}
 
 type writingModelFailure struct {
 	code    string
@@ -565,7 +583,10 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 			if errors.As(callErr, &toolFailure) {
 				reason = "tool_error"
 				failureCode = writingToolFailureCode(callErr)
-				failureMessage = "读取作品资料失败，作品没有被修改"
+				failureMessage = toolFailure.message
+				if failureMessage == "" {
+					failureMessage = "工具调用失败，作品没有被修改"
+				}
 			}
 			_, terminalErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunFailed, Payload: map[string]any{
 				"schemaVersion": "1", "reason": reason, "resumable": false, "partialArtifactRefs": writingArtifactIDs(artifacts),
@@ -891,8 +912,8 @@ func validateWritingRunRequest(request planRunRequest, envelopeRequestID string)
 	return nil
 }
 
-func writingModelTools() []ModelTool {
-	return []ModelTool{
+func writingModelTools(request planRunRequest) []ModelTool {
+	tools := []ModelTool{
 		{Name: "story.get_target", Description: "Read the current writing target.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{}}},
 		{Name: "story.get_outline", Description: "Read the relevant story outlines.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"query": map[string]any{"type": "string"}}}},
 		{Name: "story.get_adjacent_chapters", Description: "Read adjacent chapter summaries.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"count": map[string]any{"type": "integer"}}}},
@@ -900,6 +921,24 @@ func writingModelTools() []ModelTool {
 		{Name: "story.get_characters", Description: "Read relevant character profiles.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"query": map[string]any{"type": "string"}}}},
 		{Name: "story.get_open_threads", Description: "Read unresolved story threads.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"query": map[string]any{"type": "string"}}}},
 	}
+	var manifest ToolCapabilityManifest
+	if json.Unmarshal(request.ToolManifest, &manifest) != nil {
+		return nil
+	}
+	allowed := map[string]bool{}
+	for _, capability := range manifest.Capabilities {
+		allowed[capability.ID] = true
+	}
+	if allowed["command.run"] {
+		tools = append(tools, ModelTool{Name: "command.run", Description: "Run the foreground command explicitly requested by the author and return stdout, stderr, and exit code.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"command": map[string]any{"type": "string"}, "args": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}}, "required": []string{"command"}}})
+	}
+	if allowed["web.search"] {
+		tools = append(tools, ModelTool{Name: "web.search", Description: "Search the real public web and return source titles, URLs, and summaries. Use returned URLs as citations.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"query": map[string]any{"type": "string"}, "time_range": map[string]any{"type": "string", "enum": []string{"d", "w", "m", "y"}}}, "required": []string{"query"}}})
+	}
+	if allowed["image.generate"] {
+		tools = append(tools, ModelTool{Name: "image.generate", Description: "Generate one non-spoiler chapter illustration through the configured image provider and return its preview URL and local asset path.", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"prompt": map[string]any{"type": "string"}, "size": map[string]any{"type": "string"}, "negativePrompt": map[string]any{"type": "string"}}, "required": []string{"prompt"}}})
+	}
+	return tools
 }
 
 func (runtime *WritingFrameRuntime) requestModelTool(ctx context.Context, output io.Writer, request planRunRequest, tool ModelToolCall, round, index int) (json.RawMessage, error) {
@@ -907,15 +946,19 @@ func (runtime *WritingFrameRuntime) requestModelTool(ctx context.Context, output
 		return nil, &writingToolFailure{code: "tool_call_invalid"}
 	}
 	requestID := fmt.Sprintf("tool-%s-model-%d-%d", request.RunID, round, index)
+	if tool.Name == "web.search" {
+		return runtime.requestWebSearch(ctx, output, request, tool)
+	}
+	requestedSummary, startedSummary, failedMessage := writingToolActivityCopy(tool.Name)
 	response, early, err := runtime.registerToolResponse(requestID)
 	if err != nil {
 		return nil, err
 	}
 	defer runtime.clearToolResponse(requestID)
-	if _, err = EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolRequested, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "summary": "按任务读取作品资料"}}); err != nil {
+	if _, err = EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolRequested, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "summary": requestedSummary}}); err != nil {
 		return nil, err
 	}
-	if _, err = EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolStarted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "summary": "正在读取作品资料"}}); err != nil {
+	if _, err = EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolStarted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "summary": startedSummary}}); err != nil {
 		return nil, err
 	}
 	payload, _ := json.Marshal(map[string]any{"schemaVersion": "1", "toolId": tool.Name, "agentId": "primary-writer", "target": json.RawMessage(request.Target), "arguments": tool.Arguments})
@@ -934,8 +977,12 @@ func (runtime *WritingFrameRuntime) requestModelTool(ctx context.Context, output
 	}
 	var payloadResponse writingToolResponsePayload
 	if err = decodeStrictPlanJSON(frame.Payload, yanzhouprotocol.DefaultMaxFrameBytes, &payloadResponse); err != nil || payloadResponse.ToolID != tool.Name || !payloadResponse.Success || payloadResponse.ErrorCode != "" || len(payloadResponse.Result) == 0 {
-		_, _ = EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "status": "failed", "code": "tool_response_invalid", "message": "读取作品资料失败"}})
-		return nil, &writingToolFailure{code: "tool_response_invalid"}
+		failureCode := payloadResponse.ErrorCode
+		if !validPlanSchemaID(failureCode) {
+			failureCode = "tool_response_invalid"
+		}
+		_, _ = EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "status": "failed", "code": failureCode, "message": failedMessage}})
+		return nil, &writingToolFailure{code: failureCode, message: failedMessage}
 	}
 	summary := "已读取作品资料"
 	var resultSummary struct {
@@ -950,6 +997,33 @@ func (runtime *WritingFrameRuntime) requestModelTool(ctx context.Context, output
 		return nil, err
 	}
 	return payloadResponse.Result, nil
+}
+
+func (runtime *WritingFrameRuntime) requestWebSearch(ctx context.Context, output io.Writer, request planRunRequest, tool ModelToolCall) (json.RawMessage, error) {
+	var input struct {
+		Query     string `json:"query"`
+		TimeRange string `json:"time_range"`
+	}
+	if json.Unmarshal([]byte(tool.Arguments), &input) != nil || strings.TrimSpace(input.Query) == "" {
+		return nil, &writingToolFailure{code: "tool_call_invalid", message: "网页搜索参数无效，未伪造搜索结果"}
+	}
+	if _, err := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolRequested, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "summary": "准备搜索公开网页"}}); err != nil {
+		return nil, err
+	}
+	if _, err := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolStarted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "summary": "正在搜索公开网页"}}); err != nil {
+		return nil, err
+	}
+	data, err := denovaagent.SearchPublicWeb(ctx, input.Query, input.TimeRange)
+	if err != nil {
+		_, _ = EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "status": "failed", "code": "web_search_failed", "message": "网页搜索失败，未生成搜索结果"}})
+		return nil, &writingToolFailure{code: "web_search_failed", message: "网页搜索失败，未伪造搜索结果"}
+	}
+	results, _ := data["results"].([]map[string]any)
+	result, _ := json.Marshal(map[string]any{"kind": "read-result", "mutationPerformed": false, "data": map[string]any{"summary": fmt.Sprintf("真实网页搜索返回 %d 个来源", len(results)), "query": input.Query, "message": data["message"], "results": results}})
+	if _, err = EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{"toolId": tool.Name, "agentId": "primary-writer", "status": "succeeded", "summary": fmt.Sprintf("真实网页搜索返回 %d 个来源", len(results))}}); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (runtime *WritingFrameRuntime) callModel(ctx context.Context, output io.Writer, request planRunRequest, userIntent string, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string, writingSession *session.Session, modelCalls *int, modelLimit, laterModelStages int, subAgentPrompt string) (ModelResponse, error) {
@@ -970,7 +1044,7 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, output io.Wri
 	if toolRoundLimit < 0 {
 		toolRoundLimit = 0
 	}
-	if len(request.SelectedSkillIDs) > 0 {
+	if len(request.SelectedSkillIDs) > 0 && request.CapabilityID != "image.generate" {
 		toolRoundLimit = 0
 	}
 modelCall:
@@ -984,7 +1058,7 @@ modelCall:
 	}
 	tools := []ModelTool(nil)
 	if len(previous) == 0 && toolRounds < toolRoundLimit {
-		tools = writingModelTools()
+		tools = writingModelTools(request)
 	} else if len(previous) == 0 {
 		systemInstruction += " Context gathering is complete. Tool use is now forbidden: do not emit tool_calls, DSML, XML, tool names, or requests for more data. Produce only the requested final stage result now."
 	}
@@ -1149,6 +1223,14 @@ func writingSystemInstruction(capabilityID, harnessProfile string, skillIDs []st
 	instruction := "Produce only the requested bounded stage result. Capability: " + capabilityID + ". Harness: " + harnessProfile + ". Stage: " + stage.ID + ". Role: " + string(stage.RoleID) + "."
 	if len(skillIDs) > 0 {
 		instruction += " Skill: " + strings.Join(skillIDs, ", ") + ". Follow the exact loaded Skill document in the [skill_reference] section of the Main-owned ContextPack; it is part of this request, not a command alias or Harness name. In Yanzhou, satisfy legacy Skill read steps with the available story.* tools or the supplied ContextPack, and deliver every legacy write step as a reviewable candidate only. Do not call read_file or write_file."
+	}
+	switch capabilityID {
+	case "command.run":
+		instruction += " The author explicitly requested a foreground command. Call command.run exactly once, then answer with its real stdout/stderr and exit code. Do not invent command output."
+	case "web.search":
+		instruction += " Call web.search before answering. Cite only URLs returned by the tool as clickable Markdown links. If the tool returns no usable sources, say the search failed or found none; never substitute model memory."
+	case "image.generate":
+		instruction += " Call image.generate exactly once for a non-spoiler chapter illustration. In the final answer include the exact markdown preview and local asset path returned by the tool. Do not produce a prose rewrite."
 	}
 	return instruction + " Never claim the work was committed, never expose reasoning, and never request a filesystem path."
 }

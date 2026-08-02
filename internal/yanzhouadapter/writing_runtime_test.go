@@ -188,6 +188,33 @@ func TestWritingFrameRuntimeFeedsToolFactBackToProvider(t *testing.T) {
 	}
 }
 
+func TestTask10WritingModelToolsReuseManifestAndRequireRealResults(t *testing.T) {
+	manifest, _ := json.Marshal(ToolCapabilityManifest{
+		SchemaVersion: "1", RunID: "run-task10", AgentID: "primary-writer", Target: testToolTarget(), DeniedByDefault: true,
+		Capabilities: []ToolCapability{
+			{ID: "command.run", Mode: ToolCapabilityExecute, MaxCalls: 1, MaxResultBytes: 4096},
+			{ID: "web.search", Mode: ToolCapabilityRead, MaxCalls: 1, MaxResultBytes: 4096},
+			{ID: "image.generate", Mode: ToolCapabilityPropose, MaxCalls: 1, MaxResultBytes: 4096},
+		},
+	})
+	request := planRunRequest{ToolManifest: manifest}
+	names := map[string]bool{}
+	for _, tool := range writingModelTools(request) {
+		names[tool.Name] = true
+	}
+	for _, name := range []string{"command.run", "web.search", "image.generate"} {
+		if !names[name] {
+			t.Fatalf("Task 10 tool %s missing from model tools: %#v", name, names)
+		}
+	}
+	if instruction := writingSystemInstruction("web.search", "novel-lite", nil, WritingHarnessStage{ID: "primary-draft", RoleID: HarnessRolePrimaryWriter}); !strings.Contains(instruction, "Call web.search") || !strings.Contains(instruction, "never substitute model memory") {
+		t.Fatalf("web search instruction does not require real sources: %s", instruction)
+	}
+	if instruction := writingSystemInstruction("image.generate", "novel-lite", []string{"chapter-illustration"}, WritingHarnessStage{ID: "primary-draft", RoleID: HarnessRolePrimaryWriter}); !strings.Contains(instruction, "Call image.generate exactly once") || !strings.Contains(instruction, "chapter-illustration") {
+		t.Fatalf("image instruction does not preserve the existing Skill chain: %s", instruction)
+	}
+}
+
 func TestWritingFrameRuntimeToolLoopHonorsModelBudget(t *testing.T) {
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

@@ -22,6 +22,7 @@ const (
 )
 
 var yanzhouReadToolIDs = []string{
+	"web.search",
 	"story.get_target",
 	"story.get_adjacent_chapters",
 	"story.search_chapters",
@@ -36,6 +37,10 @@ var yanzhouReadToolIDs = []string{
 	"story.get_style_assets",
 	"review.resolve_findings",
 	"game.get_committed_context",
+}
+
+var yanzhouExecuteToolIDs = []string{
+	"command.run",
 }
 
 var yanzhouProposeToolIDs = []string{
@@ -132,6 +137,7 @@ type ToolHarness struct {
 
 func YanzhouReadToolIDs() []string      { return append([]string(nil), yanzhouReadToolIDs...) }
 func YanzhouProposeToolIDs() []string   { return append([]string(nil), yanzhouProposeToolIDs...) }
+func YanzhouExecuteToolIDs() []string   { return append([]string(nil), yanzhouExecuteToolIDs...) }
 func DefaultForbiddenToolIDs() []string { return append([]string(nil), defaultForbiddenToolIDs...) }
 func ToolCapabilityModes() []ToolCapabilityMode {
 	return []ToolCapabilityMode{ToolCapabilityRead, ToolCapabilityPropose, ToolCapabilityExecute}
@@ -303,8 +309,12 @@ func validateToolResult(mode ToolCapabilityMode, result *ToolResult, maxBytes in
 		default:
 			return fmt.Errorf("proposal tool output is invalid")
 		}
+	case ToolCapabilityExecute:
+		if result.Kind != ToolResultRead || result.Data == nil {
+			return fmt.Errorf("execute tool output is invalid")
+		}
 	default:
-		return fmt.Errorf("execute tools are not available in WP4")
+		return fmt.Errorf("tool mode is invalid")
 	}
 	encoded, err := json.Marshal(result)
 	if err != nil || len(encoded) > maxBytes {
@@ -351,6 +361,11 @@ func knownToolMode(id string) (ToolCapabilityMode, bool) {
 	for _, candidate := range yanzhouProposeToolIDs {
 		if id == candidate {
 			return ToolCapabilityPropose, true
+		}
+	}
+	for _, candidate := range yanzhouExecuteToolIDs {
+		if id == candidate {
+			return ToolCapabilityExecute, true
 		}
 	}
 	return "", false

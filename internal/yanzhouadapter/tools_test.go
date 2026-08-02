@@ -14,8 +14,8 @@ func testToolTarget() ToolTarget {
 }
 
 func TestToolHarnessBuilderAndOrchestratorDefaultDeny(t *testing.T) {
-	if len(YanzhouReadToolIDs()) != 14 || len(YanzhouProposeToolIDs()) != 6 || len(DefaultForbiddenToolIDs()) != 6 || len(ToolCapabilityModes()) != 3 {
-		t.Fatalf("tool counts read=%d propose=%d forbidden=%d modes=%d", len(YanzhouReadToolIDs()), len(YanzhouProposeToolIDs()), len(DefaultForbiddenToolIDs()), len(ToolCapabilityModes()))
+	if len(YanzhouReadToolIDs()) != 15 || len(YanzhouProposeToolIDs()) != 6 || len(YanzhouExecuteToolIDs()) != 1 || len(DefaultForbiddenToolIDs()) != 6 || len(ToolCapabilityModes()) != 3 {
+		t.Fatalf("tool counts read=%d propose=%d execute=%d forbidden=%d modes=%d", len(YanzhouReadToolIDs()), len(YanzhouProposeToolIDs()), len(YanzhouExecuteToolIDs()), len(DefaultForbiddenToolIDs()), len(ToolCapabilityModes()))
 	}
 	var calls atomic.Int32
 	manifest := ToolCapabilityManifest{
@@ -69,6 +69,27 @@ func TestToolHarnessBuilderAndOrchestratorDefaultDeny(t *testing.T) {
 	}, ToolExecutionOptions{})
 	if err != nil || proposal.Kind != ToolResultProposal || proposal.MutationPerformed {
 		t.Fatalf("proposal result=%#v err=%v", proposal, err)
+	}
+}
+
+func TestTask10ForegroundCommandUsesTheExistingRunBoundToolHarness(t *testing.T) {
+	manifest := ToolCapabilityManifest{
+		SchemaVersion: "1", RunID: "run-command", AgentID: "primary-writer", Target: testToolTarget(), DeniedByDefault: true,
+		Capabilities: []ToolCapability{{ID: "command.run", Mode: ToolCapabilityExecute, MaxCalls: 1, MaxResultBytes: 4096}},
+	}
+	harness, err := NewToolHarness(manifest, map[string]ToolHandler{
+		"command.run": func(context.Context, map[string]any) (ToolResult, error) {
+			return ToolResult{Kind: ToolResultRead, Data: map[string]any{"stdout": "book-command-output", "exitCode": 0}}, nil
+		},
+	}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := harness.Execute(context.Background(), ToolCall{
+		RunID: "run-command", AgentID: "primary-writer", Target: testToolTarget(), ToolID: "command.run", Arguments: `{"command":"pwd"}`,
+	}, ToolExecutionOptions{})
+	if err != nil || result.Kind != ToolResultRead || result.Data["stdout"] != "book-command-output" || result.MutationPerformed {
+		t.Fatalf("command result=%#v err=%v", result, err)
 	}
 }
 
