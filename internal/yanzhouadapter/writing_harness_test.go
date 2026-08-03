@@ -72,6 +72,21 @@ func TestWritingHarnessProfilesMatchWP7Contract(t *testing.T) {
 	}
 }
 
+func TestImageGenerationUsesItsRequestedProviderWindow(t *testing.T) {
+	profile := WritingHarnessProfiles()[0]
+	request := planRunRequest{
+		CapabilityID: "image.generate",
+		Budgets:      planRunBudget{MaxWallTimeMS: 300_000},
+	}
+	if got, want := writingRunWallTimeMS(request, profile), 300_000; got != want {
+		t.Fatalf("image wall time = %d, want %d", got, want)
+	}
+	request.CapabilityID = "command.run"
+	if got, want := writingRunWallTimeMS(request, profile), profile.Budget.MaxWallTimeMS; got != want {
+		t.Fatalf("command wall time = %d, want %d", got, want)
+	}
+}
+
 func TestWritingHarnessScopeAndSkillEvidenceFailClosed(t *testing.T) {
 	target := ToolTarget{SchemaVersion: "1", Kind: "chapter", BookID: "book-1", TargetID: "chapter-1"}
 	scopes := []WritingHarnessScope{

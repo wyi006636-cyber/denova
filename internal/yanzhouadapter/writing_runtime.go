@@ -422,10 +422,7 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	if err != nil {
 		return err
 	}
-	wallTime := request.Budgets.MaxWallTimeMS
-	if profile.Budget.MaxWallTimeMS < wallTime {
-		wallTime = profile.Budget.MaxWallTimeMS
-	}
+	wallTime := writingRunWallTimeMS(request, profile)
 	runCtx, cancel := context.WithTimeout(ctx, time.Duration(wallTime)*time.Millisecond)
 	runtime.mu.Lock()
 	if existing, ok := runtime.idempotency[request.IdempotencyKey]; ok {
@@ -688,6 +685,14 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 		err = writingSession.ResolveInterruption(pendingInterruption.ID)
 	}
 	return err
+}
+
+func writingRunWallTimeMS(request planRunRequest, profile WritingHarnessProfile) int {
+	wallTime := request.Budgets.MaxWallTimeMS
+	if request.CapabilityID != "image.generate" && profile.Budget.MaxWallTimeMS < wallTime {
+		wallTime = profile.Budget.MaxWallTimeMS
+	}
+	return wallTime
 }
 
 func (runtime *WritingFrameRuntime) emitCancelled(ctx context.Context, output io.Writer, request planRunRequest, artifacts []writingRuntimeArtifact, writingSession *session.Session, userMessage string, resumed *session.Interruption) error {
