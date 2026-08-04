@@ -626,7 +626,19 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 			}})
 			return terminalErr
 		}
-		artifact, emitErr := runtime.emitArtifact(runCtx, output, request, stage, response.Content, artifacts, "model")
+		content := response.Content
+		if writingCandidateRole(stage.RoleID) {
+			cleaned, usable := cleanWritingCandidateContent(content)
+			if !usable {
+				_, terminalErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunFailed, Payload: map[string]any{
+					"schemaVersion": "1", "reason": "provider_error", "resumable": false, "partialArtifactRefs": writingArtifactIDs(artifacts),
+					"code": "candidate_markup_invalid", "message": "模型返回内容无法使用，作品没有被修改",
+				}})
+				return terminalErr
+			}
+			content = cleaned
+		}
+		artifact, emitErr := runtime.emitArtifact(runCtx, output, request, stage, content, artifacts, "model")
 		if emitErr != nil {
 			return emitErr
 		}
