@@ -121,7 +121,7 @@ func WritingHarnessProfiles() []WritingHarnessProfile {
 				harnessStage("draft", HarnessRolePrimaryWriter, false, proposeText, "draft"),
 				harnessStage("deterministic-checks", HarnessRoleDeterministicChecker, false, readTarget, "report"),
 			}),
-			Budget: harnessBudget(2, 2, 0, 0, 60_000, 32_000, 8_000),
+			Budget: harnessBudget(2, 2, 0, 0, 120_000, 32_000, 8_000),
 		},
 		{
 			SchemaVersion: "1", ID: HarnessProfileNovelStandard,
