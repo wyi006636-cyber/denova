@@ -86,6 +86,12 @@ func (a *openAICompatibleAdapter) BuildRequest(request ModelRequest, stream bool
 		body["tools"] = tools
 		body["parallel_tool_calls"] = false
 	}
+	if request.JSONOutput {
+		body["response_format"] = map[string]any{"type": "json_object"}
+	}
+	if request.DisableThinking {
+		body["thinking"] = map[string]any{"type": "disabled"}
+	}
 	if stream {
 		body["stream_options"] = map[string]any{"include_usage": true}
 	}

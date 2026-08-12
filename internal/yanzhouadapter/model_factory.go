@@ -67,6 +67,8 @@ type ModelRequest struct {
 	Tools           []ModelTool    `json:"tools,omitempty"`
 	Temperature     float64        `json:"temperature,omitempty"`
 	MaxOutputTokens int            `json:"maxOutputTokens,omitempty"`
+	JSONOutput      bool           `json:"jsonOutput,omitempty"`
+	DisableThinking bool           `json:"disableThinking,omitempty"`
 }
 
 type ModelUsage struct {

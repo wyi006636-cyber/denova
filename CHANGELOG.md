@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Yanzhou `book.conceive` 现在通过现有 Harness Artifact 链生成完整 canonical 创作蓝图候选，并让 Reviewer 提供可见建议，供砚舟的 Agent 起笔草稿、局部重生成和一次确认写入闭环使用。
+- Yanzhou `book.conceive` now produces a complete canonical book-start blueprint candidate through the existing Harness Artifact chain, with visible Reviewer suggestions for Yanzhou's recoverable draft, targeted regeneration, and one-confirmation apply flow.
+
 - Yanzhou 的 `novel-standard` Harness 现在会把主 Agent 的真实 draft Artifact 委派给已配置的 `reviewer` 发起独立模型审阅，再由主 Agent 读取 review Artifact 生成最终候选；委派事件携带同一 task/run 与输入输出 Artifact 引用，`novel-lite` 仍不委派。
 - Yanzhou's `novel-standard` Harness now delegates the primary Agent's real draft Artifact to the configured `reviewer` for an independent model review, then feeds the review Artifact back to the primary Agent for the final candidate. Delegation events retain matching task/run and input/output Artifact references, while `novel-lite` remains non-delegated.
 

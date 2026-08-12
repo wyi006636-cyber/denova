@@ -30,6 +30,9 @@ func TestWritingHarnessProfilesMatchWP7Contract(t *testing.T) {
 	if got, want := profiles[1].Budget.MaxModelCalls, 5; got != want {
 		t.Fatalf("standard max model calls = %d, want %d", got, want)
 	}
+	if got, want := profiles[1].Budget.MaxWallTimeMS, 120_000; got != want {
+		t.Fatalf("standard wall time = %d, want existing shared profile budget %d", got, want)
+	}
 	roles := map[WritingHarnessProfileID][]WritingHarnessRoleID{
 		HarnessProfileNovelLite:     {HarnessRolePrimaryWriter, HarnessRoleDeterministicChecker},
 		HarnessProfileNovelStandard: {HarnessRolePrimaryWriter, HarnessRoleReviewer, HarnessRolePrimaryWriter, HarnessRoleDeterministicChecker},
@@ -80,6 +83,10 @@ func TestImageGenerationUsesItsRequestedProviderWindow(t *testing.T) {
 	}
 	if got, want := writingRunWallTimeMS(request, profile), 300_000; got != want {
 		t.Fatalf("image wall time = %d, want %d", got, want)
+	}
+	request.CapabilityID = "book.conceive"
+	if got, want := writingRunWallTimeMS(request, profile), 300_000; got != want {
+		t.Fatalf("book conception wall time = %d, want requested window %d", got, want)
 	}
 	request.CapabilityID = "command.run"
 	if got, want := writingRunWallTimeMS(request, profile), profile.Budget.MaxWallTimeMS; got != want {
