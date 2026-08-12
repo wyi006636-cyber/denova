@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, Bot, FileText, PenLine, Plus, SearchCheck, Sparkles, WandSparkles, X } from 'lucide-react'
+import { Activity, BookOpenText, Bot, FileText, PenLine, Plus, SearchCheck, Sparkles, WandSparkles, X } from 'lucide-react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -25,6 +25,8 @@ import { AgentChangeSummaryCard } from '@/features/changes/agent/AgentChangeSumm
 import { MAX_REVIEW_FEEDBACK_COMMENT_COUNT, MAX_REVIEW_FEEDBACK_CONTEXT_BYTES, reviewFeedbackCommentCount, reviewFeedbackContextBytes, type ReviewFeedbackBatch, type ReviewFeedbackComment, type ReviewFeedbackSelection } from '@/features/changes/agent/ReviewFeedbackTray'
 import { toast } from 'sonner'
 import type { ChatSendOptions } from '@/hooks/useAgentChat'
+import { FanqieCandidateSheet } from '@/features/short-fiction/FanqieCandidateSheet'
+import { deriveFanqieProgress, FanqieProgressStatus } from './FanqieProgressStatus'
 
 type AgentPanelView = 'chat' | 'sessions' | 'traces'
 
@@ -38,6 +40,7 @@ export const WRITING_COMPOSER_SETTING_DEFAULTS = {
 export type WritingComposerSettingsController = PersistedUserSettingsController<typeof WRITING_COMPOSER_SETTING_DEFAULTS>
 
 interface AgentPanelProps {
+  contentMode: 'writing' | 'game'
   workspace: string
   /** Owned above the conditional panel so closing the panel cannot discard delayed saves. */
   composerSettings: WritingComposerSettingsController
@@ -94,6 +97,7 @@ interface AgentPanelProps {
 
 /** IDE 右侧创作 Agent 面板，内部支持在对话与完整会话管理之间切换。 */
 export function AgentPanel({
+  contentMode,
   workspace,
   composerSettings: persistedSettings,
   currentChapter,
@@ -153,6 +157,7 @@ export function AgentPanel({
   const [contextAnalysisLoading, setContextAnalysisLoading] = useState(false)
   const [contextAnalysisError, setContextAnalysisError] = useState<string | null>(null)
   const [contextAnalysis, setContextAnalysis] = useState<ContextAnalysis | null>(null)
+  const [fanqieOpen, setFanqieOpen] = useState(false)
   const [activeSubAgentSessionKey, setActiveSubAgentSessionKey] = useState('')
   const [selectedTraceRunId, setSelectedTraceRunId] = useState('')
   const [inputAreaHeight, setInputAreaHeight] = useState(0)
@@ -163,6 +168,9 @@ export function AgentPanel({
   const skillCommands = useSkillCommands({ agentKey: 'ide', workspace, fallbackEnabled: true })
   const writingSkillOptions = useWritingSkillOptions(workspace)
   const changeGroupsQuery = useWorkspaceChangeGroups(activeSessionId ? workspace : '', { sessionID: activeSessionId })
+  const fanqieProgress = useMemo(() => contentMode === 'writing' && writingSkill === 'fanqie-short'
+    ? deriveFanqieProgress({ messages, isStreaming, changeGroups: changeGroupsQuery.data ?? [] })
+    : null, [changeGroupsQuery.data, contentMode, isStreaming, messages, writingSkill])
   const tokenUsageMessages = useMemo(
     () => selectAgentTokenUsageRecords(messages),
     [messages],
@@ -183,11 +191,15 @@ export function AgentPanel({
 
   useEffect(() => {
     const handleWritingInitRequest = (event: Event) => {
-      const detail = (event as CustomEvent<{ prompt?: string; autoSend?: boolean }>).detail
+      const detail = (event as CustomEvent<{ prompt?: string; autoSend?: boolean; writingSkill?: string }>).detail
       const prompt = detail?.prompt || t('writingAgent.initPrompt')
+      const requestedWritingSkill = detail?.writingSkill?.trim() || writingSkill
       setView('chat')
+      if (requestedWritingSkill !== writingSkill) {
+        void persistedSettings.persist('writing_skill_default', requestedWritingSkill)
+      }
       if (detail?.autoSend && !isStreaming) {
-        onSend(prompt, { writingSkill, ideContext, imagePresetId, tellerId: ideTellerId })
+        onSend(prompt, { writingSkill: requestedWritingSkill, ideContext, imagePresetId, tellerId: ideTellerId })
         return
       }
       setInputPrefill((current) => ({ prompt, nonce: (current?.nonce || 0) + 1 }))
@@ -461,6 +473,32 @@ export function AgentPanel({
       </div>
 
       {view === 'chat' ? (
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--nova-border)] px-3 py-2">
+          <button
+            type="button"
+            disabled={isStreaming}
+            onClick={() => setFanqieOpen(true)}
+            className="nova-nav-item flex h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-45"
+            aria-label={t('chat.fanqie.entry')}
+            title={t('chat.fanqie.entry')}
+          >
+            <BookOpenText className="h-3.5 w-3.5" />
+            <span>{t('chat.fanqie.entry')}</span>
+          </button>
+          <span
+            className="inline-flex min-w-0 items-center gap-1 rounded border border-[var(--nova-border)] bg-[var(--nova-surface-2)] px-2 py-1 text-[10px] text-[var(--nova-text-muted)]"
+            aria-label={`${t('chat.writingSkill')}: ${writingSkill}`}
+            title={t('chat.writingSkillTitle')}
+          >
+            <Sparkles className="h-3 w-3 shrink-0" />
+            <span className="truncate">{writingSkill}</span>
+          </span>
+        </div>
+      ) : null}
+
+      {view === 'chat' && fanqieProgress ? <FanqieProgressStatus progress={fanqieProgress} /> : null}
+
+      {view === 'chat' ? (
         <>
           <div className="relative flex min-h-0 flex-1">
             {!activeSubAgentSessionKey ? (
@@ -529,6 +567,15 @@ export function AgentPanel({
         <AgentTracePanel disabled={isStreaming} selectedRunId={selectedTraceRunId} />
       )}
       {chatPanePortal}
+      <FanqieCandidateSheet
+        open={fanqieOpen}
+        onOpenChange={setFanqieOpen}
+        workspace={workspace}
+        selectedFile={selectedFile}
+        fileSuggestions={fileSuggestions}
+        disabled={isStreaming}
+        onWorkspaceChanged={onWorkspaceChanged}
+      />
     </aside>
   )
 }

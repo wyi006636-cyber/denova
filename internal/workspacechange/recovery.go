@@ -42,7 +42,7 @@ func (s *Service) recoverOperations() error {
 				// The namespace mutation may have completed before its progress
 				// record. Persist its parent entry before recording progress.
 				if err := s.syncVisibleParent(change.Path); err != nil {
-					s.markPendingParentSync(change.Path, result.ParentRel)
+					s.markPendingParentSync(change.Path, result)
 					return durabilityPendingError(change.Path, "", id, result, err)
 				}
 				result.Stage = mutationStageDurable
@@ -57,7 +57,7 @@ func (s *Service) recoverOperations() error {
 				}
 				if err != nil {
 					if result.Stage == mutationStageVisible {
-						s.markPendingParentSync(change.Path, result.ParentRel)
+						s.markPendingParentSync(change.Path, result)
 						return durabilityPendingError(change.Path, "", id, result, err)
 					}
 					visible, visibleExists, readErr := s.readVisibleState(change.Path)
@@ -78,7 +78,7 @@ func (s *Service) recoverOperations() error {
 						WorkspaceMutated: false,
 					}
 					if syncErr := s.syncVisibleParent(change.Path); syncErr != nil {
-						s.markPendingParentSync(change.Path, result.ParentRel)
+						s.markPendingParentSync(change.Path, result)
 						return durabilityPendingError(change.Path, "", id, result, errors.Join(err, syncErr))
 					}
 					result.Stage = mutationStageDurable
@@ -128,7 +128,7 @@ func (s *Service) recoverOperations() error {
 					ParentRel:        visibleParentRel(planned.ChangeSet.Path),
 					WorkspaceMutated: true,
 				}
-				s.markPendingParentSync(planned.ChangeSet.Path, result.ParentRel)
+				s.markPendingParentSync(planned.ChangeSet.Path, result)
 				return durabilityPendingError(planned.ChangeSet.Path, "", id, result, err)
 			}
 		}
@@ -180,7 +180,7 @@ func (s *Service) recoverPrepared() error {
 				WorkspaceMutated: true,
 			}
 			if err := s.syncVisibleParent(change.Path); err != nil {
-				s.markPendingParentSync(change.Path, result.ParentRel)
+				s.markPendingParentSync(change.Path, result)
 				return durabilityPendingError(change.Path, id, "", result, err)
 			}
 			if err := s.appendAndApply(ledgerEvent{Type: eventChangeRecoveredApplied, ChangeSetID: id}); err != nil {

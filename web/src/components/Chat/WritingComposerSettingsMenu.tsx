@@ -108,6 +108,8 @@ function fallbackWritingSkillOption(name: string): WritingSkillOption {
 
 function writingSkillLabel(name: string, t: ReturnType<typeof useTranslation>['t']): string {
   switch (name) {
+    case 'fanqie-short':
+      return t('chat.writingSkill.preset.fanqieShort')
     case 'novel-lite':
       return t('chat.writingSkill.preset.lite')
     case 'novel-standard':

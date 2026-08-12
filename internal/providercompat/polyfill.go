@@ -65,6 +65,9 @@ type polyfill interface {
 // Order matters: later polyfills see output of earlier ones.
 func detect(cfg openai.ChatModelConfig) []polyfill {
 	var out []polyfill
+	if usesGeminiOpenAICompatibility(cfg) {
+		out = append(out, geminiThoughtSignaturePolyfill{})
+	}
 	if needsRepair(cfg) {
 		// Both polyfills needed: tool-call text-to-struct, then think-tag cleanup
 		// (in case reasoning_split is ignored or falls back to inline tags).

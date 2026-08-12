@@ -14,23 +14,23 @@ import (
 // safety and recovery behavior while delegating ordinary filesystem operations.
 type agentFilesystemBackend struct {
 	filesystem.Backend
-	workspace string
+	readRoots []string
 }
 
 const agentFileReadDefaultLimitLines = 2000
 
-func newAgentFilesystemBackend(inner filesystem.Backend, workspaces ...string) filesystem.Backend {
+func newAgentFilesystemBackend(inner filesystem.Backend, readRoots ...string) filesystem.Backend {
 	if inner == nil {
 		return nil
 	}
-	workspace := ""
-	if len(workspaces) > 0 {
-		workspace = strings.TrimSpace(workspaces[0])
-		if workspace != "" {
-			workspace = filepath.Clean(workspace)
+	normalizedRoots := make([]string, 0, len(readRoots))
+	for _, root := range readRoots {
+		root = strings.TrimSpace(root)
+		if root != "" {
+			normalizedRoots = append(normalizedRoots, filepath.Clean(root))
 		}
 	}
-	return &agentFilesystemBackend{Backend: inner, workspace: workspace}
+	return &agentFilesystemBackend{Backend: inner, readRoots: normalizedRoots}
 }
 
 func (b *agentFilesystemBackend) Read(ctx context.Context, req *filesystem.ReadRequest) (*filesystem.FileContent, error) {

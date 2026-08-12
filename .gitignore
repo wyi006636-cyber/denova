@@ -25,6 +25,11 @@ docs/architecture/*
 !docs/status/
 docs/status/*
 !docs/status/actor-state-presets-v2-design.md
+!docs/superpowers/
+docs/superpowers/*
+!docs/superpowers/specs/
+docs/superpowers/specs/*
+!docs/superpowers/specs/2026-07-25-fanqie-short-fiction-vertical-slice-design.md
 .worktrees/
 .pnpm-store/
 .DS_Store

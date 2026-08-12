@@ -13,6 +13,7 @@ import (
 	"denova/internal/imagepreset"
 	"denova/internal/interactive"
 	"denova/internal/session"
+	novaskills "denova/internal/skills"
 	"denova/internal/styleref"
 )
 
@@ -460,7 +461,7 @@ func (s *ChatAppService) prepareIDEChatRuntime(ctx context.Context, req agent.Ch
 		applyRequestLocaleToConfig(&runtime.cfg, req.Locale)
 	}
 	applyImagePresetRuntimePolicy(&runtime, &req)
-	if err := applyWritingSkillRuntimePolicy(&runtime, &req); err != nil {
+	if err := applyWritingSkillRuntimePolicy(ctx, &runtime, &req); err != nil {
 		return ideChatRuntime{}, req, err
 	}
 	if err := s.resolveReviewFeedback(ctx, runtime, &req); err != nil {
@@ -525,11 +526,27 @@ func applyImagePresetRuntimePolicy(runtime *ideChatRuntime, req *agent.ChatReque
 	log.Printf("[agent-task] selected image preset id=%s name=%q workspace=%s agent_system_chars=%d tool_request_chars=%d", req.ImagePreset.ID, req.ImagePreset.Name, runtime.workspace, len([]rune(agentSystemPrompt)), len([]rune(toolRequestPrompt)))
 }
 
-func applyWritingSkillRuntimePolicy(runtime *ideChatRuntime, req *agent.ChatRequest) error {
+func applyWritingSkillRuntimePolicy(ctx context.Context, runtime *ideChatRuntime, req *agent.ChatRequest) error {
 	if runtime == nil || req == nil {
 		return nil
 	}
 	req.WritingSkill = agent.ResolveWritingSkillName(&runtime.cfg, req.WritingSkill)
+	if req.WritingSkill == "fanqie-short" {
+		backend := novaskills.NewAgentBackend(
+			novaskills.NewDirectories(runtime.cfg.SkillsDir, runtime.cfg.DataDir(), runtime.workspace),
+			config.AgentKindIDE,
+			config.ResolveAgentSkillOverrides(&runtime.cfg, config.AgentKindIDE),
+		)
+		loaded, err := backend.Get(ctx, req.WritingSkill)
+		if err != nil {
+			return fmt.Errorf("加载 Writing Skill %s 失败 / Failed to load Writing Skill %s: %w", req.WritingSkill, req.WritingSkill, err)
+		}
+		req.WritingSkillContent = strings.TrimSpace(loaded.Content)
+		req.WritingSkillBaseDirectory = strings.TrimSpace(loaded.BaseDirectory)
+		if req.WritingSkillContent == "" {
+			return fmt.Errorf("加载 Writing Skill %s 失败：SKILL.md 主入口为空 / Failed to load Writing Skill %s: SKILL.md entry is empty", req.WritingSkill, req.WritingSkill)
+		}
+	}
 	log.Printf("[agent-task] selected writing skill name=%s workspace=%s", req.WritingSkill, runtime.workspace)
 	return nil
 }

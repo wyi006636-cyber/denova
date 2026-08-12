@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ComponentProps } from 'react'
 import { VirtuosoMockContext } from 'react-virtuoso'
@@ -24,7 +24,7 @@ vi.mock('@/hooks/useSkillCommands', () => ({
 
 vi.mock('@/hooks/useWritingSkillOptions', () => ({
   DEFAULT_WRITING_SKILL: 'novel-lite',
-  BUILTIN_WRITING_SKILLS: ['novel-lite', 'novel-standard', 'novel-heavy'],
+  BUILTIN_WRITING_SKILLS: ['fanqie-short', 'novel-lite', 'novel-standard', 'novel-heavy'],
   useWritingSkillOptions: useWritingSkillOptionsMock,
 }))
 
@@ -54,6 +54,7 @@ describe('AgentPanel', () => {
     useWorkspaceChangeGroupsMock.mockReset()
     useWorkspaceChangeGroupsMock.mockReturnValue({ data: [] })
     useWritingSkillOptionsMock.mockReturnValue([
+      { name: 'fanqie-short', description: '番茄短篇', scope: 'builtin', path: '/skills/fanqie-short/SKILL.md', active: true, agent: 'ide' },
       { name: 'novel-lite', description: 'Lite', scope: 'builtin', path: '/skills/novel-lite/SKILL.md', active: true, agent: 'ide' },
       { name: 'novel-standard', description: 'Standard', scope: 'builtin', path: '/skills/novel-standard/SKILL.md', active: true, agent: 'ide' },
       { name: 'novel-heavy', description: 'Heavy', scope: 'builtin', path: '/skills/novel-heavy/SKILL.md', active: true, agent: 'ide' },
@@ -80,6 +81,7 @@ describe('AgentPanel', () => {
     expect(screen.getByText('写作 Skill')).toBeInTheDocument()
     expect(screen.getByText(/Lite/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Review' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: '番茄短篇创作进度' })).not.toBeInTheDocument()
   })
 
   it('将新建会话按钮放在标题切换器旁边并隐藏会话摘要和空闲状态文字', async () => {
@@ -96,6 +98,49 @@ describe('AgentPanel', () => {
 
     await user.click(createButton)
     expect(handleCreateSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('从持久 header 打开和关闭番茄短篇时不发送消息也不改变内容模式', async () => {
+    const user = userEvent.setup()
+    const handleSend = vi.fn()
+    window.localStorage.setItem('nova:content-mode', 'interactive')
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+
+    try {
+      renderAgentPanel({
+        selectedFile: 'chapters/short.md',
+        fileSuggestions: ['chapters/short.md'],
+        messages: [{ id: 'assistant-1', role: 'assistant', parts: [{ type: 'text', text: '已有对话' }] }],
+        onSend: handleSend,
+      })
+
+      const entry = screen.getByRole('button', { name: '番茄完整短篇（快速）' })
+      expect(entry).toBeInTheDocument()
+      expect(entry).toHaveTextContent('番茄完整短篇（快速）')
+      await user.click(entry)
+      expect(screen.getByRole('dialog', { name: '番茄完整短篇' })).toBeInTheDocument()
+      expect(screen.getByTestId('fanqie-save-path')).toHaveTextContent('chapters/short-2.md')
+      expect(screen.queryByRole('status', { name: '番茄短篇创作进度' })).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: '关闭番茄短篇' }))
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: '番茄完整短篇' })).not.toBeInTheDocument())
+
+      expect(handleSend).not.toHaveBeenCalled()
+      expect(window.localStorage.getItem('nova:content-mode')).toBe('interactive')
+      expect(setItemSpy).not.toHaveBeenCalledWith('nova:content-mode', expect.anything())
+    } finally {
+      setItemSpy.mockRestore()
+      window.localStorage.removeItem('nova:content-mode')
+    }
+  })
+
+  it('在 Agent 正在流式回复时禁用持久番茄短篇入口', async () => {
+    renderAgentPanel({ isStreaming: true })
+
+    expect(screen.getByRole('button', { name: '番茄完整短篇（快速）' })).toBeDisabled()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /切换模型/ })).not.toHaveTextContent('加载模型')
+    })
   })
 
   it('创作 Agent 将思考和工具调用折叠到同一个思考过程', async () => {
@@ -201,6 +246,49 @@ describe('AgentPanel', () => {
         expect.objectContaining({ writingSkill: 'novel-lite', tellerId: 'classic' }),
       )
     })
+  })
+
+  it('收到新建短篇事件时切换并显示 fanqie-short，首轮也使用该 Skill', async () => {
+    const handleSend = vi.fn()
+    renderAgentPanel({ onSend: handleSend })
+
+    await waitFor(() => expect(fetchSettings).toHaveBeenCalled())
+    vi.useFakeTimers()
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('nova:writing-agent-init', {
+        detail: {
+          autoSend: true,
+          writingSkill: 'fanqie-short',
+          prompt: '我想写一个关于消失末班车的番茄短篇，请先和我交流故事想法。',
+        },
+      }))
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    expect(updateUserSettings).toHaveBeenCalledWith(expect.objectContaining({ writing_skill_default: 'fanqie-short' }))
+    expect(handleSend).toHaveBeenCalledWith(
+      expect.stringContaining('消失末班车'),
+      expect.objectContaining({ writingSkill: 'fanqie-short' }),
+    )
+    expect(screen.getByText('fanqie-short')).toBeVisible()
+    expect(screen.getByRole('status', { name: '番茄短篇创作进度' })).toHaveTextContent('交流故事想法')
+  })
+
+  it('游戏模式不显示番茄短篇创作进度', async () => {
+    renderAgentPanel({ contentMode: 'game' })
+
+    await waitFor(() => expect(fetchSettings).toHaveBeenCalled())
+    vi.useFakeTimers()
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('nova:writing-agent-init', {
+        detail: { writingSkill: 'fanqie-short' },
+      }))
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    expect(updateUserSettings).toHaveBeenCalledWith(expect.objectContaining({ writing_skill_default: 'fanqie-short' }))
+    expect(screen.getByText('fanqie-short')).toBeVisible()
+    expect(screen.queryByRole('status', { name: '番茄短篇创作进度' })).not.toBeInTheDocument()
   })
 
   it('在输入选项中切换叙事风格后用于下一轮创作 Agent 请求', async () => {
@@ -404,6 +492,7 @@ function defaultAgentPanelProps(
   composerSettings: WritingComposerSettingsController,
 ): ComponentProps<typeof AgentPanel> {
   return {
+    contentMode: 'writing',
     workspace: '/workspace',
     composerSettings,
     selectedFile: null,

@@ -5,6 +5,7 @@ import type { SkillSummary } from '@/lib/api'
 describe('writingSkillOptionsFromSnapshot', () => {
   it('lists built-in writing presets and active IDE-compatible user/workspace Skills', () => {
     const options = writingSkillOptionsFromSnapshot([
+      skill({ name: 'fanqie-short', scope: 'builtin', active: true, agent: 'ide' }),
       skill({ name: 'novel-lite', scope: 'builtin', active: true, agent: 'ide' }),
       skill({ name: 'novel-standard', scope: 'builtin', active: true, agent: 'ide' }),
       skill({ name: 'novel-heavy', scope: 'builtin', active: true, agent: 'ide' }),
@@ -16,6 +17,7 @@ describe('writingSkillOptionsFromSnapshot', () => {
     ])
 
     expect(options.map((option) => `${option.scope}:${option.name}`)).toEqual([
+      'builtin:fanqie-short',
       'builtin:novel-lite',
       'builtin:novel-standard',
       'builtin:novel-heavy',

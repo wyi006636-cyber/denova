@@ -42,15 +42,16 @@ type App struct {
 	workspaceDirectorTasks *workspaceDirectorTaskGroup
 	directorGenerator      interactiveDirectorGenerator
 
-	runtimeManager *WorkspaceRuntimeManager
-	chatApp        *ChatAppService
-	interactiveApp *InteractiveAppService
-	loreApp        *LoreAppService
-	configApp      *ConfigManagerAppService
-	automationApp  *AutomationAppService
-	skillsApp      *SkillsAppService
-	imageApp       *ImageAppService
-	servicesOnce   sync.Once
+	runtimeManager  *WorkspaceRuntimeManager
+	chatApp         *ChatAppService
+	interactiveApp  *InteractiveAppService
+	loreApp         *LoreAppService
+	configApp       *ConfigManagerAppService
+	automationApp   *AutomationAppService
+	skillsApp       *SkillsAppService
+	imageApp        *ImageAppService
+	shortFictionApp *ShortFictionAppService
+	servicesOnce    sync.Once
 
 	mu sync.RWMutex
 }
@@ -136,6 +137,7 @@ func (a *App) ensureServices() {
 		a.automationApp = &AutomationAppService{app: a}
 		a.skillsApp = &SkillsAppService{app: a}
 		a.imageApp = &ImageAppService{app: a}
+		a.shortFictionApp = &ShortFictionAppService{app: a}
 	})
 }
 
@@ -177,6 +179,11 @@ func (a *App) automation() *AutomationAppService {
 func (a *App) skills() *SkillsAppService {
 	a.ensureServices()
 	return a.skillsApp
+}
+
+func (a *App) shortFiction() *ShortFictionAppService {
+	a.ensureServices()
+	return a.shortFictionApp
 }
 
 func (a *App) applyRuntime(runtime *runtimeState) {

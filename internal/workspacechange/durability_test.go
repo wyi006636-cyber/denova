@@ -17,13 +17,14 @@ func TestApplyParentSyncFailureKeepsPreparedAndBlocksWrites(t *testing.T) {
 	writeTestFile(t, service.workspace, otherPath, "other before")
 	originalSync := service.durability.syncRootDirFn
 	failSync := true
-	chapterSyncs := 0
+	visibleSyncFailed := false
 	service.durability.syncRootDirFn = func(root *os.Root, rel string) error {
-		if rel == "chapters" {
-			chapterSyncs++
-			if failSync && chapterSyncs >= 2 {
-				return errInjectedParentSync
-			}
+		if failSync && isOpenedVisibleParentSync(service, root, rel) {
+			visibleSyncFailed = true
+			return errInjectedParentSync
+		}
+		if failSync && visibleSyncFailed && rel == "chapters" {
+			return errInjectedParentSync
 		}
 		return originalSync(root, rel)
 	}
@@ -67,13 +68,9 @@ func TestSaveParentSyncFailureCanRetryOriginalRequest(t *testing.T) {
 	baseRevision := Revision([]byte("draft"))
 	originalSync := service.durability.syncRootDirFn
 	failSync := true
-	chapterSyncs := 0
 	service.durability.syncRootDirFn = func(root *os.Root, rel string) error {
-		if rel == "chapters" {
-			chapterSyncs++
-			if failSync && chapterSyncs >= 2 {
-				return errInjectedParentSync
-			}
+		if failSync && isOpenedVisibleParentSync(service, root, rel) {
+			return errInjectedParentSync
 		}
 		return originalSync(root, rel)
 	}
@@ -159,13 +156,9 @@ func TestPendingSaveRetryVerifiesCurrentRevision(t *testing.T) {
 	baseRevision := Revision([]byte("draft"))
 	originalSync := service.durability.syncRootDirFn
 	failSync := true
-	chapterSyncs := 0
 	service.durability.syncRootDirFn = func(root *os.Root, rel string) error {
-		if rel == "chapters" {
-			chapterSyncs++
-			if failSync && chapterSyncs >= 2 {
-				return errInjectedParentSync
-			}
+		if failSync && isOpenedVisibleParentSync(service, root, rel) {
+			return errInjectedParentSync
 		}
 		return originalSync(root, rel)
 	}
@@ -318,4 +311,8 @@ func assertDurabilityPending(t *testing.T, err error, mutated bool) {
 	if !strings.Contains(err.Error(), "durability") {
 		t.Fatalf("pending error lacks durability context: %v", err)
 	}
+}
+
+func isOpenedVisibleParentSync(service *Service, root *os.Root, rel string) bool {
+	return rel == "." && root.Name() == filepath.Join(service.workspace, "chapters")
 }

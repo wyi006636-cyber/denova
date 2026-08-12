@@ -164,6 +164,43 @@ describe('HomeView book covers', () => {
     expect(onBooksChange).toHaveBeenCalled()
   })
 
+  it('creates a short story from the bookshelf and hands its idea to the existing writing workbench', async () => {
+    const user = userEvent.setup()
+    const onStartShortStory = vi.fn()
+    renderHome({ onStartShortStory })
+
+    await user.click(screen.getByRole('button', { name: '新建短篇' }))
+    const dialog = await screen.findByRole('dialog', { name: '新建短篇' })
+    await user.type(within(dialog).getByPlaceholderText('书名（必填）'), '消失的末班车')
+    await user.type(within(dialog).getByPlaceholderText('简介（选填）'), '一个代驾司机发现乘客三年前已经死了。')
+    await user.click(within(dialog).getByRole('button', { name: '创建' }))
+
+    await waitFor(() => {
+      expect(onStartShortStory).toHaveBeenCalledWith({
+        workspace: '/books/new',
+        title: '消失的末班车',
+        idea: '一个代驾司机发现乘客三年前已经死了。',
+      })
+    })
+  })
+
+  it('keeps the current workspace when its editor draft cannot be saved before creating a short story', async () => {
+    const user = userEvent.setup()
+    const onBeforeSwitch = vi.fn().mockResolvedValue(false)
+    const onStartShortStory = vi.fn()
+    renderHome({ onBeforeSwitch, onStartShortStory })
+
+    await user.click(screen.getByRole('button', { name: '新建短篇' }))
+    const dialog = await screen.findByRole('dialog', { name: '新建短篇' })
+    await user.type(within(dialog).getByPlaceholderText('书名（必填）'), '不能丢的草稿')
+    await user.click(within(dialog).getByRole('button', { name: '创建' }))
+
+    await waitFor(() => expect(onBeforeSwitch).toHaveBeenCalledTimes(1))
+    expect(createBook).not.toHaveBeenCalled()
+    expect(onStartShortStory).not.toHaveBeenCalled()
+    expect(dialog).toBeInTheDocument()
+  })
+
   it('can create a book directly from the cover generate action', async () => {
     const user = userEvent.setup()
     const onSwitch = vi.fn()
