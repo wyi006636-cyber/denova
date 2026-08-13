@@ -60,11 +60,15 @@ func prepareWritingDelegation(request planRunRequest, stage WritingHarnessStage,
 		return writingDelegation{}, errors.New("writing delegation has no effective capability")
 	}
 	inputRefs := writingArtifactIDs(previous)
+	objective := request.UserIntent
+	if request.CapabilityID == "book.conceive" {
+		objective = "Review the complete prior conception Artifact. Return concrete structure or content suggestions; do not rewrite the candidate."
+	}
 	delegationRequest := DelegationRequest{
 		TaskID:              "task-" + request.RunID + "-" + stage.ID,
 		ParentRunID:         request.RunID,
 		SubAgentID:          string(stage.RoleID),
-		Objective:           request.UserIntent,
+		Objective:           objective,
 		Target:              target,
 		InputArtifactRefs:   inputRefs,
 		AllowedCapabilities: allowed,

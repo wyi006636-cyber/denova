@@ -25,6 +25,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Yanzhou `book.conceive` 现在通过现有 Harness Artifact 链生成完整 canonical 创作蓝图候选，并让 Reviewer 提供可见建议，供砚舟的 Agent 起笔草稿、局部重生成和一次确认写入闭环使用。
+- Yanzhou `book.conceive` now produces a complete canonical book-start blueprint candidate through the existing Harness Artifact chain, with visible Reviewer suggestions for Yanzhou's recoverable draft, targeted regeneration, and one-confirmation apply flow.
+
 - 新增 Yanzhou Sidecar 运行基座：通过 JSONL 握手和现有 `run.start` / `tool.response` / `run.cancel` 协议提供 Plan Mode、写作 Harness、模型适配、Skill 加载、Reviewer 委派与耐久运行事件，供 Yanzhou 在不嵌入 Denova 界面的情况下运行现有 Agent 写作流程。
 - Added the Yanzhou Sidecar runtime foundation, exposing Plan Mode, writing harnesses, model adapters, Skill loading, reviewer delegation, and durable run events through the JSONL handshake and existing `run.start` / `tool.response` / `run.cancel` protocol so Yanzhou can run the existing Agent writing flow without embedding the Denova UI.
 - 书架新增“新建短篇”入口：沿用现有建书弹窗和写作工作台，创建后自动打开创作 Agent、选中并显示内置 `fanqie-short` Skill，从故事想法、方案确认和分章大纲确认开始对话，再逐章写入现有编辑器与 Diff；无需填写 Markdown 路径。
