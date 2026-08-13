@@ -605,7 +605,9 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 		return ModelResponse{}, err
 	}
 	deadline := time.Duration(request.EffectiveModelProfile.TimeoutMS) * time.Millisecond
-	if wall := time.Duration(request.Budgets.MaxWallTimeMS) * time.Millisecond; wall < deadline {
+	if request.CapabilityID == "book.conceive" {
+		deadline = time.Duration(request.Budgets.MaxWallTimeMS) * time.Millisecond
+	} else if wall := time.Duration(request.Budgets.MaxWallTimeMS) * time.Millisecond; wall < deadline {
 		deadline = wall
 	}
 	callCtx, cancel := context.WithTimeout(ctx, deadline)

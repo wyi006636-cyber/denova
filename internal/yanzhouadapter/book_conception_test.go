@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"denova/internal/yanzhouprotocol"
 )
@@ -287,6 +288,76 @@ func TestBookConceiveEmitsCompleteCanonicalConceptionArtifact(t *testing.T) {
 	if thinking["type"] != "disabled" || responseFormat["type"] != "json_object" {
 		t.Fatalf("book conception request controls=%#v %#v", thinking, responseFormat)
 	}
+}
+
+func TestBookConceiveSurvivesProfileTimeoutShorterThanRunBudget(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		time.Sleep(1200 * time.Millisecond)
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": `{"schemaVersion":1,"status":"ok"}`}, "finish_reason": "stop"}},
+		})
+	}))
+	defer server.Close()
+
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, err := NewWritingFrameRuntime(store, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID := "book-conceive-timeout"
+	contextPackRef := "sha256:" + strings.Repeat("f", 64)
+	payload := bookConceivePayload(t, server.URL, runID, contextPackRef)
+	var request map[string]any
+	if err := json.Unmarshal(payload, &request); err != nil {
+		t.Fatal(err)
+	}
+	request["effectiveModelProfile"].(map[string]any)["timeoutMs"] = 1000
+	request["budgets"].(map[string]any)["maxWallTimeMs"] = 4000
+	request["harnessProfile"] = "novel-lite"
+	payload, err = json.Marshal(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.HandleToolResponse(yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindToolResponse, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "tool-" + runID + "-context", RunID: runID, Seq: 1, Payload: emptyConceptionContext(t, contextPackRef),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "request-" + runID, RunID: runID, Payload: payload,
+	}, &output); err != nil {
+		t.Fatal(err)
+	}
+	events, err := store.ReplayAfter(context.Background(), runID, 0, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) == 0 || events[len(events)-1].Type != RunEventTypeRunCompleted {
+		t.Fatalf("book.conceive died on the 120s model profile timeout instead of using the authorized run budget: %#v", events)
+	}
+}
+
+func emptyConceptionContext(t *testing.T, contextPackRef string) json.RawMessage {
+	t.Helper()
+	payload, err := json.Marshal(map[string]any{
+		"schemaVersion": "1", "toolId": "story.get_target", "success": true,
+		"result": map[string]any{
+			"kind": "read-result", "mutationPerformed": false,
+			"data": map[string]any{"contextPackRef": contextPackRef, "sections": []any{}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return payload
 }
 
 func bookConceivePayload(t *testing.T, baseURL, runID, contextPackRef string) json.RawMessage {
