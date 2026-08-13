@@ -176,7 +176,7 @@ func decodeWritingContextResponse(frame yanzhouprotocol.Envelope, request planRu
 		return "", errors.New("writing context tool failed")
 	}
 	var result writingContextToolResult
-	if err := decodeStrictPlanJSON(payload.Result, yanzhouprotocol.DefaultMaxFrameBytes, &result); err != nil || result.Kind != "read-result" || result.MutationPerformed || result.Data.ContextPackRef != request.ContextPackRef.Ref || len(result.Data.Sections) == 0 || len(result.Data.Sections) > 64 {
+	if err := decodeStrictPlanJSON(payload.Result, yanzhouprotocol.DefaultMaxFrameBytes, &result); err != nil || result.Kind != "read-result" || result.MutationPerformed || result.Data.ContextPackRef != request.ContextPackRef.Ref || (len(result.Data.Sections) == 0 && request.CapabilityID != "book.conceive") || len(result.Data.Sections) > 64 {
 		return "", errors.New("writing context tool result is invalid")
 	}
 	var builder strings.Builder
@@ -242,10 +242,7 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	if err != nil {
 		return err
 	}
-	wallTime := request.Budgets.MaxWallTimeMS
-	if profile.Budget.MaxWallTimeMS < wallTime {
-		wallTime = profile.Budget.MaxWallTimeMS
-	}
+	wallTime := writingRunWallTimeMS(request, profile)
 	runCtx, cancel := context.WithTimeout(ctx, time.Duration(wallTime)*time.Millisecond)
 	runtime.mu.Lock()
 	if existing, ok := runtime.idempotency[request.IdempotencyKey]; ok {
@@ -322,6 +319,9 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	for _, stage := range profile.Stages {
 		var delegation writingDelegation
 		publicDelegation := stage.Delegated && stage.RoleID == HarnessRoleReviewer
+		if request.CapabilityID == "book.conceive" && stage.ID == "primary-revision" {
+			continue
+		}
 		if stage.ID == "deterministic-checks" {
 			report := `{"status":"pass","checks":["output-not-empty"]}`
 			artifact, emitErr := runtime.emitArtifact(runCtx, output, request, stage, report, artifacts, "deterministic")
@@ -486,6 +486,9 @@ func writingArtifactIDs(artifacts []writingRuntimeArtifact) []string {
 
 func writingStageArtifactKind(stage WritingHarnessStage, capabilityID string) string {
 	if writingCandidateRole(stage.RoleID) {
+		if capabilityID == "book.conceive" {
+			return "conception"
+		}
 		if capabilityID == "image.generate" {
 			return "image"
 		}
@@ -587,15 +590,24 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 	if request.Budgets.MaxOutputTokens != nil && *request.Budgets.MaxOutputTokens > 0 {
 		maxOutput = *request.Budgets.MaxOutputTokens
 	}
-	native, err := adapter.BuildRequest(ModelRequest{Messages: []ModelMessage{
-		{Role: "system", Content: writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, stage, delegatedPrompt)},
-		{Role: "user", Content: writingStageInput(request.UserIntent, contextText, previous)},
-	}, MaxOutputTokens: maxOutput}, false)
+	jsonConception := request.CapabilityID == "book.conceive"
+	disableThinking := jsonConception && request.EffectiveModelProfile.ProviderType == ProviderOpenAICompatible && strings.HasPrefix(strings.ToLower(request.EffectiveModelProfile.Model), "deepseek-v4-")
+	native, err := adapter.BuildRequest(ModelRequest{
+		Messages: []ModelMessage{
+			{Role: "system", Content: writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, stage, delegatedPrompt)},
+			{Role: "user", Content: writingStageInput(request.UserIntent, contextText, previous, request.CapabilityID)},
+		},
+		MaxOutputTokens: maxOutput,
+		JSONOutput:      jsonConception,
+		DisableThinking: disableThinking,
+	}, false)
 	if err != nil {
 		return ModelResponse{}, err
 	}
 	deadline := time.Duration(request.EffectiveModelProfile.TimeoutMS) * time.Millisecond
-	if wall := time.Duration(request.Budgets.MaxWallTimeMS) * time.Millisecond; wall < deadline {
+	if request.CapabilityID == "book.conceive" {
+		deadline = time.Duration(request.Budgets.MaxWallTimeMS) * time.Millisecond
+	} else if wall := time.Duration(request.Budgets.MaxWallTimeMS) * time.Millisecond; wall < deadline {
 		deadline = wall
 	}
 	callCtx, cancel := context.WithTimeout(ctx, deadline)
@@ -645,7 +657,15 @@ func boundedWritingChunks(value string, maxBytes int) []string {
 	return chunks
 }
 
-func writingStageInput(instruction, contextText string, previous []writingRuntimeArtifact) string {
+func writingRunWallTimeMS(request planRunRequest, profile WritingHarnessProfile) int {
+	wallTime := request.Budgets.MaxWallTimeMS
+	if request.CapabilityID != "book.conceive" && profile.Budget.MaxWallTimeMS < wallTime {
+		wallTime = profile.Budget.MaxWallTimeMS
+	}
+	return wallTime
+}
+
+func writingStageInput(instruction, contextText string, previous []writingRuntimeArtifact, capabilityID string) string {
 	var builder strings.Builder
 	builder.WriteString(instruction)
 	if contextText != "" {
@@ -667,8 +687,12 @@ func writingStageInput(instruction, contextText string, previous []writingRuntim
 		builder.WriteString(artifact.Kind)
 		builder.WriteString("]\n")
 		content := artifact.Content
-		if len(content) > 16*1024 {
-			start := len(content) - 16*1024
+		artifactLimit := 16 * 1024
+		if capabilityID == "book.conceive" {
+			artifactLimit = 128 * 1024
+		}
+		if len(content) > artifactLimit {
+			start := len(content) - artifactLimit
 			for start < len(content) && (content[start]&0xC0) == 0x80 {
 				start++
 			}
@@ -688,5 +712,35 @@ func writingSystemInstruction(capabilityID, harnessProfile string, skillIDs []st
 	if delegatedPrompt != "" {
 		instruction += " Authorized SubAgent instruction: " + delegatedPrompt
 	}
+	if capabilityID == "book.conceive" {
+		instruction += writingConceptionInstruction(stage)
+	}
 	return instruction + " Never claim the work was committed, never expose reasoning, and never request a filesystem path."
+}
+
+func writingConceptionInstruction(stage WritingHarnessStage) string {
+	if stage.RoleID == HarnessRoleReviewer || stage.RoleID == HarnessRoleFinalGate {
+		return ` Review the complete prior conception Artifact for canonical completeness, causal consistency, and fidelity to the author's saved conversation. Return only one JSON object with keys status and issues. status must be pass or revise. issues must always contain 2-5 concrete structure or content suggestions, even when status is pass; never return an empty issues array or only say pass. Every issue must have a precise path, problem, and actionable fix. A truncated, unclosed, or otherwise non-parseable JSON package must always be revise. Do not rewrite the package in this review stage, and do not turn subjective advice into a mechanical gate.`
+	}
+	return ` Generate the complete Yanzhou canonical Book Start Package from the author's entire saved conversation. Return exactly one valid JSON object, with no Markdown fence, commentary, questions, placeholders, or omitted sections. Never use 待补充, 略, 后续再定, TBD, or ellipses as content.
+
+If the latest user request contains [TICKET03_PARTIAL_REGEN target=...], the Main-owned ContextPack contains the author's current reviewed canonical candidate and is authoritative over older session history. Substantively rewrite the named target with concrete new or improved content; returning that target byte-for-byte unchanged is a failed regeneration. Regenerate only the named target section, copy every non-target section unchanged into the returned complete package, and preserve all ids, version bindings, and author edits outside that target.
+
+Keep the complete JSON under 14,000 Unicode characters; target 11,500-13,000. Write compact, concrete Chinese and use minified or lightly spaced JSON rather than pretty-print indentation. Unless a tighter rule appears below, keep each scalar prose field under 60 Chinese characters and each prose-array entry under 35 Chinese characters. Do not repeat the same explanation across fields. This is a shape example only; replace every empty value with the required concrete content: {"schemaVersion":1,"meta":{},"settings":[],"characters":[],"bookPlan":{},"volumePlans":[],"currentVolumePlanId":"vp-1","chapterPlans":[]}.
+
+The root object must contain exactly these asset sections: schemaVersion, meta, settings, characters, bookPlan, volumePlans, currentVolumePlanId, chapterPlans. Use schemaVersion 1.
+
+meta must contain bookNameCandidates (3-6 distinct natural Chinese titles), bookName (the selected title), recommendedBookName (same selected title), type, intro, targetWords (a positive integer), marketing (specific target readers and positioning), toneNote, and risksToAvoid.
+
+settings must be a JSON array containing exactly five category objects named 世界规则与限制, 力量体系, 重要阵营, 关键地点, 核心资源; never use those names as object keys. Every category needs a concrete introduction and exactly 3 items; every item needs name and introduction. Keep introductions under 45 Chinese characters. Rules must state boundaries, costs, or failure conditions that can constrain the plot.
+
+characters must contain exactly six globally unique ids and include one 主角, at least one 关键配角, and one 反派. Every character needs name, role, biography, desire, non-empty boundary, and non-empty cost. Keep biography under 90 Chinese characters while still stating story position, important relationships, and growth or opposition direction. boundary and cost must each contain 1-2 concise strings. Optional gender, age, height, appearance, and tags must remain concrete when supplied.
+
+bookPlan must contain planId bp-main, planVersion 1, status draft, readerPromise, premise, protagonistEngine with desire/fear/misbelief/troubleEngine, coreConflict, exactly 3 causal stages, endingDirection, and exactly 2 concise immutableFacts. Every stage needs a globally unique id, title, objective, irreversibleResult, startVolumeId, and endVolumeId referencing volume plans in forward order.
+
+volumePlans must contain exactly four volumes with globally unique planIds vp-1 through vp-4, planVersion 1, sourceBookPlanVersion 1, and concrete volumeName/objective/entryState/exitState/escalation/conflictChain/climax/closure/characterTurns/threadTargets. Every volume must include status and plannedChapterRange as a JSON object with integer start and end, never a range string. Ranges must be contiguous. Keep every volume array to 1-2 concise strings. vp-1 status must be detailed and cover chapters 1-10; vp-2 through vp-4 status must be skeleton. currentVolumePlanId must be vp-1.
+
+chapterPlans must contain exactly ten ordered chapters for vp-1. For chapter N use globally unique planId cp-N, planVersion 1, branchId main, chapterOrdinal N, status planned, sourceBookPlanVersion 1, sourceVolumePlanVersion 1, volumePlanId vp-1, the same volumeName as vp-1, a concrete chapterName, and chapterKey equal to volumeName + "/" + chapterName. Every chapter must contain a specific openingHook, goal, conflict, stakes, conflictEscalation, emotionalBeat, exactly two compact scenes with purpose/opposition/turn/outcome, 2-4 appearingRoles using exact names from characters[].name, coreScene, corePayoff, endingHook, 1-2 expectedChanges, note, and factConstraints containing the same two bookPlan immutableFacts. Keep each chapter scalar field under 50 Chinese characters and each scene field under 32. These fields must show key events and forward movement, not restate the same beat. Chapters 1-3 must use openingPhase 1, 2, 3 with distinct hooks, stakes, payoffs, and ending pressure; chapters 4-10 use openingPhase 0.
+
+When revising, preserve the prior full package, ids, version bindings, and settled author decisions; apply review fixes and return the entire package again. Do not ask the author anything in this capability.`
 }
