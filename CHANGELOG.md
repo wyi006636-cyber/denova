@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Yanzhou Sidecar 现在接受 Main 实际授权的完整 RunRequest，并让 Plan 取消、工具失败和 goroutine panic 都产生对应 terminal；已加载 Skill 正文会进入模型上下文，Reviewer 委派使用授权配置与能力交集并发出 Yanzhou 可消费的事件。
+- The Yanzhou Sidecar now accepts the complete Main-authorized RunRequest and emits the matching terminal for Plan cancellation, tool failures, and goroutine panics; loaded Skill content reaches model context, while reviewer delegation uses the authorized configuration and capability intersection with Yanzhou-consumable events.
 - 从书籍管理创建新书或短篇前，现在会先复用编辑器草稿保存流程；若当前正文无法保存，则停留在原工作区，不再因创建并切换工作区而丢失尚未落盘的修改。
 - Creating a book or short story from Book Management now reuses the editor draft flush before switching workspaces; if the current manuscript cannot be saved, Denova stays in the existing workspace instead of losing pending edits.
 - Gemini 3.5 Flash 通过 OpenAI 兼容接口调用工具后，现在会保留并原样回传 Google thought signature，创作 Agent 可继续完成追问、写作和改稿，不再在第一次工具调用后以 HTTP 400 中断。
@@ -23,6 +25,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- 新增 Yanzhou Sidecar 运行基座：通过 JSONL 握手和现有 `run.start` / `tool.response` / `run.cancel` 协议提供 Plan Mode、写作 Harness、模型适配、Skill 加载、Reviewer 委派与耐久运行事件，供 Yanzhou 在不嵌入 Denova 界面的情况下运行现有 Agent 写作流程。
+- Added the Yanzhou Sidecar runtime foundation, exposing Plan Mode, writing harnesses, model adapters, Skill loading, reviewer delegation, and durable run events through the JSONL handshake and existing `run.start` / `tool.response` / `run.cancel` protocol so Yanzhou can run the existing Agent writing flow without embedding the Denova UI.
 - 书架新增“新建短篇”入口：沿用现有建书弹窗和写作工作台，创建后自动打开创作 Agent、选中并显示内置 `fanqie-short` Skill，从故事想法、方案确认和分章大纲确认开始对话，再逐章写入现有编辑器与 Diff；无需填写 Markdown 路径。
 - The bookshelf adds a “New Short Story” entry that reuses the existing book dialog and Writing workbench, then opens the Writing Agent with the built-in `fanqie-short` Skill selected and visible; authors discuss the idea, confirm the story proposal and chapter outline, and then write chapter by chapter through the existing editor and Diff without entering a Markdown path.
 - 新增单一内置 `fanqie-short` Skill，并按阶段加载故事构思、短篇结构、番茄文风与章节钩子、逐章写作、逻辑/常识/动机/对白修改五类方法资料；主流程不启用 reviewer、fixer 或多 Agent 链，原“番茄完整短篇”保留为明确标注的快速模式。
