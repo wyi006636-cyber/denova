@@ -121,7 +121,7 @@ func WritingHarnessProfiles() []WritingHarnessProfile {
 				harnessStage("draft", HarnessRolePrimaryWriter, false, proposeText, "draft"),
 				harnessStage("deterministic-checks", HarnessRoleDeterministicChecker, false, readTarget, "report"),
 			}),
-			Budget: harnessBudget(1, 2, 0, 0, 60_000, 32_000, 8_000),
+			Budget: harnessBudget(1, 2, 0, 0, 300_000, 32_000, 8_000),
 		},
 		{
 			SchemaVersion: "1", ID: HarnessProfileNovelStandard,
@@ -131,7 +131,7 @@ func WritingHarnessProfiles() []WritingHarnessProfile {
 				harnessStage("primary-revision", HarnessRolePrimaryWriter, false, proposeText, "transform"),
 				harnessStage("deterministic-checks", HarnessRoleDeterministicChecker, false, readTarget, "report"),
 			}),
-			Budget: harnessBudget(3, 4, 1, 1, 120_000, 64_000, 16_000),
+			Budget: harnessBudget(3, 4, 1, 1, 900_000, 64_000, 16_000),
 		},
 		{
 			SchemaVersion: "1", ID: HarnessProfileNovelHeavy,
@@ -143,7 +143,7 @@ func WritingHarnessProfiles() []WritingHarnessProfile {
 				harnessStage("final-gate", HarnessRoleFinalGate, true, readReview, "report"),
 				harnessStage("state-patch", HarnessRoleMemoryPatcher, true, []string{"story.get_target", "setting.create_patch_proposal"}, "state_patch"),
 			}),
-			Budget: harnessBudget(7, 8, 7, 2, 240_000, 128_000, 32_000),
+			Budget: harnessBudget(7, 8, 7, 2, 1_800_000, 128_000, 32_000),
 		},
 	}
 	return cloneHarnessProfiles(profiles)
