@@ -342,7 +342,7 @@ func TestWritingFrameRuntimeDecouplesPolishAndReview(t *testing.T) {
 				t.Fatalf("proposal.ready = %t, want %t", seenProposal, tc.proposal)
 			}
 			if tc.capability == "chapter.polish" {
-				for _, required := range []string{"polish.standard", "不是轻量校对", "适中力度", "保留叙事含义，不保留原句措辞", "允许重写句子", "文学性、易读性、节奏与画面表达", "开头、中段和后段都必须处理到", "画面实物化", "完整候选正文", "不输出分析"} {
+				for _, required := range []string{"polish.standard", "不是轻量校对", "适中力度", "保留叙事含义，不保留原句措辞", "允许重写句子", "文学性、易读性、节奏与画面表达", "开头、中段和后段都必须处理到", "待润色正文·第1/4部分", "待润色正文·第4/4部分", "画面实物化", "完整候选正文", "不输出分析"} {
 					if !bytes.Contains(body, []byte(required)) {
 						t.Fatalf("polish instruction is missing %q", required)
 					}

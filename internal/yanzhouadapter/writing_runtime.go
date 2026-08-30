@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -170,6 +171,33 @@ func (runtime *WritingFrameRuntime) clearToolResponse(requestID string) {
 	runtime.responseMu.Unlock()
 }
 
+func polishChapterPromptContent(value string) string {
+	runes := []rune(value)
+	boundaries := []int{0}
+	for part := 1; part < 4; part++ {
+		target := len(runes) * part / 4
+		boundary := target
+		for index := target; index+1 < len(runes); index++ {
+			if runes[index] == '\n' && runes[index+1] == '\n' {
+				boundary = index + 2
+				break
+			}
+		}
+		if boundary < boundaries[len(boundaries)-1] {
+			boundary = boundaries[len(boundaries)-1]
+		}
+		boundaries = append(boundaries, boundary)
+	}
+	boundaries = append(boundaries, len(runes))
+	var builder strings.Builder
+	for part := 0; part < 4; part++ {
+		fmt.Fprintf(&builder, "【待润色正文·第%d/4部分】\n", part+1)
+		builder.WriteString(string(runes[boundaries[part]:boundaries[part+1]]))
+		builder.WriteString("\n")
+	}
+	return builder.String()
+}
+
 func decodeWritingContextResponse(frame yanzhouprotocol.Envelope, request planRunRequest) (string, error) {
 	var payload writingToolResponsePayload
 	if err := decodeStrictPlanJSON(frame.Payload, yanzhouprotocol.DefaultMaxFrameBytes, &payload); err != nil || !payload.Success || payload.ErrorCode != "" {
@@ -187,7 +215,11 @@ func decodeWritingContextResponse(frame yanzhouprotocol.Envelope, request planRu
 		builder.WriteString("[")
 		builder.WriteString(section.Kind)
 		builder.WriteString("]\n")
-		builder.WriteString(section.Content)
+		content := section.Content
+		if request.CapabilityID == "chapter.polish" && section.Kind == "chapter_text" {
+			content = polishChapterPromptContent(content)
+		}
+		builder.WriteString(content)
 		builder.WriteString("\n")
 		if builder.Len() > 512*1024 {
 			return "", errors.New("writing context tool result exceeds limit")
