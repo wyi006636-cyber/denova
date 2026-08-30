@@ -394,7 +394,16 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 				return err
 			}
 		}
-		response, callErr := runtime.callModel(runCtx, request, stage, artifacts, contextText)
+		deltaEmitter := newWritingModelDeltaEmitter(func(text string, chunkIndex int) error {
+			_, emitErr := EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeModelDelta, Payload: map[string]any{
+				"text": text, "chunkIndex": chunkIndex, "stageId": stage.ID, "source": "model",
+			}})
+			return emitErr
+		})
+		response, callErr := runtime.callModel(runCtx, request, stage, artifacts, contextText, deltaEmitter.Add)
+		if flushErr := deltaEmitter.Flush(); callErr == nil && flushErr != nil {
+			callErr = flushErr
+		}
 		modelCalls++
 		if callErr != nil {
 			if errors.Is(runCtx.Err(), context.Canceled) {
@@ -533,11 +542,13 @@ func writingStageArtifactKind(stage WritingHarnessStage, capabilityID string) st
 }
 
 func (runtime *WritingFrameRuntime) emitArtifact(ctx context.Context, output io.Writer, request planRunRequest, stage WritingHarnessStage, content string, previous []writingRuntimeArtifact, source string) (writingRuntimeArtifact, error) {
-	for index, text := range boundedWritingChunks(content, 4096) {
-		if _, err := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeModelDelta, Payload: map[string]any{
-			"text": text, "chunkIndex": index, "stageId": stage.ID, "source": source,
-		}}); err != nil {
-			return writingRuntimeArtifact{}, err
+	if source != "model" {
+		for index, text := range boundedWritingChunks(content, 4096) {
+			if _, err := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeModelDelta, Payload: map[string]any{
+				"text": text, "chunkIndex": index, "stageId": stage.ID, "source": source,
+			}}); err != nil {
+				return writingRuntimeArtifact{}, err
+			}
 		}
 	}
 	digest := sha256.Sum256([]byte(content))
@@ -618,7 +629,7 @@ func validateWritingRunRequest(request planRunRequest, envelopeRequestID string)
 	return nil
 }
 
-func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planRunRequest, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string) (ModelResponse, error) {
+func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planRunRequest, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string, onDelta func(string) error) (ModelResponse, error) {
 	adapter, err := NewModelAdapter(request.EffectiveModelProfile.effective())
 	if err != nil {
 		return ModelResponse{}, err
@@ -627,7 +638,7 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 	if request.Budgets.MaxOutputTokens != nil && *request.Budgets.MaxOutputTokens > 0 {
 		maxOutput = *request.Budgets.MaxOutputTokens
 	}
-	stream := request.CapabilityID == "chapter.polish"
+	stream := request.Entrypoint == "agent_chat"
 	native, err := adapter.BuildRequest(ModelRequest{Messages: []ModelMessage{
 		{Role: "system", Content: writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, request.PromptComponentSnapshot, stage)},
 		{Role: "user", Content: writingStageInput(request.UserIntent, contextText, previous)},
@@ -653,26 +664,114 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 		return ModelResponse{}, err
 	}
 	defer response.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(response.Body, 4*1024*1024+1))
-	if err != nil || len(body) > 4*1024*1024 || response.StatusCode < 200 || response.StatusCode >= 300 {
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return ModelResponse{}, errors.New("writing model request failed")
 	}
 	var modelResponse ModelResponse
-	if stream && strings.Contains(strings.ToLower(response.Header.Get("Content-Type")), "text/event-stream") {
-		modelResponse, err = normalizeWritingStream(adapter, body)
+	streamedResponse := stream && strings.Contains(strings.ToLower(response.Header.Get("Content-Type")), "text/event-stream")
+	if streamedResponse {
+		modelResponse, err = normalizeWritingStreamReader(adapter, response.Body, onDelta)
 	} else {
+		body, readErr := io.ReadAll(io.LimitReader(response.Body, 4*1024*1024+1))
+		if readErr != nil || len(body) > 4*1024*1024 {
+			return ModelResponse{}, errors.New("writing model request failed")
+		}
 		modelResponse, err = adapter.NormalizeResponse(body)
+		if err == nil && strings.TrimSpace(modelResponse.Content) != "" {
+			for _, text := range boundedWritingChunks(modelResponse.Content, 4096) {
+				if onDelta != nil {
+					if emitErr := onDelta(text); emitErr != nil {
+						return ModelResponse{}, emitErr
+					}
+				}
+			}
+		}
 	}
-	if err != nil || strings.TrimSpace(modelResponse.Content) == "" || len(modelResponse.ToolCalls) != 0 || modelResponse.FinishReason == "max_tokens" || modelResponse.FinishReason == "content_filter" {
+	if err != nil || strings.TrimSpace(modelResponse.Content) == "" || len(modelResponse.ToolCalls) != 0 || modelResponse.FinishReason != "stop" {
 		return ModelResponse{}, errors.New("writing model response is invalid")
 	}
 	return modelResponse, nil
 }
 
-func normalizeWritingStream(adapter ModelAdapter, body []byte) (ModelResponse, error) {
-	scanner := bufio.NewScanner(bytes.NewReader(body))
+const (
+	writingModelDeltaFlushBytes = 512
+	writingModelDeltaMaxBytes   = 4096
+	writingModelDeltaFlushDelay = 100 * time.Millisecond
+)
+
+type writingModelDeltaEmitter struct {
+	emit        func(string, int) error
+	pending     strings.Builder
+	nextIndex   int
+	lastEmitted time.Time
+}
+
+func newWritingModelDeltaEmitter(emit func(string, int) error) *writingModelDeltaEmitter {
+	return &writingModelDeltaEmitter{emit: emit}
+}
+
+func (emitter *writingModelDeltaEmitter) Add(text string) error {
+	if text == "" {
+		return nil
+	}
+	if emitter.nextIndex == 0 {
+		return emitter.emitText(text)
+	}
+	if emitter.pending.Len() > 0 && emitter.pending.Len()+len(text) > writingModelDeltaMaxBytes {
+		if err := emitter.Flush(); err != nil {
+			return err
+		}
+	}
+	emitter.pending.WriteString(text)
+	if emitter.pending.Len() >= writingModelDeltaFlushBytes || time.Since(emitter.lastEmitted) >= writingModelDeltaFlushDelay {
+		return emitter.Flush()
+	}
+	return nil
+}
+
+func (emitter *writingModelDeltaEmitter) Flush() error {
+	if emitter.pending.Len() == 0 {
+		return nil
+	}
+	text := emitter.pending.String()
+	emitter.pending.Reset()
+	return emitter.emitText(text)
+}
+
+func (emitter *writingModelDeltaEmitter) emitText(text string) error {
+	if emitter.emit != nil {
+		if err := emitter.emit(text, emitter.nextIndex); err != nil {
+			return err
+		}
+	}
+	emitter.nextIndex++
+	emitter.lastEmitted = time.Now()
+	return nil
+}
+
+type adapterStreamChunkDecoder struct {
+	adapter ModelAdapter
+}
+
+func (decoder adapterStreamChunkDecoder) Decode(data json.RawMessage) ([]ModelStreamEvent, error) {
+	return decoder.adapter.NormalizeStream([]json.RawMessage{data})
+}
+
+func newModelStreamChunkDecoder(adapter ModelAdapter) ModelStreamChunkDecoder {
+	if factory, ok := adapter.(ModelStreamDecoderFactory); ok {
+		return factory.NewStreamDecoder()
+	}
+	return adapterStreamChunkDecoder{adapter: adapter}
+}
+
+func normalizeWritingStreamReader(adapter ModelAdapter, body io.Reader, onDelta func(string) error) (ModelResponse, error) {
+	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
-	chunks := []json.RawMessage{}
+	decoder := newModelStreamChunkDecoder(adapter)
+	response := ModelResponse{}
+	var content strings.Builder
+	chunkCount, totalBytes := 0, 0
+	completed := false
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if !strings.HasPrefix(line, "data:") {
@@ -682,31 +781,43 @@ func normalizeWritingStream(adapter ModelAdapter, body []byte) (ModelResponse, e
 		if data == "" || data == "[DONE]" {
 			continue
 		}
-		chunks = append(chunks, json.RawMessage(append([]byte(nil), data...)))
-	}
-	if err := scanner.Err(); err != nil || len(chunks) == 0 {
-		return ModelResponse{}, errors.New("writing model stream is invalid")
-	}
-	events, err := adapter.NormalizeStream(chunks)
-	if err != nil {
-		return ModelResponse{}, err
-	}
-	response := ModelResponse{}
-	for _, event := range events {
-		switch event.Type {
-		case "content-delta":
-			response.Content += event.Content
-		case "tool-call-delta":
-			if event.ToolCall != nil {
-				response.ToolCalls = append(response.ToolCalls, *event.ToolCall)
-			}
-		case "message-complete":
-			response.FinishReason = event.FinishReason
-			if event.Usage != nil {
-				response.Usage = *event.Usage
+		totalBytes += len(data)
+		if totalBytes > 4*1024*1024 {
+			return ModelResponse{}, errors.New("writing model stream is invalid")
+		}
+		events, err := decoder.Decode(json.RawMessage(append([]byte(nil), data...)))
+		if err != nil {
+			return ModelResponse{}, errors.New("writing model stream is invalid")
+		}
+		chunkCount++
+		for _, event := range events {
+			switch event.Type {
+			case "content-delta":
+				content.WriteString(event.Content)
+				if onDelta != nil {
+					for _, text := range boundedWritingChunks(event.Content, 4096) {
+						if err := onDelta(text); err != nil {
+							return ModelResponse{}, err
+						}
+					}
+				}
+			case "tool-call-delta":
+				if event.ToolCall != nil {
+					response.ToolCalls = append(response.ToolCalls, *event.ToolCall)
+				}
+			case "message-complete":
+				response.FinishReason = event.FinishReason
+				completed = event.FinishReason != ""
+				if event.Usage != nil {
+					response.Usage = *event.Usage
+				}
 			}
 		}
 	}
+	if err := scanner.Err(); err != nil || chunkCount == 0 || !completed {
+		return ModelResponse{}, errors.New("writing model stream is invalid")
+	}
+	response.Content = content.String()
 	return response, nil
 }
 

@@ -157,7 +157,7 @@ func TestWritingFrameRuntimeConsumesMainOwnedContextThroughExistingToolFrames(t 
 			t.Fatalf("provider request did not consume main-owned context: %s", body)
 		}
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"choices":[{"message":{"content":"候选正文"}}]}`))
+		_, _ = writer.Write([]byte(`{"choices":[{"message":{"content":"候选正文"},"finish_reason":"stop"}]}`))
 	}))
 	defer server.Close()
 
@@ -265,7 +265,7 @@ func TestWritingFrameRuntimeExecutesTheExistingStandardHarnessGraph(t *testing.T
 	}
 }
 
-func runWritingRuntimeCase(t *testing.T, capabilityID string, response func(int) string, streamFinishReason ...string) ([]RunEvent, int, []byte) {
+func runWritingRuntimeCase(t *testing.T, capabilityID string, response func(int) string, finishReasonOverride ...string) ([]RunEvent, int, []byte) {
 	t.Helper()
 	calls := 0
 	var providerBody []byte
@@ -274,8 +274,8 @@ func runWritingRuntimeCase(t *testing.T, capabilityID string, response func(int)
 		providerBody, _ = io.ReadAll(request.Body)
 		if capabilityID == "chapter.polish" {
 			finishReason := "stop"
-			if len(streamFinishReason) > 0 {
-				finishReason = streamFinishReason[0]
+			if len(finishReasonOverride) > 0 {
+				finishReason = finishReasonOverride[0]
 			}
 			writer.Header().Set("Content-Type", "text/event-stream")
 			_, _ = io.WriteString(writer, "data: {\"choices\":[{\"delta\":{\"content\":\"完整润色候选\"},\"finish_reason\":\"\"}]}\n\n")
@@ -284,7 +284,13 @@ func runWritingRuntimeCase(t *testing.T, capabilityID string, response func(int)
 			return
 		}
 		writer.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(writer).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]any{"content": response(calls)}}}})
+		finishReason := "stop"
+		if len(finishReasonOverride) > 0 {
+			finishReason = finishReasonOverride[0]
+		}
+		_ = json.NewEncoder(writer).Encode(map[string]any{"choices": []map[string]any{{
+			"message": map[string]any{"content": response(calls)}, "finish_reason": finishReason,
+		}}})
 	}))
 	defer server.Close()
 	store, err := NewFileRuntimeEventStore(t.TempDir())
@@ -315,6 +321,177 @@ func runWritingRuntimeCase(t *testing.T, capabilityID string, response func(int)
 	}
 	events, _ := store.ReplayAfter(context.Background(), "plan-run-1", 0, 40)
 	return events, calls, providerBody
+}
+
+func TestWritingFrameRuntimePublishesModelDeltaBeforeProviderStreamCompletes(t *testing.T) {
+	firstChunkSent := make(chan struct{})
+	releaseProvider := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(writer, "data: {\"choices\":[{\"delta\":{\"content\":\"第一段\"},\"finish_reason\":\"\"}]}\n\n")
+		writer.(http.Flusher).Flush()
+		close(firstChunkSent)
+		<-releaseProvider
+		for range 1000 {
+			_, _ = io.WriteString(writer, "data: {\"choices\":[{\"delta\":{\"content\":\"续\"},\"finish_reason\":\"\"}]}\n\n")
+		}
+		_, _ = io.WriteString(writer, "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n")
+		_, _ = io.WriteString(writer, "data: [DONE]\n\n")
+	}))
+	defer server.Close()
+
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, err := NewWritingFrameRuntime(store, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	primeWritingContext(t, runtime, "plan-run-1")
+	var request map[string]any
+	_ = json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &request)
+	request["capabilityId"], request["harnessProfile"] = "chapter.polish", "novel-standard"
+	request["promptComponentSnapshot"] = map[string]any{
+		"schemaVersion": "1", "slug": "polish.standard", "version": 4,
+		"slotValues":        map[string]any{"style": "standard", "intensity": "moderate"},
+		"systemInstruction": "你是一名专业的中文小说润色编辑。这不是轻量校对。按适中力度逐段审视表达，保留叙事含义，不保留原句措辞，允许重写句子，系统提升文学性、易读性、节奏与画面表达。开头、中段和后段都必须处理到。落实画面实物化。",
+	}
+	payload, _ := json.Marshal(request)
+	var output bytes.Buffer
+	done := make(chan error, 1)
+	go func() {
+		done <- runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-1", Payload: payload}, &output)
+	}()
+	select {
+	case <-firstChunkSent:
+	case <-time.After(2 * time.Second):
+		t.Fatal("provider did not send the first stream chunk")
+	}
+	seenLiveDelta := false
+	deadline := time.Now().Add(300 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		events, _ := store.ReplayAfter(context.Background(), "plan-run-1", 0, 20)
+		for _, event := range events {
+			if event.Type == RunEventTypeModelDelta && event.Payload["text"] == "第一段" {
+				seenLiveDelta = true
+				break
+			}
+		}
+		if seenLiveDelta {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	close(releaseProvider)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if !seenLiveDelta {
+		t.Fatal("model.delta was buffered until the provider stream completed")
+	}
+	events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	published := []string{}
+	for _, event := range events {
+		if event.Type == RunEventTypeModelDelta && event.Payload["source"] == "model" {
+			published = append(published, event.Payload["text"].(string))
+		}
+	}
+	if actual, want := strings.Join(published, ""), "第一段"+strings.Repeat("续", 1000); actual != want {
+		t.Fatalf("coalesced live deltas were not lossless: bytes=%d want=%d", len(actual), len(want))
+	}
+	if len(published) > 16 {
+		t.Fatalf("token-sized provider frames produced too many durable deltas: %d", len(published))
+	}
+}
+
+func TestNormalizeWritingStreamReaderBoundsPublishedDeltas(t *testing.T) {
+	content := strings.Repeat("海", 2000)
+	payload, err := json.Marshal(map[string]any{
+		"choices": []map[string]any{{
+			"delta":         map[string]any{"content": content},
+			"finish_reason": "stop",
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream := "data: " + string(payload) + "\n\ndata: [DONE]\n\n"
+	published := []string{}
+	response, err := normalizeWritingStreamReader(&openAICompatibleAdapter{}, strings.NewReader(stream), func(text string) error {
+		if len([]byte(text)) > 4096 {
+			t.Fatalf("published delta exceeded 4096 bytes: %d", len([]byte(text)))
+		}
+		published = append(published, text)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Content != content || strings.Join(published, "") != content || len(published) < 2 {
+		t.Fatalf("large stream event was not losslessly bounded: chunks=%d", len(published))
+	}
+}
+
+func TestNormalizeWritingStreamReaderRejectsTruncatedStream(t *testing.T) {
+	stream := "data: {\"choices\":[{\"delta\":{\"content\":\"未完成\"},\"finish_reason\":\"\"}]}\n\n"
+	published := []string{}
+	response, err := normalizeWritingStreamReader(&openAICompatibleAdapter{}, strings.NewReader(stream), func(text string) error {
+		published = append(published, text)
+		return nil
+	})
+	if err == nil || response.Content != "" || strings.Join(published, "") != "未完成" {
+		t.Fatalf("truncated stream must fail after publishing only the live partial delta: response=%#v err=%v", response, err)
+	}
+}
+
+func TestNormalizeWritingStreamReaderPreservesAnthropicToolState(t *testing.T) {
+	stream := strings.Join([]string{
+		`data: {"type":"message_start","message":{"usage":{"input_tokens":4}}}`,
+		`data: {"type":"content_block_start","index":0,"content_block":{"type":"text"}}`,
+		`data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"可见文字"}}`,
+		`data: {"type":"content_block_stop","index":0}`,
+		`data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"tool-1","name":"unsafe","input":{}}}`,
+		`data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"path\":\"x\"}"}}`,
+		`data: {"type":"content_block_stop","index":1}`,
+		`data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":3}}`,
+		`data: {"type":"message_stop"}`,
+		`data: [DONE]`,
+	}, "\n\n") + "\n\n"
+	published := []string{}
+	response, err := normalizeWritingStreamReader(&anthropicAdapter{}, strings.NewReader(stream), func(text string) error {
+		published = append(published, text)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(published, "") != "可见文字" || response.Content != "可见文字" {
+		t.Fatalf("anthropic text stream was not preserved: %#v", response)
+	}
+	if len(response.ToolCalls) != 1 || response.ToolCalls[0].ID != "tool-1" || response.FinishReason != "tool_calls" {
+		t.Fatalf("anthropic tool stream state was lost: %#v", response)
+	}
+}
+
+func TestNormalizeWritingStreamReaderRejectsAnthropicStreamWithoutMessageStop(t *testing.T) {
+	stream := strings.Join([]string{
+		`data: {"type":"message_start","message":{"usage":{"input_tokens":2}}}`,
+		`data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"未完成"}}`,
+		`data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":2}}`,
+	}, "\n\n") + "\n\n"
+	published := []string{}
+	_, err := normalizeWritingStreamReader(&anthropicAdapter{}, strings.NewReader(stream), func(text string) error {
+		published = append(published, text)
+		return nil
+	})
+	if err == nil || strings.Join(published, "") != "未完成" {
+		t.Fatalf("anthropic stream without message_stop must fail after only a live partial delta: err=%v", err)
+	}
 }
 
 func TestWritingFrameRuntimeDecouplesPolishAndReview(t *testing.T) {
@@ -380,6 +557,24 @@ func TestWritingFrameRuntimeTruncatedPolishOutputFailsClosed(t *testing.T) {
 	}
 	if len(events) == 0 || events[len(events)-1].Type != RunEventTypeRunFailed {
 		t.Fatalf("terminal event = %#v, want run.failed", events)
+	}
+}
+
+func TestWritingFrameRuntimeNonStreamWithoutStopFinishFailsClosed(t *testing.T) {
+	for _, finishReason := range []string{"", "unknown", "refusal"} {
+		t.Run(finishReason, func(t *testing.T) {
+			events, calls, _ := runWritingRuntimeCase(t, "chapter.continue", func(int) string {
+				return "看似完整但未确认正常结束的正文"
+			}, finishReason)
+			if calls != 1 || len(events) == 0 || events[len(events)-1].Type != RunEventTypeRunFailed {
+				t.Fatalf("finish=%q calls=%d terminal=%#v", finishReason, calls, events)
+			}
+			for _, event := range events {
+				if event.Type == RunEventTypeArtifactCreated || event.Type == RunEventTypeProposalReady || event.Type == RunEventTypeRunCompleted {
+					t.Fatalf("finish=%q emitted unsafe %s", finishReason, event.Type)
+				}
+			}
+		})
 	}
 }
 
@@ -456,7 +651,7 @@ func TestWritingFrameRuntimeAcceptsValidatedSkillSelectionAndProjectsItIntoTheMo
 			t.Fatalf("model request did not contain validated Skill selection: %s", body)
 		}
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"choices":[{"message":{"content":"更自然的正文"}}]}`))
+		_, _ = writer.Write([]byte(`{"choices":[{"message":{"content":"更自然的正文"},"finish_reason":"stop"}]}`))
 	}))
 	defer server.Close()
 

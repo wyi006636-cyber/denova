@@ -105,6 +105,14 @@ type NativeModelRequest struct {
 	Body    []byte
 }
 
+type ModelStreamChunkDecoder interface {
+	Decode(json.RawMessage) ([]ModelStreamEvent, error)
+}
+
+type ModelStreamDecoderFactory interface {
+	NewStreamDecoder() ModelStreamChunkDecoder
+}
+
 type ModelAdapter interface {
 	AdapterID() string
 	BuildRequest(ModelRequest, bool) (NativeModelRequest, error)

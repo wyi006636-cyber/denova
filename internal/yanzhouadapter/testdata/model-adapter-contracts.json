@@ -278,6 +278,9 @@
           "usage": {
             "output_tokens": 7
           }
+        },
+        {
+          "type": "message_stop"
         }
       ],
       "error": {
