@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -19,6 +20,21 @@ type writingRoundTripFunc func(*http.Request) (*http.Response, error)
 
 func (roundTrip writingRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
 	return roundTrip(request)
+}
+
+type writingRunStartedBarrierStore struct {
+	RuntimeEventStore
+	appendStarted chan struct{}
+	releaseAppend chan struct{}
+	once          sync.Once
+}
+
+func (store *writingRunStartedBarrierStore) Append(ctx context.Context, runID string, input RuntimeEventInput) (RunEvent, error) {
+	if input.Type == RunEventTypeRunStarted {
+		store.once.Do(func() { close(store.appendStarted) })
+		<-store.releaseAppend
+	}
+	return store.RuntimeEventStore.Append(ctx, runID, input)
 }
 
 func writingRunPayload(t *testing.T, baseURL string, entrypoint string) json.RawMessage {
@@ -325,6 +341,57 @@ func TestWritingFrameRuntimeAcceptsValidatedSkillSelectionAndProjectsItIntoTheMo
 	var output bytes.Buffer
 	if err := runtime.HandleFrame(context.Background(), frame, &output); err != nil {
 		t.Fatalf("HandleFrame rejected validated Skill selection: %v", err)
+	}
+}
+
+func TestWritingFrameRuntimeCancelDuringStartedAppendEmitsAborted(t *testing.T) {
+	baseStore, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer baseStore.Close()
+	store := &writingRunStartedBarrierStore{
+		RuntimeEventStore: baseStore,
+		appendStarted:     make(chan struct{}),
+		releaseAppend:     make(chan struct{}),
+	}
+	runtime, err := NewWritingFrameRuntime(store, http.DefaultClient)
+	if err != nil {
+		t.Fatal(err)
+	}
+	frame := yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "request-1", Payload: writingRunPayload(t, "http://fixture.invalid", "agent_chat"),
+	}
+	var output bytes.Buffer
+	done := make(chan error, 1)
+	go func() { done <- runtime.HandleFrame(context.Background(), frame, &output) }()
+
+	select {
+	case <-store.appendStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("writing run did not reach the first durable event append")
+	}
+	if err := runtime.CancelRun("plan-run-1"); err != nil {
+		close(store.releaseAppend)
+		t.Fatalf("CancelRun rejected the registered run: %v", err)
+	}
+	close(store.releaseAppend)
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("cancel during run.started append returned an infrastructure error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("canceled writing run did not terminate")
+	}
+
+	events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 || events[0].Type != RunEventTypeRunAborted {
+		t.Fatalf("events = %#v, want one run.aborted", events)
 	}
 }
 
