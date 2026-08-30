@@ -265,7 +265,7 @@ func TestWritingFrameRuntimeExecutesTheExistingStandardHarnessGraph(t *testing.T
 	}
 }
 
-func runWritingRuntimeCase(t *testing.T, capabilityID string, response func(int) string) ([]RunEvent, int, []byte) {
+func runWritingRuntimeCase(t *testing.T, capabilityID string, response func(int) string, streamFinishReason ...string) ([]RunEvent, int, []byte) {
 	t.Helper()
 	calls := 0
 	var providerBody []byte
@@ -273,9 +273,13 @@ func runWritingRuntimeCase(t *testing.T, capabilityID string, response func(int)
 		calls++
 		providerBody, _ = io.ReadAll(request.Body)
 		if capabilityID == "chapter.polish" {
+			finishReason := "stop"
+			if len(streamFinishReason) > 0 {
+				finishReason = streamFinishReason[0]
+			}
 			writer.Header().Set("Content-Type", "text/event-stream")
 			_, _ = io.WriteString(writer, "data: {\"choices\":[{\"delta\":{\"content\":\"完整润色候选\"},\"finish_reason\":\"\"}]}\n\n")
-			_, _ = io.WriteString(writer, "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":2,\"total_tokens\":6}}\n\n")
+			_, _ = io.WriteString(writer, "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\""+finishReason+"\"}],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":2,\"total_tokens\":6}}\n\n")
 			_, _ = io.WriteString(writer, "data: [DONE]\n\n")
 			return
 		}
@@ -359,6 +363,23 @@ func TestWritingFrameRuntimeDecouplesPolishAndReview(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestWritingFrameRuntimeTruncatedPolishOutputFailsClosed(t *testing.T) {
+	events, calls, _ := runWritingRuntimeCase(t, "chapter.polish", func(int) string {
+		return "不应使用的非流式候选"
+	}, "length")
+	if calls != 1 {
+		t.Fatalf("model calls = %d, want 1", calls)
+	}
+	for _, event := range events {
+		if event.Type == RunEventTypeArtifactCreated || event.Type == RunEventTypeProposalReady || event.Type == RunEventTypeRunCompleted {
+			t.Fatalf("truncated polish emitted %s", event.Type)
+		}
+	}
+	if len(events) == 0 || events[len(events)-1].Type != RunEventTypeRunFailed {
+		t.Fatalf("terminal event = %#v, want run.failed", events)
 	}
 }
 

@@ -663,7 +663,7 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 	} else {
 		modelResponse, err = adapter.NormalizeResponse(body)
 	}
-	if err != nil || strings.TrimSpace(modelResponse.Content) == "" || len(modelResponse.ToolCalls) != 0 {
+	if err != nil || strings.TrimSpace(modelResponse.Content) == "" || len(modelResponse.ToolCalls) != 0 || modelResponse.FinishReason == "max_tokens" || modelResponse.FinishReason == "content_filter" {
 		return ModelResponse{}, errors.New("writing model response is invalid")
 	}
 	return modelResponse, nil
