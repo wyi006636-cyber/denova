@@ -242,6 +242,13 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	if err != nil {
 		return err
 	}
+	if writingSinglePassCapability(request.CapabilityID) {
+		profile, err = writingHarnessProfile(string(HarnessProfileNovelLite))
+		if err != nil {
+			return err
+		}
+		request.HarnessProfile = string(profile.ID)
+	}
 	wallTime := request.Budgets.MaxWallTimeMS
 	if profile.Budget.MaxWallTimeMS < wallTime {
 		wallTime = profile.Budget.MaxWallTimeMS
@@ -373,11 +380,18 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 		if writingCandidateRole(stage.RoleID) {
 			candidateArtifactID = artifact.ID
 		}
-		if stage.RoleID == HarnessRoleReviewer || stage.RoleID == HarnessRoleFinalGate {
+		if writingReviewStage(request.CapabilityID, stage.RoleID) {
+			reviewStatus, valid := decodeWritingReviewStatus(response.Content)
 			if _, err = EmitRunEvent(runCtx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeReviewCompleted, Payload: map[string]any{
-				"stageId": stage.ID, "role": stage.RoleID, "artifactId": artifact.ID, "status": "pass",
+				"stageId": stage.ID, "role": stage.RoleID, "artifactId": artifact.ID, "status": reviewStatus,
 			}}); err != nil {
 				return err
+			}
+			if !valid {
+				_, terminalErr := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeRunFailed, Payload: map[string]any{
+					"schemaVersion": "1", "reason": "provider_error", "resumable": false, "partialArtifactRefs": writingArtifactIDs(artifacts),
+				}})
+				return terminalErr
 			}
 		}
 		if stage.Delegated {
@@ -432,6 +446,33 @@ func writingCandidateRole(role WritingHarnessRoleID) bool {
 	return role == HarnessRolePrimaryWriter || role == HarnessRoleWriter || role == HarnessRoleFixer
 }
 
+func writingSinglePassCapability(capabilityID string) bool {
+	return capabilityID == "chapter.polish" || capabilityID == "chapter.review"
+}
+
+func writingReviewStage(capabilityID string, role WritingHarnessRoleID) bool {
+	return capabilityID == "chapter.review" || role == HarnessRoleReviewer || role == HarnessRoleFinalGate
+}
+
+type writingReviewReport struct {
+	SchemaVersion string            `json:"schemaVersion"`
+	Status        string            `json:"status"`
+	Findings      []json.RawMessage `json:"findings"`
+}
+
+func decodeWritingReviewStatus(content string) (string, bool) {
+	var report writingReviewReport
+	if err := decodeStrictPlanJSON(json.RawMessage(content), 512*1024, &report); err != nil || report.SchemaVersion != "1" || (report.Status != "pass" && report.Status != "fail") || report.Findings == nil {
+		return "fail", false
+	}
+	for _, finding := range report.Findings {
+		if !validPlanOpaqueObject(finding) {
+			return "fail", false
+		}
+	}
+	return report.Status, true
+}
+
 func writingArtifactIDs(artifacts []writingRuntimeArtifact) []string {
 	ids := make([]string, len(artifacts))
 	for index, artifact := range artifacts {
@@ -444,6 +485,12 @@ func writingStageArtifactKind(stage WritingHarnessStage, capabilityID string) st
 	if writingCandidateRole(stage.RoleID) {
 		if capabilityID == "image.generate" {
 			return "image"
+		}
+		if capabilityID == "chapter.polish" {
+			return "transform"
+		}
+		if capabilityID == "chapter.review" || capabilityID == "book.review" {
+			return "review"
 		}
 		if strings.HasPrefix(capabilityID, "outline.") {
 			return "outline"
@@ -624,9 +671,19 @@ func writingStageInput(instruction, contextText string, previous []writingRuntim
 }
 
 func writingSystemInstruction(capabilityID, harnessProfile string, skillIDs []string, stage WritingHarnessStage) string {
-	instruction := "Produce only the requested bounded stage result. Capability: " + capabilityID + ". Harness: " + harnessProfile + ". Stage: " + stage.ID + ". Role: " + string(stage.RoleID) + "."
+	identity := "Capability: " + capabilityID + ". Harness: " + harnessProfile + ". Stage: " + stage.ID + ". Role: " + string(stage.RoleID) + "."
 	if len(skillIDs) > 0 {
-		instruction += " Skill: " + strings.Join(skillIDs, ", ") + "."
+		identity += " Skill: " + strings.Join(skillIDs, ", ") + "."
 	}
-	return instruction + " Never claim the work was committed, never expose reasoning, and never request a filesystem path."
+	boundary := " Never claim the work was committed, never expose reasoning, and never request a filesystem path."
+	if capabilityID == "chapter.polish" {
+		return identity + " 你正在润色，不是在重写或审稿。保留剧情事实、人物设定、信息状态、段落意图和段落顺序；未需修改的位置尽量原样保留，只改善病句、重复、措辞和节奏。只输出完整候选正文，不输出分析、说明、标题或审稿意见。" + boundary
+	}
+	if writingReviewStage(capabilityID, stage.RoleID) {
+		return identity + ` Output only one JSON object matching {"schemaVersion":"1","status":"pass|fail","findings":[object,...]}. This is a read-only narrative review report: cite evidence in findings, do not output replacement prose, and do not claim unavailable tool access.` + boundary
+	}
+	if stage.ID == "primary-revision" || stage.RoleID == HarnessRoleFixer {
+		return identity + " Return only the complete revised candidate text. Do not output analysis or a review report." + boundary
+	}
+	return identity + " Produce only the requested bounded stage result." + boundary
 }

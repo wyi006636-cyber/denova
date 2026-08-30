@@ -197,10 +197,14 @@ func TestWritingFrameRuntimeExecutesTheExistingStandardHarnessGraph(t *testing.T
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		calls++
+		content := "stage-" + string(rune('0'+calls))
+		if calls == 2 {
+			content = `{"schemaVersion":"1","status":"pass","findings":[]}`
+		}
 		writer.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(writer).Encode(map[string]any{
 			"choices": []map[string]any{{
-				"message":       map[string]any{"role": "assistant", "content": "stage-" + string(rune('0'+calls))},
+				"message":       map[string]any{"role": "assistant", "content": content},
 				"finish_reason": "stop",
 			}},
 			"usage": map[string]any{"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6},
@@ -257,6 +261,102 @@ func TestWritingFrameRuntimeExecutesTheExistingStandardHarnessGraph(t *testing.T
 		}
 		if !found {
 			t.Fatalf("standard Harness event %s is missing", required)
+		}
+	}
+}
+
+func runWritingRuntimeCase(t *testing.T, capabilityID string, response func(int) string) ([]RunEvent, int, []byte) {
+	t.Helper()
+	calls := 0
+	var providerBody []byte
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		calls++
+		providerBody, _ = io.ReadAll(request.Body)
+		writer.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(writer).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]any{"content": response(calls)}}}})
+	}))
+	defer server.Close()
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, _ := NewWritingFrameRuntime(store, server.Client())
+	primeWritingContext(t, runtime, "plan-run-1")
+	var request map[string]any
+	_ = json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &request)
+	request["capabilityId"], request["harnessProfile"], request["selectedSkillIds"] = capabilityID, "novel-standard", []string{}
+	payload, _ := json.Marshal(request)
+	var output bytes.Buffer
+	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-1", Payload: payload}, &output); err != nil {
+		t.Fatal(err)
+	}
+	events, _ := store.ReplayAfter(context.Background(), "plan-run-1", 0, 40)
+	return events, calls, providerBody
+}
+
+func TestWritingFrameRuntimeDecouplesPolishAndReview(t *testing.T) {
+	for _, tc := range []struct {
+		capability, content, artifactKind string
+		proposal                          bool
+	}{
+		{"chapter.polish", "完整润色候选", "transform", true},
+		{"chapter.review", `{"schemaVersion":"1","status":"fail","findings":[]}`, "review", false},
+	} {
+		t.Run(tc.capability, func(t *testing.T) {
+			events, calls, body := runWritingRuntimeCase(t, tc.capability, func(int) string { return tc.content })
+			if calls != 1 {
+				t.Fatalf("model calls = %d, want 1", calls)
+			}
+			seenProposal := false
+			firstArtifactID, proposalArtifactID := "", ""
+			for _, event := range events {
+				if event.Type == RunEventTypeDelegationStarted || event.Type == RunEventTypeRevisionRequested || (tc.capability == "chapter.polish" && event.Type == RunEventTypeReviewCompleted) {
+					t.Fatalf("coupled event %s", event.Type)
+				}
+				if event.Type == RunEventTypeArtifactCreated {
+					if firstArtifactID == "" {
+						firstArtifactID, _ = event.Payload["artifactId"].(string)
+					}
+					if event.Payload["artifactKind"] != tc.artifactKind && event.Payload["artifactKind"] != "report" {
+						t.Fatalf("artifact kind = %#v", event.Payload["artifactKind"])
+					}
+				}
+				if event.Type == RunEventTypeProposalReady {
+					seenProposal = true
+					proposalArtifactID, _ = event.Payload["artifactId"].(string)
+				}
+			}
+			if seenProposal != tc.proposal || (tc.proposal && proposalArtifactID != firstArtifactID) {
+				t.Fatalf("proposal.ready = %t, want %t", seenProposal, tc.proposal)
+			}
+			if tc.capability == "chapter.polish" {
+				for _, required := range []string{"保留剧情事实", "人物设定", "段落顺序", "完整候选正文", "不输出分析"} {
+					if !bytes.Contains(body, []byte(required)) {
+						t.Fatalf("polish instruction is missing %q", required)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestWritingFrameRuntimeMalformedReviewerOutputFailsClosed(t *testing.T) {
+	events, calls, _ := runWritingRuntimeCase(t, "chapter.rewrite", func(call int) string {
+		if call == 1 {
+			return "初次候选正文"
+		}
+		return strings.Repeat("这是一整章正文，不是结构化审稿报告。", 100)
+	})
+	if calls != 2 || len(events) == 0 || events[len(events)-1].Type != RunEventTypeRunFailed {
+		t.Fatalf("calls=%d terminal=%#v", calls, events)
+	}
+	for _, event := range events {
+		if event.Type == RunEventTypeReviewCompleted && event.Payload["status"] == "pass" {
+			t.Fatal("malformed reviewer output was marked pass")
+		}
+		if event.Type == RunEventTypeRevisionRequested || event.Type == RunEventTypeProposalReady {
+			t.Fatalf("malformed review continued into %s", event.Type)
 		}
 	}
 }
