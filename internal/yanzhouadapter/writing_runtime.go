@@ -1,6 +1,7 @@
 package yanzhouadapter
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -626,10 +627,11 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 	if request.Budgets.MaxOutputTokens != nil && *request.Budgets.MaxOutputTokens > 0 {
 		maxOutput = *request.Budgets.MaxOutputTokens
 	}
+	stream := request.CapabilityID == "chapter.polish"
 	native, err := adapter.BuildRequest(ModelRequest{Messages: []ModelMessage{
 		{Role: "system", Content: writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, request.PromptComponentSnapshot, stage)},
 		{Role: "user", Content: writingStageInput(request.UserIntent, contextText, previous)},
-	}, MaxOutputTokens: maxOutput}, false)
+	}, MaxOutputTokens: maxOutput}, stream)
 	if err != nil {
 		return ModelResponse{}, err
 	}
@@ -655,11 +657,57 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 	if err != nil || len(body) > 4*1024*1024 || response.StatusCode < 200 || response.StatusCode >= 300 {
 		return ModelResponse{}, errors.New("writing model request failed")
 	}
-	modelResponse, err := adapter.NormalizeResponse(body)
+	var modelResponse ModelResponse
+	if stream && strings.Contains(strings.ToLower(response.Header.Get("Content-Type")), "text/event-stream") {
+		modelResponse, err = normalizeWritingStream(adapter, body)
+	} else {
+		modelResponse, err = adapter.NormalizeResponse(body)
+	}
 	if err != nil || strings.TrimSpace(modelResponse.Content) == "" || len(modelResponse.ToolCalls) != 0 {
 		return ModelResponse{}, errors.New("writing model response is invalid")
 	}
 	return modelResponse, nil
+}
+
+func normalizeWritingStream(adapter ModelAdapter, body []byte) (ModelResponse, error) {
+	scanner := bufio.NewScanner(bytes.NewReader(body))
+	scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
+	chunks := []json.RawMessage{}
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "" || data == "[DONE]" {
+			continue
+		}
+		chunks = append(chunks, json.RawMessage(append([]byte(nil), data...)))
+	}
+	if err := scanner.Err(); err != nil || len(chunks) == 0 {
+		return ModelResponse{}, errors.New("writing model stream is invalid")
+	}
+	events, err := adapter.NormalizeStream(chunks)
+	if err != nil {
+		return ModelResponse{}, err
+	}
+	response := ModelResponse{}
+	for _, event := range events {
+		switch event.Type {
+		case "content-delta":
+			response.Content += event.Content
+		case "tool-call-delta":
+			if event.ToolCall != nil {
+				response.ToolCalls = append(response.ToolCalls, *event.ToolCall)
+			}
+		case "message-complete":
+			response.FinishReason = event.FinishReason
+			if event.Usage != nil {
+				response.Usage = *event.Usage
+			}
+		}
+	}
+	return response, nil
 }
 
 func boundedWritingChunks(value string, maxBytes int) []string {
