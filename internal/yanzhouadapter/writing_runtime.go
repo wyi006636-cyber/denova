@@ -534,6 +534,20 @@ func writingArtifactNeedsProposal(kind string) bool {
 	}
 }
 
+func validWritingPromptComponentSnapshot(request planRunRequest) bool {
+	snapshot := request.PromptComponentSnapshot
+	if request.CapabilityID != "chapter.polish" {
+		return snapshot == nil
+	}
+	return snapshot != nil &&
+		snapshot.SchemaVersion == "1" &&
+		snapshot.Slug == "polish.standard" &&
+		snapshot.Version == 2 &&
+		snapshot.SlotValues.Style == "standard" &&
+		snapshot.SlotValues.Intensity == "moderate" &&
+		boundedPlanText(snapshot.SystemInstruction, 32*1024)
+}
+
 func validateWritingRunRequest(request planRunRequest, envelopeRequestID string) error {
 	if request.SchemaVersion != "1" || request.RequestID != envelopeRequestID || !validPlanSchemaID(request.RequestID) || !validPlanSchemaID(request.IdempotencyKey) || !validPlanSchemaID(request.RunID) || !validPlanSchemaID(request.SessionID) {
 		return invalidPlanPayload()
@@ -542,6 +556,9 @@ func validateWritingRunRequest(request planRunRequest, envelopeRequestID string)
 		return invalidPlanPayload()
 	}
 	if _, ok := writingCapabilityKinds[request.CapabilityID]; !ok {
+		return invalidPlanPayload()
+	}
+	if !validWritingPromptComponentSnapshot(request) {
 		return invalidPlanPayload()
 	}
 	if !knownHarnessProfileID(WritingHarnessProfileID(request.HarnessProfile)) {
@@ -578,7 +595,7 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 		maxOutput = *request.Budgets.MaxOutputTokens
 	}
 	native, err := adapter.BuildRequest(ModelRequest{Messages: []ModelMessage{
-		{Role: "system", Content: writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, stage)},
+		{Role: "system", Content: writingSystemInstruction(request.CapabilityID, request.HarnessProfile, request.SelectedSkillIDs, request.PromptComponentSnapshot, stage)},
 		{Role: "user", Content: writingStageInput(request.UserIntent, contextText, previous)},
 	}, MaxOutputTokens: maxOutput}, false)
 	if err != nil {
@@ -670,14 +687,14 @@ func writingStageInput(instruction, contextText string, previous []writingRuntim
 	return builder.String()
 }
 
-func writingSystemInstruction(capabilityID, harnessProfile string, skillIDs []string, stage WritingHarnessStage) string {
+func writingSystemInstruction(capabilityID, harnessProfile string, skillIDs []string, promptSnapshot *writingPromptComponentSnapshot, stage WritingHarnessStage) string {
 	identity := "Capability: " + capabilityID + ". Harness: " + harnessProfile + ". Stage: " + stage.ID + ". Role: " + string(stage.RoleID) + "."
 	if len(skillIDs) > 0 {
 		identity += " Skill: " + strings.Join(skillIDs, ", ") + "."
 	}
 	boundary := " Never claim the work was committed, never expose reasoning, and never request a filesystem path."
 	if capabilityID == "chapter.polish" {
-		return identity + " 你正在润色，不是在重写或审稿。保留剧情事实、人物设定、信息状态、段落意图和段落顺序；未需修改的位置尽量原样保留，只改善病句、重复、措辞和节奏。只输出完整候选正文，不输出分析、说明、标题或审稿意见。" + boundary
+		return identity + " Prompt component: " + promptSnapshot.Slug + ".\n" + promptSnapshot.SystemInstruction + "\n你正在润色，不是在重写或审稿。只输出完整候选正文，不输出分析、说明、标题或审稿意见。" + boundary
 	}
 	if writingReviewStage(capabilityID, stage.RoleID) {
 		return identity + ` Output only one JSON object matching {"schemaVersion":"1","status":"pass|fail","findings":[object,...]}. This is a read-only narrative review report: cite evidence in findings, do not output replacement prose, and do not claim unavailable tool access.` + boundary

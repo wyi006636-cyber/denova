@@ -286,6 +286,17 @@ func runWritingRuntimeCase(t *testing.T, capabilityID string, response func(int)
 	var request map[string]any
 	_ = json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &request)
 	request["capabilityId"], request["harnessProfile"], request["selectedSkillIds"] = capabilityID, "novel-standard", []string{}
+	if capabilityID == "chapter.polish" {
+		request["promptComponentSnapshot"] = map[string]any{
+			"schemaVersion": "1",
+			"slug":          "polish.standard",
+			"version":       2,
+			"slotValues": map[string]any{
+				"style": "standard", "intensity": "moderate",
+			},
+			"systemInstruction": "你是一名专业的中文小说润色编辑。按适中力度平稳提升用词、句式和节奏。落实画面实物化，改善文学性与可读性。",
+		}
+	}
 	payload, _ := json.Marshal(request)
 	var output bytes.Buffer
 	if err := runtime.HandleFrame(context.Background(), yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-1", Payload: payload}, &output); err != nil {
@@ -331,10 +342,13 @@ func TestWritingFrameRuntimeDecouplesPolishAndReview(t *testing.T) {
 				t.Fatalf("proposal.ready = %t, want %t", seenProposal, tc.proposal)
 			}
 			if tc.capability == "chapter.polish" {
-				for _, required := range []string{"保留剧情事实", "人物设定", "段落顺序", "完整候选正文", "不输出分析"} {
+				for _, required := range []string{"polish.standard", "适中力度", "平稳提升用词、句式和节奏", "画面实物化", "完整候选正文", "不输出分析"} {
 					if !bytes.Contains(body, []byte(required)) {
 						t.Fatalf("polish instruction is missing %q", required)
 					}
+				}
+				if bytes.Contains(body, []byte("未需修改的位置尽量原样保留")) {
+					t.Fatal("polish instruction regressed to conservative proofreading")
 				}
 			}
 		})

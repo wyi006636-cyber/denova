@@ -41,6 +41,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Yanzhou `chapter.polish` 继续保持单次模型调用，但不再使用 Sidecar 内置的保守校对提示；运行请求必须携带主应用授权的 `polish.standard` 标准/适中提示快照，Sidecar 校验后原样作为系统润色合同执行。
+- Yanzhou `chapter.polish` remains a single model call, but no longer uses a sidecar-owned conservative proofreading prompt. The run request must carry the main app-authorized standard/moderate `polish.standard` prompt snapshot, which the sidecar validates and executes verbatim as the polishing system contract.
 - Agent 工具上下文收敛为单一边界：工具结果仅在执行完成时按全局 `agent_tool_result_limit_kb` 有界化，后续轮次原样保留有效的 call/result 对，旧历史交给普通上下文压缩；`read_lore_items` 仍使用来源回执避免重复正文。Beta 不兼容：移除 `tool_result_keep_recent`、`tool_result_context_budget_kb` 与 `tool_result_preview_chars`，旧配置键读取时忽略。
 - Agent tool context now has one size boundary: results are bounded once at completion by the global `agent_tool_result_limit_kb`, valid call/result pairs remain exact across subsequent turns, and normal context compaction owns older history; `read_lore_items` still uses source receipts to avoid duplicating bodies. Beta breaking: `tool_result_keep_recent`, `tool_result_context_budget_kb`, and `tool_result_preview_chars` are removed, and legacy keys are ignored when read.
 - 游戏模式移除单次 `state_changes` 的操作数量硬上限，工具 Schema、提交解码、状态编译与 `TurnResult` 不再因第 25 项或更多操作拒绝复杂回合。Agent 仍会收到“常规回合建议不超过 24 项”的软提示，并明确复杂开局或确有更多事实变化时可以超过。
