@@ -542,7 +542,7 @@ func validWritingPromptComponentSnapshot(request planRunRequest) bool {
 	return snapshot != nil &&
 		snapshot.SchemaVersion == "1" &&
 		snapshot.Slug == "polish.standard" &&
-		snapshot.Version == 2 &&
+		snapshot.Version == 3 &&
 		snapshot.SlotValues.Style == "standard" &&
 		snapshot.SlotValues.Intensity == "moderate" &&
 		boundedPlanText(snapshot.SystemInstruction, 32*1024)
