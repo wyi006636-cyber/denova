@@ -290,11 +290,11 @@ func runWritingRuntimeCase(t *testing.T, capabilityID string, response func(int)
 		request["promptComponentSnapshot"] = map[string]any{
 			"schemaVersion": "1",
 			"slug":          "polish.standard",
-			"version":       3,
+			"version":       4,
 			"slotValues": map[string]any{
 				"style": "standard", "intensity": "moderate",
 			},
-			"systemInstruction": "你是一名专业的中文小说润色编辑。这不是轻量校对。按适中力度逐段审视表达，保留叙事含义，不保留原句措辞，允许重写句子，系统提升文学性、易读性、节奏与画面表达。落实画面实物化。",
+			"systemInstruction": "你是一名专业的中文小说润色编辑。这不是轻量校对。按适中力度逐段审视表达，保留叙事含义，不保留原句措辞，允许重写句子，系统提升文学性、易读性、节奏与画面表达。开头、中段和后段都必须处理到。落实画面实物化。",
 		}
 	}
 	payload, _ := json.Marshal(request)
@@ -342,7 +342,7 @@ func TestWritingFrameRuntimeDecouplesPolishAndReview(t *testing.T) {
 				t.Fatalf("proposal.ready = %t, want %t", seenProposal, tc.proposal)
 			}
 			if tc.capability == "chapter.polish" {
-				for _, required := range []string{"polish.standard", "不是轻量校对", "适中力度", "保留叙事含义，不保留原句措辞", "允许重写句子", "文学性、易读性、节奏与画面表达", "画面实物化", "完整候选正文", "不输出分析"} {
+				for _, required := range []string{"polish.standard", "不是轻量校对", "适中力度", "保留叙事含义，不保留原句措辞", "允许重写句子", "文学性、易读性、节奏与画面表达", "开头、中段和后段都必须处理到", "画面实物化", "完整候选正文", "不输出分析"} {
 					if !bytes.Contains(body, []byte(required)) {
 						t.Fatalf("polish instruction is missing %q", required)
 					}
