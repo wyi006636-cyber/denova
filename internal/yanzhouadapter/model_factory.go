@@ -51,9 +51,10 @@ type ModelMessage struct {
 }
 
 type ModelToolCall struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Arguments string `json:"arguments"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Arguments   string `json:"arguments"`
+	StreamIndex int    `json:"-"`
 }
 
 type ModelTool struct {

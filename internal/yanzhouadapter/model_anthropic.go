@@ -232,7 +232,7 @@ func (decoder *anthropicStreamDecoder) Decode(data json.RawMessage) ([]ModelStre
 					arguments = partial
 				}
 			}
-			toolCall := ModelToolCall{ID: block.id, Name: block.name, Arguments: arguments}
+			toolCall := ModelToolCall{ID: block.id, Name: block.name, Arguments: arguments, StreamIndex: event.Index}
 			events = append(events, ModelStreamEvent{Type: "tool-call-delta", ToolCall: &toolCall})
 			delete(decoder.toolBlocks, event.Index)
 		}

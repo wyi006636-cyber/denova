@@ -407,6 +407,11 @@ type writingPromptComponentSnapshot struct {
 	SystemInstruction string                  `json:"systemInstruction"`
 }
 
+type agentConversationMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
 type planRunRequest struct {
 	SchemaVersion           string                          `json:"schemaVersion"`
 	RequestID               string                          `json:"requestId"`
@@ -418,6 +423,7 @@ type planRunRequest struct {
 	Target                  json.RawMessage                 `json:"target"`
 	CapabilityID            string                          `json:"capabilityId,omitempty"`
 	UserIntent              string                          `json:"userIntent"`
+	Conversation            []agentConversationMessage      `json:"conversation,omitempty"`
 	PromptComponentSnapshot *writingPromptComponentSnapshot `json:"promptComponentSnapshot,omitempty"`
 	PlanMode                bool                            `json:"planMode"`
 	SelectedSkillIDs        []string                        `json:"selectedSkillIds"`

@@ -146,6 +146,122 @@ func TestWritingFrameRuntimeRunsExistingStartFrameWithFakeProvider(t *testing.T)
 	}
 }
 
+func TestMergeWritingToolCallKeepsParallelStreamArgumentsSeparated(t *testing.T) {
+	calls := []ModelToolCall{}
+	for _, delta := range []ModelToolCall{
+		{ID: "call-a", Name: "story.search_chapters", Arguments: `{"query":"`, StreamIndex: 0},
+		{ID: "call-b", Name: "story.get_characters", Arguments: `{"query":"`, StreamIndex: 1},
+		{Arguments: `离开"}`, StreamIndex: 0},
+		{Arguments: `林青"}`, StreamIndex: 1},
+	} {
+		mergeWritingToolCall(&calls, delta)
+	}
+	if len(calls) != 2 || calls[0].Arguments != `{"query":"离开"}` || calls[1].Arguments != `{"query":"林青"}` {
+		t.Fatalf("parallel calls merged incorrectly: %#v", calls)
+	}
+}
+
+func TestWritingFrameRuntimeRunsMultiTurnReadOnlyAgentChatWithModelSelectedTools(t *testing.T) {
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		calls++
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(body, []byte("他之前不是说不会离开吗？")) || !bytes.Contains(body, []byte("那是他当时的自我欺骗。")) {
+			t.Fatalf("provider request lost conversation history: %s", body)
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		if calls == 1 {
+			_ = json.NewEncoder(writer).Encode(map[string]any{
+				"choices": []map[string]any{{
+					"message": map[string]any{"role": "assistant", "content": "", "tool_calls": []map[string]any{{
+						"id": "call-1", "type": "function", "function": map[string]any{"name": "story.search_chapters", "arguments": `{"query":"离开"}`},
+					}}},
+					"finish_reason": "tool_calls",
+				}},
+			})
+			return
+		}
+		if !bytes.Contains(body, []byte("call-1")) || !bytes.Contains(body, []byte("旧站台")) {
+			t.Fatalf("provider request lost tool result: %s", body)
+		}
+		_ = json.NewEncoder(writer).Encode(map[string]any{
+			"choices": []map[string]any{{
+				"message":       map[string]any{"role": "assistant", "content": "他离开不是反悔，而是终于承认自己一直在逃避旧站台的创伤。"},
+				"finish_reason": "stop",
+			}},
+		})
+	}))
+	defer server.Close()
+
+	store, err := NewFileRuntimeEventStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	runtime, err := NewWritingFrameRuntime(store, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	primeWritingContext(t, runtime, "plan-run-1")
+	toolPayload, _ := json.Marshal(map[string]any{
+		"schemaVersion": "1", "toolId": "story.search_chapters", "success": true,
+		"result": map[string]any{"kind": "read-result", "mutationPerformed": false, "data": map[string]any{"matches": []string{"旧站台"}}},
+	})
+	if err := runtime.HandleToolResponse(yanzhouprotocol.Envelope{
+		Kind: yanzhouprotocol.KindToolResponse, ProtocolVersion: yanzhouprotocol.ProtocolVersion,
+		RequestID: "tool-plan-run-1-agent-1-1", RunID: "plan-run-1", Seq: 2, Payload: toolPayload,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var request map[string]any
+	if err := json.Unmarshal(writingRunPayload(t, server.URL, "agent_chat"), &request); err != nil {
+		t.Fatal(err)
+	}
+	request["capabilityId"] = "agent.chat"
+	request["userIntent"] = "所以这一章人物为什么突然离开？"
+	request["conversation"] = []map[string]string{
+		{"role": "user", "content": "他之前不是说不会离开吗？"},
+		{"role": "assistant", "content": "那是他当时的自我欺骗。"},
+	}
+	request["budgets"].(map[string]any)["maxToolRounds"] = 4
+	payload, _ := json.Marshal(request)
+	var output bytes.Buffer
+	frame := yanzhouprotocol.Envelope{Kind: yanzhouprotocol.KindRunStart, ProtocolVersion: yanzhouprotocol.ProtocolVersion, RequestID: "request-1", Payload: payload}
+	if err := runtime.HandleFrame(context.Background(), frame, &output); err != nil {
+		t.Fatal(err)
+	}
+
+	events, err := store.ReplayAfter(context.Background(), "plan-run-1", 0, 40)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var artifactCount, proposalCount int
+	var finalText string
+	for _, event := range events {
+		if event.Type == RunEventTypeArtifactCreated {
+			artifactCount++
+		}
+		if event.Type == RunEventTypeProposalReady {
+			proposalCount++
+		}
+		if event.Type == RunEventTypeModelDelta {
+			finalText += event.Payload["text"].(string)
+		}
+	}
+	if calls != 2 || artifactCount != 0 || proposalCount != 0 {
+		t.Fatalf("calls=%d artifacts=%d proposals=%d events=%#v", calls, artifactCount, proposalCount, events)
+	}
+	if finalText != "他离开不是反悔，而是终于承认自己一直在逃避旧站台的创伤。" {
+		t.Fatalf("final response = %q", finalText)
+	}
+	if events[len(events)-1].Type != RunEventTypeRunCompleted {
+		t.Fatalf("terminal event = %s", events[len(events)-1].Type)
+	}
+}
+
 func TestWritingFrameRuntimeConsumesMainOwnedContextThroughExistingToolFrames(t *testing.T) {
 	const chapterContext = "ContextPack 中独有的章节事实：铜钟只在第三次退潮后响起。"
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {

@@ -141,6 +141,7 @@ func (a *openAICompatibleAdapter) NormalizeStream(chunks []json.RawMessage) ([]M
 				Delta struct {
 					Content   string `json:"content"`
 					ToolCalls []struct {
+						Index    int    `json:"index"`
 						ID       string `json:"id"`
 						Function struct {
 							Name      string `json:"name"`
@@ -171,9 +172,10 @@ func (a *openAICompatibleAdapter) NormalizeStream(chunks []json.RawMessage) ([]M
 		}
 		for _, call := range choice.Delta.ToolCalls {
 			toolCall := ModelToolCall{
-				ID:        call.ID,
-				Name:      call.Function.Name,
-				Arguments: call.Function.Arguments,
+				ID:          call.ID,
+				Name:        call.Function.Name,
+				Arguments:   call.Function.Arguments,
+				StreamIndex: call.Index,
 			}
 			events = append(events, ModelStreamEvent{
 				Type:     "tool-call-delta",

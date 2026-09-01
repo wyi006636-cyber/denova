@@ -176,7 +176,7 @@ func (a *geminiAdapter) NormalizeStream(chunks []json.RawMessage) ([]ModelStream
 			continue
 		}
 		candidate := payload.Candidates[0]
-		for _, part := range candidate.Content.Parts {
+		for partIndex, part := range candidate.Content.Parts {
 			if part.Text != "" {
 				events = append(events, ModelStreamEvent{
 					Type:    "content-delta",
@@ -186,9 +186,10 @@ func (a *geminiAdapter) NormalizeStream(chunks []json.RawMessage) ([]ModelStream
 			if part.FunctionCall != nil {
 				sawToolCall = true
 				toolCall := ModelToolCall{
-					ID:        part.FunctionCall.ID,
-					Name:      part.FunctionCall.Name,
-					Arguments: stringifyArguments(part.FunctionCall.Args),
+					ID:          part.FunctionCall.ID,
+					Name:        part.FunctionCall.Name,
+					Arguments:   stringifyArguments(part.FunctionCall.Args),
+					StreamIndex: partIndex,
 				}
 				events = append(events, ModelStreamEvent{
 					Type:     "tool-call-delta",
