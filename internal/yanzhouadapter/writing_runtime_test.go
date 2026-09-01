@@ -174,10 +174,13 @@ func TestWritingFrameRuntimeRunsMultiTurnReadOnlyAgentChatWithModelSelectedTools
 		}
 		writer.Header().Set("Content-Type", "application/json")
 		if calls == 1 {
+			if !bytes.Contains(body, []byte(`"name":"story_search_chapters"`)) || bytes.Contains(body, []byte(`"name":"story.search_chapters"`)) {
+				t.Fatalf("provider tool name was not transport-safe: %s", body)
+			}
 			_ = json.NewEncoder(writer).Encode(map[string]any{
 				"choices": []map[string]any{{
 					"message": map[string]any{"role": "assistant", "content": "", "tool_calls": []map[string]any{{
-						"id": "call-1", "type": "function", "function": map[string]any{"name": "story.search_chapters", "arguments": `{"query":"离开"}`},
+						"id": "call-1", "type": "function", "function": map[string]any{"name": "story_search_chapters", "arguments": `{"query":"离开"}`},
 					}}},
 					"finish_reason": "tool_calls",
 				}},

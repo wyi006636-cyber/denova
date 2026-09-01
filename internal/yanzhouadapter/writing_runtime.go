@@ -659,26 +659,45 @@ func validateWritingRunRequest(request planRunRequest, envelopeRequestID string)
 	return nil
 }
 
+func agentChatToolID(providerName string) (string, bool) {
+	switch providerName {
+	case "story_get_target":
+		return "story.get_target", true
+	case "story_get_outline":
+		return "story.get_outline", true
+	case "story_get_adjacent_chapters":
+		return "story.get_adjacent_chapters", true
+	case "story_search_chapters":
+		return "story.search_chapters", true
+	case "story_get_characters":
+		return "story.get_characters", true
+	case "story_get_open_threads":
+		return "story.get_open_threads", true
+	default:
+		return "", false
+	}
+}
+
 func agentChatTools() []ModelTool {
 	objectSchema := func(properties map[string]any) map[string]any {
 		return map[string]any{"type": "object", "properties": properties, "additionalProperties": false}
 	}
 	return []ModelTool{
-		{Name: "story.get_target", Description: "读取当前目标与已授权作品上下文。", InputSchema: objectSchema(map[string]any{})},
-		{Name: "story.get_outline", Description: "按需读取作品总纲与当前章纲。", InputSchema: objectSchema(map[string]any{
+		{Name: "story_get_target", Description: "读取当前目标与已授权作品上下文。", InputSchema: objectSchema(map[string]any{})},
+		{Name: "story_get_outline", Description: "按需读取作品总纲与当前章纲。", InputSchema: objectSchema(map[string]any{
 			"query": map[string]any{"type": "string", "description": "需要核对的主题或问题"},
 		})},
-		{Name: "story.get_adjacent_chapters", Description: "读取当前章节前后的相邻章节。", InputSchema: objectSchema(map[string]any{
+		{Name: "story_get_adjacent_chapters", Description: "读取当前章节前后的相邻章节。", InputSchema: objectSchema(map[string]any{
 			"count": map[string]any{"type": "integer", "minimum": 1, "maximum": 20},
 		})},
-		{Name: "story.search_chapters", Description: "在本书章节中搜索情节、措辞或线索。", InputSchema: objectSchema(map[string]any{
+		{Name: "story_search_chapters", Description: "在本书章节中搜索情节、措辞或线索。", InputSchema: objectSchema(map[string]any{
 			"query": map[string]any{"type": "string"},
 			"limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 20},
 		})},
-		{Name: "story.get_characters", Description: "读取人物档案与设定。", InputSchema: objectSchema(map[string]any{
+		{Name: "story_get_characters", Description: "读取人物档案与设定。", InputSchema: objectSchema(map[string]any{
 			"query": map[string]any{"type": "string", "description": "人物名或需要核对的特征"},
 		})},
-		{Name: "story.get_open_threads", Description: "读取尚未解决的故事线索。", InputSchema: objectSchema(map[string]any{})},
+		{Name: "story_get_open_threads", Description: "读取尚未解决的故事线索。", InputSchema: objectSchema(map[string]any{})},
 	}
 }
 
@@ -735,9 +754,11 @@ func (runtime *WritingFrameRuntime) runAgentChat(ctx context.Context, output io.
 	}
 	messages = append(messages, ModelMessage{Role: "user", Content: request.UserIntent})
 	tools := agentChatTools()
-	allowedTools := map[string]bool{}
+	allowedTools := map[string]string{}
 	for _, tool := range tools {
-		allowedTools[tool.Name] = true
+		if toolID, ok := agentChatToolID(tool.Name); ok {
+			allowedTools[tool.Name] = toolID
+		}
 	}
 	maxOutput := 4096
 	if request.Budgets.MaxOutputTokens != nil && *request.Budgets.MaxOutputTokens > 0 {
@@ -776,20 +797,23 @@ func (runtime *WritingFrameRuntime) runAgentChat(ctx context.Context, output io.
 		}
 		messages = append(messages, ModelMessage{Role: "assistant", Content: response.Content, ToolCalls: response.ToolCalls})
 		for index, call := range response.ToolCalls {
-			if !allowedTools[call.Name] || !validPlanSchemaID(call.ID) || !json.Valid([]byte(call.Arguments)) {
+			toolID, allowed := allowedTools[call.Name]
+			if !allowed || !validPlanSchemaID(call.ID) || !json.Valid([]byte(call.Arguments)) {
 				return errors.New("agent tool call is invalid")
 			}
 			if _, err := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolRequested, Payload: map[string]any{
-				"toolId": call.Name, "agentId": "primary-writer", "stageId": stageID,
+				"toolId": toolID, "agentId": "primary-writer", "stageId": stageID,
 			}}); err != nil {
 				return err
 			}
-			result, err := runtime.requestAgentTool(ctx, output, request, round, index+1, call)
+			authorizedCall := call
+			authorizedCall.Name = toolID
+			result, err := runtime.requestAgentTool(ctx, output, request, round, index+1, authorizedCall)
 			if err != nil {
 				return err
 			}
 			if _, err := EmitRunEvent(ctx, runtime.store, output, request.RunID, RuntimeEventInput{Type: RunEventTypeToolCompleted, Payload: map[string]any{
-				"toolId": call.Name, "agentId": "primary-writer", "stageId": stageID,
+				"toolId": toolID, "agentId": "primary-writer", "stageId": stageID,
 			}}); err != nil {
 				return err
 			}
