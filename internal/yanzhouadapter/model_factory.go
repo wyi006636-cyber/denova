@@ -51,9 +51,10 @@ type ModelMessage struct {
 }
 
 type ModelToolCall struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Arguments string `json:"arguments"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Arguments   string `json:"arguments"`
+	StreamIndex int    `json:"-"`
 }
 
 type ModelTool struct {
@@ -103,6 +104,14 @@ type NativeModelRequest struct {
 	URL     string
 	Headers map[string]string
 	Body    []byte
+}
+
+type ModelStreamChunkDecoder interface {
+	Decode(json.RawMessage) ([]ModelStreamEvent, error)
+}
+
+type ModelStreamDecoderFactory interface {
+	NewStreamDecoder() ModelStreamChunkDecoder
 }
 
 type ModelAdapter interface {

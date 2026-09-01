@@ -66,9 +66,13 @@ func TestRunDispatchesBothEntrypointsThroughNegotiatedWritingHarnesses(t *testin
 	providerCalls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		providerCalls++
+		content := "站台阶段-" + string(rune('0'+providerCalls))
+		if providerCalls == 3 {
+			content = `{"schemaVersion":"1","status":"pass","findings":[]}`
+		}
 		writer.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(writer).Encode(map[string]any{
-			"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": "站台阶段-" + string(rune('0'+providerCalls))}, "finish_reason": "stop"}},
+			"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": content}, "finish_reason": "stop"}},
 			"usage":   map[string]any{"prompt_tokens": 8, "completion_tokens": 9, "total_tokens": 17},
 		})
 	}))

@@ -140,97 +140,117 @@ func (a *anthropicAdapter) NormalizeResponse(data []byte) (ModelResponse, error)
 	}, nil
 }
 
+type anthropicStreamToolBlock struct {
+	id           string
+	name         string
+	initialInput map[string]any
+	partialJSON  strings.Builder
+}
+
+type anthropicStreamDecoder struct {
+	inputTokens  int
+	toolBlocks   map[int]*anthropicStreamToolBlock
+	finishReason string
+	usage        ModelUsage
+}
+
+func newAnthropicStreamDecoder() *anthropicStreamDecoder {
+	return &anthropicStreamDecoder{toolBlocks: make(map[int]*anthropicStreamToolBlock)}
+}
+
+func (a *anthropicAdapter) NewStreamDecoder() ModelStreamChunkDecoder {
+	return newAnthropicStreamDecoder()
+}
+
 func (a *anthropicAdapter) NormalizeStream(chunks []json.RawMessage) ([]ModelStreamEvent, error) {
+	decoder := newAnthropicStreamDecoder()
 	events := make([]ModelStreamEvent, 0, len(chunks))
-	inputTokens := 0
-	type toolBlock struct {
-		id           string
-		name         string
-		initialInput map[string]any
-		partialJSON  strings.Builder
-	}
-	toolBlocks := make(map[int]*toolBlock)
 	for _, data := range chunks {
-		var event struct {
-			Type    string `json:"type"`
-			Index   int    `json:"index"`
-			Message struct {
-				Usage struct {
-					Input int `json:"input_tokens"`
-				} `json:"usage"`
-			} `json:"message"`
-			ContentBlock struct {
-				Type  string         `json:"type"`
-				ID    string         `json:"id"`
-				Name  string         `json:"name"`
-				Input map[string]any `json:"input"`
-			} `json:"content_block"`
-			Delta struct {
-				Type        string `json:"type"`
-				Text        string `json:"text"`
-				PartialJSON string `json:"partial_json"`
-				StopReason  string `json:"stop_reason"`
-			} `json:"delta"`
-			Usage struct {
-				Output int `json:"output_tokens"`
-			} `json:"usage"`
-		}
-		if err := json.Unmarshal(data, &event); err != nil {
+		chunkEvents, err := decoder.Decode(data)
+		if err != nil {
 			return nil, err
 		}
-		switch event.Type {
-		case "message_start":
-			inputTokens = event.Message.Usage.Input
-		case "content_block_delta":
-			if event.Delta.Type == "text_delta" && event.Delta.Text != "" {
-				events = append(events, ModelStreamEvent{
-					Type:    "content-delta",
-					Content: event.Delta.Text,
-				})
-			} else if event.Delta.Type == "input_json_delta" {
-				if block := toolBlocks[event.Index]; block != nil {
-					block.partialJSON.WriteString(event.Delta.PartialJSON)
+		events = append(events, chunkEvents...)
+	}
+	return events, nil
+}
+
+func (decoder *anthropicStreamDecoder) Decode(data json.RawMessage) ([]ModelStreamEvent, error) {
+	var event struct {
+		Type    string `json:"type"`
+		Index   int    `json:"index"`
+		Message struct {
+			Usage struct {
+				Input int `json:"input_tokens"`
+			} `json:"usage"`
+		} `json:"message"`
+		ContentBlock struct {
+			Type  string         `json:"type"`
+			ID    string         `json:"id"`
+			Name  string         `json:"name"`
+			Input map[string]any `json:"input"`
+		} `json:"content_block"`
+		Delta struct {
+			Type        string `json:"type"`
+			Text        string `json:"text"`
+			PartialJSON string `json:"partial_json"`
+			StopReason  string `json:"stop_reason"`
+		} `json:"delta"`
+		Usage struct {
+			Output int `json:"output_tokens"`
+		} `json:"usage"`
+	}
+	if err := json.Unmarshal(data, &event); err != nil {
+		return nil, err
+	}
+	events := []ModelStreamEvent{}
+	switch event.Type {
+	case "message_start":
+		decoder.inputTokens = event.Message.Usage.Input
+	case "content_block_delta":
+		if event.Delta.Type == "text_delta" && event.Delta.Text != "" {
+			events = append(events, ModelStreamEvent{Type: "content-delta", Content: event.Delta.Text})
+		} else if event.Delta.Type == "input_json_delta" {
+			if block := decoder.toolBlocks[event.Index]; block != nil {
+				block.partialJSON.WriteString(event.Delta.PartialJSON)
+			}
+		}
+	case "content_block_start":
+		if event.ContentBlock.Type == "tool_use" {
+			decoder.toolBlocks[event.Index] = &anthropicStreamToolBlock{
+				id: event.ContentBlock.ID, name: event.ContentBlock.Name, initialInput: event.ContentBlock.Input,
+			}
+		}
+	case "content_block_stop":
+		if block := decoder.toolBlocks[event.Index]; block != nil {
+			arguments := stringifyArguments(block.initialInput)
+			if partial := block.partialJSON.String(); partial != "" {
+				var parsed any
+				if err := json.Unmarshal([]byte(partial), &parsed); err == nil {
+					arguments = stringifyArguments(parsed)
+				} else {
+					arguments = partial
 				}
 			}
-		case "content_block_start":
-			if event.ContentBlock.Type == "tool_use" {
-				toolBlocks[event.Index] = &toolBlock{
-					id:           event.ContentBlock.ID,
-					name:         event.ContentBlock.Name,
-					initialInput: event.ContentBlock.Input,
-				}
+			toolCall := ModelToolCall{ID: block.id, Name: block.name, Arguments: arguments, StreamIndex: event.Index}
+			events = append(events, ModelStreamEvent{Type: "tool-call-delta", ToolCall: &toolCall})
+			delete(decoder.toolBlocks, event.Index)
+		}
+	case "message_delta":
+		if event.Delta.StopReason != "" {
+			decoder.finishReason = normalizeFinishReason(event.Delta.StopReason, false)
+			decoder.usage = ModelUsage{
+				InputTokens: decoder.inputTokens, OutputTokens: event.Usage.Output,
+				TotalTokens: decoder.inputTokens + event.Usage.Output,
 			}
-		case "content_block_stop":
-			if block := toolBlocks[event.Index]; block != nil {
-				arguments := stringifyArguments(block.initialInput)
-				if partial := block.partialJSON.String(); partial != "" {
-					var parsed any
-					if err := json.Unmarshal([]byte(partial), &parsed); err == nil {
-						arguments = stringifyArguments(parsed)
-					} else {
-						arguments = partial
-					}
-				}
-				toolCall := ModelToolCall{ID: block.id, Name: block.name, Arguments: arguments}
-				events = append(events, ModelStreamEvent{
-					Type:     "tool-call-delta",
-					ToolCall: &toolCall,
-				})
-				delete(toolBlocks, event.Index)
-			}
-		case "message_delta":
-			if event.Delta.StopReason != "" {
-				usage := ModelUsage{
-					InputTokens:  inputTokens,
-					OutputTokens: event.Usage.Output,
-					TotalTokens:  inputTokens + event.Usage.Output,
-				}
-				events = append(events, ModelStreamEvent{
-					Type:         "message-complete",
-					FinishReason: normalizeFinishReason(event.Delta.StopReason, false),
-					Usage:        &usage,
-				})
-			}
+		}
+	case "message_stop":
+		if decoder.finishReason != "" {
+			usage := decoder.usage
+			events = append(events, ModelStreamEvent{
+				Type: "message-complete", FinishReason: decoder.finishReason, Usage: &usage,
+			})
+			decoder.finishReason = ""
 		}
 	}
 	return events, nil

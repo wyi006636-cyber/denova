@@ -41,6 +41,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Yanzhou `chapter.polish` 继续保持单次模型调用，但不再使用 Sidecar 内置的保守校对提示；运行请求必须携带主应用授权的 `polish.standard` 标准/适中提示快照，Sidecar 校验后原样作为系统润色合同执行。
+- Yanzhou `chapter.polish` remains a single model call, but no longer uses a sidecar-owned conservative proofreading prompt. The run request must carry the main app-authorized standard/moderate `polish.standard` prompt snapshot, which the sidecar validates and executes verbatim as the polishing system contract.
 - Agent 工具上下文收敛为单一边界：工具结果仅在执行完成时按全局 `agent_tool_result_limit_kb` 有界化，后续轮次原样保留有效的 call/result 对，旧历史交给普通上下文压缩；`read_lore_items` 仍使用来源回执避免重复正文。Beta 不兼容：移除 `tool_result_keep_recent`、`tool_result_context_budget_kb` 与 `tool_result_preview_chars`，旧配置键读取时忽略。
 - Agent tool context now has one size boundary: results are bounded once at completion by the global `agent_tool_result_limit_kb`, valid call/result pairs remain exact across subsequent turns, and normal context compaction owns older history; `read_lore_items` still uses source receipts to avoid duplicating bodies. Beta breaking: `tool_result_keep_recent`, `tool_result_context_budget_kb`, and `tool_result_preview_chars` are removed, and legacy keys are ignored when read.
 - 游戏模式移除单次 `state_changes` 的操作数量硬上限，工具 Schema、提交解码、状态编译与 `TurnResult` 不再因第 25 项或更多操作拒绝复杂回合。Agent 仍会收到“常规回合建议不超过 24 项”的软提示，并明确复杂开局或确有更多事实变化时可以超过。
@@ -92,6 +94,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- 修复 Yanzhou `chapter.polish` 被 standard Harness 自动接入 reviewer 与二次修订的问题：润色和独立章节审稿现在都只执行单次模型阶段；润色使用保真完整候选契约，审稿只产出只读报告，非法 reviewer 全文输出会失败关闭而不再伪造通过。
+- Fixed Yanzhou `chapter.polish` being coupled to the standard Harness reviewer and second revision: polish and independent chapter review now use one model stage, polish receives a full-candidate fidelity contract, review remains report-only, and malformed full-prose reviewer output fails closed instead of being marked as passed.
 - 修复 Agent `prefill failed: unexpected control character ... char 2000`：上下文层不再按 JSON 外形猜测并截断或替换工具结果，OpenAI 请求始终把 tool content 作为不透明字符串发送。
 - Fixed Agent `prefill failed: unexpected control character ... char 2000`: the context layer no longer guesses from JSON shape or truncates/replaces tool results, and OpenAI requests always send tool content as an opaque string.
 - 游戏模式的 `submit_interactive_turn` 现在会在冻结 Schema 校验前，将可无歧义解释的数字、布尔、object 和 list 字符串编码规范为原生 JSON；冲突或模糊值仍会原子拒绝，Object 内部记录则保持原样。一次提交中的独立状态错误会合并到同一回执并精确定位 `initial_state` 字段，工具说明也改用原生 JSON 示例，避免弱模型逐字段重试。
