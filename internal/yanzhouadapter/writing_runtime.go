@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -30,6 +31,13 @@ var writingCapabilityKinds = map[string]string{
 	"book.review": "review", "review.repair": "repair", "setting.sync": "state_patch",
 	"image.generate": "image", "game.turn.generate": "game_turn",
 	"game.turn.adapt_to_novel": "adaptation",
+}
+
+func valueOrZero(value *int) int {
+	if value == nil {
+		return 0
+	}
+	return *value
 }
 
 type writingRuntimeState struct {
@@ -242,6 +250,7 @@ func (runtime *WritingFrameRuntime) HandleFrame(ctx context.Context, frame yanzh
 	if err != nil {
 		return err
 	}
+	log.Printf("[writing-runtime] run start profile=%s wallMs=%d outputTokens=%d modelTimeoutMs=%d", request.HarnessProfile, request.Budgets.MaxWallTimeMS, valueOrZero(request.Budgets.MaxOutputTokens), request.EffectiveModelProfile.TimeoutMS)
 	wallTime := request.Budgets.MaxWallTimeMS
 	if profile.Budget.MaxWallTimeMS < wallTime {
 		wallTime = profile.Budget.MaxWallTimeMS
@@ -522,8 +531,10 @@ func validateWritingRunRequest(request planRunRequest, envelopeRequestID string)
 }
 
 func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planRunRequest, stage WritingHarnessStage, previous []writingRuntimeArtifact, contextText string) (ModelResponse, error) {
+	log.Printf("[writing-runtime] model stage start stage=%s priorArtifacts=%d", stage.ID, len(previous))
 	adapter, err := NewModelAdapter(request.EffectiveModelProfile.effective())
 	if err != nil {
+		log.Printf("[writing-runtime] model adapter unavailable stage=%s", stage.ID)
 		return ModelResponse{}, err
 	}
 	maxOutput := 4096
@@ -535,6 +546,7 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 		{Role: "user", Content: writingStageInput(request.UserIntent, contextText, previous)},
 	}, MaxOutputTokens: maxOutput}, false)
 	if err != nil {
+		log.Printf("[writing-runtime] model request invalid stage=%s outputTokens=%d", stage.ID, maxOutput)
 		return ModelResponse{}, err
 	}
 	deadline := time.Duration(request.EffectiveModelProfile.TimeoutMS) * time.Millisecond
@@ -545,6 +557,7 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 	defer cancel()
 	httpRequest, err := http.NewRequestWithContext(callCtx, native.Method, native.URL, bytes.NewReader(native.Body))
 	if err != nil {
+		log.Printf("[writing-runtime] model HTTP request invalid stage=%s", stage.ID)
 		return ModelResponse{}, err
 	}
 	for key, value := range native.Headers {
@@ -552,17 +565,21 @@ func (runtime *WritingFrameRuntime) callModel(ctx context.Context, request planR
 	}
 	response, err := runtime.client.Do(httpRequest)
 	if err != nil {
+		log.Printf("[writing-runtime] model transport failed stage=%s contextDeadline=%t", stage.ID, errors.Is(callCtx.Err(), context.DeadlineExceeded))
 		return ModelResponse{}, err
 	}
 	defer response.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(response.Body, 4*1024*1024+1))
 	if err != nil || len(body) > 4*1024*1024 || response.StatusCode < 200 || response.StatusCode >= 300 {
+		log.Printf("[writing-runtime] model request failed stage=%s status=%d readError=%t oversized=%t", stage.ID, response.StatusCode, err != nil, len(body) > 4*1024*1024)
 		return ModelResponse{}, errors.New("writing model request failed")
 	}
 	modelResponse, err := adapter.NormalizeResponse(body)
 	if err != nil || strings.TrimSpace(modelResponse.Content) == "" || len(modelResponse.ToolCalls) != 0 {
+		log.Printf("[writing-runtime] model response invalid stage=%s normalizeError=%t empty=%t toolCalls=%d", stage.ID, err != nil, strings.TrimSpace(modelResponse.Content) == "", len(modelResponse.ToolCalls))
 		return ModelResponse{}, errors.New("writing model response is invalid")
 	}
+	log.Printf("[writing-runtime] model stage complete stage=%s", stage.ID)
 	return modelResponse, nil
 }
 
