@@ -25,10 +25,13 @@ interface SkillConfigPanelProps {
   onIdentityChanged: (document: SkillDocument) => void | Promise<void>
   onCancel: () => void
   onDelete: () => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
 export interface SkillConfigPanelHandle {
   flush: () => Promise<boolean>
+  hasPending: () => boolean
+  discard: () => void
 }
 
 interface SkillConfigAutosaveDraft {
@@ -57,6 +60,7 @@ export const SkillConfigPanel = forwardRef<SkillConfigPanelHandle, SkillConfigPa
   onIdentityChanged,
   onCancel,
   onDelete,
+  onDirtyChange,
 }, ref) {
   const { t } = useTranslation()
   const [name, setName] = useState(document.name)
@@ -147,9 +151,34 @@ export const SkillConfigPanel = forwardRef<SkillConfigPanelHandle, SkillConfigPa
     }
   }, [configAutosave.flushPending, configAutosave.saveNow, configAutosave.status, identityChanged])
 
+  const discardConfigAutosave = useCallback(() => {
+    configAutosave.cancelPending()
+    setName(document.name)
+    setScope(document.scope)
+    setDescription(document.description)
+    setAgents(parseAgentKeys(document.agent))
+    setCategory(document.category || 'general')
+    setCapabilities([...(document.capabilities || [])])
+    setError(null)
+  }, [configAutosave.cancelPending, document.agent, document.capabilities, document.category, document.description, document.name, document.scope])
+
+  useEffect(() => {
+    onDirtyChange?.(
+      identityChanged
+      || configAutosave.status === 'pending'
+      || configAutosave.status === 'saving'
+      || configAutosave.status === 'error',
+    )
+  }, [configAutosave.status, identityChanged, onDirtyChange])
+
   useImperativeHandle(ref, () => ({
     flush: () => flushConfigAutosave(false),
-  }), [flushConfigAutosave])
+    hasPending: () => identityChanged
+      || configAutosave.status === 'pending'
+      || configAutosave.status === 'saving'
+      || configAutosave.status === 'error',
+    discard: discardConfigAutosave,
+  }), [configAutosave.status, discardConfigAutosave, flushConfigAutosave, identityChanged])
 
   const applyIdentityChange = async () => {
     if (!document.editable || !identityChanged) return

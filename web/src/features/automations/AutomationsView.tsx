@@ -11,6 +11,7 @@ import { FeaturePageShell } from '@/components/layout/feature-page-shell'
 import { SidebarVisibilityToggle } from '@/components/layout/sidebar-visibility-toggle'
 import { ConfigManagerChat } from '@/components/Chat/ConfigManagerChat'
 import { ConfigManagerToggle } from '@/components/Chat/ConfigManagerToggle'
+import { useExecutableDraftEntry } from '@/features/config-guard/executable-draft-guard'
 import { Button } from '@/components/ui/button'
 import {
   createAutomation,
@@ -288,6 +289,21 @@ export function AutomationsView({
       setError(cause instanceof Error ? cause.message : String(cause))
     },
   })
+  const discardAutomationDraft = useCallback(async () => {
+    automationAutosave.cancelPending()
+    draftDirtyRef.current = false
+    creatingRef.current = false
+    setCreating(false)
+    await load()
+  }, [automationAutosave.cancelPending, load])
+  useExecutableDraftEntry(
+    'automations',
+    draftDirtyRef.current
+      || automationAutosave.status === 'pending'
+      || automationAutosave.status === 'saving'
+      || automationAutosave.status === 'error',
+    discardAutomationDraft,
+  )
   const flushAutomationAutosave = useCallback(() => {
     setError(null)
     return automationAutosave.flush()

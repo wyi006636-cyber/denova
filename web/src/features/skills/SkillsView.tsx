@@ -4,6 +4,7 @@ import { Bot, RefreshCw, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ConfigManagerChat } from '@/components/Chat/ConfigManagerChat'
 import { ConfigManagerToggle } from '@/components/Chat/ConfigManagerToggle'
+import { useExecutableDraftEntry } from '@/features/config-guard/executable-draft-guard'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
@@ -104,6 +105,7 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
   const [agentOpen, setAgentOpen] = useResponsiveAgentOpen()
   const [sidebarVisible, setSidebarVisible] = useState(true)
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null)
+  const [configDirty, setConfigDirty] = useState(false)
   const [documentReloadVersion, setDocumentReloadVersion] = useState(0)
   const [eventSource] = useState(() => `skills-view-${nextSkillsViewSourceID++}`)
   const configPanelRef = useRef<SkillConfigPanelHandle | null>(null)
@@ -249,6 +251,23 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
     if (mode === 'config') return configPanelRef.current?.flush() ?? true
     return flushContentAutosave(force)
   }, [flushContentAutosave, mode])
+
+  const discardSkillDraft = useCallback(async () => {
+    contentAutosave.cancelPending()
+    configPanelRef.current?.discard()
+    if (document) setDraft(document.content)
+    if (fileDocument) setFileDraft(fileDocument.content)
+    setConfigDirty(false)
+  }, [contentAutosave.cancelPending, document, fileDocument])
+
+  useExecutableDraftEntry(
+    'skills',
+    configDirty
+      || contentAutosave.status === 'pending'
+      || contentAutosave.status === 'saving'
+      || contentAutosave.status === 'error',
+    discardSkillDraft,
+  )
 
   const load = useCallback(async (): Promise<SkillSnapshot | null> => {
     setLoading(true)
@@ -721,6 +740,7 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
                 onIdentityChanged={onConfigIdentityChanged}
                 onCancel={() => setMode('editor')}
                 onDelete={() => void requestDelete()}
+                onDirtyChange={setConfigDirty}
               />
             ) : document ? (
               <SkillEditor

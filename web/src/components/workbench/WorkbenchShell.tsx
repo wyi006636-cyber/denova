@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
@@ -11,6 +11,8 @@ import { createStablePortalHost, StablePortalSlot } from '@/components/layout/st
 import { MobileWorkspaceHeaderProvider, MobileWorkspaceHeaderOutlet } from '@/components/layout/mobile-workspace-header'
 import { closeMobilePanes } from '@/components/layout/mobile-pane-events'
 import { Button } from '@/components/ui/button'
+import { UnsavedConfigGuardDialog } from '@/features/config-guard/UnsavedConfigGuardDialog'
+import { discardExecutableDraft, hasPendingExecutableDraft } from '@/features/config-guard/executable-draft-guard'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { MessageCenterButton } from '@/features/messages/MessageCenter'
 import type { AutomationMessageNavigation } from '@/features/messages/types'
@@ -70,6 +72,19 @@ interface WorkbenchShellProps {
   onDismissNotice?: () => void
 }
 
+interface PendingExecutableNavigation {
+  key: string
+  proceed: () => void | Promise<unknown>
+}
+
+function executableDraftKeyForMode(mode: WorkspaceMode): string | null {
+  if (mode === 'agents') return 'agents'
+  if (mode === 'skills') return 'skills'
+  if (mode === 'automations') return 'automations'
+  if (mode === 'presets') return 'setting-panel'
+  return null
+}
+
 const ACTIVITY_BAR_COLLAPSED_WIDTH = 48
 
 export function WorkbenchShell({
@@ -104,6 +119,7 @@ export function WorkbenchShell({
   const setCommandOpen = useWorkspaceStore((state) => state.setCommandOpen)
   const [activityOrders, setActivityOrders] = useState<Record<ActivityOrderScope, ActivityItemID[]>>(readStoredActivityOrders)
   const [hiddenActivityIDs, setHiddenActivityIDs] = useState<ActivityItemID[]>(readStoredHiddenActivityIDs)
+  const [pendingLeave, setPendingLeave] = useState<PendingExecutableNavigation | null>(null)
   const activityBarSizing = useActivityBarWidth(activityBarExpanded && !isMobile)
   const activitySummary = useActivitySummary().data
   const messageUnread = activitySummary?.message_unread_count ?? 0
@@ -136,20 +152,44 @@ export function WorkbenchShell({
     if (settingsOpen) onCloseSettings()
   }
 
+  const requestNavigation = useCallback((proceed: () => void | Promise<unknown>) => {
+    const key = !settingsOpen ? executableDraftKeyForMode(mode) : null
+    if (!key || !hasPendingExecutableDraft(key)) {
+      return proceed()
+    }
+    setPendingLeave({ key, proceed })
+    return undefined
+  }, [mode, settingsOpen])
+
+  const discardPendingNavigation = useCallback(async () => {
+    const target = pendingLeave
+    if (!target) return
+    setPendingLeave(null)
+    await discardExecutableDraft(target.key)
+    await target.proceed()
+  }, [pendingLeave])
+
   const openWriting = () => {
-    closeSettingsIfOpen()
-    onSetMode('ide')
+    requestNavigation(() => {
+      closeSettingsIfOpen()
+      onSetMode('ide')
+    })
   }
 
   const openGame = () => {
-    closeSettingsIfOpen()
-    onSetInteractiveSubmode('story')
-    onSetMode('interactive')
+    requestNavigation(() => {
+      closeSettingsIfOpen()
+      onSetInteractiveSubmode('story')
+      onSetMode('interactive')
+    })
   }
 
   const openRoute = (nextMode: WorkspaceMode) => {
-    closeSettingsIfOpen()
-    onSetMode(nextMode)
+    if (nextMode === mode && !settingsOpen) return
+    requestNavigation(() => {
+      closeSettingsIfOpen()
+      onSetMode(nextMode)
+    })
   }
 
   const openBooks = () => {
@@ -181,9 +221,34 @@ export function WorkbenchShell({
   }
 
   const openAutomationNotification = (target: AutomationMessageNavigation) => {
-    closeSettingsIfOpen()
-    requestAutomationNavigation(target)
-    onSetMode('automations')
+    requestNavigation(() => {
+      closeSettingsIfOpen()
+      requestAutomationNavigation(target)
+      onSetMode('automations')
+    })
+  }
+
+  const openSettings = () => {
+    if (settingsOpen) {
+      onToggleSettings()
+      return
+    }
+    requestNavigation(onToggleSettings)
+  }
+
+  const quickSwitchBook = async (path: string): Promise<boolean> => {
+    if (path === workspace) return onQuickSwitchBook(path)
+    const key = !settingsOpen ? executableDraftKeyForMode(mode) : null
+    if (!key || !hasPendingExecutableDraft(key)) return onQuickSwitchBook(path)
+    setPendingLeave({
+      key,
+      proceed: async () => {
+        const switched = await onQuickSwitchBook(path)
+        if (switched) closeMobilePanes()
+        return switched
+      },
+    })
+    return false
   }
 
   const creationActivityItems: ActivityItem[] = [
@@ -360,7 +425,7 @@ export function WorkbenchShell({
           currentWordCount={summary?.total_words}
           workspace={workspace}
           iconOnly={!activityBarExpanded}
-          onSwitchBook={onQuickSwitchBook}
+          onSwitchBook={quickSwitchBook}
           onManageBooks={manageBooks}
         />
       }
@@ -368,7 +433,7 @@ export function WorkbenchShell({
         <WorkbenchNoticePill
           expanded={activityBarExpanded}
           notice={notice}
-          onOpenSettings={onToggleSettings}
+          onOpenSettings={openSettings}
           onDismiss={onDismissNotice}
         />
       ) : undefined}
@@ -389,7 +454,7 @@ export function WorkbenchShell({
       minWidth={activityBarSizing.minWidth}
       maxWidth={activityBarSizing.maxWidth}
       currentWidth={activityBarSizing.width}
-      onOpenSettings={onToggleSettings}
+      onOpenSettings={openSettings}
       onToggle={onToggleActivityBarExpanded}
       onReorder={handleActivityReorder}
       onCustomizationReorder={handleCustomizationActivityReorder}
@@ -422,7 +487,7 @@ export function WorkbenchShell({
             books={books} currentBookName={currentBookName}
             currentChapterCount={summary?.chapter_count} currentWordCount={summary?.total_words}
             workspace={workspace} compact
-            onSwitchBook={async (path) => { const switched = await onQuickSwitchBook(path); if (switched) closeMobilePanes(); return switched }}
+            onSwitchBook={async (path) => { const switched = await quickSwitchBook(path); if (switched) closeMobilePanes(); return switched }}
             onManageBooks={() => { closeMobilePanes(); manageBooks() }}
           />
         </div>
@@ -432,7 +497,7 @@ export function WorkbenchShell({
           </Button>
           <MessageCenterButton showLabel className="!min-h-11 !w-full justify-center" unreadCount={messageUnread} onUnreadCountChange={setActivityMessageUnreadCount} onOpenAutomation={openAutomationNotification} />
         </div>
-        {notice && <WorkbenchNoticePill expanded notice={notice} starSecondaryText="description" onOpenSettings={() => { closeMobilePanes(); onToggleSettings() }} onDismiss={onDismissNotice} />}
+        {notice && <WorkbenchNoticePill expanded notice={notice} starSecondaryText="description" onOpenSettings={() => { closeMobilePanes(); openSettings() }} onDismiss={onDismissNotice} />}
       </div>
     )
     const mobileActivityItems: MobileNavItem[] = allActivityItems
@@ -467,12 +532,17 @@ export function WorkbenchShell({
             label: t('workbench.activity.settings'),
             icon: <Settings className="h-4 w-4" />,
             active: settingsOpen,
-            onClick: onToggleSettings,
+            onClick: openSettings,
           }}
           closeLabel={t('common.close')}
           navigationLabel={t('workbench.mobile.navigation')}
         />
         {mainContentPortal}
+        <UnsavedConfigGuardDialog
+          open={Boolean(pendingLeave)}
+          onOpenChange={(open) => { if (!open) setPendingLeave(null) }}
+          onDiscard={discardPendingNavigation}
+        />
       </MobileWorkspaceHeaderProvider>
     )
   }
@@ -501,6 +571,11 @@ export function WorkbenchShell({
         />
       </SidebarProvider>
       {mainContentPortal}
+      <UnsavedConfigGuardDialog
+        open={Boolean(pendingLeave)}
+        onOpenChange={(open) => { if (!open) setPendingLeave(null) }}
+        onDiscard={discardPendingNavigation}
+      />
     </MobileWorkspaceHeaderProvider>
   )
 }

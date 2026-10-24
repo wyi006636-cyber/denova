@@ -120,6 +120,7 @@ export function useAutomationAutosave({
   }, [autosave.flushPending, autosave.saveNow])
 
   return {
+    cancelPending: autosave.cancelPending,
     status: autosave.status,
     error: autosave.error,
     retry: autosave.retry,

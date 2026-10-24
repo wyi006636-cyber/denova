@@ -47,6 +47,7 @@ import agentChat from './zh-CN/agentChat'
 import agentApproval from './zh-CN/agentApproval'
 import files from './zh-CN/files'
 import trajectory from './zh-CN/trajectory'
+import configGuard from './zh-CN/configGuard'
 
 const zhCN = {
   ...common,
@@ -98,6 +99,7 @@ const zhCN = {
   ...agentApproval,
   ...files,
   ...trajectory,
+  ...configGuard,
   'agents.tool.availability.runtimeCheck': '运行时检查',
 } as const
 

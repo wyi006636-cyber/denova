@@ -1,12 +1,13 @@
 import { ResourceExchangeActions } from '@/features/market/ResourceExchangeActions'
 import type { ResourceKind } from '@/features/market/api'
 import { closeMobilePanes } from '@/components/layout/mobile-pane-events'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Bot, Compass, Database, Dice5, RotateCcw, ScrollText, SlidersHorizontal, Sparkles, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from '@/lib/toast'
 import { ConfigManagerChat } from '@/components/Chat/ConfigManagerChat'
 import { ConfigManagerToggle } from '@/components/Chat/ConfigManagerToggle'
+import { useExecutableDraftEntry } from '@/features/config-guard/executable-draft-guard'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { AutosaveStatusIndicator } from '@/components/forms/autosave-status'
 import type { AutosaveStatus } from '@/components/forms/autosave-status'
@@ -315,6 +316,42 @@ export function PresetSettingsPanel({
     return tellerAutosave
   }
 
+  const presetDirty = (() => {
+    const differs = <T extends { id: string }>(draft: T | null, saved: T[]) => {
+      if (!draft) return false
+      const baseline = saved.find((item) => item.id === draft.id)
+      return !baseline || presetResourceDraftSignature(draft) !== presetResourceDraftSignature(baseline)
+    }
+    return differs(tellerDraft, tellers)
+      || differs(storyDirectorDraft, storyDirectors)
+      || differs(imagePresetDraft, imagePresets)
+      || differs(eventPackageDraft, eventPackages)
+      || differs(ruleSystemDraft, ruleSystems)
+      || differs(actorStateDraft, actorStates)
+  })()
+
+  const discardPresetDraft = useCallback(async () => {
+    tellerAutosave.cancelPending()
+    storyDirectorAutosave.cancelPending()
+    imagePresetAutosave.cancelPending()
+    eventPackageAutosave.cancelPending()
+    ruleSystemAutosave.cancelPending()
+    actorStateAutosave.cancelPending()
+    setTellerDraft(tellerDraft ? tellers.find((item) => item.id === tellerDraft.id) || null : null)
+    setStoryDirectorDraft(storyDirectorDraft ? storyDirectors.find((item) => item.id === storyDirectorDraft.id) || null : null)
+    setImagePresetDraft(imagePresetDraft ? imagePresets.find((item) => item.id === imagePresetDraft.id) || null : null)
+    setEventPackageDraft(eventPackageDraft ? eventPackages.find((item) => item.id === eventPackageDraft.id) || null : null)
+    setRuleSystemDraft(ruleSystemDraft ? ruleSystems.find((item) => item.id === ruleSystemDraft.id) || null : null)
+    setActorStateDraft(actorStateDraft ? actorStates.find((item) => item.id === actorStateDraft.id) || null : null)
+  }, [actorStateAutosave.cancelPending, actorStateDraft, actorStates, eventPackageAutosave.cancelPending, eventPackageDraft, eventPackages, imagePresetAutosave.cancelPending, imagePresetDraft, imagePresets, ruleSystemAutosave.cancelPending, ruleSystemDraft, ruleSystems, setActorStateDraft, setEventPackageDraft, setImagePresetDraft, setRuleSystemDraft, setStoryDirectorDraft, setTellerDraft, storyDirectorAutosave.cancelPending, storyDirectorDraft, storyDirectors, tellerAutosave.cancelPending, tellerDraft, tellers])
+
+  const activeAutosave = autosaveForKind(presetResourceKind)
+  useExecutableDraftEntry(
+    'setting-panel',
+    presetDirty || activeAutosave.status === 'pending' || activeAutosave.status === 'saving' || activeAutosave.status === 'error',
+    discardPresetDraft,
+  )
+
   const showInvalidPresetConfigNotice = () => {
     const canRestoreBuiltin = currentPresetBuiltinOverridden(presetResourceKind, presetDrafts)
     console.warn('[preset-settings] Invalid JSON blocked saving or switching presets', {
@@ -577,7 +614,6 @@ export function PresetSettingsPanel({
   }
 
   const activeDraft = currentPresetDraft()
-  const activeAutosave = autosaveForKind(presetResourceKind)
   const busy = saving || transitioning
   const canRestoreBuiltinPreset = currentPresetBuiltinOverridden(presetResourceKind, presetDrafts)
   const titleIcon = presetResourceIcon(presetResourceKind)
