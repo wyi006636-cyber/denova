@@ -103,11 +103,14 @@ function ReplyAdoption({ target, content, children }: { target?: WritingSelectio
 
   return <>
     <div ref={bodyRef} onPointerUp={captureSelection} onKeyUp={captureSelection}>{children}</div>
-    <div className="mt-1 flex flex-wrap items-center gap-1" onPointerDown={event => event.preventDefault()}>
+    {/* Ordinary replies stay uncluttered: the row appears once there is adoptable
+        prose (an author selection or a marked block) or the reply answers a
+        selection action, where the hint explains how to pick text. */}
+    {prose || effectiveTarget ? <div className="mt-1 flex flex-wrap items-center gap-1" onPointerDown={event => event.preventDefault()}>
       <Button size="xs" variant="ghost" disabled={!prose || !bridge?.editor || busy} onClick={() => void open('insert')}><TextCursorInput />{t('editor.adoption.insert')}</Button>
       {effectiveTarget ? <Button size="xs" variant="ghost" disabled={!prose || busy} onClick={() => void open('replace')}><Replace />{t('editor.adoption.replace')}</Button> : null}
       <span className="basis-full text-[11px] text-muted-foreground">{t(selected ? 'editor.adoption.selected' : prose ? 'editor.adoption.proseBlock' : 'editor.adoption.selectHint')}</span>
-    </div>
+    </div> : null}
     <Dialog open={Boolean(preview)} onOpenChange={open => { if (!open && !busy) setPreview(null) }}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
