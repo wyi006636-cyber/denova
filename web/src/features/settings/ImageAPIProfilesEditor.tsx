@@ -105,11 +105,11 @@ export function ImageAPIProfilesEditor({
   const updateModel = (index: number, model: string) => {
     const current = profiles[index]
     const previousID = imageAPIProfileID(current)
-    const previousModel = current.model?.trim() ?? ''
-    const syncID = !previousID || previousID === previousModel
-    const nextID = syncID ? uniqueImageProfileID(model, profiles, index) : current.id
+    // Generate the stable profile identity only while creating the profile.
+    // Once an ID has been persisted, changing the provider model must not
+    // invalidate image Agent or default image model refs.
+    const nextID = previousID ? (current.id?.trim() || previousID) : uniqueImageProfileID(model, profiles, index)
     updateProfile(index, { id: nextID, model })
-    if (syncID && previousID && selectedDefaultProfileID === previousID && nextID !== previousID) onDefaultProfileChange(nextID || '')
   }
   const removeProfile = (index: number) => {
     const removedID = imageAPIProfileID(profiles[index])

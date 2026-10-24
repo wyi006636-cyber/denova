@@ -11,6 +11,7 @@ import { FeaturePageShell } from '@/components/layout/feature-page-shell'
 import { SidebarVisibilityToggle } from '@/components/layout/sidebar-visibility-toggle'
 import { ConfigManagerChat } from '@/components/Chat/ConfigManagerChat'
 import { ConfigManagerToggle } from '@/components/Chat/ConfigManagerToggle'
+import { useExecutableDraftEntry } from '@/features/config-guard/executable-draft-guard'
 import { Button } from '@/components/ui/button'
 import {
   createAutomation,
@@ -105,16 +106,23 @@ export function AutomationsView({
   const [navigationTarget, setNavigationTarget] = useState<AutomationNavigationTarget | null>(null)
   const mountedRef = useRef(true)
   const loadSequenceRef = useRef(0)
+  const loadErrorRef = useRef<unknown>(null)
+  const [draftDirty, setDraftDirty] = useState(false)
   const draftDirtyRef = useRef(false)
   const draftRef = useRef(draft)
   const taskBaselineRef = useRef<AutomationTask | null>(null)
   const creatingRef = useRef(creating)
   draftRef.current = draft
   creatingRef.current = creating
+  const setDraftDirtyState = useCallback((dirty: boolean) => {
+    draftDirtyRef.current = dirty
+    setDraftDirty(dirty)
+  }, [])
 
   const load = useCallback(async () => {
     const sequence = loadSequenceRef.current + 1
     loadSequenceRef.current = sequence
+    loadErrorRef.current = null
     try {
       const locale = i18n.resolvedLanguage || i18n.language || 'zh-CN'
       const [projectEntries, taskTemplates, catalog] = await Promise.all([
@@ -172,7 +180,7 @@ export function AutomationsView({
         draftRef.current = clonedDraft
         setDraft(clonedDraft)
       } else if (!preserveDraft) {
-        draftDirtyRef.current = false
+        setDraftDirtyState(false)
         if (selected) {
           const key = automationTaskKey(selected)
           activeIdRef.current = key
@@ -194,11 +202,12 @@ export function AutomationsView({
       }
     } catch (e) {
       if (!mountedRef.current || sequence !== loadSequenceRef.current) return
+      loadErrorRef.current = e
       setError((e as Error).message)
     } finally {
       if (mountedRef.current && sequence === loadSequenceRef.current) setInitialLoadComplete(true)
     }
-  }, [i18n.language, i18n.resolvedLanguage, t, unassignedProjectTarget])
+  }, [i18n.language, i18n.resolvedLanguage, setDraftDirtyState, t, unassignedProjectTarget])
 
   const draftProject = projects.find((project) => project.id === automationTaskProjectID(draft))
   useEffect(() => {
@@ -280,7 +289,7 @@ export function AutomationsView({
         const nextDraft = cloneAutomationTask(saved, unassignedProjectTarget)
         draftRef.current = nextDraft
         setDraft(nextDraft)
-        draftDirtyRef.current = false
+        setDraftDirtyState(false)
       }
     },
     onError: (cause) => {
@@ -288,10 +297,56 @@ export function AutomationsView({
       setError(cause instanceof Error ? cause.message : String(cause))
     },
   })
-  const flushAutomationAutosave = useCallback(() => {
+  const flushAutomationAutosave = useCallback(async () => {
     setError(null)
+    // New automation definitions have no autosave lane until a project is
+    // selected and the create request succeeds. Keep that draft behind the
+    // leave dialog instead of treating an inactive lane as a successful flush.
+    if (creatingRef.current) {
+      if (!automationTaskProjectID(draftRef.current)) {
+        setError(t('automations.project.required'))
+        return false
+      }
+      return false
+    }
     return automationAutosave.flush()
-  }, [automationAutosave.flush])
+  }, [automationAutosave.flush, t])
+  const flushAutomationDraft = useCallback(async () => {
+    const flushed = await flushAutomationAutosave()
+    if (flushed) return true
+    return {
+      ok: false as const,
+      error: creatingRef.current && !automationTaskProjectID(draftRef.current)
+        ? t('automations.project.required')
+        : automationAutosave.getLastFlushError(),
+    }
+  }, [automationAutosave.getLastFlushError, flushAutomationAutosave, t])
+  const discardAutomationDraft = useCallback(async () => {
+    automationAutosave.cancelPending()
+    setDraftDirtyState(false)
+    creatingRef.current = false
+    setCreating(false)
+    await load()
+    if (loadErrorRef.current) throw loadErrorRef.current
+  }, [automationAutosave.cancelPending, load, setDraftDirtyState])
+  useExecutableDraftEntry(
+    'automations',
+    {
+      flush: flushAutomationDraft,
+      isDirty: () => draftDirty || draftDirtyRef.current
+        || automationAutosave.status === 'pending'
+        || automationAutosave.status === 'saving'
+        || automationAutosave.status === 'error',
+      isSaving: () => automationAutosave.status === 'saving',
+      getError: () => error || automationAutosave.error,
+      shouldPromptBeforeUnload: () => {
+        if (automationAutosave.status === 'error') return true
+        if (automationAutosave.status === 'pending' || automationAutosave.status === 'saving') return false
+        return draftDirtyRef.current
+      },
+      discard: discardAutomationDraft,
+    },
+  )
 
   const selectTask = async (task: AutomationTask) => {
     if (!(await flushAutomationAutosave())) return
@@ -302,7 +357,7 @@ export function AutomationsView({
     taskBaselineRef.current = nextDraft
     draftRef.current = nextDraft
     setDraft(nextDraft)
-    draftDirtyRef.current = false
+    setDraftDirtyState(false)
     setCreating(false)
     setPanelView('config')
     closeMobilePanes()
@@ -318,7 +373,7 @@ export function AutomationsView({
     const nextDraft = newAutomationTask(target, t('automations.defaultName'))
     draftRef.current = nextDraft
     setDraft(nextDraft)
-    draftDirtyRef.current = true
+    setDraftDirtyState(true)
     setCreating(true)
     setPanelView('config')
     closeMobilePanes()
@@ -334,7 +389,7 @@ export function AutomationsView({
       : newAutomationTask(target, t('automations.defaultName'))
     draftRef.current = nextDraft
     setDraft(nextDraft)
-    draftDirtyRef.current = true
+    setDraftDirtyState(true)
   }
 
   const createDraft = async () => {
@@ -360,7 +415,7 @@ export function AutomationsView({
         : cloneAutomationTask(rebaseJSONValue(submitted, latestDraft, canonical), unassignedProjectTarget)
       draftRef.current = nextDraft
       setDraft(nextDraft)
-      draftDirtyRef.current = automationTaskDraftSignature(nextDraft) !== automationTaskDraftSignature(canonical)
+      setDraftDirtyState(automationTaskDraftSignature(nextDraft) !== automationTaskDraftSignature(canonical))
       setTasks((current) => upsertAutomationTask(current, normalized))
       setCreating(false)
     } catch (e) {
@@ -392,7 +447,7 @@ export function AutomationsView({
       taskBaselineRef.current = fallback ? nextDraft : null
       draftRef.current = nextDraft
       setDraft(nextDraft)
-      draftDirtyRef.current = false
+      setDraftDirtyState(false)
       setCreating(false)
     } catch (e) {
       setError((e as Error).message)
@@ -470,7 +525,7 @@ export function AutomationsView({
       taskBaselineRef.current = nextDraft
       draftRef.current = nextDraft
       setDraft(nextDraft)
-      draftDirtyRef.current = false
+      setDraftDirtyState(false)
       setCreating(false)
       if (navigationTarget.inboxId) {
         setPanelView('inbox')
@@ -484,7 +539,7 @@ export function AutomationsView({
       setNavigationTarget(null)
     })()
     return () => { cancelled = true }
-  }, [flushAutomationAutosave, navigationTarget, openRun, tasks, unassignedProjectTarget])
+  }, [flushAutomationAutosave, navigationTarget, openRun, setDraftDirtyState, tasks, unassignedProjectTarget])
 
   const confirmInboxItem = async (item: AutomationInboxItem) => {
     setError(null)
@@ -521,7 +576,7 @@ export function AutomationsView({
   }
 
   const setDraftField = (patch: Partial<AutomationTask>) => {
-    draftDirtyRef.current = true
+    setDraftDirtyState(true)
     setDraft((current) => {
       const next = { ...current, ...patch }
       draftRef.current = next
@@ -529,7 +584,7 @@ export function AutomationsView({
     })
   }
   const setDraftTriggers = (triggers: AutomationTriggerDefinition[]) => {
-    draftDirtyRef.current = true
+    setDraftDirtyState(true)
     setDraft((current) => {
       const schedule = triggers.find((trigger) => trigger.type === 'schedule')?.schedule ?? current.schedule
       const next = { ...current, schedule, triggers }
