@@ -5,6 +5,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { CharacterCount } from '@tiptap/extension-character-count'
 import { TableKit } from '@tiptap/extension-table'
 import { Markdown } from '@tiptap/markdown'
+import { useWritingSelectionEditor } from '@/features/writing/use-writing-selection-editor'
 import { toast } from '@/lib/toast'
 import { useTranslation } from 'react-i18next'
 
@@ -380,6 +381,12 @@ export function WritingDocumentEditor({
     onFlushHandlerChange,
   })
 
+  const readSelectionDraft = useCallback(() => draftContentRef.current, [])
+  const runSelectionAction = useWritingSelectionEditor({
+    editor, projectId, fileName, enabled: active && editorMode === 'document' && Boolean(onQuoteSelection),
+    flush: flushCurrentDraft, readDraft: readSelectionDraft, onQuoteSelection,
+  })
+
   const prepareDocumentReviewSnapshot = useCallback(async (): Promise<DocumentReviewSnapshot> => {
     if (!editor || editor.isDestroyed || !fileName || !documentReview || !isMarkdownFile(fileName)) {
       throw new Error('Document comments are unavailable')
@@ -716,6 +723,8 @@ export function WritingDocumentEditor({
           showSelectionToolbar={selectedCharacters > 0 && (documentCommentsAvailable || Boolean(onQuoteSelection))}
           selectionToolbarMode={documentCommentsAvailable ? 'comment' : 'quote'}
           onSelectionAction={documentCommentsAvailable ? commentCurrentSelection : quoteCurrentSelection}
+          onQuoteSelection={documentCommentsAvailable && onQuoteSelection ? quoteCurrentSelection : undefined}
+          onWritingAction={onQuoteSelection ? runSelectionAction : undefined}
           reviewAnnotations={editor && fileName && documentReview && documentReviewTarget && documentCommentsAvailable ? (
             <DocumentReviewAnnotations
               ref={reviewAnnotationsRef}

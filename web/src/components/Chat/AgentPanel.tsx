@@ -38,6 +38,9 @@ import {
 import { useSkillCommands } from '@/hooks/useSkillCommands'
 import { DEFAULT_WRITING_SKILL, resolveWritingSkillSelection, useWritingSkillOptions } from '@/hooks/useWritingSkillOptions'
 import type { PersistedUserSettingsController } from '@/hooks/usePersistedUserSettings'
+import { WritingReplyContext } from '@/features/writing/WritingSelectionContext'
+import { useWritingSelection } from '@/features/writing/WritingSelectionContext'
+import { clearLatestSelectionActionTarget, replySelectionTargets, selectionActionOrigin, type WritingSelectionTarget } from '@/features/writing/selection-actions'
 import { AgentChatPane } from './AgentChatPane'
 import { LoadingState } from '@/components/common/LoadingState'
 import { SessionHistoryPopover } from './SessionHistoryPopover'
@@ -310,6 +313,9 @@ function AgentPanelComponent({
   const recoveryAbortAvailable = Boolean(runtimeProjection?.recovery_actions?.some((action) => action.kind === 'abort'))
   const activeControlsDisabled =
     isStreaming && (!runtimeProjection?.active_operation_id?.trim() || Boolean(runtimeProjection?.runtime_recoverable && !runtimeProjection.stream_attached))
+  const [selectionCommands, setSelectionCommands] = useState<ReadonlyMap<string, WritingSelectionTarget>>(new Map())
+  const writingSelection = useWritingSelection()
+  const replyTargets = useMemo(() => replySelectionTargets(messages, selectionCommands), [messages, selectionCommands])
   const sessionControlsDisabled = sessionActionsDisabled ?? (isStreaming || sessionTransitionPending)
   const [chatPaneHost] = useState(() => createStablePortalHost('relative flex h-full min-h-0 w-full min-w-0 flex-col'))
   const ideTellerId = persistedSettings.values.ide_story_teller_id
@@ -537,12 +543,21 @@ function AgentPanelComponent({
     }
     let submissionStarted = false
     let submissionRestored = false
-    const handleSubmissionStart = () => {
+    const selectionOrigin = selectionActionOrigin(textSelections) || writingSelection?.latestActionTarget || undefined
+    const handleSubmissionStart = (commandId?: string) => {
+      if (selectionOrigin && commandId) {
+        setSelectionCommands(current => new Map(current).set(commandId, selectionOrigin))
+        writingSelection?.setLatestActionTarget(null)
+        clearLatestSelectionActionTarget()
+      }
       if (!feedbackSelection.length || submissionStarted) return
       submissionStarted = true
       onReviewFeedbackSubmitted?.(feedbackSelection)
     }
     const handleSubmissionError = () => {
+      // Keep the one-shot target until the transcript proves whether the
+      // command was accepted; stream transport can report an uncertain result
+      // after the backend has already persisted the turn.
       if (!feedbackSelection.length || !submissionStarted || submissionRestored) return
       submissionRestored = true
       onReviewFeedbackSubmissionFailed?.(feedbackSelection)
@@ -772,6 +787,7 @@ function AgentPanelComponent({
   const chatPane = initializing ? (
     <LoadingState label={t('router.loading')} layout="conversation" className="h-full min-h-0" />
   ) : (
+    <WritingReplyContext.Provider value={!generalAgent && !page && (!configuredQuickPromptScope || configuredQuickPromptScope === 'writing') ? replyTargets : null}>
     <AgentChatPane
       className="min-w-0 flex-1"
       contentClassName={dockedChrome ? undefined : 'mx-auto w-full max-w-[56rem]'}
@@ -780,6 +796,7 @@ function AgentPanelComponent({
       messageListProps={messageListProps}
       inputAreaProps={inputAreaProps}
     />
+    </WritingReplyContext.Provider>
   )
   const chatPanePortal = view === 'chat' && chatPaneHost ? createPortal(chatPane, chatPaneHost, 'agent-chat-pane') : null
   return (

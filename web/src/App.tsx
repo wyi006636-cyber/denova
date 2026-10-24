@@ -57,6 +57,7 @@ import {
   AUTOSAVE_CONFLICT_PRESERVED_EVENT,
   type AutosaveConflictPreservedDetail,
 } from '@/lib/autosave/rebase-with-recovery'
+import { WritingSelectionProvider } from '@/features/writing/WritingSelectionContext'
 import { useWorkbenchNotice } from '@/features/notices/use-workbench-notice'
 import { LORE_UPDATED_EVENT, notifyLoreUpdated, type LoreUpdatedDetail } from '@/features/lore/events'
 import type { AgentChatConversationState } from '@/features/agent-chat/AgentChatConversationTab'
@@ -898,6 +899,7 @@ function App() {
   return (
     <NovaMotionProvider intensity={motionIntensity}>
       <AnalyticsNotice onReadyChange={setAnalyticsReady} />
+      <WritingSelectionProvider projectId={projectId} fileName={selectedFile} enabled={mode === 'ide'}>
       <ModeRouter
         mode={mode}
         lastCreationRoute={lastCreationRoute}
@@ -1056,6 +1058,7 @@ function App() {
         onSemanticClassificationChange={setCharacterCardSemanticClassification}
         onImport={handleCharacterCardImport}
       />
+      </WritingSelectionProvider>
       <OnboardingGuide
         workspaceReady={workspaceLoaded && booksLoaded && analyticsReady}
         mode={mode}

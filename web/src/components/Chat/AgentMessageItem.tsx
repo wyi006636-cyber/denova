@@ -1,3 +1,4 @@
+import { WritingReplyAdoption } from '@/features/writing/WritingReplyAdoption'
 import { memo } from 'react'
 import type { CSSProperties } from 'react'
 import type { AgentAskAnswer, AgentAskResolution, ChapterIllustration } from '@/lib/api'
@@ -64,7 +65,7 @@ export const AgentMessageItem = memo(function AgentMessageItem({
       metadata: { ...view.metadata, subagent: true, subagent_session_id: sessionKey },
     })
   } : undefined
-  return (
+  const rendered = (
     <MessageItem
       projectId={projectId}
       message={message}
@@ -90,4 +91,7 @@ export const AgentMessageItem = memo(function AgentMessageItem({
       onResolveAsk={onResolveAsk ? (_message, action) => onResolveAsk(view, action) : undefined}
     />
   )
+  return view.kind === 'assistant' && !view.streaming && !message.subagent && assistantPresentation !== 'progress'
+    ? <WritingReplyAdoption messageId={view.messageId} content={view.content}>{rendered}</WritingReplyAdoption>
+    : rendered
 })

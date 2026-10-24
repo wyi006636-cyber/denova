@@ -740,7 +740,7 @@ export function ModeRouter(props: ModeRouterProps) {
         onReferenceLoreItem={referenceLoreFromWorkspace}
         onSelectFile={selectWorkspacePath}
         onSaveCurrentFile={onSaveCurrentFile}
-        onQuoteSelection={onQuoteSelection}
+        onQuoteSelection={(selection) => { onSetRightPanel('ai'); onQuoteSelection(selection) }}
         onRevealChapter={revealCurrentChapterInOutline}
         onGenerateIllustration={requestChapterIllustration}
         emptyText={t('router.chooseFile')}
