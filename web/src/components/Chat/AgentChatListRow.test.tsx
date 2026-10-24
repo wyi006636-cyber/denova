@@ -6,6 +6,7 @@ import { buildAgentMessageViews } from '@/lib/agent-message-view'
 import { TrajectoryNavigationProvider } from '@/features/trajectory/trajectory-navigation'
 import { AgentChatListRow, chatListItemNavigationAnchor, chatListItemRunID, type AgentChatListItem } from './AgentChatListRow'
 import { buildAgentChatListItems } from './agent-chat-list-items'
+import { ToolNavigationProvider } from './tool-navigation'
 
 beforeEach(async () => { await i18next.changeLanguage('en-US') })
 
@@ -37,7 +38,7 @@ it('keeps historical turn media actions available without allowing narrative mut
 })
 
 function runItems(messages: AgentUIMessage[], active: boolean) {
-  return buildAgentChatListItems({ views: buildAgentMessageViews(messages), isStreaming: active, isExecutionActive: active, visibleActivityContent: '', collapseTraceGroups: true, groupSubAgentTimeline: false, timelineAttachments: [], activeTraceDisplay: 'collapsed' })
+  return buildAgentChatListItems({ views: buildAgentMessageViews(messages), isStreaming: active, isExecutionActive: active, visibleActivityContent: '', collapseTraceGroups: true, groupSubAgentTimeline: false, timelineAttachments: [], activeTraceDisplay: 'collapsed', showContextReceipt: true })
 }
 
 function row(item: AgentChatListItem | AgentChatListItem[], active: boolean) {
@@ -59,6 +60,50 @@ it('keeps nested tools attached to the root turn and places its attachment after
   expect(items[2]).toMatchObject({ depth: 1 })
   expect(items.map(chatListItemRunID)).toEqual(['root-run', 'root-run', 'root-run', 'root-run'])
   expect(items.slice(0, 3).map(chatListItemNavigationAnchor)).toEqual(['turn-1', 'turn-1', 'turn-1'])
+})
+
+it('shows the completed turn reference receipt and opens a read chapter', () => {
+  const open = vi.fn()
+  const messages: AgentUIMessage[] = [{
+    id: 'user', role: 'user', metadata: {
+      user_references: [{ kind: 'selection', label: 'chapters/000.md', start_line: 2, end_line: 4 }],
+    }, parts: [{ type: 'text', text: 'Continue' }],
+  }, {
+    id: 'tool', role: 'assistant', metadata: { run_id: 'receipt-run' }, parts: [{
+      type: 'dynamic-tool', toolName: 'read', toolCallId: 'read-1', state: 'output-available', input: { path: 'chapters/001.md' },
+      output: JSON.stringify({ schema: 'resource.read.v1', status: 'success', source: { kind: 'local_text', path: 'chapters/001.md' }, limits: { truncated: false } }) + '\n1\tChapter',
+    }],
+  }, {
+    id: 'lore', role: 'assistant', metadata: { run_id: 'receipt-run' }, parts: [{
+      type: 'dynamic-tool', toolName: 'query_lore_items', toolCallId: 'lore-1', state: 'output-available', input: {}, output: '# Lore Items\n\n## Hero (character / major / resident)\nID: hero\n\n```markdown\nHero body\n```',
+    }],
+  }, {
+    id: 'reply', role: 'assistant', metadata: { run_id: 'receipt-run', display_phase: 'final' }, parts: [{ type: 'text', text: 'Done', state: 'done' }],
+  }]
+  const items = runItems(messages, false)
+  expect(items.map(item => item.kind)).toContain('context-receipt')
+  render(
+    <ToolNavigationProvider value={{ workspace: '/workspace', open }}>
+      {row(items, false)}
+    </ToolNavigationProvider>,
+  )
+  expect(screen.getByText('This turn referenced')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Expand this turn’s references' }))
+  expect(screen.getByText('chapters/001.md')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'chapters/001.md' }))
+  expect(open).toHaveBeenCalledWith({ kind: 'workspace_file', path: 'chapters/001.md' })
+})
+
+it('keeps the receipt opt-in so Story timelines do not render it', () => {
+  const messages: AgentUIMessage[] = [{
+    id: 'story-tool', role: 'assistant', metadata: { run_id: 'story-run', agent_kind: 'interactive_story' },
+    parts: [{ type: 'dynamic-tool', toolName: 'read', toolCallId: 'story-read', state: 'output-available', input: { path: 'chapters/001.md' }, output: 'read' }],
+  }, {
+    id: 'story-final', role: 'assistant', metadata: { run_id: 'story-run', display_phase: 'final' },
+    parts: [{ type: 'text', text: 'A scene', state: 'done' }],
+  }]
+  const items = buildAgentChatListItems({ views: buildAgentMessageViews(messages), isStreaming: false, isExecutionActive: false, visibleActivityContent: '', collapseTraceGroups: true, groupSubAgentTimeline: false, timelineAttachments: [] })
+  expect(items.some(item => item.kind === 'context-receipt')).toBe(false)
 })
 
 it.each(['ide', 'interactive_story'])('shows one Run reference only after the %s output stops', (agentKind) => {
