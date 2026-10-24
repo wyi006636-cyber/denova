@@ -32,6 +32,7 @@ export function UnsavedConfigGuardDialog({ open, onOpenChange, reason, busy = fa
         <AlertDialogFooter>
           <AlertDialogCancel disabled={busy}>{t('configGuard.continueEditing')}</AlertDialogCancel>
           <AlertDialogAction
+            variant="destructive"
             disabled={busy}
             onClick={(event) => {
               // Keep the controlled dialog open until discard and navigation
