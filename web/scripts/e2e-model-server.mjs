@@ -42,6 +42,7 @@ const externalReadFullMarker = 'E2E_EXTERNAL_READ_FULL_ACCESS'
 const legacyWritingContinuationMarker = 'E2E_V033_WRITING_CONTINUE'
 const legacyWritingHistoryMarker = '第一章保留了 v0.3.3 的正文。'
 const writingPromptContextMarker = 'E2E_WRITING_PROMPT_CONTEXT_PARITY'
+const longWritingReplyMarker = 'E2E_LONG_WRITING_REPLY'
 const gamePromptContextMarker = 'E2E_GAME_PROMPT_CONTEXT_PARITY'
 const capturedRequestMarkers = [writingPromptContextMarker, gamePromptContextMarker]
 const writingAttachmentName = 'writing-e2e.png'
@@ -704,6 +705,17 @@ const server = createServer(async (request, response) => {
     const content = requestIncludesMarker(body, legacyWritingHistoryMarker)
       ? 'v0.3.3 写作历史续聊成功。'
       : 'v0.3.3 写作历史未传入模型。'
+    writeChatCompletion(response, textCompletionFrames(content))
+    return
+  }
+  if (requestIncludesMarker(body, longWritingReplyMarker)) {
+    const content = [
+      '这是一段用于采纳预览的长候选正文。',
+      '它包含多个连续段落和较长句子，帮助确认预览框在几百字内容下仍然可以滚动查看，并且不会把说明文字混入正文。',
+      '夜色沿着旧车站的玻璃穹顶缓慢下沉，站台边缘的积水映出一盏盏尚未熄灭的灯。她把手里的纸页重新折好，抬头看见远处的信号灯从红色变成了微弱的绿色。',
+      '没有人催促她做决定，只有铁轨深处传来一阵又一阵低沉的回响，像某种正在靠近却还没有现身的回答。她向前走了几步，鞋底碾过碎石，声音在空旷的站厅里被放大，又很快消失在风里。',
+      '她终于明白，所谓离开并不是把旧故事留在身后，而是带着已经发生过的一切，走向一个仍然允许自己重新开始的地方。',
+    ].join('\n\n')
     writeChatCompletion(response, textCompletionFrames(content))
     return
   }

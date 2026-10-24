@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createAgentTextMessage } from '@/lib/agent-ui-message'
-import { extractReplyProse, replySelectionTargets, type WritingSelectionTarget } from './selection-actions'
+import { extractReplyProse, replySelectionTargets, selectionActionOrigin, type WritingSelectionTarget } from './selection-actions'
 
 describe('reply prose extraction and turn ownership', () => {
   it('excludes chat commentary and requires an unambiguous marked prose block', () => {
@@ -10,9 +10,14 @@ describe('reply prose extraction and turn ownership', () => {
     expect(extractReplyProse('```prose\nFirst version.\n```\n```prose\nSecond version.\n```')).toBe('')
   })
 
-  it('does not let a later unrelated turn or a subagent replace the originating selection', () => {
-    const target = { projectId: 'book-1', fileName: 'chapters/one.md' } as WritingSelectionTarget
+  it('shows replacement only after the action turn and stops at the next user message', () => {
+    const target = {
+      projectId: 'book-1', fileName: 'chapters/one.md',
+      quote: { fileName: 'chapters/one.md', startLine: 1, endLine: 1, content: 'Original' },
+    } as WritingSelectionTarget
     const messages = [
+      createAgentTextMessage({ id: 'old', role: 'user', text: 'Older question' }),
+      createAgentTextMessage({ id: 'old-reply', role: 'assistant', text: 'Older answer' }),
       createAgentTextMessage({ id: 'command', role: 'user', text: 'Polish' }),
       createAgentTextMessage({ id: 'reply', role: 'assistant', text: 'Prose' }),
       createAgentTextMessage({ id: 'child', role: 'assistant', text: 'Child prose', metadata: { subagent: true } }),
@@ -22,14 +27,17 @@ describe('reply prose extraction and turn ownership', () => {
     expect([...replySelectionTargets(messages, new Map([['command', target]]))]).toEqual([['reply', target]])
   })
 
-  it('keeps the first selection when transcript hydration replaced the optimistic command id', () => {
-    const target = { projectId: 'book-1', fileName: 'chapters/one.md' } as WritingSelectionTarget
+  it('does not guess a target for an unsent action or a replaced attachment', () => {
+    const target = {
+      projectId: 'book-1', fileName: 'chapters/one.md',
+      quote: { fileName: 'chapters/one.md', startLine: 1, endLine: 1, content: 'Original' },
+    } as WritingSelectionTarget
     const messages = [
-      createAgentTextMessage({ id: 'canonical-user', role: 'user', text: 'Polish' }),
-      createAgentTextMessage({ id: 'reply', role: 'assistant', text: 'Prose' }),
-      createAgentTextMessage({ id: 'later-user', role: 'user', text: 'Other question' }),
-      createAgentTextMessage({ id: 'later-reply', role: 'assistant', text: 'Other answer' }),
+      createAgentTextMessage({ id: 'old', role: 'user', text: 'Older question' }),
+      createAgentTextMessage({ id: 'reply', role: 'assistant', text: 'Older answer' }),
     ]
-    expect([...replySelectionTargets(messages, new Map([['optimistic-command', target]]))]).toEqual([['reply', target]])
+    expect(replySelectionTargets(messages, new Map([['optimistic-command', target]]))).toEqual(new Map())
+    expect(selectionActionOrigin([], target)).toBeUndefined()
+    expect(selectionActionOrigin([{ fileName: 'chapters/other.md', startLine: 1, endLine: 1, content: 'Other' }], target)).toBeUndefined()
   })
 })

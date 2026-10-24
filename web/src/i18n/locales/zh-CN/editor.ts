@@ -10,7 +10,7 @@ const editor = {
   "editor.selection.humanizePrompt": "请消除所附选区的 AI 腔：保留原意、情节和对白，用具体动作、自然措辞和有变化的句式替代套话。",
   "editor.selection.rewritePrompt": "请改写所附选区，保留关键信息和情节走向，尝试更有表现力的表达。",
   "editor.selection.customPrompt": "请只处理所附选区。我的具体要求是：",
-  "editor.selection.scopePrompt": "范围仅限所附选区，不改动其他段落。请把可采纳的正文放入一个以 manuscript 标记的代码块，解释放在块外；如使用编辑工具，沿用现有修改审阅流程。",
+  "editor.selection.scopePrompt": "这是候选稿流程：不要修改任何工作区文件。范围仅限所附选区，不改动其他段落。请把结果放入唯一一个以 manuscript 标记的代码块，说明放在块外；续写时只提供新增正文，不重复所附选区。",
   "editor.adoption.insert": "插入到光标处",
   "editor.adoption.replace": "替换原选段",
   "editor.adoption.preview": "预览采纳内容",

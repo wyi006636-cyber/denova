@@ -7,7 +7,7 @@ import { toast } from '@/lib/toast'
 import { getLineNumber } from '@/components/Editor/editorDocument'
 import { WRITING_AGENT_INIT_EVENT } from '@/features/onboarding/events'
 import { useWritingSelection, type WritingAdoptionEditor } from './WritingSelectionContext'
-import { adoptionTargetFailure, rememberSelectionAction, writingSelectionPrompt, type AdoptionMode, type WritingSelectionAction, type WritingSelectionTarget } from './selection-actions'
+import { adoptionTargetFailure, writingSelectionPrompt, type AdoptionMode, type WritingSelectionAction, type WritingSelectionTarget } from './selection-actions'
 
 export function useWritingSelectionEditor({ editor, projectId, fileName, enabled, flush, readDraft, onQuoteSelection }: {
   editor: Editor | null
@@ -76,7 +76,6 @@ export function useWritingSelectionEditor({ editor, projectId, fileName, enabled
     try {
       const target = await adapter.capture('replace')
       if (!target.quote.content.trim()) return
-      rememberSelectionAction(target)
       selectionContext?.setLatestActionTarget(target)
       onQuoteSelection(target.quote)
       // Existing quick prompts default to fill: preserve author control over the instruction and paid submission.

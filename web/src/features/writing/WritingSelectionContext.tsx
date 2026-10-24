@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { AdoptionFailure, AdoptionMode, WritingSelectionTarget } from './selection-actions'
 
 /** The foreground manuscript owns every read, conflict check, edit and undo transaction. */
@@ -22,6 +22,9 @@ export function WritingSelectionProvider({ projectId, fileName, enabled, childre
 }) {
   const [editor, setEditor] = useState<WritingAdoptionEditor | null>(null)
   const [latestActionTarget, setLatestActionTarget] = useState<WritingSelectionTarget | null>(null)
+  useEffect(() => {
+    setLatestActionTarget(current => current && enabled && current.projectId === projectId && current.fileName === fileName ? current : null)
+  }, [enabled, fileName, projectId])
   const register = useCallback((next: WritingAdoptionEditor) => {
     setEditor(next)
     return () => setEditor(current => current === next ? null : current)

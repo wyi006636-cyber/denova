@@ -40,7 +40,7 @@ import { DEFAULT_WRITING_SKILL, resolveWritingSkillSelection, useWritingSkillOpt
 import type { PersistedUserSettingsController } from '@/hooks/usePersistedUserSettings'
 import { WritingReplyContext } from '@/features/writing/WritingSelectionContext'
 import { useWritingSelection } from '@/features/writing/WritingSelectionContext'
-import { clearLatestSelectionActionTarget, replySelectionTargets, selectionActionOrigin, type WritingSelectionTarget } from '@/features/writing/selection-actions'
+import { replySelectionTargets, selectionActionOrigin, type WritingSelectionTarget } from '@/features/writing/selection-actions'
 import { AgentChatPane } from './AgentChatPane'
 import { LoadingState } from '@/components/common/LoadingState'
 import { SessionHistoryPopover } from './SessionHistoryPopover'
@@ -543,13 +543,16 @@ function AgentPanelComponent({
     }
     let submissionStarted = false
     let submissionRestored = false
-    const selectionOrigin = selectionActionOrigin(textSelections) || writingSelection?.latestActionTarget || undefined
+    const selectionOrigin = selectionActionOrigin(textSelections, writingSelection?.latestActionTarget)
+    // A target is pending only while its exact attachment remains in the
+    // composer. Removing the attachment turns the next send into an ordinary
+    // writing request, so discard the Context target before submitting it.
+    if (!selectionOrigin) writingSelection?.setLatestActionTarget(null)
     const handleSubmissionStart = (commandId?: string) => {
       if (selectionOrigin && commandId) {
         setSelectionCommands(current => new Map(current).set(commandId, selectionOrigin))
-        writingSelection?.setLatestActionTarget(null)
-        clearLatestSelectionActionTarget()
       }
+      writingSelection?.setLatestActionTarget(null)
       if (!feedbackSelection.length || submissionStarted) return
       submissionStarted = true
       onReviewFeedbackSubmitted?.(feedbackSelection)

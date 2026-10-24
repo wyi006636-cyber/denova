@@ -10,7 +10,7 @@ const editor = {
   "editor.selection.humanizePrompt": "Humanize the attached selection: preserve meaning, events and dialogue; replace stock phrasing with concrete actions, natural wording and varied sentences.",
   "editor.selection.rewritePrompt": "Rewrite the attached selection with more expressive prose while preserving key information and the direction of events.",
   "editor.selection.customPrompt": "Work only on the attached selection. My specific instructions are:",
-  "editor.selection.scopePrompt": "Scope is limited to the attached selection; leave other passages unchanged. Put adoptable prose in one fenced code block labeled manuscript, with commentary outside it. If using editing tools, follow the existing change review workflow.",
+  "editor.selection.scopePrompt": "This is a candidate-draft workflow: do not modify any workspace file. Work only on the attached selection and leave other passages unchanged. Put the result in exactly one fenced code block labeled manuscript, with commentary outside it; for continuation, provide only new prose and do not repeat the attached selection.",
   "editor.adoption.insert": "Insert at cursor",
   "editor.adoption.replace": "Replace original selection",
   "editor.adoption.preview": "Preview adoption",

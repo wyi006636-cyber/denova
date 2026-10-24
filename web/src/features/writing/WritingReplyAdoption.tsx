@@ -5,15 +5,15 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from '@/lib/toast'
 import { useWritingSelection, WritingReplyContext } from './WritingSelectionContext'
-import { extractReplyProse, latestSelectionActionTarget, type AdoptionFailure, type AdoptionMode, type WritingSelectionTarget } from './selection-actions'
+import { extractReplyProse, type AdoptionFailure, type AdoptionMode, type WritingSelectionTarget } from './selection-actions'
 
 /** An author-selected reply range takes precedence over a single explicitly marked prose block. */
 export function WritingReplyAdoption({ messageId, content, children }: { messageId: string; content: string; children: ReactNode }) {
   const scope = useContext(WritingReplyContext)
-  // A hydrated transcript may expose a different assistant id than the
-  // optimistic message list. While one action is pending, the sole target is
-  // still unambiguous and is checked again against the live revision on apply.
-  const target = scope?.get(messageId) || (scope?.size === 1 ? [...scope.values()][0] : undefined)
+  // The provider maps only assistant replies after the exact action turn. Do
+  // not fall back to a pending editor target: that would expose replacement on
+  // historical, unrelated, or unsent replies.
+  const target = scope?.get(messageId)
   return scope ? <ReplyAdoption target={target} content={content}>{children}</ReplyAdoption> : children
 }
 
@@ -25,7 +25,7 @@ function ReplyAdoption({ target, content, children }: { target?: WritingSelectio
   const [preview, setPreview] = useState<{ mode: AdoptionMode; target: WritingSelectionTarget; text: string } | null>(null)
   const [failure, setFailure] = useState<AdoptionFailure | null>(null)
   const [busy, setBusy] = useState(false)
-  const effectiveTarget = target || bridge?.latestActionTarget || latestSelectionActionTarget()
+  const effectiveTarget = target
   const prose = selected || extractReplyProse(content)
 
   const captureSelection = useCallback(() => {

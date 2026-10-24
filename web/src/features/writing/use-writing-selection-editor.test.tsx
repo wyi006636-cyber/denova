@@ -30,7 +30,8 @@ describe('manuscript selection actions and adoption', () => {
     const wrapper = ({ children }: { children: ReactNode }) => <WritingSelectionProvider enabled projectId="book" fileName="one.md">{children}</WritingSelectionProvider>
     return renderHook(({ fileName = 'one.md', projectId = 'book', enabled = true }) => {
       const run = useWritingSelectionEditor({ editor, projectId, fileName, enabled, flush, readDraft, onQuoteSelection })
-      return { run, adapter: useWritingSelection()?.editor }
+      const selection = useWritingSelection()
+      return { run, adapter: selection?.editor, pendingTarget: selection?.latestActionTarget }
     }, { wrapper, initialProps: { fileName: 'one.md', projectId: 'book', enabled: true } })
   }
 
@@ -43,7 +44,7 @@ describe('manuscript selection actions and adoption', () => {
       await act(() => result.current.run('polish'))
       const selection = onQuoteSelection.mock.calls[0][0]
       expect(selection).toEqual({ fileName: 'one.md', startLine: 1, endLine: 1, content: 'Old prose.' })
-      expect(selectionActionOrigin([selection])).toMatchObject({ projectId: 'book', fileName: 'one.md', from: 1, to: 11, revision: 'r1' })
+      expect(selectionActionOrigin([selection], result.current.pendingTarget)).toMatchObject({ projectId: 'book', fileName: 'one.md', from: 1, to: 11, revision: 'r1' })
       expect((listener.mock.calls[0][0] as CustomEvent).detail).toEqual({ prompt: writingSelectionPrompt(i18n.t.bind(i18n), 'polish'), autoSend: false })
       expect((listener.mock.calls[0][0] as CustomEvent).detail.prompt).toContain('范围仅限所附选区')
     } finally { window.removeEventListener('nova:writing-agent-init', listener) }

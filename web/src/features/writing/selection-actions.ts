@@ -16,43 +16,27 @@ export interface WritingSelectionTarget {
   to: number
   quote: TextSelection
 }
-type SelectionWithOrigin = TextSelection & { __writingSelectionTarget?: WritingSelectionTarget }
-
 export type AdoptionMode = 'insert' | 'replace'
 export type AdoptionFailure = 'unavailable' | 'changed' | 'saveFailed'
 
-// Attach provenance to the existing composer attachment without changing its wire schema.
-const selectionOrigins = new WeakMap<TextSelection, WritingSelectionTarget>()
-let latestSelectionOrigin: WritingSelectionTarget | undefined
-const GLOBAL_SELECTION_KEY = '__denovaWritingSelectionTarget'
-export function rememberSelectionAction(target: WritingSelectionTarget) {
-  selectionOrigins.set(target.quote, target)
-  Object.defineProperty(target.quote, '__writingSelectionTarget', { value: target, enumerable: false, configurable: true })
-  latestSelectionOrigin = target
-  ;(globalThis as typeof globalThis & { [GLOBAL_SELECTION_KEY]?: WritingSelectionTarget })[GLOBAL_SELECTION_KEY] = target
-}
-export function latestSelectionActionTarget(): WritingSelectionTarget | undefined {
-  return latestSelectionOrigin || (globalThis as typeof globalThis & { [GLOBAL_SELECTION_KEY]?: WritingSelectionTarget })[GLOBAL_SELECTION_KEY]
-}
-export function clearLatestSelectionActionTarget() {
-  latestSelectionOrigin = undefined
-  delete (globalThis as typeof globalThis & { [GLOBAL_SELECTION_KEY]?: WritingSelectionTarget })[GLOBAL_SELECTION_KEY]
-}
-export function selectionActionOrigin(selections: TextSelection[]): WritingSelectionTarget | undefined {
-  // A request containing several action selections has no unambiguous replacement target.
-  if (selections.length > 1) return undefined
-  const exact = selections.length === 1
-    ? selectionOrigins.get(selections[0]) || (selections[0] as SelectionWithOrigin).__writingSelectionTarget
+/**
+ * Resolve the pending action target only when the submitted attachment is the
+ * exact quote that initiated the action. The composer can clone attachments as
+ * it crosses hosted Agent surfaces, so compare their wire fields instead of
+ * relying on object identity or hidden metadata.
+ */
+export function selectionActionOrigin(
+  selections: TextSelection[],
+  pendingTarget?: WritingSelectionTarget | null,
+): WritingSelectionTarget | undefined {
+  if (!pendingTarget || selections.length !== 1) return undefined
+  const quote = selections[0]
+  return quote.fileName === pendingTarget.quote.fileName
+    && quote.startLine === pendingTarget.quote.startLine
+    && quote.endLine === pendingTarget.quote.endLine
+    && quote.content === pendingTarget.quote.content
+    ? pendingTarget
     : undefined
-  if (exact) {
-    clearLatestSelectionActionTarget()
-    return exact
-  }
-  // Composer context is bridged through an effect and can briefly clone the
-  // TextSelection object. Consume the one-shot fallback from the same action.
-  const fallback = latestSelectionActionTarget()
-  clearLatestSelectionActionTarget()
-  return fallback
 }
 
 export function writingSelectionPrompt(t: TFunction, action: WritingSelectionAction): string {
@@ -75,14 +59,12 @@ export function adoptionTargetFailure(current: WritingSelectionTarget | null, ta
 export function replySelectionTargets(messages: AgentUIMessage[], commands: ReadonlyMap<string, WritingSelectionTarget>) {
   const targets = new Map<string, WritingSelectionTarget>()
   let target: WritingSelectionTarget | undefined
-  let userTurns = 0
   for (const message of messages) {
     if (message.role === 'user') {
-      userTurns += 1
-      // Some transports replace the optimistic command id while hydrating the
-      // canonical transcript. The latest user turn is the only safe fallback;
-      // subsequent turns deliberately clear it.
-      target = commands.get(message.id) || (userTurns === 1 && commands.size === 1 ? [...commands.values()][0] : undefined)
+      // A reply is eligible only when its immediately preceding user turn is
+      // the command that carried the selection attachment. Unknown/history
+      // turns intentionally clear the target instead of guessing from scope.
+      target = commands.get(message.id)
     }
     if (message.role === 'assistant' && target && !message.metadata?.subagent) targets.set(message.id, target)
   }
