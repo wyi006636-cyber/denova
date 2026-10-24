@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { MessageCirclePlus, Quote, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -18,48 +18,74 @@ export function SelectionToolbar({ editor, mode = 'quote', onAction, onQuote, on
   onWritingAction?: (action: WritingSelectionAction) => void | Promise<void>
 }) {
   const { t } = useTranslation()
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
+  const [coords, setCoords] = useState<{ top: number; left: number; maxWidth: number } | null>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
   const [pending, setPending] = useState(false)
 
-  useEffect(() => {
-    const updatePosition = () => {
-      const { from, to, head } = editor.state.selection
-      if (!editor.isFocused || from === to) {
-        setCoords(null)
-        return
-      }
-      try {
-        const headCoords = editor.view.coordsAtPos(head)
-        const containerEl = editor.view.dom.closest('.relative') as HTMLElement | null
-        if (!containerEl) { setCoords(null); return }
-        const containerRect = containerEl.getBoundingClientRect()
-        const scrollTop = containerEl.scrollTop
-        const toolbarWidth = toolbarRef.current?.offsetWidth ?? 100
-        // coordsAtPos 返回视口坐标，需加上 scrollTop 转换为容器内容区域坐标
-        let top = headCoords.bottom - containerRect.top + scrollTop + 4
-        let left = headCoords.left - containerRect.left
-        // 防止溢出右侧
-        const maxLeft = containerRect.width - toolbarWidth - 8
-        if (left > maxLeft) left = maxLeft
-        if (left < 4) left = 4
-        // 如果下方空间不够（相对当前可见区域），改为显示在光标行上方
-        const toolbarHeight = toolbarRef.current?.offsetHeight ?? 32
-        const visibleBottom = scrollTop + containerRect.height
-        if (top + toolbarHeight > visibleBottom) {
-          top = headCoords.top - containerRect.top + scrollTop - toolbarHeight - 4
-        }
-        setCoords({ top: Math.max(scrollTop, top), left })
-      } catch {
-        setCoords(null)
-      }
+  const updatePosition = useCallback(() => {
+    const { from, to, head } = editor.state.selection
+    if (!editor.isFocused || from === to) {
+      setCoords(null)
+      return
     }
+    try {
+      const headCoords = editor.view.coordsAtPos(head)
+      const containerEl = editor.view.dom.closest('.relative') as HTMLElement | null
+      if (!containerEl) { setCoords(null); return }
+
+      const containerRect = containerEl.getBoundingClientRect()
+      const scrollTop = containerEl.scrollTop
+      // A relative ancestor can be wider than the actual browser viewport (for
+      // example while a mobile pane is being resized). Use the intersection
+      // with the viewport as the clipping rectangle for the floating toolbar.
+      const visibleLeft = Math.max(containerRect.left, 0)
+      const visibleRight = Math.min(containerRect.right, window.innerWidth)
+      const visibleTop = Math.max(containerRect.top, 0)
+      const visibleBottom = Math.min(containerRect.bottom, window.innerHeight)
+      const availableWidth = Math.max(0, visibleRight - visibleLeft - 8)
+      const toolbarWidth = Math.min(toolbarRef.current?.offsetWidth ?? availableWidth, availableWidth)
+
+      // coordsAtPos returns viewport coordinates, while absolute positioning is
+      // relative to the scrolling surface; convert before clamping to its
+      // visible intersection.
+      const minLeft = visibleLeft - containerRect.left + 4
+      const maxLeft = visibleRight - containerRect.left - toolbarWidth - 4
+      const preferredLeft = headCoords.left - containerRect.left
+      const left = Math.min(Math.max(preferredLeft, minLeft), Math.max(minLeft, maxLeft))
+
+      const toolbarHeight = toolbarRef.current?.offsetHeight ?? 32
+      const visibleTopInContent = Math.max(scrollTop, scrollTop + visibleTop - containerRect.top)
+      const visibleBottomInContent = scrollTop + visibleBottom - containerRect.top
+      const minTop = visibleTopInContent + 4
+      const maxTop = visibleBottomInContent - toolbarHeight - 4
+      let top = headCoords.bottom - containerRect.top + scrollTop + 4
+      if (top > maxTop) {
+        top = headCoords.top - containerRect.top + scrollTop - toolbarHeight - 4
+      }
+      // Keep the toolbar in the visible vertical range when there is enough
+      // room. If a host is shorter than the wrapped toolbar, minTop is the
+      // only honest placement and the surface itself remains scrollable.
+      if (maxTop >= minTop) top = Math.min(Math.max(top, minTop), maxTop)
+      else top = minTop
+
+      const next = { top, left, maxWidth: availableWidth }
+      setCoords((previous) => (
+        previous && previous.top === next.top && previous.left === next.left && previous.maxWidth === next.maxWidth
+          ? previous
+          : next
+      ))
+    } catch {
+      setCoords(null)
+    }
+  }, [editor])
+
+  useEffect(() => {
     updatePosition()
     editor.on('focus', updatePosition)
     editor.on('blur', updatePosition)
     editor.on('selectionUpdate', updatePosition)
     editor.on('update', updatePosition)
-    // Re-measure after the wrapped toolbar mounts and when the viewport or scroll position changes.
+    // Re-measure when the surface changes size and when the viewport or scroll position changes.
     const observer = new ResizeObserver(updatePosition)
     const surface = editor.view.dom.closest('.relative')
     if (surface) observer.observe(surface)
@@ -76,15 +102,31 @@ export function SelectionToolbar({ editor, mode = 'quote', onAction, onQuote, on
     }
   }, [editor])
 
+  useLayoutEffect(() => {
+    if (!coords || !toolbarRef.current) return
+    // The first position pass happens before this toolbar exists. Observe the
+    // mounted element and remeasure after wrapping so the measured width and
+    // height are the values used for both horizontal and vertical clamping.
+    const observer = new ResizeObserver(updatePosition)
+    observer.observe(toolbarRef.current)
+    const frame = requestAnimationFrame(updatePosition)
+    return () => {
+      observer.disconnect()
+      cancelAnimationFrame(frame)
+    }
+  }, [coords, updatePosition])
+
   if (!coords) return null
 
   return (
+    // Keep every action available on narrow screens: wrapping the existing
+    // buttons preserves one-tap access without hiding secondary actions in a menu.
     <div
       ref={toolbarRef}
       role="toolbar"
       aria-label={t('editor.selection.actions')}
-      className="absolute z-30 flex w-max max-w-[min(24rem,calc(100%-0.5rem))] flex-wrap items-center gap-1 rounded-md border border-[var(--nova-border)] bg-[var(--nova-menu-bg)] px-1.5 py-1 shadow-xl"
-      style={{ top: coords.top, left: coords.left }}
+      className="absolute z-30 box-border flex w-max min-w-0 max-w-[24rem] flex-wrap items-center gap-1 rounded-md border border-[var(--nova-border)] bg-[var(--nova-menu-bg)] px-1.5 py-1 shadow-xl"
+      style={{ top: coords.top, left: coords.left, maxWidth: coords.maxWidth }}
       onPointerDown={(event) => event.preventDefault()}
     >
       <Button
