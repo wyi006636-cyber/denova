@@ -14,6 +14,8 @@ export interface AgentRunPresentation {
   key: string
   nextIndex: number
   runID: string
+  /** The contiguous views used by the display-only per-run projections. */
+  views: AgentMessageView[]
   sections: AgentRunPresentationSection[]
 }
 
@@ -69,6 +71,7 @@ export function buildAgentRunPresentation(
     key: `run-${runID}-${agentViewStableKey(runViews[0])}`,
     nextIndex,
     runID,
+    views: runViews,
     sections: resultIndex >= 0
       ? buildTerminalSections(runViews, resultIndex)
       : buildProcessSections(runViews, active),

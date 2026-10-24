@@ -72,6 +72,8 @@ interface MessageListProps {
   collapseTraceGroups?: boolean
   /** 运行中的 trace 初始展示方式；用户手动切换后保留其选择。 */
   activeTraceDisplay?: 'expanded' | 'collapsed'
+  /** Writing/general Agent surfaces opt in; interactive Story timelines stay unchanged. */
+  showContextReceipt?: boolean
   /** 领域级变更策略；不影响展示、导航或 trace 操作。 */
   canMutateMessage?: (view: AgentMessageView) => boolean
   onEditMessage?: (view: AgentMessageView) => void
@@ -139,7 +141,7 @@ export function MessageList(props: MessageListProps) {
   return <VirtualizedMessageState key={props.scrollResetKey || 'default'}><MessageListContent {...props} /></VirtualizedMessageState>
 }
 
-function MessageListContent({ projectId, attachmentScope, messages, projection, isStreaming, followStreaming = true, activeRunId, visible = true, isExecutionActive = isStreaming, activityContent, highlightDialogue = false, scrollResetKey, bottomPaddingClassName = '', bottomPaddingPx, contentClassName, onScrollerChange, beforeContent, afterContent, afterContentScroll = 'follow', afterContentKey, hasEarlierMessages = false, isLoadingEarlierMessages = false, onLoadEarlierMessages, autoLoadEarlierMessages = false, onLoadExecutionDetails, timelineAttachments = [], messageStyle, collapseTraceGroups = false, activeTraceDisplay = 'expanded', canMutateMessage, onEditMessage, onEditAssistantReply, onCreateBranch, onRegenerateMessage, onSwitchMessageVersion, onOpenSubAgentSession, onInsertIllustration, onReadAloud, onGenerateInteractiveImage, generatingInteractiveImageTurnId, activeSubAgentSessionKey, onApprovePlan, onContinuePlan, onExitPlanMode, onResolveAsk, turnScrollRequest, onVisibleTurnAnchorChange }: MessageListProps) {
+function MessageListContent({ projectId, attachmentScope, messages, projection, isStreaming, followStreaming = true, activeRunId, visible = true, isExecutionActive = isStreaming, activityContent, highlightDialogue = false, scrollResetKey, bottomPaddingClassName = '', bottomPaddingPx, contentClassName, onScrollerChange, beforeContent, afterContent, afterContentScroll = 'follow', afterContentKey, hasEarlierMessages = false, isLoadingEarlierMessages = false, onLoadEarlierMessages, autoLoadEarlierMessages = false, onLoadExecutionDetails, timelineAttachments = [], messageStyle, collapseTraceGroups = false, activeTraceDisplay = 'expanded', showContextReceipt = false, canMutateMessage, onEditMessage, onEditAssistantReply, onCreateBranch, onRegenerateMessage, onSwitchMessageVersion, onOpenSubAgentSession, onInsertIllustration, onReadAloud, onGenerateInteractiveImage, generatingInteractiveImageTurnId, activeSubAgentSessionKey, onApprovePlan, onContinuePlan, onExitPlanMode, onResolveAsk, turnScrollRequest, onVisibleTurnAnchorChange }: MessageListProps) {
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const renderedItemsRef = useRef<ListItem<AgentChatListItem>[]>([])
@@ -186,8 +188,9 @@ function MessageListContent({ projectId, attachmentScope, messages, projection, 
       timelineAttachments,
       disclosures,
       activeTraceDisplay,
+      showContextReceipt,
     }),
-    [activeTraceDisplay, disclosures, activeRunId, collapseTraceGroups, isExecutionActive, isStreaming, onOpenSubAgentSession, timelineAttachments, views, visibleActivityContent],
+    [activeTraceDisplay, disclosures, activeRunId, collapseTraceGroups, isExecutionActive, isStreaming, onOpenSubAgentSession, showContextReceipt, timelineAttachments, views, visibleActivityContent],
   )
   // Transport streaming may pause between tool/recovery phases while the turn
   // remains active and can still publish layout updates.

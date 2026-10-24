@@ -10,6 +10,8 @@ import { AgentMessageItem } from './AgentMessageItem'
 import { AgentExecutionProcess } from './AgentExecutionProcess'
 import { VirtualizedMessageRow } from './VirtualizedMessageState'
 import { AgentRunActions } from './AgentRunActions'
+import { ContextReceiptRow } from './ContextReceiptRow'
+import type { ContextReceipt } from './context-receipt'
 
 export type AgentChatListItem =
   | { kind: 'empty'; key: string }
@@ -19,6 +21,7 @@ export type AgentChatListItem =
   | { kind: 'message'; key: string; view: AgentMessageView; sourceIndex: number; processKey?: string; depth?: number; ownerRunId?: string; navigationAnchor?: string }
   | { kind: 'legacy-message'; key: string; message: ChatMessage; sourceIndex: number; openView?: AgentMessageView; processKey?: string; depth?: number; ownerRunId?: string; navigationAnchor?: string }
   | { kind: 'process'; key: string; views: AgentMessageView[]; runId: string; running: boolean; expanded: boolean; showTiming: boolean; navigationAnchor: string }
+  | { kind: 'context-receipt'; key: string; receipt: ContextReceipt; sourceIndex: number; ownerRunId?: string; navigationAnchor?: string }
   | { kind: 'run-actions'; key: string; runId: string }
   | { kind: 'attachment'; key: string; runId: string; content: ReactNode }
 
@@ -132,6 +135,8 @@ export function AgentChatListRow({ projectId, item, nextItem, executionTimings, 
         <AgentExecutionProcess views={item.views} running={item.running} expanded={item.expanded}
           onExpandedChange={expanded => onProcessExpandedChange?.(item.key, item.running, expanded, item.navigationAnchor)}
           timing={item.showTiming ? executionTimings.get(item.runId) : undefined} />
+      ) : item.kind === 'context-receipt' ? (
+        <ContextReceiptRow receipt={item.receipt} />
       ) : item.kind === 'run-actions' ? (
         <div className="flex flex-wrap items-center gap-2 px-1"><AgentRunActions projectId={projectId} runID={item.runId} /></div>
       ) : item.kind === 'attachment' ? (

@@ -668,6 +668,7 @@ function AgentPanelComponent({
     bottomPaddingPx: messageListBottomPadding,
     collapseTraceGroups: true,
     activeTraceDisplay: 'expanded' as const,
+    showContextReceipt: true,
     hasEarlierMessages,
     isLoadingEarlierMessages: isLoadingEarlierHistory,
     onLoadEarlierMessages: onLoadEarlierHistory,
