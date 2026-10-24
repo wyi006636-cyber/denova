@@ -124,14 +124,13 @@ export function ModelProfilesEditor({
   const updateProfileModel = (index: number, model: string) => {
     const profile = profiles[index]
     const previousID = modelProfileID(profile)
-    const previousModel = profile.model?.trim() ?? ''
-    const shouldSyncID = !previousID || previousID === previousModel
-    const nextID = shouldSyncID ? uniqueModelProfileID(model, profiles, index) : profile.id
+    // Generate the stable profile identity only while creating the profile.
+    // Once an ID has been persisted, changing the provider model must not
+    // invalidate Agent, SubAgent, Custom Agent, automation, or runtime refs.
+    const nextID = previousID ? (profile.id?.trim() || previousID) : uniqueModelProfileID(model, profiles, index)
     updateProfile(index, { id: nextID, model })
     if (nextID && profileOptions.length === 0) {
       onDefaultProfileChange(nextID)
-    } else if (shouldSyncID && previousID && selectedDefaultProfileID === previousID && nextID !== previousID) {
-      onDefaultProfileChange(nextID || '')
     }
   }
   const removeProfile = (index: number) => {
