@@ -37,6 +37,7 @@ export function useAutomationAutosave({
   const draftRef = useRef(draft)
   const onSavedRef = useRef(onSaved)
   const onErrorRef = useRef(onError)
+  const lastFlushErrorRef = useRef<unknown>(null)
   draftRef.current = draft
   onSavedRef.current = onSaved
   onErrorRef.current = onError
@@ -110,10 +111,12 @@ export function useAutomationAutosave({
   }, [activeId, autosave.resetBaseline, creating, fallbackTarget, tasks])
 
   const flush = useCallback(async () => {
+    lastFlushErrorRef.current = null
     try {
       await (autosave.flushPending() ?? autosave.saveNow('auto'))
       return true
     } catch (cause) {
+      lastFlushErrorRef.current = cause
       onErrorRef.current(cause)
       return false
     }
@@ -123,6 +126,7 @@ export function useAutomationAutosave({
     cancelPending: autosave.cancelPending,
     status: autosave.status,
     error: autosave.error,
+    getLastFlushError: () => lastFlushErrorRef.current,
     retry: autosave.retry,
     flush,
   }

@@ -109,6 +109,7 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
   const [documentReloadVersion, setDocumentReloadVersion] = useState(0)
   const [eventSource] = useState(() => `skills-view-${nextSkillsViewSourceID++}`)
   const configPanelRef = useRef<SkillConfigPanelHandle | null>(null)
+  const lastFlushErrorRef = useRef<unknown>(null)
   const fileTreePreferences = useRef(new Map<string, boolean>())
   const toolNavigationNonceRef = useRef(0)
   const notifySkillsUpdated = useCallback(() => {
@@ -233,6 +234,7 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
   }, [baselineDraft, contentAutosave.resetBaseline])
 
   const flushContentAutosave = useCallback(async (force = false) => {
+    lastFlushErrorRef.current = null
     try {
       const pending = contentAutosave.flushPending()
       if (pending) {
@@ -242,6 +244,7 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
       }
       return true
     } catch (saveError) {
+      lastFlushErrorRef.current = saveError
       setError(saveError instanceof Error ? saveError.message : String(saveError))
       return false
     }
@@ -251,6 +254,22 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
     if (mode === 'config') return configPanelRef.current?.flush() ?? true
     return flushContentAutosave(force)
   }, [flushContentAutosave, mode])
+
+  const flushSkillDraft = useCallback(async () => {
+    const hadConfigDraft = mode === 'config' && Boolean(configPanelRef.current?.hasPending())
+    if (!await flushActiveAutosave()) {
+      return {
+        ok: false as const,
+        error: configPanelRef.current?.getError() || lastFlushErrorRef.current,
+      }
+    }
+    // Identity edits are explicit (rename/move) and cannot be persisted by the
+    // metadata autosave lane. Keep them behind the leave dialog.
+    if (hadConfigDraft && configPanelRef.current?.hasPending()) {
+      return { ok: false as const, error: configPanelRef.current?.getError() }
+    }
+    return true
+  }, [flushActiveAutosave, mode])
 
   const discardSkillDraft = useCallback(async () => {
     contentAutosave.cancelPending()
@@ -262,11 +281,23 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
 
   useExecutableDraftEntry(
     'skills',
-    configDirty
-      || contentAutosave.status === 'pending'
-      || contentAutosave.status === 'saving'
-      || contentAutosave.status === 'error',
-    discardSkillDraft,
+    {
+      flush: flushSkillDraft,
+      isDirty: () => configDirty
+        || Boolean(configPanelRef.current?.hasPending())
+        || contentAutosave.status === 'pending'
+        || contentAutosave.status === 'saving'
+        || contentAutosave.status === 'error',
+      isSaving: () => Boolean(configPanelRef.current?.isSaving()) || contentAutosave.status === 'saving',
+      getError: () => error || configPanelRef.current?.getError() || lastFlushErrorRef.current || contentAutosave.error,
+      shouldPromptBeforeUnload: () => {
+        if (mode === 'config' && configPanelRef.current?.hasPending()) {
+          return !configPanelRef.current.isSaving() && !configPanelRef.current.isAutosavePending()
+        }
+        return contentAutosave.status === 'error'
+      },
+      discard: discardSkillDraft,
+    },
   )
 
   const load = useCallback(async (): Promise<SkillSnapshot | null> => {

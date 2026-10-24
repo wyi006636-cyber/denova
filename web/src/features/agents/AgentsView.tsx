@@ -62,12 +62,27 @@ export function AgentsView({ target, toolNavigationIntent }: { target: ResourceT
   })
 
   const discardAgentDraft = useCallback(async () => {
-    await reload(true)
+    const restored = await reload(true)
+    if (!restored) throw new Error('Failed to restore agent settings before discarding the draft')
   }, [reload])
+  const flushAgentDraft = useCallback(async () => {
+    try {
+      await saveNow()
+      return true
+    } catch (saveError) {
+      return { ok: false as const, error: saveError }
+    }
+  }, [saveNow])
   useExecutableDraftEntry(
     'agents',
-    autosaveStatus === 'pending' || autosaveStatus === 'saving' || autosaveStatus === 'error' || Boolean(error),
-    discardAgentDraft,
+    {
+      flush: flushAgentDraft,
+      isDirty: () => autosaveStatus === 'pending' || autosaveStatus === 'saving' || autosaveStatus === 'error' || Boolean(autosaveError),
+      isSaving: () => autosaveStatus === 'saving',
+      getError: () => autosaveError || error,
+      shouldPromptBeforeUnload: () => autosaveStatus === 'error' || Boolean(autosaveError),
+      discard: discardAgentDraft,
+    },
   )
   const [createOpen, setCreateOpen] = useState(false)
   const [createRuntimeKind, setCreateRuntimeKind] = useState<AgentRuntimeKind>('ide')

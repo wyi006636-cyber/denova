@@ -13,21 +13,35 @@ import {
 interface UnsavedConfigGuardDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  reason?: string
+  busy?: boolean
   onDiscard: () => void | Promise<void>
 }
 
-export function UnsavedConfigGuardDialog({ open, onOpenChange, onDiscard }: UnsavedConfigGuardDialogProps) {
+export function UnsavedConfigGuardDialog({ open, onOpenChange, reason, busy = false, onDiscard }: UnsavedConfigGuardDialogProps) {
   const { t } = useTranslation()
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t('configGuard.title')}</AlertDialogTitle>
-          <AlertDialogDescription>{t('configGuard.description')}</AlertDialogDescription>
+          <AlertDialogDescription>
+            {reason ? t('configGuard.descriptionWithReason', { reason }) : t('configGuard.description')}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{t('configGuard.continueEditing')}</AlertDialogCancel>
-          <AlertDialogAction onClick={onDiscard}>{t('configGuard.discardChanges')}</AlertDialogAction>
+          <AlertDialogCancel disabled={busy}>{t('configGuard.continueEditing')}</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={busy}
+            onClick={(event) => {
+              // Keep the controlled dialog open until discard and navigation
+              // both settle; a failure must leave the user on the editor.
+              event.preventDefault()
+              void onDiscard()
+            }}
+          >
+            {t('configGuard.discardChanges')}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

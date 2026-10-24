@@ -12,8 +12,9 @@ import { MobileWorkspaceHeaderProvider, MobileWorkspaceHeaderOutlet } from '@/co
 import { closeMobilePanes } from '@/components/layout/mobile-pane-events'
 import { Button } from '@/components/ui/button'
 import { UnsavedConfigGuardDialog } from '@/features/config-guard/UnsavedConfigGuardDialog'
-import { discardExecutableDraft, hasPendingExecutableDraft } from '@/features/config-guard/executable-draft-guard'
+import { discardExecutableDraft, flushExecutableDraft, hasPendingExecutableDraft } from '@/features/config-guard/executable-draft-guard'
 import { SidebarProvider } from '@/components/ui/sidebar'
+import { toast } from '@/lib/toast'
 import { MessageCenterButton } from '@/features/messages/MessageCenter'
 import type { AutomationMessageNavigation } from '@/features/messages/types'
 import { requestAutomationNavigation } from '@/features/automations/automation-navigation'
@@ -74,7 +75,8 @@ interface WorkbenchShellProps {
 
 interface PendingExecutableNavigation {
   key: string
-  proceed: () => void | Promise<unknown>
+  proceed: () => void | boolean | Promise<unknown>
+  reason?: string
 }
 
 function executableDraftKeyForMode(mode: WorkspaceMode): string | null {
@@ -120,6 +122,7 @@ export function WorkbenchShell({
   const [activityOrders, setActivityOrders] = useState<Record<ActivityOrderScope, ActivityItemID[]>>(readStoredActivityOrders)
   const [hiddenActivityIDs, setHiddenActivityIDs] = useState<ActivityItemID[]>(readStoredHiddenActivityIDs)
   const [pendingLeave, setPendingLeave] = useState<PendingExecutableNavigation | null>(null)
+  const [discardingPendingLeave, setDiscardingPendingLeave] = useState(false)
   const activityBarSizing = useActivityBarWidth(activityBarExpanded && !isMobile)
   const activitySummary = useActivitySummary().data
   const messageUnread = activitySummary?.message_unread_count ?? 0
@@ -152,32 +155,49 @@ export function WorkbenchShell({
     if (settingsOpen) onCloseSettings()
   }
 
-  const requestNavigation = useCallback((proceed: () => void | Promise<unknown>) => {
+  const requestNavigation = useCallback(async (proceed: () => void | boolean | Promise<unknown>) => {
     const key = !settingsOpen ? executableDraftKeyForMode(mode) : null
     if (!key || !hasPendingExecutableDraft(key)) {
-      return proceed()
+      return await proceed()
     }
-    setPendingLeave({ key, proceed })
-    return undefined
+
+    const flushed = await flushExecutableDraft(key)
+    if (!flushed.ok) {
+      const message = flushed.error instanceof Error
+        ? flushed.error.message
+        : typeof flushed.error === 'string' ? flushed.error : undefined
+      setPendingLeave({ key, proceed, reason: message })
+      return undefined
+    }
+    return await proceed()
   }, [mode, settingsOpen])
 
   const discardPendingNavigation = useCallback(async () => {
     const target = pendingLeave
-    if (!target) return
-    setPendingLeave(null)
-    await discardExecutableDraft(target.key)
-    await target.proceed()
-  }, [pendingLeave])
+    if (!target || discardingPendingLeave) return
+    setDiscardingPendingLeave(true)
+    try {
+      await discardExecutableDraft(target.key)
+      await target.proceed()
+      setPendingLeave(null)
+    } catch (error) {
+      console.error(`[config-guard] failed to discard draft before navigation for ${target.key}`, error)
+      const message = error instanceof Error ? error.message : String(error)
+      toast.error(t('configGuard.discardFailed'), { description: message })
+    } finally {
+      setDiscardingPendingLeave(false)
+    }
+  }, [discardingPendingLeave, pendingLeave, t])
 
   const openWriting = () => {
-    requestNavigation(() => {
+    void requestNavigation(() => {
       closeSettingsIfOpen()
       onSetMode('ide')
     })
   }
 
   const openGame = () => {
-    requestNavigation(() => {
+    void requestNavigation(() => {
       closeSettingsIfOpen()
       onSetInteractiveSubmode('story')
       onSetMode('interactive')
@@ -186,7 +206,7 @@ export function WorkbenchShell({
 
   const openRoute = (nextMode: WorkspaceMode) => {
     if (nextMode === mode && !settingsOpen) return
-    requestNavigation(() => {
+    void requestNavigation(() => {
       closeSettingsIfOpen()
       onSetMode(nextMode)
     })
@@ -221,7 +241,7 @@ export function WorkbenchShell({
   }
 
   const openAutomationNotification = (target: AutomationMessageNavigation) => {
-    requestNavigation(() => {
+    void requestNavigation(() => {
       closeSettingsIfOpen()
       requestAutomationNavigation(target)
       onSetMode('automations')
@@ -233,22 +253,18 @@ export function WorkbenchShell({
       onToggleSettings()
       return
     }
-    requestNavigation(onToggleSettings)
+    void requestNavigation(onToggleSettings)
   }
 
   const quickSwitchBook = async (path: string): Promise<boolean> => {
     if (path === workspace) return onQuickSwitchBook(path)
     const key = !settingsOpen ? executableDraftKeyForMode(mode) : null
     if (!key || !hasPendingExecutableDraft(key)) return onQuickSwitchBook(path)
-    setPendingLeave({
-      key,
-      proceed: async () => {
-        const switched = await onQuickSwitchBook(path)
-        if (switched) closeMobilePanes()
-        return switched
-      },
-    })
-    return false
+    return requestNavigation(async () => {
+      const switched = await onQuickSwitchBook(path)
+      if (switched) closeMobilePanes()
+      return switched
+    }) as Promise<boolean>
   }
 
   const creationActivityItems: ActivityItem[] = [
@@ -540,7 +556,9 @@ export function WorkbenchShell({
         {mainContentPortal}
         <UnsavedConfigGuardDialog
           open={Boolean(pendingLeave)}
-          onOpenChange={(open) => { if (!open) setPendingLeave(null) }}
+          reason={pendingLeave?.reason}
+          busy={discardingPendingLeave}
+          onOpenChange={(open) => { if (!open && !discardingPendingLeave) setPendingLeave(null) }}
           onDiscard={discardPendingNavigation}
         />
       </MobileWorkspaceHeaderProvider>
@@ -573,7 +591,9 @@ export function WorkbenchShell({
       {mainContentPortal}
       <UnsavedConfigGuardDialog
         open={Boolean(pendingLeave)}
-        onOpenChange={(open) => { if (!open) setPendingLeave(null) }}
+        reason={pendingLeave?.reason}
+        busy={discardingPendingLeave}
+        onOpenChange={(open) => { if (!open && !discardingPendingLeave) setPendingLeave(null) }}
         onDiscard={discardPendingNavigation}
       />
     </MobileWorkspaceHeaderProvider>

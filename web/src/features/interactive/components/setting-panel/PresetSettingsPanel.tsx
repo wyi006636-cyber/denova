@@ -70,6 +70,7 @@ interface AutosaveController {
   flushPending: () => Promise<unknown> | null
   saveNow: (mode: 'manual' | 'auto') => Promise<unknown>
   status: AutosaveStatus
+  error?: string | null
 }
 
 const actionButtonClassName = 'gap-1.5 border-[var(--preset-line)] bg-[var(--preset-raised)] text-[var(--nova-text-muted)] shadow-none hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]'
@@ -96,6 +97,7 @@ export function PresetSettingsPanel({
   const [presetConfigValid, setPresetConfigValid] = useState(true)
   const presetConfigValidRef = useRef(true)
   const closeDirectoryRef = useRef<() => void>(() => {})
+  const lastPresetFlushErrorRef = useRef<unknown>(null)
 
   const [presetResourceKind, setPresetResourceKind] = useState<PresetResourceKind>('teller')
 
@@ -348,8 +350,15 @@ export function PresetSettingsPanel({
   const activeAutosave = autosaveForKind(presetResourceKind)
   useExecutableDraftEntry(
     'setting-panel',
-    presetDirty || activeAutosave.status === 'pending' || activeAutosave.status === 'saving' || activeAutosave.status === 'error',
-    discardPresetDraft,
+    {
+      flush: flushPresetDraft,
+      isDirty: () => presetDirty || activeAutosave.status === 'pending' || activeAutosave.status === 'saving' || activeAutosave.status === 'error',
+      isSaving: () => activeAutosave.status === 'saving',
+      getError: () => activeAutosave.error,
+      shouldPromptBeforeUnload: () => activeAutosave.status === 'error'
+        || (activeAutosave.status !== 'pending' && activeAutosave.status !== 'saving' && presetDirty),
+      discard: discardPresetDraft,
+    },
   )
 
   const showInvalidPresetConfigNotice = () => {
@@ -381,6 +390,7 @@ export function PresetSettingsPanel({
   }
 
   async function flushPresetResourceAutoSave() {
+    lastPresetFlushErrorRef.current = null
     if (!canLeavePresetResource()) return false
     const controller = autosaveForKind(presetResourceKind)
     const pendingSave = controller.flushPending()
@@ -391,11 +401,18 @@ export function PresetSettingsPanel({
       await save
       return true
     } catch (err) {
+      lastPresetFlushErrorRef.current = err
       reportPresetError('[preset-settings] Save before resource switch failed; preserving the current editor', t('editor.saveFailed'), err)
       return false
     } finally {
       setTransitioning(false)
     }
+  }
+
+  async function flushPresetDraft() {
+    const flushed = await flushPresetResourceAutoSave()
+    if (flushed) return true
+    return { ok: false as const, error: lastPresetFlushErrorRef.current || activeAutosave.error }
   }
 
   const currentActivePresetId = (kind: PresetResourceKind) => {

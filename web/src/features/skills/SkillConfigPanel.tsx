@@ -31,6 +31,9 @@ interface SkillConfigPanelProps {
 export interface SkillConfigPanelHandle {
   flush: () => Promise<boolean>
   hasPending: () => boolean
+  getError: () => string | null
+  isSaving: () => boolean
+  isAutosavePending: () => boolean
   discard: () => void
 }
 
@@ -177,8 +180,11 @@ export const SkillConfigPanel = forwardRef<SkillConfigPanelHandle, SkillConfigPa
       || configAutosave.status === 'pending'
       || configAutosave.status === 'saving'
       || configAutosave.status === 'error',
+    getError: () => error,
+    isSaving: () => configAutosave.status === 'saving',
+    isAutosavePending: () => configAutosave.status === 'pending',
     discard: discardConfigAutosave,
-  }), [configAutosave.status, discardConfigAutosave, flushConfigAutosave, identityChanged])
+  }), [configAutosave.status, discardConfigAutosave, error, flushConfigAutosave, identityChanged])
 
   const applyIdentityChange = async () => {
     if (!document.editable || !identityChanged) return
