@@ -97,7 +97,7 @@ export function ProjectWritingSurface({
     const file = await readProjectFile(projectId, path)
     return file.content ?? ''
   }, [projectId])
-  const { chapterPlanContents, chapterGoals } = useChapterGoals({
+  const { chapterGoals } = useChapterGoals({
     projectId,
     chapterPlans: summary?.chapter_plans,
     readFile: readChapterPlan,
@@ -326,7 +326,7 @@ export function ProjectWritingSurface({
             ideas={summary?.ideas}
             outline={summary?.outline}
             chapterPlans={summary?.chapter_plans || []}
-            chapterPlanContents={chapterPlanContents}
+            chapterGoals={chapterGoals}
             selectedFile={selectedPath || null}
             onSelectFile={selectOutlineFile}
             onOpenLoreTab={onOpenLoreTab}

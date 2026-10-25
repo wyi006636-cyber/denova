@@ -31,9 +31,11 @@ export function MobileEditorToolbar(props: EditorToolbarProps) {
         </Sheet>}
         {chapterPath ? <Sheet open={goalOpen} onOpenChange={setGoalOpen}>
           <SheetTrigger asChild><Button variant="ghost" size="icon" aria-label={t('planning.chapterGoal.open')}><Target /></Button></SheetTrigger>
-          <SheetContent side="right" className="nova-mobile-sheet gap-0 p-3">
-            <SheetTitle>{t('planning.chapterGoal.title')}</SheetTitle>
-            <div className="mt-3 min-h-0 overflow-y-auto"><ChapterGoalCard goal={chapterGoal} chapterPath={chapterPath} hasRecentPlans={Boolean(onOpenChapterPlan)} onOpenPlan={onOpenChapterPlan} /></div>
+          <SheetContent side="right" className="nova-mobile-sheet gap-0 p-0">
+            <header data-mobile-drawer-header className="nova-topbar flex min-h-12 shrink-0 items-center border-b px-3 pr-14">
+              <SheetTitle className="min-w-0 truncate text-sm">{t('planning.chapterGoal.title')}</SheetTitle>
+            </header>
+            <div className="min-h-0 flex-1 overflow-y-auto p-3"><ChapterGoalCard goal={chapterGoal} chapterPath={chapterPath} hasRecentPlans={Boolean(onOpenChapterPlan)} onOpenPlan={onOpenChapterPlan} /></div>
           </SheetContent>
         </Sheet> : null}
 

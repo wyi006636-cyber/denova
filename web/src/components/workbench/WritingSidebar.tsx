@@ -6,6 +6,7 @@ import { SearchPanel } from '@/components/Sidebar/SearchPanel'
 import { WritingProjectExplorer } from '@/features/project-explorer/WritingProjectExplorer'
 import type { FileNode } from '@/hooks/useWorkspace'
 import type { ChapterSummary, DocumentPreview, WorkspaceSearchResult } from '@/lib/api'
+import type { ChapterGoal } from './story-ledger-parser'
 import { ChapterOutline, type OutlineRevealRequest } from './outline/ChapterOutline'
 
 const StableSearchPanel = memo(SearchPanel)
@@ -23,7 +24,7 @@ interface WritingSidebarProps {
   ideas?: DocumentPreview
   outline?: DocumentPreview
   chapterPlans: DocumentPreview[]
-  chapterPlanContents?: ReadonlyMap<string, string>
+  chapterGoals: ReadonlyMap<string, ChapterGoal>
   selectedFile: string | null
   loreTabActive: boolean
   revealRequest: OutlineRevealRequest | null
@@ -58,7 +59,7 @@ export const WritingSidebar = memo(function WritingSidebar({
   ideas,
   outline,
   chapterPlans,
-  chapterPlanContents,
+  chapterGoals,
   selectedFile,
   loreTabActive,
   revealRequest,
@@ -116,7 +117,7 @@ export const WritingSidebar = memo(function WritingSidebar({
             ideas={ideas}
             outline={outline}
             chapterPlans={chapterPlans}
-            chapterPlanContents={chapterPlanContents}
+            chapterGoals={chapterGoals}
             selectedFile={selectedFile}
             loreTabActive={loreTabActive}
             revealRequest={revealRequest}

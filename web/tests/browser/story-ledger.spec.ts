@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises'
 import { expect, test } from '../support/fixtures'
-import { createAndOpenBook, createProjectFile, readProjectFile } from '../support/api'
+import { createAndOpenBook, createProjectFile, readProjectFile, saveProjectFile } from '../support/api'
 
 test('shows chapter goals in the outline and toolbar, then confirms one ledger recovery', async ({ page, request }) => {
   const book = await createAndOpenBook(request, 'Story ledger browser')
@@ -9,7 +9,7 @@ test('shows chapter goals in the outline and toolbar, then confirms one ledger r
   const ledgerPath = 'setting/story-ledger.md'
   const chapterContent = '# 第一章 开场\n\n沈宁走进旧站。'
   const planContent = `# 第一组\n\n### ch00001 开场\n\n- 目标：拿到旧印\n- 冲突：守印人识破假身份\n- 要埋：t-old-seal\n- 要收：\n- 不得越界：不要写出旧印主人\n- 字数预期：3000\n- 章末钩子：血纹在手里发烫\n`
-  const ledgerContent = `# 故事线与伏笔\n\n## t-old-seal 旧印\n\n- 种类：伏笔\n- 一句话：师门旧印会暴露行踪。\n- 埋设章：ch00001\n- 计划回收：ch00018\n- 实际回收：\n- 弃用：否\n- 待确认：ch00001\n`
+  const ledgerContent = `# 故事线与伏笔\n\n## t-old-seal 旧印\n\n- 种类：伏笔\n- 一句话：师门旧印会暴露行踪。\n- 埋设章：ch00001\n- 计划回收：ch00018\n- 实际回收：\n- 弃用：否\n- 待确认：ch00001\n\n## t-long-thread 这是一条用于检查宽屏列表长标题的故事线\n\n- 种类：故事线\n- 一句话：标题很长时，列表仍保留种类和状态。\n- 埋设章：ch00002\n- 计划回收：ch00020\n- 实际回收：\n- 弃用：否\n- 待确认：ch00002\n\n## 归档\n\n## t-archived-seal 已归档的旧线索\n\n- 种类：伏笔\n- 一句话：已归档条目只在归档筛选中显示。\n- 埋设章：ch00003\n- 计划回收：ch00024\n- 实际回收：\n- 弃用：否\n- 待确认：ch00003\n`
   await createProjectFile(request, book.projectId, chapterPath, chapterContent)
   await createProjectFile(request, book.projectId, planPath, planContent)
   await createProjectFile(request, book.projectId, ledgerPath, ledgerContent)
@@ -24,14 +24,54 @@ test('shows chapter goals in the outline and toolbar, then confirms one ledger r
   await expect(goalButton).toBeVisible()
   await goalButton.click()
   await expect(page.getByText('拿到旧印', { exact: true }).last()).toBeVisible()
-  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
   await page.waitForTimeout(100)
   const screenshotRoot = 'D:/vibe/denova-pr-review/story-ledger-screenshots'
   await mkdir(screenshotRoot, { recursive: true })
+  await page.screenshot({ path: `${screenshotRoot}/chapter-goal-wide-dark.png`, animations: 'disabled' })
+  await page.keyboard.press('Escape')
+  await expect(page.locator('[data-slot="sheet-title"]', { hasText: '本章目标' }).last()).toBeHidden()
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
+  await page.waitForTimeout(100)
+  await goalButton.click()
+  await expect(page.getByText('拿到旧印', { exact: true }).last()).toBeVisible()
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
+  await page.waitForTimeout(100)
   await page.screenshot({ path: `${screenshotRoot}/chapter-goal-wide-light.png`, animations: 'disabled' })
+  await page.keyboard.press('Escape')
 
-  await page.getByRole('button', { name: '故事台账', exact: true }).first().click()
+  await page.setViewportSize({ width: 390, height: 844 })
+  const narrowGoalButton = page.getByRole('button', { name: '查看本章目标', exact: true }).filter({ visible: true }).first()
+  await expect(narrowGoalButton).toBeVisible()
+  await narrowGoalButton.click()
+  const narrowTitle = page.locator('[data-slot="sheet-title"]', { hasText: '本章目标' }).last()
+  await expect(narrowTitle).toBeVisible()
+  const titleBox = await narrowTitle.boundingBox()
+  expect(titleBox).not.toBeNull()
+  expect(titleBox!.y).toBeGreaterThanOrEqual(8)
+  expect(titleBox!.y + titleBox!.height).toBeLessThan(64)
+  await page.screenshot({ path: `${screenshotRoot}/chapter-goal-narrow-sheet.png`, animations: 'disabled' })
+  await page.screenshot({ path: `${screenshotRoot}/chapter-goal-narrow-sheet-light.png`, animations: 'disabled' })
+  await page.keyboard.press('Escape')
+  await page.setViewportSize({ width: 1440, height: 900 })
+
+  const storyLedgerShortcut = page.getByRole('button', { name: '故事台账', exact: true }).first()
+  await expect(storyLedgerShortcut).toBeVisible()
+  await expect(storyLedgerShortcut).toHaveAttribute('title', '故事台账')
+  await page.screenshot({ path: `${screenshotRoot}/book-settings-shortcuts-wide-light.png`, animations: 'disabled' })
+  await storyLedgerShortcut.click()
   await expect(page.getByRole('heading', { name: '故事台账', exact: true })).toBeVisible()
+  await expect(page.getByText('这是一条用于检查宽屏列表长标题的故事线', { exact: true })).toBeVisible()
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
+  await page.waitForTimeout(100)
+  await page.screenshot({ path: `${screenshotRoot}/ledger-list-wide-dark.png`, animations: 'disabled' })
+  await page.getByRole('tab', { name: '已归档', exact: true }).click()
+  await expect(page.getByText('已归档的旧线索', { exact: true })).toBeVisible()
+  await page.screenshot({ path: `${screenshotRoot}/ledger-archived-wide-dark.png`, animations: 'disabled' })
+  await page.getByRole('tab', { name: '全部', exact: true }).click()
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
+  await page.waitForTimeout(100)
+  await page.screenshot({ path: `${screenshotRoot}/ledger-list-wide-light.png`, animations: 'disabled' })
   await page.getByRole('tab', { name: '已埋未收', exact: true }).click()
   const entryRow = page.locator('button[aria-expanded="false"]').filter({ hasText: 't-old-seal' }).filter({ visible: true }).first()
   await entryRow.click()
@@ -58,4 +98,22 @@ test('shows chapter goals in the outline and toolbar, then confirms one ledger r
   const afterLines = after.content.split(/\r?\n/)
   const changedLines = afterLines.filter((line, index) => line !== beforeLines[index])
   expect(changedLines).toEqual(['- 实际回收：ch00001', '- 待确认：'])
+
+  await saveProjectFile(request, book.projectId, ledgerPath, '')
+  await page.waitForTimeout(500)
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: '故事台账', exact: true }).first()).toBeVisible()
+  await page.getByRole('button', { name: '故事台账', exact: true }).first().click()
+  await expect(page.getByRole('heading', { name: '故事台账', exact: true })).toBeVisible()
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
+  await page.waitForTimeout(100)
+  await page.screenshot({ path: `${screenshotRoot}/ledger-empty-wide-light.png`, animations: 'disabled' })
+
+  await saveProjectFile(request, book.projectId, ledgerPath, '# 说明\n\n这段正文没有符合格式的条目标题。')
+  await page.waitForTimeout(500)
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: '故事台账', exact: true }).first()).toBeVisible()
+  await page.getByRole('button', { name: '故事台账', exact: true }).first().click()
+  await expect(page.getByText('文件有正文，但没有认出符合格式的台账条目。请先检查原文，再决定是否编辑。', { exact: true })).toBeVisible()
+  await expect(page.getByText(/这段正文没有符合格式的条目标题。/)).toBeVisible()
 })

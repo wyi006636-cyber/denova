@@ -179,7 +179,7 @@ export function ModeRouter(props: ModeRouterProps) {
     onExitChatPlanMode,
     onDismissNotice,
   } = props
-  const { chapterPlanContents, chapterGoals } = useChapterGoals({
+  const { chapterGoals } = useChapterGoals({
     projectId,
     chapterPlans: summary?.chapter_plans,
     readFile: onReadFile,
@@ -675,7 +675,7 @@ export function ModeRouter(props: ModeRouterProps) {
       ideas={summary?.ideas}
       outline={summary?.outline}
       chapterPlans={summary?.chapter_plans ?? EMPTY_CHAPTER_PLANS}
-      chapterPlanContents={chapterPlanContents}
+      chapterGoals={chapterGoals}
       selectedFile={selectedFile}
       loreTabActive={activeTab?.kind === 'lore'}
       revealRequest={outlineRevealRequest}

@@ -133,8 +133,8 @@ export function StoryLedgerView({
           <Edit3 className="h-3 w-3" />{t('planning.ledgerEditOriginal')}
         </button>
       </div>
-      <div className="shrink-0 overflow-x-auto border-b border-[var(--nova-border)] px-3 py-2">
-        <div className="flex min-w-max gap-1" role="tablist" aria-label={t('planning.ledgerFilters')}>
+      <div className="shrink-0 border-b border-[var(--nova-border)] px-3 py-2">
+        <div className="flex flex-wrap gap-1" role="tablist" aria-label={t('planning.ledgerFilters')}>
           {(['all', 'planned', 'planted', 'recovered', 'deprecated', 'archived'] as StoryLedgerFilter[]).map((value) => (
             <button key={value} type="button" role="tab" aria-selected={filter === value} className={`nova-nav-item rounded px-2.5 py-1 text-[11px] ${filter === value ? 'is-active' : ''}`} onClick={() => setFilter(value)}>
               {t(`planning.ledgerFilter.${value}`)}
@@ -145,7 +145,14 @@ export function StoryLedgerView({
       {error ? <div role="alert" className="mx-3 mt-2 rounded border border-[var(--nova-danger)]/40 bg-[var(--nova-danger-bg)] px-2.5 py-2 text-[11px] text-[var(--nova-danger)]">{error}</div> : null}
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {entries.length === 0 ? (
-          <div className="rounded border border-dashed border-[var(--nova-border)] px-3 py-8 text-center text-xs text-[var(--nova-text-faint)]">{t('planning.ledgerEmpty')}</div>
+          listContent.trim() ? (
+            <div className="rounded border border-dashed border-[var(--nova-border)] px-3 py-4 text-xs text-[var(--nova-text-faint)]">
+              <p>{t('planning.ledgerUnrecognized')}</p>
+              <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap break-words rounded bg-[var(--nova-surface)] p-3 text-[11px] leading-5 text-[var(--nova-text-muted)]">{listContent}</pre>
+            </div>
+          ) : (
+            <div className="rounded border border-dashed border-[var(--nova-border)] px-3 py-8 text-center text-xs text-[var(--nova-text-faint)]">{t('planning.ledgerEmpty')}</div>
+          )
         ) : visibleEntries.length === 0 ? (
           <div className="rounded border border-dashed border-[var(--nova-border)] px-3 py-8 text-center text-xs text-[var(--nova-text-faint)]">{t('planning.ledgerNoMatches')}</div>
         ) : (
@@ -158,6 +165,7 @@ export function StoryLedgerView({
                   <button type="button" className="flex w-full min-w-0 items-center gap-2 px-3 py-2.5 text-left" aria-expanded={expanded} onClick={() => setExpandedID(expanded ? null : entry.id)}>
                     {expanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" />}
                     <span className="shrink-0 rounded bg-[var(--nova-surface-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--nova-text-muted)]">{entry.id}</span>
+                    <span className="shrink-0 rounded border border-[var(--nova-border)] px-1.5 py-0.5 text-[10px] text-[var(--nova-text-muted)]">{entry.kind || t('planning.ledgerKindUnknown')}</span>
                     <span className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--nova-text)]">{entry.title || entry.summary || t('planning.ledgerUntitled')}</span>
                     <span className="shrink-0 rounded border border-[var(--nova-border)] px-1.5 py-0.5 text-[10px] text-[var(--nova-text-muted)]">{t(`planning.ledgerStatus.${entry.status}`)}</span>
                     <span className="hidden shrink-0 text-[10px] text-[var(--nova-text-faint)] sm:inline">{entry.plantedChapter || '—'} → {entry.plannedRecovery || '—'}</span>
@@ -166,6 +174,7 @@ export function StoryLedgerView({
                     <div className="space-y-3 border-t border-[var(--nova-border)] px-3 py-3 text-xs">
                       <p className="whitespace-pre-wrap break-words text-[var(--nova-text-muted)]">{entry.summary || t('planning.ledgerNoSummary')}</p>
                       <dl className="grid min-w-0 gap-1.5 sm:grid-cols-2">
+                        <LedgerField label={t('planning.ledgerKind')} value={entry.kind} />
                         <LedgerField label={t('planning.ledgerParticipants')} value={entry.participants} />
                         <LedgerField label={t('planning.ledgerPlantedChapter')} value={entry.plantedChapter} chapterByPrefix={chapterByPrefix} onSelectChapter={onSelectChapter} />
                         <LedgerField label={t('planning.ledgerPlannedRecovery')} value={entry.plannedRecovery} chapterByPrefix={chapterByPrefix} onSelectChapter={onSelectChapter} />
