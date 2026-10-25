@@ -106,6 +106,37 @@ func TestExternalAssembliesExcludeNativeCoordination(t *testing.T) {
 	}
 }
 
+func TestExternalCodexReadOnlyAssemblyOmitsDocumentReviewTool(t *testing.T) {
+	runtime := config.RuntimeSelection{
+		Kind:  config.RuntimeCodex,
+		Codex: &config.CodexRuntimeSettings{Model: "test-model", Sandbox: config.CodexReadOnly},
+	}
+	cfg := &config.Config{
+		Workspace:          t.TempDir(),
+		DenovaDir:          t.TempDir(),
+		ProjectStoreDir:    t.TempDir(),
+		ActiveAgentRuntime: &runtime,
+		AgentTools:         config.DefaultAgentToolSettings(),
+	}
+	assembly, err := BuildExternalConversationAssembly(t.Context(), cfg, nil, prompts.IDEStoryTeller{}, config.AgentKindIDE, AgentHostCapabilities{Interactive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	definitions, err := assembly.PrepareTools(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, definition := range definitions {
+		info, err := definition.Tool.Info(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Name == "add_review_comments" {
+			t.Fatal("Codex read-only external assembly exposed add_review_comments")
+		}
+	}
+}
+
 type externalPluginToolset struct {
 	agenttool.Toolset
 	owner context.Context

@@ -9,6 +9,7 @@ const INLINE_COMMENT_EDITOR_CLASS = 'nova-review-inline-editor min-h-0 resize-no
 export interface InlineReviewComment {
   id: string
   body: string
+  source?: 'author' | 'agent'
 }
 
 interface InlineCommentThreadProps<T extends InlineReviewComment> {
@@ -26,12 +27,13 @@ interface InlineCommentThreadProps<T extends InlineReviewComment> {
   }
   onUpdate?: (comment: T, body: string) => Promise<void> | void
   onDelete?: (comment: T) => Promise<void> | void
+  onPromote?: (comment: T) => Promise<void> | void
   onCollapse?: () => void
   onEditingChange?: (editing: boolean) => void
 }
 
 /** Shared inline thread used by diff review and author document review. */
-export function InlineCommentThread<T extends InlineReviewComment>({ comments = [], anchorLabel, anchorDescription, quote, disabled = false, draft, onUpdate, onDelete, onCollapse, onEditingChange }: InlineCommentThreadProps<T>) {
+export function InlineCommentThread<T extends InlineReviewComment>({ comments = [], anchorLabel, anchorDescription, quote, disabled = false, draft, onUpdate, onDelete, onPromote, onCollapse, onEditingChange }: InlineCommentThreadProps<T>) {
   const { t } = useTranslation()
   const [editingID, setEditingID] = useState('')
   const [editBody, setEditBody] = useState('')
@@ -105,8 +107,10 @@ export function InlineCommentThread<T extends InlineReviewComment>({ comments = 
             </>
           ) : (
             <>
+              {comment.source === 'agent' && <span className="mb-1 inline-flex rounded border border-[var(--nova-warning)]/60 bg-[var(--nova-warning)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--nova-warning)]">{t('editor.review.agentLabel')}</span>}
               <p className="whitespace-pre-wrap break-words leading-5">{comment.body}</p>
               <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1">
+                {comment.source === 'agent' && onPromote && <Button type="button" size="xs" variant="outline" disabled={busy} onClick={() => void run(comment.id, () => onPromote(comment))}>{t('editor.review.promote')}</Button>}
                 {onUpdate && <Button type="button" size="xs" variant="ghost" disabled={busy} onClick={() => { setEditing(comment.id); setEditBody(comment.body) }}><Pencil />{t('common.edit')}</Button>}
                 {onDelete && <Button type="button" size="xs" variant="ghost" disabled={busy} className="text-[var(--nova-danger)]" onClick={() => void run(comment.id, () => onDelete(comment))}><Trash2 />{t('common.delete')}</Button>}
               </div>

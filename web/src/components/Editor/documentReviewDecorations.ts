@@ -11,6 +11,7 @@ export interface DocumentReviewDecoration {
   widgetPos: number
   outdated?: boolean
   showWidget?: boolean
+  agent?: boolean
 }
 
 export interface DocumentReviewDecorationState {
@@ -135,7 +136,7 @@ function createHighlightDecorations(doc: ProseMirrorNode, state: DocumentReviewD
     for (const item of undisclosedItems) disclosedKeys.add(item.key)
     const keys = interactiveItems.map((item) => item.key)
     decorations.push(Decoration.inline(segment.from, segment.to, {
-      class: 'nova-document-review-highlight',
+      class: `nova-document-review-highlight${segment.items.some((item) => item.agent) ? ' is-agent' : ''}`,
       'data-document-review-keys': JSON.stringify(keys),
       ...(undisclosedItems.length ? documentReviewDisclosureAttributes(interactiveItems, state) : {}),
     }, {

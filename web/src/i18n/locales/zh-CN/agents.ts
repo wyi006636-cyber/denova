@@ -47,6 +47,8 @@ const agents = {
   'agents.tool.workspaceWrite.subtitle': 'write / edit',
   'agents.tool.imageGeneration.title': '生成图像',
   'agents.tool.imageGeneration.subtitle': 'generate_image',
+  'agents.tool.documentReview.title': '添加正文审稿批注',
+  'agents.tool.documentReview.subtitle': 'add_review_comments',
   'agents.tool.shell.title': 'Shell 命令',
   'agents.tool.shell.subtitle': 'bash / pwsh',
   'agents.tool.browser.title': '浏览器',

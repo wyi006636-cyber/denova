@@ -92,3 +92,39 @@ func TestBridgeScopesToolsAndCancelsPendingQuestion(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestBridgeExposesRegisteredReviewCommentTool(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	bridge, err := startBridge(ctx, []external.Tool{
+		{Name: "ask", Description: "Ask", Schema: json.RawMessage(`{"type":"object"}`)},
+		{Name: "add_review_comments", Description: "Add anchored review comments", Schema: json.RawMessage(`{"type":"object","properties":{"items":{"type":"array"}}}`)},
+	}, &testHost{}, cancel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bridge.close()
+	client := mcp.NewClient(&mcp.Implementation{Name: "fixture", Version: "1"}, nil)
+	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{
+		Endpoint:   bridge.url,
+		HTTPClient: &http.Client{Transport: authorizedTransport{bridge.token}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	list, err := session.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := false
+	for _, tool := range list.Tools {
+		if tool.Name == "add_review_comments" {
+			seen = true
+			break
+		}
+	}
+	if !seen {
+		t.Fatalf("Claude bridge did not expose add_review_comments: %#v", list.Tools)
+	}
+}

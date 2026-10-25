@@ -501,7 +501,8 @@ export function ModeRouter(props: ModeRouterProps) {
     onCreate: documentReview.addComment,
     onUpdate: documentReview.editComment,
     onDelete: documentReview.removeComment,
-  }), [documentReview.addComment, documentReview.editComment, documentReview.removeComment, documentReview.visibleComments])
+    onPromote: documentReview.promoteComment,
+  }), [documentReview.addComment, documentReview.editComment, documentReview.promoteComment, documentReview.removeComment, documentReview.visibleComments])
   const removeActiveReviewFeedback = useCallback((selection: ReviewFeedbackSelection, commentID: string) => {
     if (selection.source === 'document') documentReview.removeFeedback(commentID)
     else removeReviewFeedback(commentID)
@@ -618,6 +619,7 @@ export function ModeRouter(props: ModeRouterProps) {
     isLoadingEarlierHistory,
     fileSuggestions,
     onCreateSession: onCreateChatSession,
+    onBeforeSend: onBeforeWorkspaceSwitch,
     onSwitchSession: onSwitchChatSession,
     onRenameSession: onRenameChatSession,
     onDeleteSession: onDeleteChatSession,

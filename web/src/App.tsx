@@ -61,6 +61,7 @@ import { WritingSelectionProvider } from '@/features/writing/WritingSelectionCon
 import { useWorkbenchNotice } from '@/features/notices/use-workbench-notice'
 import { LORE_UPDATED_EVENT, notifyLoreUpdated, type LoreUpdatedDetail } from '@/features/lore/events'
 import type { AgentChatConversationState } from '@/features/agent-chat/AgentChatConversationTab'
+import { notifyDocumentReviewUpdated } from '@/features/document-review/use-document-review'
 
 const PROJECT_VISIBLE_KEY = 'nova.layout.projectVisible'
 const ACTIVITY_BAR_EXPANDED_KEY = 'nova.layout.activityBarExpanded'
@@ -191,6 +192,10 @@ function App() {
       // Lore tools persist outside the workspace file tree, so Agent completion
       // invalidates Lore projections explicitly as well as file summaries.
       notifyLoreUpdated({ projectId, source: 'writing-agent' })
+      // Review tools persist Project Store metadata rather than workspace files.
+      // Refresh the document-review projection when an Agent turn settles so
+      // newly created AI annotations appear without a page reload.
+      notifyDocumentReviewUpdated(projectId, 'refresh')
       notifyVersionChange()
       if (impact === 'structure') notifyProjectStructureChange()
     }

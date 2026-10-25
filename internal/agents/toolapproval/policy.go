@@ -93,6 +93,14 @@ func Evaluate(request Request) Decision {
 	if request.ToolName == "browser" {
 		return evaluateBrowser(request)
 	}
+	// Document review writes only bounded annotations to the Project Store
+	// ledger. They never touch workspace content or host resources, so the
+	// capability setting is the user's explicit authorization boundary rather
+	// than an interactive file or external-state approval prompt.
+	if request.Descriptor.Capability == config.AgentToolDocumentReview {
+		return allow("document_review_ledger", RiskLow,
+			"审稿批注只写入项目审阅账本。 / Review comments only update the Project review ledger.")
+	}
 
 	// Product-owned structured tools have bounded schemas and their existing
 	// capability checks remain authoritative. Workspace/session/config changes

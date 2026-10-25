@@ -7,6 +7,7 @@ const apiMocks = vi.hoisted(() => ({
   createDocumentComment: vi.fn(),
   updateDocumentComment: vi.fn(),
   deleteDocumentComment: vi.fn(),
+  promoteDocumentComment: vi.fn(),
 }))
 
 vi.mock('./api', () => apiMocks)
@@ -77,5 +78,41 @@ describe('useDocumentReview', () => {
     await waitFor(() => expect(result.current.feedback).toBeNull())
     expect(result.current.visibleComments).toEqual([])
     expect(apiMocks.getDocumentReview).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    ['delete', 'removeComment'],
+    ['promote', 'promoteComment'],
+  ] as const)('does not let a stale GET overwrite a successful %s mutation', async (label, method) => {
+    const comment = { id: 'comment-1', thread_id: 'thread-1', target: { kind: 'lore_item' as const, id: 'hero', field: 'content' as const }, body: '修改这里', anchor, created_at: '', updated_at: '', source: 'agent' as const }
+    const originalThread = { id: 'thread-1', comments: [comment] }
+    const settledThread = label === 'delete' ? { id: '', comments: [] } : { id: 'thread-1', comments: [{ ...comment, source: 'author' as const }] }
+    let resolveStale!: (value: typeof originalThread) => void
+    const staleResponse = new Promise<typeof originalThread>((resolve) => { resolveStale = resolve })
+    apiMocks.getDocumentReview.mockResolvedValueOnce(originalThread).mockReturnValueOnce(staleResponse)
+    if (label === 'delete') {
+      apiMocks.deleteDocumentComment.mockResolvedValue({ reviewThread: settledThread, comment })
+    } else {
+      apiMocks.promoteDocumentComment.mockResolvedValue({ reviewThread: settledThread, comment: settledThread.comments[0] })
+    }
+
+    const { result } = renderHook(() => useDocumentReview({ projectId: 'book-1', agentVisible: true, onShowAgent: vi.fn() }))
+    await waitFor(() => expect(result.current.thread).toEqual(originalThread))
+    const staleRefresh = result.current.refresh()
+    await act(async () => { await Promise.resolve() })
+    expect(apiMocks.getDocumentReview).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+      await result.current[method](comment)
+    })
+    expect(result.current.thread).toEqual(settledThread)
+
+    await act(async () => {
+      resolveStale(originalThread)
+      await staleRefresh
+    })
+    // The stale response should be ignored once the mutation advances the local epoch.
+    expect(result.current.thread).toEqual(settledThread)
+    await waitFor(() => expect(result.current.thread).toEqual(settledThread))
   })
 })

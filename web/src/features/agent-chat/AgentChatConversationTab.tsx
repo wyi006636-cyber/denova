@@ -48,6 +48,7 @@ export interface AgentChatConversationTabProps {
   onRunningChange?: (projectID: string, sessionId: string, running: boolean | null) => void
   /** The host opens another conversation without changing this tab's durable binding. */
   onCreateSession: AgentPanelProps['onCreateSession']
+  onBeforeSend?: AgentPanelProps['onBeforeSend']
   onDraftCommitted?: (message: string) => void
   pendingAction?: AgentChatPendingAction | null
   onPendingActionConsumed?: (id: string) => void
@@ -130,6 +131,7 @@ function AgentChatConversationTabComponent({
   onWorkspaceChanged,
   onRunningChange,
   onCreateSession,
+  onBeforeSend,
   onDraftCommitted,
   pendingAction,
   onPendingActionConsumed,
@@ -394,6 +396,7 @@ function AgentChatConversationTabComponent({
       onCancelAsk={client.cancelSessionAsk}
       onRemoveContextCompaction={client.removeContextCompaction}
       onSend={send}
+      onBeforeSend={onBeforeSend}
       onAnalyzeContext={(message, options) => chat.analyzeContext(messageTransform?.(message) ?? message, options)}
       ideContext={host?.ideContext}
       onStop={chat.stop}
