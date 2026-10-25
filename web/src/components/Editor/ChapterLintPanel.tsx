@@ -123,7 +123,7 @@ export function ChapterLintPanel({
   }, [occurrenceIndexes, onIssueClick])
 
   return (
-    <aside className="flex max-h-[min(70vh,680px)] w-full shrink-0 flex-col border-b border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text)] md:max-h-none md:w-[min(380px,34%)] md:border-b-0 md:border-r" aria-label={t('editor.lint.title')}>
+    <aside className="flex max-h-[min(70vh,680px)] w-full shrink-0 flex-col border-b border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text)] md:max-h-none md:w-[clamp(220px,40%,360px)] md:border-b-0 md:border-r" aria-label={t('editor.lint.title')}>
       <div className="flex shrink-0 items-center gap-2 border-b border-[var(--nova-border)] px-3 py-2">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-semibold">{t('editor.lint.title')}</h2>
