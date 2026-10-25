@@ -78,6 +78,7 @@ interface WritingMainRouteProps {
   onToggleTabPin: (tab: Tab) => void
   onMoveTab: (sourceKey: string, targetKey: string) => void
   onEditorFlushHandlerChange: (handler: EditorFlushHandler | null) => void
+  onBeforeLedgerList: EditorFlushHandler
   onOpenLoreLibrary: () => void
   onReferenceLoreItem: LoreWorkspaceProps['onReferenceItem']
   onSelectFile: (path: string) => unknown
@@ -133,6 +134,7 @@ export function WritingMainRoute({
   onToggleTabPin,
   onMoveTab,
   onEditorFlushHandlerChange,
+  onBeforeLedgerList,
   onOpenLoreLibrary,
   onReferenceLoreItem,
   onSelectFile,
@@ -205,6 +207,8 @@ export function WritingMainRoute({
               const active = activeTab?.kind === 'file' && activeTab.path === tab.path
               const chapter = summary?.chapters?.find(chapter => chapter.path === tab.path)
               const latestChapterPlanPath = summary?.chapter_plans?.at(-1)?.path
+              const chapterGoal = chapter ? chapterGoals.get((extractChapterPrefix(chapter.path) || '').toLowerCase()) ?? null : null
+              const chapterPlanPath = chapterGoal?.sourcePath ?? latestChapterPlanPath
               const rawEditor = (
                 <StableWritingDocumentEditor
                   active={active}
@@ -218,8 +222,8 @@ export function WritingMainRoute({
                   autoSaveEnabled={editorAutoSaveEnabled}
                   autoSaveDelayMs={editorAutoSaveDelayMs}
                   chapterSummary={chapter}
-                    chapterGoal={chapter ? chapterGoals.get((extractChapterPrefix(chapter.path) || '').toLowerCase()) ?? null : null}
-                  onOpenChapterPlan={latestChapterPlanPath ? () => { void onSelectFile(latestChapterPlanPath) } : undefined}
+                  chapterGoal={chapterGoal}
+                  onOpenChapterPlan={chapterPlanPath ? () => { void onSelectFile(chapterPlanPath) } : undefined}
                   onRevealChapter={onRevealChapter}
                   searchIntent={active ? editorSearchIntent : null}
                   onGenerateIllustration={onGenerateIllustration}
@@ -263,7 +267,7 @@ export function WritingMainRoute({
                       const result = await onSaveCurrentFile(path, content, baseRevision)
                       return typeof result === 'object' ? result : {}
                     }}
-                    onEditOriginal={() => {}}
+                    onBeforeList={onBeforeLedgerList}
                     rawEditor={rawEditor}
                   />
                 ) : rawEditor}

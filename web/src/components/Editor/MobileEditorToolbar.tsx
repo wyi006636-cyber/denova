@@ -33,7 +33,7 @@ export function MobileEditorToolbar(props: EditorToolbarProps) {
           <SheetTrigger asChild><Button variant="ghost" size="icon" aria-label={t('planning.chapterGoal.open')}><Target /></Button></SheetTrigger>
           <SheetContent side="right" className="nova-mobile-sheet gap-0 p-3">
             <SheetTitle>{t('planning.chapterGoal.title')}</SheetTitle>
-            <div className="mt-3 min-h-0 overflow-y-auto"><ChapterGoalCard goal={chapterGoal} onOpenPlan={onOpenChapterPlan} /></div>
+            <div className="mt-3 min-h-0 overflow-y-auto"><ChapterGoalCard goal={chapterGoal} chapterPath={chapterPath} hasRecentPlans={Boolean(onOpenChapterPlan)} onOpenPlan={onOpenChapterPlan} /></div>
           </SheetContent>
         </Sheet> : null}
 

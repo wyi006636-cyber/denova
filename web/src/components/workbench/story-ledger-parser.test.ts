@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  extractChapterPrefix,
+  findChapterPrefixMatches,
   filterStoryLedger,
   parseChapterGoals,
   parseStoryLedger,
@@ -36,5 +38,52 @@ describe('story ledger parser', () => {
       '- 实际回收：ch00012',
       '- 待确认：',
     ])
+  })
+
+  it('inserts missing Chinese fields at the end of the entry block', () => {
+    const source = `# 故事线与伏笔\n\n## t-missing 缺字段\n- 种类：伏笔\n- 一句话：等待确认\n- 埋设章：ch00003\n\n## t-next 下一条\n- 种类：故事线\n`
+    const entry = parseStoryLedger(source)[0]
+    const next = patchLedgerEntry(source, entry, 'confirm', 'ch00012')
+    expect(next).toContain('- 实际回收：ch00012')
+    expect(next).toContain('- 待确认：')
+    expect(next.indexOf('- 实际回收：ch00012')).toBeLessThan(next.indexOf('## t-next'))
+    expect(parseStoryLedger(next)[0]).toMatchObject({ actualRecovery: 'ch00012', pending: '' })
+  })
+
+  it('inserts missing English fields and uses English deprecation values', () => {
+    const source = `# Story ledger\n\n## t-missing Dropped\n- Type: thread\n- Summary: keep language\n- Planted chapter: ch00003\n`
+    const entry = parseStoryLedger(source)[0]
+    const next = patchLedgerEntry(source, entry, 'deprecate')
+    expect(next).toContain('- Deprecated: yes')
+    expect(parseStoryLedger(next)[0].deprecated).toBe('yes')
+  })
+
+  it('ends entries at archive headings and keeps archived entries out of the default filter', () => {
+    const source = `# Story ledger\n\n## t-active Active\n- Type: thread\n\n## Archive\n\n## t-old Old\n- Type: thread\n- Deprecated: yes\n`
+    const entries = parseStoryLedger(source)
+    expect(entries.map((entry) => entry.archived)).toEqual([false, true])
+    expect(filterStoryLedger(entries, 'all').map((entry) => entry.id)).toEqual(['t-active'])
+    expect(filterStoryLedger(entries, 'archived').map((entry) => entry.id)).toEqual(['t-old'])
+  })
+
+  it('keeps malformed entry locations unchanged instead of writing through them', () => {
+    const source = `# Story ledger\n\n## t-real Real\n- Type: thread\n`
+    const [entry] = parseStoryLedger(source)
+    expect(patchLedgerEntry(source, { ...entry, startLine: 999 }, 'deprecate')).toBe(source)
+    expect(patchLedgerEntry('not markdown', entry, 'deprecate')).toBe('not markdown')
+  })
+
+  it('does not invent a chapter prefix for legacy filenames', () => {
+    expect(extractChapterPrefix('chapters/001-legacy.md')).toBeNull()
+    expect(extractChapterPrefix('chapters/ch00012-opening.md')).toBe('ch00012')
+  })
+
+  it('returns every duplicate chapter prefix so the UI can avoid guessing a destination', () => {
+    const matches = findChapterPrefixMatches([
+      { path: 'chapters/ch00012-a.md' },
+      { path: 'chapters/ch00012-b.md' },
+      { path: 'chapters/ch00013.md' },
+    ], 'pending at ch00012')
+    expect(matches.map((chapter) => chapter.path)).toEqual(['chapters/ch00012-a.md', 'chapters/ch00012-b.md'])
   })
 })

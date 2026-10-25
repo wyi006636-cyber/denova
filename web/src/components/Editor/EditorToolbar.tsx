@@ -103,7 +103,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
             </PopoverTrigger>
             <PopoverContent align="start" className="w-[min(360px,calc(100vw-24px))] border-[var(--nova-border)] bg-[var(--nova-menu-bg)] p-2">
               <div className="mb-1 px-1 text-[11px] font-medium text-[var(--nova-text-faint)]">{t('planning.chapterGoal.title')}</div>
-              <ChapterGoalCard goal={chapterGoal} onOpenPlan={onOpenChapterPlan} />
+              <ChapterGoalCard goal={chapterGoal} chapterPath={chapterPath} hasRecentPlans={Boolean(onOpenChapterPlan)} onOpenPlan={onOpenChapterPlan} />
             </PopoverContent>
           </Popover>
         ) : null}

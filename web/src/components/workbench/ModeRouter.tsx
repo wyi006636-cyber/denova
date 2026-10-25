@@ -33,7 +33,7 @@ import { WritingSidebar } from './WritingSidebar'
 import { IdeWritingInfoActions, WritingMainRoute } from './WritingMainRoute'
 import { useWritingAgentPanel } from './use-writing-agent-panel'
 import type { ModeRouterProps } from './ModeRouter.types'
-import { parseChapterGoals, type ChapterGoal } from './story-ledger-parser'
+import { useChapterGoals } from './useChapterGoals'
 import { SharedWorkbenchRoutes } from './SharedWorkbenchRoutes'
 import { AgentChatWorkbenchRoute } from './AgentChatWorkbenchRoute'
 import { ToolNavigationProvider, type ToolNavigationIntent, type ToolNavigationTarget } from '@/components/Chat/tool-navigation'
@@ -179,34 +179,11 @@ export function ModeRouter(props: ModeRouterProps) {
     onExitChatPlanMode,
     onDismissNotice,
   } = props
-  const [chapterPlanContents, setChapterPlanContents] = useState<ReadonlyMap<string, string>>(new Map())
-  const chapterPlanPaths = useMemo(() => (summary?.chapter_plans ?? []).slice(-2).map((plan) => plan.path), [summary?.chapter_plans])
-  useEffect(() => {
-    let cancelled = false
-    if (!onReadFile || chapterPlanPaths.length === 0) {
-      setChapterPlanContents(new Map())
-      return () => { cancelled = true }
-    }
-    void Promise.all(chapterPlanPaths.map(async (path) => {
-      try {
-        return [path, await onReadFile(path)] as const
-      } catch (error) {
-        console.warn('[ModeRouter.tsx] failed to load chapter-group plan for chapter goals', { path, error })
-        return null
-      }
-    })).then((loaded) => {
-      if (cancelled) return
-      setChapterPlanContents(new Map(loaded.filter((item): item is readonly [string, string] => Boolean(item))))
-    })
-    return () => { cancelled = true }
-  }, [chapterPlanPaths, onReadFile, projectId])
-  const chapterGoals = useMemo(() => {
-    const result = new Map<string, ChapterGoal>()
-    for (const [path, content] of chapterPlanContents) {
-      for (const [anchor, goal] of parseChapterGoals(content, path)) result.set(anchor, goal)
-    }
-    return result
-  }, [chapterPlanContents])
+  const { chapterPlanContents, chapterGoals } = useChapterGoals({
+    projectId,
+    chapterPlans: summary?.chapter_plans,
+    readFile: onReadFile,
+  })
   const { categories: loreCategories } = useLoreCategories(projectId)
   const resourceTarget = useMemo(
     () => projectId.trim() ? projectResourceTarget(projectId) : GLOBAL_RESOURCE_TARGET,
@@ -768,6 +745,7 @@ export function ModeRouter(props: ModeRouterProps) {
         onToggleTabPin={onToggleTabPin}
         onMoveTab={onMoveTab}
         onEditorFlushHandlerChange={onEditorFlushHandlerChange}
+        onBeforeLedgerList={flushBeforeWorkspaceSwitch}
         onOpenLoreLibrary={openLoreLibrary}
         onReferenceLoreItem={referenceLoreFromWorkspace}
         onSelectFile={selectWorkspacePath}

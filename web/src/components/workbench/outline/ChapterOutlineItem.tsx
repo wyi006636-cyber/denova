@@ -92,7 +92,7 @@ export const ChapterOutlineItem = memo(function ChapterOutlineItem({
         >
           <ConfirmIcon className={`h-3.5 w-3.5 ${saving ? 'animate-spin' : ''}`} />
         </button>
-        {active ? <div className="border-t border-[var(--nova-border)] px-2 py-2"><ChapterGoalCard goal={chapterGoal} onOpenPlan={onOpenChapterPlan} /></div> : null}
+        {active ? <div className="border-t border-[var(--nova-border)] px-2 py-2"><ChapterGoalCard goal={chapterGoal} chapterPath={chapter.path} hasRecentPlans={Boolean(onOpenChapterPlan)} onOpenPlan={onOpenChapterPlan} /></div> : null}
       </div>
     </OutlineFileActions>
   )

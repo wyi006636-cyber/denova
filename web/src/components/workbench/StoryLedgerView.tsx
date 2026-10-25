@@ -10,6 +10,7 @@ import {
   type StoryLedgerEntry,
   type StoryLedgerFilter,
 } from './story-ledger-parser'
+import { WorkspaceFileRevisionConflictError } from '@/lib/autosave/workspace-file-revision-conflict'
 
 interface StoryLedgerViewProps {
   path: string
@@ -18,7 +19,7 @@ interface StoryLedgerViewProps {
   chapters: ChapterSummary[]
   onSelectChapter: (path: string) => void | Promise<void>
   onSave: (path: string, content: string, baseRevision: string) => Promise<{ revision?: string }>
-  onEditOriginal: () => void
+  onBeforeList?: () => Promise<boolean>
   rawEditor: ReactNode
 }
 
@@ -29,7 +30,7 @@ export function StoryLedgerView({
   chapters,
   onSelectChapter,
   onSave,
-  onEditOriginal,
+  onBeforeList,
   rawEditor,
 }: StoryLedgerViewProps) {
   const { t } = useTranslation()
@@ -40,6 +41,7 @@ export function StoryLedgerView({
   const [savingID, setSavingID] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [raw, setRaw] = useState(false)
+  const [leavingRaw, setLeavingRaw] = useState(false)
 
   useEffect(() => {
     setListContent(content)
@@ -64,10 +66,15 @@ export function StoryLedgerView({
     const chapter = action === 'confirm' ? extractChapterPrefix(entry.pending) : undefined
     if (action === 'confirm' && !chapter) {
       setError(t('planning.ledgerPendingChapterMissing'))
+      console.warn('[StoryLedgerView.tsx] ledger confirmation skipped because pending value has no chapter prefix', { path, entry: entry.id })
       return
     }
     const nextContent = patchLedgerEntry(listContent, entry, action, chapter || undefined)
-    if (nextContent === listContent) return
+    if (nextContent === listContent) {
+      setError(t('planning.ledgerNoChange'))
+      console.warn('[StoryLedgerView.tsx] ledger action produced no changes', { path, entry: entry.id, action })
+      return
+    }
     setSavingID(entry.id)
     setError('')
     try {
@@ -76,9 +83,27 @@ export function StoryLedgerView({
       if (result.revision) setListRevision(result.revision)
     } catch (cause) {
       console.error('[StoryLedgerView.tsx] failed to save story ledger action', { path, entry: entry.id, action, cause })
-      setError(t('planning.ledgerSaveFailed'))
+      setError(cause instanceof WorkspaceFileRevisionConflictError
+        ? t('planning.ledgerRevisionConflict')
+        : t('planning.ledgerSaveFailed'))
     } finally {
       setSavingID(null)
+    }
+  }
+
+  const returnToList = async () => {
+    if (leavingRaw) return
+    setLeavingRaw(true)
+    try {
+      if (onBeforeList && !(await onBeforeList())) {
+        console.warn('[StoryLedgerView.tsx] failed to flush the original ledger editor before returning to list', { path })
+        setError(t('planning.ledgerFlushFailed'))
+        return
+      }
+      setError('')
+      setRaw(false)
+    } finally {
+      setLeavingRaw(false)
     }
   }
 
@@ -87,10 +112,11 @@ export function StoryLedgerView({
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div className="flex shrink-0 items-center justify-between border-b border-[var(--nova-border)] bg-[var(--nova-surface)] px-3 py-1.5">
           <span className="text-[11px] font-medium text-[var(--nova-text-muted)]">{t('planning.storyLedger')}</span>
-          <button type="button" className="nova-nav-item inline-flex items-center gap-1 rounded px-2 py-1 text-[11px]" onClick={() => setRaw(false)}>
+          <button type="button" disabled={leavingRaw} className="nova-nav-item inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] disabled:opacity-45" onClick={() => void returnToList()}>
             <ChevronRight className="h-3 w-3" />{t('planning.ledgerBackToList')}
           </button>
         </div>
+        {error ? <div role="alert" className="mx-3 mt-2 rounded border border-[var(--nova-danger)]/40 bg-[var(--nova-danger-bg)] px-2.5 py-2 text-[11px] text-[var(--nova-danger)]">{error}</div> : null}
         <div className="min-h-0 flex-1">{rawEditor}</div>
       </div>
     )
@@ -103,13 +129,13 @@ export function StoryLedgerView({
           <h2 className="truncate text-sm font-medium text-[var(--nova-text)]">{t('planning.storyLedger')}</h2>
           <p className="truncate text-[10px] text-[var(--nova-text-faint)]">{path}</p>
         </div>
-        <button type="button" className="nova-nav-item inline-flex items-center gap-1 rounded px-2 py-1.5 text-[11px]" onClick={() => { setRaw(true); onEditOriginal() }}>
+        <button type="button" className="nova-nav-item inline-flex items-center gap-1 rounded px-2 py-1.5 text-[11px]" onClick={() => { setError(''); setRaw(true) }}>
           <Edit3 className="h-3 w-3" />{t('planning.ledgerEditOriginal')}
         </button>
       </div>
       <div className="shrink-0 overflow-x-auto border-b border-[var(--nova-border)] px-3 py-2">
         <div className="flex min-w-max gap-1" role="tablist" aria-label={t('planning.ledgerFilters')}>
-          {(['all', 'planned', 'planted', 'recovered', 'deprecated'] as StoryLedgerFilter[]).map((value) => (
+          {(['all', 'planned', 'planted', 'recovered', 'deprecated', 'archived'] as StoryLedgerFilter[]).map((value) => (
             <button key={value} type="button" role="tab" aria-selected={filter === value} className={`nova-nav-item rounded px-2.5 py-1 text-[11px] ${filter === value ? 'is-active' : ''}`} onClick={() => setFilter(value)}>
               {t(`planning.ledgerFilter.${value}`)}
             </button>
@@ -189,6 +215,13 @@ function LedgerField({
           <button type="button" className="ml-1 inline-flex max-w-full items-center gap-0.5 truncate text-[var(--nova-accent)] hover:underline" onClick={() => void onSelectChapter(matches[0].path)}>
             <ExternalLink className="h-3 w-3 shrink-0" />{t('planning.ledgerOpenChapter', { chapter: prefix })}
           </button>
+        ) : prefix && matches.length > 1 ? (
+          <span className="ml-1 inline-flex max-w-full flex-col text-[var(--nova-warning)]">
+            <span>{t('planning.ledgerChapterAmbiguous', { chapter: prefix, count: matches.length })}</span>
+            <span className="ml-3 list-inside list-disc text-[10px] text-[var(--nova-text-faint)]">
+              {matches.map((chapter) => <span key={chapter.path} className="block truncate">• {chapter.display_title || chapter.path}</span>)}
+            </span>
+          </span>
         ) : prefix ? (
           <span className="ml-1 text-[var(--nova-warning)]">{t('planning.ledgerChapterNotFound', { chapter: prefix })}</span>
         ) : null}

@@ -223,12 +223,13 @@ function renderChapterOutlineRow(_index: number, row: ChapterOutlineRow, context
   }
 
   const { chapter } = row
-  const chapterPlanPath = context.chapterPlanPath
+  const chapterGoal = context.chapterGoals.get((extractChapterPrefix(chapter.path) || '').toLowerCase()) ?? null
+  const chapterPlanPath = chapterGoal?.sourcePath ?? context.chapterPlanPath
   return (
     <div className="pb-1 pl-6 pr-2">
       <ChapterOutlineItem
         chapter={chapter}
-        chapterGoal={context.chapterGoals.get((extractChapterPrefix(chapter.path) || '').toLowerCase()) ?? null}
+        chapterGoal={chapterGoal}
         onOpenChapterPlan={chapterPlanPath ? () => { void context.onSelectFile(chapterPlanPath) } : undefined}
         active={context.selectedFile === chapter.path}
         onSelectFile={context.onSelectFile}
