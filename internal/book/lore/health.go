@@ -67,7 +67,7 @@ func (s *Store) Health(chapterLimit, issueLimit int) (HealthReport, error) {
 			}
 			if owner, exists := nameOwners[key]; exists && owner.ID != item.ID {
 				appendHealthIssue(&report.DuplicateNames, HealthIssue{
-					Kind: "duplicate_name_or_alias", ItemID: item.ID, Name: strings.TrimSpace(term),
+					Kind: "duplicate_name_or_alias", ItemID: item.ID, Name: item.Name, Reference: strings.TrimSpace(term),
 					OtherName: owner.Name, DetailKey: "lore.health.detail.duplicate",
 				}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
 				continue

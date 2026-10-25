@@ -100,6 +100,7 @@ describe('chapter lint', () => {
     expect(runChapterLint('他挡住！！', { enabled: only('punctuation') }).issues).toEqual([])
     expect(runChapterLint('你吃饭吗？？？', { enabled: only('punctuation') }).issues).toEqual([])
     expect(runChapterLint('数字是 1,200两，随后继续。', { enabled: only('punctuation') }).issues).toEqual([])
+    expect(runChapterLint('他买了1,200个苹果，又买了2,000个。', { enabled: only('punctuation') }).issues).toEqual([])
     expect(runChapterLint('他走了十分钟。', { enabled: only('ai') }).issues).toEqual([])
     expect(runChapterLint('The secretary passed the class and kept the password.', {
       bannedWords: [{ word: 'ass' }, { word: 'pass' }],

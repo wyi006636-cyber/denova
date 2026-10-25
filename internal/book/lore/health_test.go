@@ -32,6 +32,9 @@ func TestHealthFindsConflictsEmptyBrokenAndUnusedLore(t *testing.T) {
 	if len(report.DuplicateNames) != 1 || len(report.EmptyItems) != 1 || len(report.BrokenReferences) != 1 || len(report.UnusedItems) != 2 {
 		t.Fatalf("unexpected health report: %#v", report)
 	}
+	if duplicate := report.DuplicateNames[0]; duplicate.Name != "Village" || duplicate.Reference != "Hero" || duplicate.OtherName != "Hero" {
+		t.Fatalf("duplicate should name the conflicting item, term, and owner: %#v", duplicate)
+	}
 	if report.BrokenReferences[0].Path != "chapters/001.md" || report.BrokenReferences[0].Line != 3 {
 		t.Fatalf("unexpected broken reference location: %#v", report.BrokenReferences[0])
 	}

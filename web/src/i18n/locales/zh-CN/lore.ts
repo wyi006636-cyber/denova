@@ -329,7 +329,7 @@ const lore = {
   'lore.health.broken': '断链引用',
   'lore.health.unused': '正文中没有 [[ ]] 引用（信息）',
   'lore.health.unusedDetail': '正文中没有 [[名称]] 引用',
-  'lore.health.detail.duplicate': '“{{name}}”与“{{otherName}}”的名称或关键词冲突',
+  'lore.health.detail.duplicate': '“{{name}}”中的“{{term}}”与“{{otherName}}”的名称或关键词冲突',
   'lore.health.detail.empty': '正文为空或只有 Markdown 标题',
   'lore.health.detail.broken': '章节引用了不存在的资料“{{reference}}”',
   'lore.health.detail.unused': '正文中没有 [[名称]] 引用',

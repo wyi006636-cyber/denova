@@ -145,6 +145,8 @@ export function WritingDocumentEditor({
   const [chapterLintOpen, setChapterLintOpen] = useState(false)
   const [chapterLintReport, setChapterLintReport] = useState<ChapterLintReport | null>(null)
   const [lintRefresh, setLintRefresh] = useState(0)
+  // Banned words and lore names reload only when the panel opens, not on every keystroke.
+  const [lintSourcesRefresh, setLintSourcesRefresh] = useState(0)
   const [reviewPortalTargets, setReviewPortalTargets] = useState<DocumentReviewPortalTarget[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
   const sourceEditorRef = useRef<ProjectTextEditorHandle>(null)
@@ -669,6 +671,7 @@ export function WritingDocumentEditor({
       editorModeRef.current = 'document'
     }
     setLintRefresh((value) => value + 1)
+    setLintSourcesRefresh((value) => value + 1)
     setChapterLintOpen(true)
   }, [])
 
@@ -735,7 +738,7 @@ export function WritingDocumentEditor({
           <ChapterLintPanel
             projectId={projectId}
             content={lintContent}
-            refreshToken={lintRefresh}
+            refreshToken={lintSourcesRefresh}
             editor={editor}
             onClose={closeChapterLint}
             onEditBannedWords={onEditBannedWords}

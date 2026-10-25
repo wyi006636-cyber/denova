@@ -56,7 +56,7 @@ export function LoreHealthDialog({ projectId, open, onOpenChange, onOpenFile }: 
 function HealthGroup({ title, icon: Icon, items, collapsed, onToggle, onOpenFile }: { title: string; icon: typeof AlertTriangle; items: LoreHealthIssue[]; collapsed: boolean; onToggle: () => void; onOpenFile?: (path: string) => void }) {
   const { t } = useTranslation()
   const detailFor = (item: LoreHealthIssue) => {
-    if (item.kind === 'duplicate_name_or_alias') return t('lore.health.detail.duplicate', { name: item.name, otherName: item.other_name })
+    if (item.kind === 'duplicate_name_or_alias') return t('lore.health.detail.duplicate', { name: item.name, term: item.reference || item.name, otherName: item.other_name })
     if (item.kind === 'empty_content') return t('lore.health.detail.empty')
     if (item.kind === 'broken_reference') return t('lore.health.detail.broken', { reference: item.reference })
     if (item.kind === 'unused_item') return t('lore.health.detail.unused')

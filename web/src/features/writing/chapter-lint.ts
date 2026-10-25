@@ -415,7 +415,8 @@ function detectPunctuation(text: string, add: AddIssue) {
     const value = match[0]
     if (value.includes('，') && value.includes(',')) {
       const asciiCommas = [...value].flatMap((char, index) => char === ',' ? [index] : [])
-      const invalidAsciiComma = asciiCommas.find(index => !isThousandsSeparator(value, index))
+      // Inspect the source text: the match can end on a comma whose following digit lies outside it.
+      const invalidAsciiComma = asciiCommas.find(index => !isThousandsSeparator(text, match!.index + index))
       if (invalidAsciiComma === undefined) continue
       const ideographic = value.indexOf('，')
       const start = match.index + Math.max(invalidAsciiComma, ideographic)
