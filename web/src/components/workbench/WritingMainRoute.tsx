@@ -22,6 +22,8 @@ import { AgentSubAgentSessionPanel } from '@/components/Chat/AgentSubAgentSessio
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import type { AgentChatConversationState } from '@/features/agent-chat/AgentChatConversationTab'
+import { extractChapterPrefix, type ChapterGoal } from './story-ledger-parser'
+import { StoryLedgerView } from './StoryLedgerView'
 
 const LoreWorkspaceTab = memo(loadable(() => import('@/features/lore/LoreWorkspaceTab').then((module) => ({ default: module.LoreWorkspaceTab })), workbenchLoadingOptions))
 const StableImageFilePreview = memo(ImageFilePreview)
@@ -52,6 +54,7 @@ interface WritingMainRouteProps {
   activeTab: Tab | null
   subAgentConversation: AgentChatConversationState
   summary: WorkspaceSummary | null
+  chapterGoals: ReadonlyMap<string, ChapterGoal>
   tabActions: ReactNode
   fileDocument: ProjectFileDocument | null
   fileDocuments?: ReadonlyMap<string, ProjectFileDocument>
@@ -75,6 +78,7 @@ interface WritingMainRouteProps {
   onToggleTabPin: (tab: Tab) => void
   onMoveTab: (sourceKey: string, targetKey: string) => void
   onEditorFlushHandlerChange: (handler: EditorFlushHandler | null) => void
+  onBeforeLedgerList: EditorFlushHandler
   onOpenLoreLibrary: () => void
   onReferenceLoreItem: LoreWorkspaceProps['onReferenceItem']
   onSelectFile: (path: string) => unknown
@@ -106,6 +110,7 @@ export function WritingMainRoute({
   activeTab,
   subAgentConversation,
   summary,
+  chapterGoals,
   tabActions,
   fileDocument,
   fileDocuments,
@@ -129,6 +134,7 @@ export function WritingMainRoute({
   onToggleTabPin,
   onMoveTab,
   onEditorFlushHandlerChange,
+  onBeforeLedgerList,
   onOpenLoreLibrary,
   onReferenceLoreItem,
   onSelectFile,
@@ -200,6 +206,35 @@ export function WritingMainRoute({
               if (!document || document.project_id !== projectId) return []
               const active = activeTab?.kind === 'file' && activeTab.path === tab.path
               const chapter = summary?.chapters?.find(chapter => chapter.path === tab.path)
+              const latestChapterPlanPath = summary?.chapter_plans?.at(-1)?.path
+              const chapterGoal = chapter ? chapterGoals.get((extractChapterPrefix(chapter.path) || '').toLowerCase()) ?? null : null
+              const chapterPlanPath = chapterGoal?.sourcePath ?? latestChapterPlanPath
+              const rawEditor = (
+                <StableWritingDocumentEditor
+                  active={active}
+                  projectId={projectId}
+                  fileName={tab.path}
+                  content={document.content ?? ''}
+                  revision={document.revision}
+                  onSave={onSaveCurrentFile}
+                  onQuoteSelection={quoteInAgent}
+                  saveSignal={saveSignal}
+                  autoSaveEnabled={editorAutoSaveEnabled}
+                  autoSaveDelayMs={editorAutoSaveDelayMs}
+                  chapterSummary={chapter}
+                  chapterGoal={chapterGoal}
+                  onOpenChapterPlan={chapterPlanPath ? () => { void onSelectFile(chapterPlanPath) } : undefined}
+                  onRevealChapter={onRevealChapter}
+                  searchIntent={active ? editorSearchIntent : null}
+                  onGenerateIllustration={onGenerateIllustration}
+                  generateIllustrationDisabled={isStreaming || !chapter}
+                  illustrationInsertSignal={active ? illustrationInsertSignal : null}
+                  onFlushHandlerChange={onEditorFlushHandlerChange}
+                  documentReview={documentReview}
+                  documentReviewNavigationIntent={active && documentReviewNavigationTarget?.target.kind === 'workspace_file' && documentReviewNavigationTarget.target.id === tab.path ? documentReviewNavigationTarget : null}
+                  readingTypography={readingTypography}
+                />
+              )
               return <WorkbenchRouteLayer key={`${projectId}:${tab.path}`} visible={active} loadingLabel={loadingLabel}>
                 {document.kind === 'image' ? (
                   <StableImageFilePreview projectId={projectId} path={tab.path} revision={document.revision} />
@@ -221,30 +256,21 @@ export function WritingMainRoute({
                     searchIntent={active ? editorSearchIntent : null}
                     onFlushHandlerChange={onEditorFlushHandlerChange}
                   />
-                ) : (
-                  <StableWritingDocumentEditor
-                    active={active}
-                    projectId={projectId}
-                    fileName={tab.path}
+                ) : tab.path.toLocaleLowerCase() === 'setting/story-ledger.md' ? (
+                  <StoryLedgerView
+                    path={tab.path}
                     content={document.content ?? ''}
                     revision={document.revision}
-                    onSave={onSaveCurrentFile}
-                    onQuoteSelection={quoteInAgent}
-                    saveSignal={saveSignal}
-                    autoSaveEnabled={editorAutoSaveEnabled}
-                    autoSaveDelayMs={editorAutoSaveDelayMs}
-                    chapterSummary={chapter}
-                    onRevealChapter={onRevealChapter}
-                    searchIntent={active ? editorSearchIntent : null}
-                    onGenerateIllustration={onGenerateIllustration}
-                    generateIllustrationDisabled={isStreaming || !chapter}
-                    illustrationInsertSignal={active ? illustrationInsertSignal : null}
-                    onFlushHandlerChange={onEditorFlushHandlerChange}
-                    documentReview={documentReview}
-                    documentReviewNavigationIntent={active && documentReviewNavigationTarget?.target.kind === 'workspace_file' && documentReviewNavigationTarget.target.id === tab.path ? documentReviewNavigationTarget : null}
-                    readingTypography={readingTypography}
+                    chapters={summary?.chapters ?? []}
+                    onSelectChapter={async (path) => { await onSelectFile(path) }}
+                    onSave={async (path, content, baseRevision) => {
+                      const result = await onSaveCurrentFile(path, content, baseRevision)
+                      return typeof result === 'object' ? result : {}
+                    }}
+                    onBeforeList={onBeforeLedgerList}
+                    rawEditor={rawEditor}
                   />
-                )}
+                ) : rawEditor}
               </WorkbenchRouteLayer>
             })}
             {activeTab ? (

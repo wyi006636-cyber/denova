@@ -17,10 +17,11 @@ import { OutlineFileActions } from './outline/OutlineFileActions'
 import { flattenFileTree } from './workbench-utils'
 
 const STORAGE_PREFIX = 'nova.outline.pinned-settings:'
-const PINNED_STORAGE_VERSION = 3
+const PINNED_STORAGE_VERSION = 4
 const LEGACY_DEFAULT_PINNED_PATHS = ['setting/outline.md', 'CREATOR.md', 'setting/progress.md']
 const LORE_TAB_PIN_KEY = '@lore-tab'
-const DEFAULT_PINNED_PATHS = [...LEGACY_DEFAULT_PINNED_PATHS, 'ideas.md', LORE_TAB_PIN_KEY, 'setting/character-states.md']
+const STORY_LEDGER_PIN_PATH = 'setting/story-ledger.md'
+const DEFAULT_PINNED_PATHS = [...LEGACY_DEFAULT_PINNED_PATHS, 'ideas.md', LORE_TAB_PIN_KEY, 'setting/character-states.md', STORY_LEDGER_PIN_PATH]
 const CURRENT_CHAPTER_PLAN_PIN_KEY = '@current-chapter-plan'
 const HEADER_ACTION_TOOLTIP_DELAY_MS = DEFAULT_TOOLTIP_DELAY_MS
 
@@ -232,20 +233,21 @@ export function BookSettingsShortcuts({
         </div>
       </div>
       {pinnedItems.length > 0 ? (
-        <div data-testid="book-setting-shortcuts" className="grid grid-cols-[repeat(auto-fill,minmax(4rem,1fr))] gap-1">
+        <div data-testid="book-setting-shortcuts" className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1">
           {pinnedItems.map((item) => {
             const selected = isBookSettingSelected(item, selectedFile, loreTabActive)
             const shortcut = (
               <button
                 type="button"
                 data-book-setting-state={item.exists ? 'ready' : 'missing'}
+                title={item.title}
                 aria-label={item.kind === 'file' && !item.exists ? t('planning.bookSettingMissingTooltip', { title: item.title, path: item.path }) : undefined}
                 className={`nova-nav-item relative w-full max-w-full px-2.5 py-1 text-center text-[11px] font-medium ${selected ? 'is-active' : item.exists ? 'bg-[var(--nova-surface-2)] text-[var(--nova-text-muted)]' : 'border border-dashed border-[color-mix(in_srgb,var(--nova-warning)_45%,var(--nova-border))] bg-[color-mix(in_srgb,var(--nova-warning-bg)_42%,var(--nova-surface-2))] text-[var(--nova-text-muted)] hover:border-[var(--nova-warning)] hover:bg-[var(--nova-warning-bg)]'}`}
                 onClick={() => selectItem(item)}
               >
-                <span className="flex items-center justify-center gap-1 truncate">
+                <span className="flex min-w-0 items-center justify-center gap-1 whitespace-normal break-words leading-4">
                   {item.kind === 'lore' ? <BookMarked aria-hidden="true" className="h-3 w-3 shrink-0 text-emerald-500" /> : null}
-                  <span className="truncate">{item.title}</span>
+                  <span className="min-w-0">{item.title}</span>
                 </span>
                 {!item.exists ? <CircleDashed aria-hidden="true" className="absolute right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-[color-mix(in_srgb,var(--nova-warning)_68%,var(--nova-text-faint))]" /> : null}
               </button>
@@ -341,6 +343,7 @@ function discoverBookSettings({ tree, outline, ideas, chapterPlans, t }: {
     [ideasPath, { kind: 'file', path: ideasPath, title: t('planning.ideas'), exists: Boolean(ideas) || existingPaths.has(ideasPath) }],
     [LORE_TAB_PIN_KEY, { kind: 'lore', title: t('planning.loreSettings'), exists: true, pinKey: LORE_TAB_PIN_KEY, description: t('tab.loreTitle') }],
     ['setting/character-states.md', { kind: 'file', path: 'setting/character-states.md', title: t('planning.characterStates'), exists: existingPaths.has('setting/character-states.md') }],
+    ['setting/story-ledger.md', { kind: 'file', path: 'setting/story-ledger.md', title: t('planning.storyLedger'), exists: existingPaths.has('setting/story-ledger.md') }],
   ])
   if (latestChapterPlan) {
     known.set(CURRENT_CHAPTER_PLAN_PIN_KEY, {
@@ -387,7 +390,7 @@ function isBookSettingSelected(item: BookSettingItem, selectedFile: string | nul
   return item.kind === 'lore' ? loreTabActive : item.exists && selectedFile === item.path
 }
 
-function readPinnedPaths(projectId: string) {
+export function readPinnedPaths(projectId: string) {
   if (!projectId) return DEFAULT_PINNED_PATHS
   try {
     const parsed = JSON.parse(window.localStorage.getItem(STORAGE_PREFIX + projectId) || 'null')
@@ -395,10 +398,13 @@ function readPinnedPaths(projectId: string) {
       return parsed.paths
     }
     if (parsed?.version === 2 && isStringArray(parsed.paths)) {
-      return withLoreTab(parsed.paths)
+      return withStoryLedger(withLoreTab(parsed.paths))
     }
     if (isStringArray(parsed)) {
-      return samePaths(parsed, LEGACY_DEFAULT_PINNED_PATHS) ? DEFAULT_PINNED_PATHS : withLoreTab(parsed)
+      return samePaths(parsed, LEGACY_DEFAULT_PINNED_PATHS) ? DEFAULT_PINNED_PATHS : withStoryLedger(withLoreTab(parsed))
+    }
+    if (parsed?.version === 3 && isStringArray(parsed.paths)) {
+      return withStoryLedger(parsed.paths)
     }
     return DEFAULT_PINNED_PATHS
   } catch {
@@ -415,6 +421,17 @@ function withLoreTab(paths: string[]) {
   const ideasIndex = paths.indexOf('ideas.md')
   const insertAt = ideasIndex < 0 ? paths.length : ideasIndex + 1
   return [...paths.slice(0, insertAt), LORE_TAB_PIN_KEY, ...paths.slice(insertAt)]
+}
+
+function withStoryLedger(paths: string[]) {
+  if (paths.includes(STORY_LEDGER_PIN_PATH)) return paths
+  const characterStatesIndex = paths.indexOf('setting/character-states.md')
+  if (characterStatesIndex >= 0) {
+    return [...paths.slice(0, characterStatesIndex + 1), STORY_LEDGER_PIN_PATH, ...paths.slice(characterStatesIndex + 1)]
+  }
+  const loreIndex = paths.indexOf(LORE_TAB_PIN_KEY)
+  const insertAt = loreIndex < 0 ? paths.length : loreIndex + 1
+  return [...paths.slice(0, insertAt), STORY_LEDGER_PIN_PATH, ...paths.slice(insertAt)]
 }
 
 function samePaths(left: string[], right: string[]) {

@@ -144,7 +144,7 @@ function App() {
   const retainedFilePaths = useMemo(() => openTabs.flatMap(tab => tab.kind === 'file' ? [tab.path] : []), [openTabs])
   const {
     tree, loading, selectedFile, fileDocument, fileDocuments, workspace, projectId, workspaceLoaded, summary, books, booksLoaded, bookSortMode,
-    selectFile, clearSelectedFile, saveFileDraft, createItem, deleteItem, renameItem, copyItem, moveItem,
+    selectFile, clearSelectedFile, saveFileDraft, readFile, createItem, deleteItem, renameItem, copyItem, moveItem,
     refresh, refreshSummary, refreshAfterAgentFileChange, refreshAll, refreshBooks,
   } = useWorkspace({ retainedFilePaths })
   useAnalyticsActivity(settingsOpen || !analyticsReady, Boolean(selectedFile))
@@ -929,6 +929,7 @@ function App() {
         selectedFile={selectedFile}
         fileDocument={fileDocument}
         fileDocuments={fileDocuments}
+        onReadFile={readFile}
         openTabs={openTabs}
         activeTabKey={activeTabKey}
         sidebarView={sidebarView}

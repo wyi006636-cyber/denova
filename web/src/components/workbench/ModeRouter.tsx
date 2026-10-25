@@ -33,6 +33,7 @@ import { WritingSidebar } from './WritingSidebar'
 import { IdeWritingInfoActions, WritingMainRoute } from './WritingMainRoute'
 import { useWritingAgentPanel } from './use-writing-agent-panel'
 import type { ModeRouterProps } from './ModeRouter.types'
+import { useChapterGoals } from './useChapterGoals'
 import { SharedWorkbenchRoutes } from './SharedWorkbenchRoutes'
 import { AgentChatWorkbenchRoute } from './AgentChatWorkbenchRoute'
 import { ToolNavigationProvider, type ToolNavigationIntent, type ToolNavigationTarget } from '@/components/Chat/tool-navigation'
@@ -91,6 +92,7 @@ export function ModeRouter(props: ModeRouterProps) {
     selectedFile,
     fileDocument,
     fileDocuments,
+    onReadFile,
     openTabs,
     activeTabKey,
     sidebarView,
@@ -177,6 +179,11 @@ export function ModeRouter(props: ModeRouterProps) {
     onExitChatPlanMode,
     onDismissNotice,
   } = props
+  const { chapterGoals } = useChapterGoals({
+    projectId,
+    chapterPlans: summary?.chapter_plans,
+    readFile: onReadFile,
+  })
   const { categories: loreCategories } = useLoreCategories(projectId)
   const resourceTarget = useMemo(
     () => projectId.trim() ? projectResourceTarget(projectId) : GLOBAL_RESOURCE_TARGET,
@@ -668,6 +675,7 @@ export function ModeRouter(props: ModeRouterProps) {
       ideas={summary?.ideas}
       outline={summary?.outline}
       chapterPlans={summary?.chapter_plans ?? EMPTY_CHAPTER_PLANS}
+      chapterGoals={chapterGoals}
       selectedFile={selectedFile}
       loreTabActive={activeTab?.kind === 'lore'}
       revealRequest={outlineRevealRequest}
@@ -713,6 +721,7 @@ export function ModeRouter(props: ModeRouterProps) {
         activeTab={activeTab}
         subAgentConversation={writingAgentConversation}
         summary={summary}
+        chapterGoals={chapterGoals}
         tabActions={writingInfoActions}
         saveSignal={saveSignal}
         editorAutoSaveEnabled={editorAutoSaveEnabled}
@@ -736,6 +745,7 @@ export function ModeRouter(props: ModeRouterProps) {
         onToggleTabPin={onToggleTabPin}
         onMoveTab={onMoveTab}
         onEditorFlushHandlerChange={onEditorFlushHandlerChange}
+        onBeforeLedgerList={flushBeforeWorkspaceSwitch}
         onOpenLoreLibrary={openLoreLibrary}
         onReferenceLoreItem={referenceLoreFromWorkspace}
         onSelectFile={selectWorkspacePath}
