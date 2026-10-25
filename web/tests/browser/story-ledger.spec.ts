@@ -1,4 +1,3 @@
-import { mkdir } from 'node:fs/promises'
 import { expect, test } from '../support/fixtures'
 import { createAndOpenBook, createProjectFile, readProjectFile, saveProjectFile } from '../support/api'
 
@@ -26,9 +25,7 @@ test('shows chapter goals in the outline and toolbar, then confirms one ledger r
   await expect(page.getByText('拿到旧印', { exact: true }).last()).toBeVisible()
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
   await page.waitForTimeout(100)
-  const screenshotRoot = 'D:/vibe/denova-pr-review/story-ledger-screenshots'
-  await mkdir(screenshotRoot, { recursive: true })
-  await page.screenshot({ path: `${screenshotRoot}/chapter-goal-wide-dark.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('chapter-goal-wide-dark.png'), animations: 'disabled' })
   await page.keyboard.press('Escape')
   await expect(page.locator('[data-slot="sheet-title"]', { hasText: '本章目标' }).last()).toBeHidden()
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
@@ -37,7 +34,7 @@ test('shows chapter goals in the outline and toolbar, then confirms one ledger r
   await expect(page.getByText('拿到旧印', { exact: true }).last()).toBeVisible()
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
   await page.waitForTimeout(100)
-  await page.screenshot({ path: `${screenshotRoot}/chapter-goal-wide-light.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('chapter-goal-wide-light.png'), animations: 'disabled' })
   await page.keyboard.press('Escape')
 
   await page.setViewportSize({ width: 390, height: 844 })
@@ -50,28 +47,28 @@ test('shows chapter goals in the outline and toolbar, then confirms one ledger r
   expect(titleBox).not.toBeNull()
   expect(titleBox!.y).toBeGreaterThanOrEqual(8)
   expect(titleBox!.y + titleBox!.height).toBeLessThan(64)
-  await page.screenshot({ path: `${screenshotRoot}/chapter-goal-narrow-sheet.png`, animations: 'disabled' })
-  await page.screenshot({ path: `${screenshotRoot}/chapter-goal-narrow-sheet-light.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('chapter-goal-narrow-sheet.png'), animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('chapter-goal-narrow-sheet-light.png'), animations: 'disabled' })
   await page.keyboard.press('Escape')
   await page.setViewportSize({ width: 1440, height: 900 })
 
   const storyLedgerShortcut = page.getByRole('button', { name: '故事台账', exact: true }).first()
   await expect(storyLedgerShortcut).toBeVisible()
   await expect(storyLedgerShortcut).toHaveAttribute('title', '故事台账')
-  await page.screenshot({ path: `${screenshotRoot}/book-settings-shortcuts-wide-light.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('book-settings-shortcuts-wide-light.png'), animations: 'disabled' })
   await storyLedgerShortcut.click()
   await expect(page.getByRole('heading', { name: '故事台账', exact: true })).toBeVisible()
   await expect(page.getByText('这是一条用于检查宽屏列表长标题的故事线', { exact: true })).toBeVisible()
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'))
   await page.waitForTimeout(100)
-  await page.screenshot({ path: `${screenshotRoot}/ledger-list-wide-dark.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('ledger-list-wide-dark.png'), animations: 'disabled' })
   await page.getByRole('tab', { name: '已归档', exact: true }).click()
   await expect(page.getByText('已归档的旧线索', { exact: true })).toBeVisible()
-  await page.screenshot({ path: `${screenshotRoot}/ledger-archived-wide-dark.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('ledger-archived-wide-dark.png'), animations: 'disabled' })
   await page.getByRole('tab', { name: '全部', exact: true }).click()
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
   await page.waitForTimeout(100)
-  await page.screenshot({ path: `${screenshotRoot}/ledger-list-wide-light.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('ledger-list-wide-light.png'), animations: 'disabled' })
   await page.getByRole('tab', { name: '已埋未收', exact: true }).click()
   const entryRow = page.locator('button[aria-expanded="false"]').filter({ hasText: 't-old-seal' }).filter({ visible: true }).first()
   await entryRow.click()
@@ -107,7 +104,7 @@ test('shows chapter goals in the outline and toolbar, then confirms one ledger r
   await expect(page.getByRole('heading', { name: '故事台账', exact: true })).toBeVisible()
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
   await page.waitForTimeout(100)
-  await page.screenshot({ path: `${screenshotRoot}/ledger-empty-wide-light.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('ledger-empty-wide-light.png'), animations: 'disabled' })
 
   await saveProjectFile(request, book.projectId, ledgerPath, '# 说明\n\n这段正文没有符合格式的条目标题。')
   await page.waitForTimeout(500)

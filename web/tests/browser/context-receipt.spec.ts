@@ -1,4 +1,3 @@
-import { mkdir } from 'node:fs/promises'
 import { expect, test } from '../support/fixtures'
 import { createAndOpenBook, createProjectFile } from '../support/api'
 import { openWritingAgent } from '../support/agent-chat'
@@ -44,21 +43,19 @@ test('shows this-turn read references and opens a chapter from the receipt', asy
   await expect(receipt.getByText('chapters/001.md', { exact: true }).first()).toBeVisible()
   await expect(receipt.getByText('Hero', { exact: true })).toBeVisible()
 
-  const screenshotRoot = 'D:/vibe/denova-pr-review/context-receipt-screenshots'
-  await mkdir(screenshotRoot, { recursive: true })
-  await page.screenshot({ path: `${screenshotRoot}/context-receipt-wide-dark.png`, animations: 'disabled' })
-  await page.screenshot({ path: `${screenshotRoot}/context-receipt-long-names.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('context-receipt-wide-dark.png'), animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('context-receipt-long-names.png'), animations: 'disabled' })
   await page.setViewportSize({ width: 390, height: 844 })
   const narrowAgentTab = page.getByRole('tab', { name: 'Agent', exact: true }).filter({ visible: true })
   if (await narrowAgentTab.count()) await narrowAgentTab.click()
   const narrowReceipt = page.locator('[data-context-receipt]').filter({ visible: true })
   if (await narrowReceipt.getByRole('button', { name: '展开本轮参考' }).count()) await narrowReceipt.getByRole('button', { name: '展开本轮参考' }).click()
   await expect(narrowReceipt.getByText('本轮参考', { exact: true })).toBeVisible()
-  await page.screenshot({ path: `${screenshotRoot}/context-receipt-narrow-expanded.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('context-receipt-narrow-expanded.png'), animations: 'disabled' })
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
   await page.waitForTimeout(100)
-  await page.screenshot({ path: `${screenshotRoot}/context-receipt-wide-light.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('context-receipt-wide-light.png'), animations: 'disabled' })
 
   const openedFile = page.waitForResponse(response => response.request().method() === 'GET'
     && response.url().includes(`/api/projects/${encodeURIComponent(book.projectId)}/files/file`)
@@ -71,5 +68,5 @@ test('shows this-turn read references and opens a chapter from the receipt', asy
   await openWritingAgent(page)
   const emptyReceipt = page.locator('[data-context-receipt]').filter({ visible: true })
   await expect(emptyReceipt.getByText('本轮未读取内容', { exact: true })).toBeVisible()
-  await page.screenshot({ path: `${screenshotRoot}/context-receipt-empty.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('context-receipt-empty.png'), animations: 'disabled' })
 })
