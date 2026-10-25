@@ -1,4 +1,5 @@
-import { Code2, Crosshair, Ellipsis, ImagePlus, PanelLeft, Save, Settings, WrapText } from 'lucide-react'
+import { useState } from 'react'
+import { Code2, Crosshair, Ellipsis, ImagePlus, PanelLeft, Save, Settings, Target, WrapText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -7,11 +8,13 @@ import { formatLocaleNumber } from '@/i18n'
 import { EditorSettingsPanel } from './EditorSettingsPanel'
 import { EditorSaveStatus } from './EditorSaveStatus'
 import type { EditorToolbarProps } from './EditorToolbar'
+import { ChapterGoalCard } from '@/components/workbench/ChapterGoalCard'
 
 /** Document context belongs to the tab strip; this row owns editing status and commands. */
 export function MobileEditorToolbar(props: EditorToolbarProps) {
   const { t } = useTranslation()
-  const { chapterPath, chapterWords, saveStatus, editorMode, onOpenOutline, onGenerateIllustration, onRevealChapter } = props
+  const { chapterPath, chapterWords, saveStatus, editorMode, onOpenOutline, onGenerateIllustration, onRevealChapter, chapterGoal } = props
+  const [goalOpen, setGoalOpen] = useState(false)
   return (
     <div className="nova-mobile-editor-toolbar flex h-11 shrink-0 items-center justify-between gap-2 border-b px-3">
       <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
@@ -26,6 +29,13 @@ export function MobileEditorToolbar(props: EditorToolbarProps) {
             <div className="min-h-0 overflow-y-auto"><EditorSettingsPanel settings={props.settings} onChange={props.onSettingsChange} onClose={() => props.onSettingsOpenChange(false)} readingTypography={props.readingTypography} /></div>
           </SheetContent>
         </Sheet>}
+        {chapterPath ? <Sheet open={goalOpen} onOpenChange={setGoalOpen}>
+          <SheetTrigger asChild><Button variant="ghost" size="icon" aria-label={t('planning.chapterGoal.open')}><Target /></Button></SheetTrigger>
+          <SheetContent side="right" className="nova-mobile-sheet gap-0 p-3">
+            <SheetTitle>{t('planning.chapterGoal.title')}</SheetTitle>
+            <div className="mt-3 min-h-0 overflow-y-auto"><ChapterGoalCard goal={chapterGoal} /></div>
+          </SheetContent>
+        </Sheet> : null}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" aria-label={t('editor.tools')}><Ellipsis />{t('editor.tools')}</Button></DropdownMenuTrigger>

@@ -23,6 +23,7 @@ interface WritingSidebarProps {
   ideas?: DocumentPreview
   outline?: DocumentPreview
   chapterPlans: DocumentPreview[]
+  chapterPlanContents?: ReadonlyMap<string, string>
   selectedFile: string | null
   loreTabActive: boolean
   revealRequest: OutlineRevealRequest | null
@@ -57,6 +58,7 @@ export const WritingSidebar = memo(function WritingSidebar({
   ideas,
   outline,
   chapterPlans,
+  chapterPlanContents,
   selectedFile,
   loreTabActive,
   revealRequest,
@@ -114,6 +116,7 @@ export const WritingSidebar = memo(function WritingSidebar({
             ideas={ideas}
             outline={outline}
             chapterPlans={chapterPlans}
+            chapterPlanContents={chapterPlanContents}
             selectedFile={selectedFile}
             loreTabActive={loreTabActive}
             revealRequest={revealRequest}

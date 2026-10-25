@@ -20,7 +20,7 @@ const STORAGE_PREFIX = 'nova.outline.pinned-settings:'
 const PINNED_STORAGE_VERSION = 3
 const LEGACY_DEFAULT_PINNED_PATHS = ['setting/outline.md', 'CREATOR.md', 'setting/progress.md']
 const LORE_TAB_PIN_KEY = '@lore-tab'
-const DEFAULT_PINNED_PATHS = [...LEGACY_DEFAULT_PINNED_PATHS, 'ideas.md', LORE_TAB_PIN_KEY, 'setting/character-states.md']
+const DEFAULT_PINNED_PATHS = [...LEGACY_DEFAULT_PINNED_PATHS, 'ideas.md', LORE_TAB_PIN_KEY, 'setting/character-states.md', 'setting/story-ledger.md']
 const CURRENT_CHAPTER_PLAN_PIN_KEY = '@current-chapter-plan'
 const HEADER_ACTION_TOOLTIP_DELAY_MS = DEFAULT_TOOLTIP_DELAY_MS
 
@@ -341,6 +341,7 @@ function discoverBookSettings({ tree, outline, ideas, chapterPlans, t }: {
     [ideasPath, { kind: 'file', path: ideasPath, title: t('planning.ideas'), exists: Boolean(ideas) || existingPaths.has(ideasPath) }],
     [LORE_TAB_PIN_KEY, { kind: 'lore', title: t('planning.loreSettings'), exists: true, pinKey: LORE_TAB_PIN_KEY, description: t('tab.loreTitle') }],
     ['setting/character-states.md', { kind: 'file', path: 'setting/character-states.md', title: t('planning.characterStates'), exists: existingPaths.has('setting/character-states.md') }],
+    ['setting/story-ledger.md', { kind: 'file', path: 'setting/story-ledger.md', title: t('planning.storyLedger'), exists: existingPaths.has('setting/story-ledger.md') }],
   ])
   if (latestChapterPlan) {
     known.set(CURRENT_CHAPTER_PLAN_PIN_KEY, {

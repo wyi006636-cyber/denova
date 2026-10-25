@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next'
 
 import type { ChapterIllustration, TextSelection as QuoteSelection } from '@/lib/api'
 import type { ChapterSummary } from '@/lib/api'
+import type { ChapterGoal } from '@/components/workbench/story-ledger-parser'
 import { isEditableTarget } from '@/lib/keyboard'
 import { THEME_STYLES, loadEditorSettings } from './EditorSettingsPanel'
 import type { EditorSettings, ReadingTypographySettings } from './EditorSettingsPanel'
@@ -73,6 +74,7 @@ export interface WritingDocumentEditorProps {
   autoSaveEnabled?: boolean
   autoSaveDelayMs?: number
   chapterSummary?: ChapterSummary
+  chapterGoal?: ChapterGoal | null
   searchIntent?: EditorSearchIntent | null
   onGenerateIllustration?: (chapterPath: string) => void
   onRevealChapter?: (chapterPath: string) => void
@@ -107,6 +109,7 @@ export function WritingDocumentEditor({
   autoSaveEnabled = true,
   autoSaveDelayMs,
   chapterSummary,
+  chapterGoal,
   searchIntent,
   onGenerateIllustration,
   onRevealChapter,
@@ -651,6 +654,7 @@ export function WritingDocumentEditor({
         fileName={fileName}
         displayTitle={chapterSummary?.display_title}
         chapterPath={chapterSummary?.path}
+        chapterGoal={chapterGoal}
         chapterWords={editorMode === 'document' && chapterSummary ? documentCharacters : undefined}
         currentLine={editorMode === 'document' && chapterSummary && editorFocused ? currentLine : undefined}
         saveStatus={saveStatus}

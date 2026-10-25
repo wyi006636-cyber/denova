@@ -4,9 +4,12 @@ import { useTranslation } from 'react-i18next'
 import type { ChapterSummary } from '@/lib/api'
 import { formatNumber } from '../workbench-utils'
 import { OutlineFileActions, type OutlineFileMenuOperations } from './OutlineFileActions'
+import { ChapterGoalCard } from '../ChapterGoalCard'
+import type { ChapterGoal } from '../story-ledger-parser'
 
 interface ChapterOutlineItemProps {
   chapter: ChapterSummary
+  chapterGoal?: ChapterGoal | null
   active: boolean
   onSelectFile: (path: string) => void | Promise<void>
   onSetChapterConfirmed: (path: string, confirmed: boolean) => void | Promise<void>
@@ -20,6 +23,7 @@ interface ChapterOutlineItemProps {
 /** One windowed outline row; the data path lets navigation find an already mounted target. */
 export const ChapterOutlineItem = memo(function ChapterOutlineItem({
   chapter,
+  chapterGoal,
   active,
   onSelectFile,
   onSetChapterConfirmed,
@@ -86,6 +90,7 @@ export const ChapterOutlineItem = memo(function ChapterOutlineItem({
         >
           <ConfirmIcon className={`h-3.5 w-3.5 ${saving ? 'animate-spin' : ''}`} />
         </button>
+        {active ? <div className="border-t border-[var(--nova-border)] px-2 py-2"><ChapterGoalCard goal={chapterGoal} /></div> : null}
       </div>
     </OutlineFileActions>
   )
