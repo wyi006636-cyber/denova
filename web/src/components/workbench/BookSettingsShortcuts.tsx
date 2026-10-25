@@ -233,7 +233,7 @@ export function BookSettingsShortcuts({
         </div>
       </div>
       {pinnedItems.length > 0 ? (
-        <div data-testid="book-setting-shortcuts" className="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-1">
+        <div data-testid="book-setting-shortcuts" className="grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-1">
           {pinnedItems.map((item) => {
             const selected = isBookSettingSelected(item, selectedFile, loreTabActive)
             const shortcut = (
