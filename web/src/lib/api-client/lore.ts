@@ -17,6 +17,46 @@ import type {
 import { projectFileAssetURL } from './project-files'
 import { projectAPIPath } from './project-scope'
 
+export interface LoreHealthIssue {
+  kind: string
+  item_id?: string
+  name?: string
+  other_name?: string
+  path?: string
+  line?: number
+  reference?: string
+  detail?: string
+}
+
+export interface LoreHealthReport {
+  duplicate_names: LoreHealthIssue[]
+  empty_items: LoreHealthIssue[]
+  broken_references: LoreHealthIssue[]
+  unused_items: LoreHealthIssue[]
+  chapters_scanned: number
+  chapters_total: number
+  issues_total: number
+  results_truncated: boolean
+  issue_limit: number
+  chapter_limit: number
+}
+
+export async function getLoreHealth(projectId: string, options: { chapterLimit?: number; issueLimit?: number } = {}): Promise<LoreHealthReport> {
+  const params = new URLSearchParams()
+  if (options.chapterLimit) params.set('chapter_limit', String(options.chapterLimit))
+  if (options.issueLimit) params.set('issue_limit', String(options.issueLimit))
+  const suffix = `health${params.toString() ? `?${params.toString()}` : ''}`
+  const response = await requestJSON<{ project_id: string; report: LoreHealthReport }>(lorePath(projectId, suffix))
+  if (response.project_id !== projectId) throw new Error('Lore health response belongs to another project')
+  return {
+    ...response.report,
+    duplicate_names: response.report?.duplicate_names || [],
+    empty_items: response.report?.empty_items || [],
+    broken_references: response.report?.broken_references || [],
+    unused_items: response.report?.unused_items || [],
+  }
+}
+
 function lorePath(projectId: string, suffix: string): string {
   return projectAPIPath(projectId, `book/lore/${suffix.replace(/^\/+/, '')}`)
 }

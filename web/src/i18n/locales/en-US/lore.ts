@@ -316,6 +316,19 @@ const lore = {
   'lore.mentions.readOnlyHint': 'Viewing the recorded version of this turn. Your current game branch, progress and state stay unchanged.',
   'lore.mentions.sourceFailed': 'This source is unavailable or has been edited. Return to the list and search again.',
   'lore.mentions.matches': '{{count}} matches',
+  'lore.health.open': 'Check lore',
+  'lore.health.title': 'Lore health check',
+  'lore.health.description': 'Read-only scan of lore names, content and [[name]] references across chapters.',
+  'lore.health.loading': 'Scanning lore and chapters…',
+  'lore.health.failed': 'Lore health check failed. Try again.',
+  'lore.health.scanned': 'Scanned {{scanned}} / {{total}} chapters',
+  'lore.health.truncated': 'The result capacity was reached; only part of the result is shown.',
+  'lore.health.complete': 'Scan complete',
+  'lore.health.duplicate': 'Duplicate names or alias conflicts',
+  'lore.health.empty': 'Empty content or title-only entries',
+  'lore.health.broken': 'Broken references',
+  'lore.health.unused': 'Never referenced by a chapter (info)',
+  'lore.health.none': 'No issues found',
 } as const
 
 export default lore

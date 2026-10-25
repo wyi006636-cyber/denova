@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/cloudwego/hertz/pkg/app"
@@ -94,6 +95,35 @@ func (h *Handlers) HandleProjectLoreItems(ctx context.Context, c *app.RequestCon
 		return
 	}
 	writeJSON(c, consts.StatusOK, map[string]any{"project_id": scope.ProjectID, "items": items})
+}
+
+func (h *Handlers) HandleProjectLoreHealth(ctx context.Context, c *app.RequestContext) {
+	scope, ok := requireProjectScope(c)
+	if !ok {
+		return
+	}
+	chapterLimit := 5000
+	issueLimit := 500
+	if value := strings.TrimSpace(string(c.Query("chapter_limit"))); value != "" {
+		if parsed, err := strconv.Atoi(value); err == nil && parsed > 0 && parsed <= 10000 {
+			chapterLimit = parsed
+		}
+	}
+	if value := strings.TrimSpace(string(c.Query("issue_limit"))); value != "" {
+		if parsed, err := strconv.Atoi(value); err == nil && parsed > 0 && parsed <= 2000 {
+			issueLimit = parsed
+		}
+	}
+	workspace, report, err := h.app.Lore().Health(ctx, scope.ProjectID, chapterLimit, issueLimit)
+	if err != nil {
+		writeProjectBookError(c, err, "api.projectBook.loreFailed")
+		return
+	}
+	writeJSON(c, consts.StatusOK, map[string]any{
+		"project_id": scope.ProjectID,
+		"workspace":  workspace,
+		"report":     report,
+	})
 }
 
 func (h *Handlers) HandleProjectLoreItemCreate(ctx context.Context, c *app.RequestContext) {

@@ -12,6 +12,7 @@ import type { ChangeReviewWorkspace } from '@/features/changes/review/ChangeRevi
 import type { ProjectFileExplorerNode } from '@/features/project-explorer/model'
 import type { TextSelection, WorkspaceSummary } from '@/lib/api'
 import type { ProjectFileDocument } from '@/lib/api-client/project-files'
+import { applyProjectFileOperations } from '@/lib/api-client/project-files'
 import { workspaceFileKind } from '@/lib/workspace-file-kind'
 import type { ReviewFeedbackNavigationTarget } from './use-review-feedback-navigation'
 import type { Tab } from './TabController'
@@ -152,6 +153,18 @@ export function WritingMainRoute({
     onReferenceLoreItem?.(id)
     showMobileWritingView('agent')
   }, [onReferenceLoreItem])
+  const editBannedWords = useCallback(async () => {
+    const path = 'setting/banned-words.md'
+    const selected = await Promise.resolve(onSelectFile(path))
+    if (selected !== false) return
+    try {
+      const [result] = await applyProjectFileOperations(projectId, [{ kind: 'create', path, type: 'file', content: '# One word per line\n# word -> suggested replacement\n' }])
+      if (!result?.ok) return
+      await Promise.resolve(onSelectFile(path))
+    } catch (error) {
+      console.warn('[writing-main-route] failed to create banned words file', { projectId, error })
+    }
+  }, [onSelectFile, projectId])
   const toggleAgent = useCallback(() => {
     if (isMobile) showMobileWritingView('agent')
     else onToggleAgent()
@@ -190,6 +203,7 @@ export function WritingMainRoute({
                   toolNavigationIntent={toolNavigationIntent}
                   onEditorFlushHandlerChange={onEditorFlushHandlerChange}
                   onOpenLibrary={onOpenLoreLibrary}
+                  onOpenFile={(path) => { void onSelectFile(path) }}
                   onReferenceItem={onReferenceLoreItem ? referenceInAgent : undefined}
                 />
               </RetainedWorkbenchRouteLayer>
@@ -235,6 +249,7 @@ export function WritingMainRoute({
                     autoSaveDelayMs={editorAutoSaveDelayMs}
                     chapterSummary={chapter}
                     onRevealChapter={onRevealChapter}
+                    onEditBannedWords={() => { void editBannedWords() }}
                     searchIntent={active ? editorSearchIntent : null}
                     onGenerateIllustration={onGenerateIllustration}
                     generateIllustrationDisabled={isStreaming || !chapter}

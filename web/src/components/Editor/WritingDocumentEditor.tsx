@@ -37,6 +37,7 @@ import {
 import {
   clampIndex,
   createDialogueHighlightExtension,
+  createChapterLintHighlightExtension,
   createSearchHighlightExtension,
   findSearchMatches,
   replaceAllSearchMatches,
@@ -55,6 +56,9 @@ import { createDocumentReviewExtension, type DocumentReviewDecorationState, type
 import { EditorPersistenceNotices } from './EditorPersistenceNotices'
 import { ProjectTextEditor, type ProjectTextEditorHandle } from '@/features/files/ProjectSourceEditor'
 import { persistProjectFileEditorPreferences, readProjectFileEditorPreferences } from '@/features/files/preferences'
+import { ChapterLintPanel } from './ChapterLintPanel'
+import type { ChapterLintIssue, ChapterLintReport } from '@/features/writing/chapter-lint'
+import { chapterLintPluginKey } from './editorDecorations'
 
 export type { EditorFlushHandler } from './useEditorDraftPersistence'
 export type { DocumentReviewController, DocumentReviewNavigationIntent } from '@/features/document-review/controller'
@@ -86,6 +90,7 @@ export interface WritingDocumentEditorProps {
   readingTypography?: ReadingTypographySettings
   /** Opens a collapsed writing outline without coupling the editor to a layout implementation. */
   onOpenOutline?: () => void
+  onEditBannedWords?: () => void
 }
 
 interface EditorSearchIntent {
@@ -118,6 +123,7 @@ export function WritingDocumentEditor({
   documentReviewNavigationIntent,
   readingTypography,
   onOpenOutline,
+  onEditBannedWords,
 }: WritingDocumentEditorProps) {
   const { t } = useTranslation()
   const [editorMode, setEditorMode] = useState<WritingEditorMode>('document')
@@ -136,6 +142,9 @@ export function WritingDocumentEditor({
   const [useRegex, setUseRegex] = useState(false)
   const [replaceOpen, setReplaceOpen] = useState(false)
   const [replaceText, setReplaceText] = useState('')
+  const [chapterLintOpen, setChapterLintOpen] = useState(false)
+  const [chapterLintReport, setChapterLintReport] = useState<ChapterLintReport | null>(null)
+  const [lintRefresh, setLintRefresh] = useState(0)
   const [reviewPortalTargets, setReviewPortalTargets] = useState<DocumentReviewPortalTarget[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
   const sourceEditorRef = useRef<ProjectTextEditorHandle>(null)
@@ -147,6 +156,9 @@ export function WritingDocumentEditor({
   const lastDocumentReviewNavigationNonceRef = useRef<number | null>(null)
   const searchStateRef = useRef<SearchState>({ query: '', index: 0, useRegex: false })
   const searchExtension = useMemo(() => createSearchHighlightExtension(searchStateRef), [])
+  const chapterLintDecorationStateRef = useRef<{ issues: Array<{ id: string; text: string; start: number; end: number }>; activeIssueID?: string }>({ issues: [] })
+  const chapterLintExtension = useMemo(() => createChapterLintHighlightExtension(chapterLintDecorationStateRef), [])
+  const lintContent = useMemo(() => draftContentRef.current, [lintRefresh])
   const dialogueHighlightExtension = useMemo(() => createDialogueHighlightExtension(), [])
   const resourceScope = projectId
   const workspaceImageExtension = useMemo(
@@ -176,6 +188,7 @@ export function WritingDocumentEditor({
       }),
       createIndentedHardBreakExtension(),
       searchExtension,
+      chapterLintExtension,
       dialogueHighlightExtension,
       workspaceImageExtension,
       reviewExtension,
@@ -324,6 +337,7 @@ export function WritingDocumentEditor({
   const handleSourceChange = useCallback((nextContent: string) => {
     draftContentRef.current = nextContent
     sourceUpdateListenersRef.current.forEach((listener) => listener())
+    setLintRefresh((value) => value + 1)
   }, [])
 
   const toggleSourceWordWrap = useCallback(() => {
@@ -408,6 +422,7 @@ export function WritingDocumentEditor({
     const updateDocumentStats = () => {
       updateCharacterStats(editor, setSelectedCharacters, setDocumentCharacters)
       setCurrentLine(getLineNumber(editor.state.doc, editor.state.selection.head))
+      setLintRefresh((value) => value + 1)
     }
     const updateSelectionStats = () => {
       updateCharacterStats(editor, setSelectedCharacters)
@@ -636,6 +651,35 @@ export function WritingDocumentEditor({
     editor?.commands.focus()
   }, [editor, useRegex])
 
+  const closeChapterLint = useCallback(() => {
+    chapterLintDecorationStateRef.current = { issues: [] }
+    editor?.view.dispatch(editor.state.tr.setMeta(chapterLintPluginKey, true))
+    setChapterLintReport(null)
+    setChapterLintOpen(false)
+  }, [editor])
+
+  const openChapterLint = useCallback(() => {
+    if (editorModeRef.current !== 'document') {
+      setEditorMode('document')
+      editorModeRef.current = 'document'
+    }
+    setLintRefresh((value) => value + 1)
+    setChapterLintOpen(true)
+  }, [])
+
+  const selectChapterLintIssue = useCallback((issue: ChapterLintIssue) => {
+    if (!editor || editor.isDestroyed) return
+    chapterLintDecorationStateRef.current = {
+      issues: chapterLintReport?.issues || [issue],
+      activeIssueID: issue.id,
+    }
+    editor.view.dispatch(editor.state.tr.setMeta(chapterLintPluginKey, true))
+    const matches = findSearchMatches(editor, issue.text)
+    const occurrence = (chapterLintReport?.issues || [issue]).filter(candidate => candidate.text === issue.text && candidate.start <= issue.start).length - 1
+    const match = matches[Math.max(0, occurrence)] || matches[0]
+    if (match) selectSearchMatch(editor, match)
+  }, [chapterLintReport?.issues, editor])
+
   // 未选中文件时显示占位
   if (!fileName) {
     return (
@@ -667,8 +711,29 @@ export function WritingDocumentEditor({
         onOpenOutline={onOpenOutline}
         onGenerateIllustration={onGenerateIllustration}
         onRevealChapter={onRevealChapter}
+        onCheckChapter={editorMode === 'document' ? openChapterLint : undefined}
+        onEditBannedWords={onEditBannedWords}
+        chapterLintOpen={chapterLintOpen}
         generateIllustrationDisabled={generateIllustrationDisabled}
       />
+      {chapterLintOpen ? (
+        <ChapterLintPanel
+          projectId={projectId}
+          content={lintContent}
+          editor={editor}
+          onClose={closeChapterLint}
+          onEditBannedWords={onEditBannedWords}
+          onIssueClick={selectChapterLintIssue}
+          onReportChange={(report) => {
+            setChapterLintReport(report)
+            chapterLintDecorationStateRef.current = {
+              issues: report.issues,
+              activeIssueID: chapterLintDecorationStateRef.current.activeIssueID,
+            }
+            editor?.view.dispatch(editor.state.tr.setMeta(chapterLintPluginKey, true))
+          }}
+        />
+      ) : null}
       <EditorPersistenceNotices
         workspace={resourceScope}
         fileName={fileName}

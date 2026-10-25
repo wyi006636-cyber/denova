@@ -316,6 +316,19 @@ const lore = {
   'lore.mentions.readOnlyHint': '正在查看此回合的记录版本，当前游戏分支、进度和状态保持不变。',
   'lore.mentions.sourceFailed': '原文不可用或已经修改。请返回列表重新查找。',
   'lore.mentions.matches': '{{count}} 处',
+  'lore.health.open': '检查资料',
+  'lore.health.title': '资料健康检查',
+  'lore.health.description': '只读扫描资料名称、正文和全部章节中的 [[名称]] 引用。',
+  'lore.health.loading': '正在扫描资料和章节…',
+  'lore.health.failed': '资料健康检查失败，请重试。',
+  'lore.health.scanned': '已扫描 {{scanned}} / {{total}} 个章节',
+  'lore.health.truncated': '结果达到容量上限，已显示部分结果。',
+  'lore.health.complete': '扫描完成',
+  'lore.health.duplicate': '重名或别名冲突',
+  'lore.health.empty': '正文为空或只有标题',
+  'lore.health.broken': '断链引用',
+  'lore.health.unused': '从未被章节引用（信息）',
+  'lore.health.none': '没有发现问题',
 } as const
 
 export default lore

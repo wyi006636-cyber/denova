@@ -1,6 +1,6 @@
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MobileEditorToolbar } from './MobileEditorToolbar'
-import { BookOpen, Code2, Crosshair, FileText, ImagePlus, PanelLeft, Save, Settings, WrapText } from 'lucide-react'
+import { BookOpen, Code2, Crosshair, FileText, ImagePlus, PanelLeft, Save, ScanSearch, Settings, WrapText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { TooltipIconButton } from '@/components/common/tooltip-icon-button'
@@ -36,6 +36,9 @@ export interface EditorToolbarProps {
   onOpenOutline?: () => void
   onGenerateIllustration?: (chapterPath: string) => void
   onRevealChapter?: (chapterPath: string) => void
+  onCheckChapter?: () => void
+  onEditBannedWords?: () => void
+  chapterLintOpen?: boolean
   generateIllustrationDisabled: boolean
 }
 
@@ -61,6 +64,8 @@ export function EditorToolbar(props: EditorToolbarProps) {
     onOpenOutline,
     onGenerateIllustration,
     onRevealChapter,
+    onCheckChapter,
+    chapterLintOpen,
     generateIllustrationDisabled,
   } = props
   const { t } = useTranslation()
@@ -166,6 +171,19 @@ export function EditorToolbar(props: EditorToolbarProps) {
               className="text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]"
             >
               <Crosshair className="h-3.5 w-3.5" />
+            </TooltipIconButton>
+          ) : null}
+          {onCheckChapter ? (
+            <TooltipIconButton
+              label={t('editor.lint.open')}
+              onClick={onCheckChapter}
+              size="icon-xs"
+              tooltipSide="bottom"
+              useTooltipProvider={false}
+              aria-pressed={chapterLintOpen}
+              className={chapterLintOpen ? 'bg-[var(--nova-active)] text-[var(--nova-text)]' : 'text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]'}
+            >
+              <ScanSearch className="h-3.5 w-3.5" />
             </TooltipIconButton>
           ) : null}
           <TooltipIconButton

@@ -25,6 +25,21 @@ func (service *Service) Items(ctx context.Context, projectID string) ([]booklore
 	return items, err
 }
 
+// Health scans lore identities and all chapter references without changing any
+// project file, journal entry or model context.
+func (service *Service) Health(ctx context.Context, projectID string, chapterLimit, issueLimit int) (string, booklore.HealthReport, error) {
+	var report booklore.HealthReport
+	workspace, err := service.withStore(ctx, projectID, func(store *booklore.Store) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		var healthErr error
+		report, healthErr = store.Health(chapterLimit, issueLimit)
+		return healthErr
+	})
+	return workspace, report, err
+}
+
 func (service *Service) CreateItem(ctx context.Context, projectID string, input booklore.ItemInput) (booklore.Item, error) {
 	var item booklore.Item
 	_, err := service.withStore(ctx, projectID, func(store *booklore.Store) error {

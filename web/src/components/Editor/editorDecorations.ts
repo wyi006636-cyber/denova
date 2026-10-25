@@ -19,6 +19,86 @@ export interface SearchMatch {
 
 export const searchPluginKey = new PluginKey<DecorationSet>('nova-search-highlight')
 
+export interface ChapterLintDecorationIssue {
+  id: string
+  text: string
+  start: number
+  end: number
+}
+
+export interface ChapterLintDecorationState {
+  issues: ChapterLintDecorationIssue[]
+  activeIssueID?: string
+}
+
+export const chapterLintPluginKey = new PluginKey<DecorationSet>('nova-chapter-lint-highlight')
+
+/** Highlights one-shot lint findings without changing the manuscript. */
+export function createChapterLintHighlightExtension(
+  stateRef: { current: ChapterLintDecorationState },
+) {
+  return Extension.create({
+    name: 'novaChapterLintHighlight',
+    addProseMirrorPlugins() {
+      return [
+        new Plugin<DecorationSet>({
+          key: chapterLintPluginKey,
+          state: {
+            init: (_, state) => createChapterLintDecorations(state.doc, stateRef.current),
+            apply: (tr, previous, _oldState, newState) => {
+              if (tr.docChanged || tr.getMeta(chapterLintPluginKey)) {
+                return createChapterLintDecorations(newState.doc, stateRef.current)
+              }
+              return previous.map(tr.mapping, tr.doc)
+            },
+          },
+          props: {
+            decorations: (state) => chapterLintPluginKey.getState(state) ?? DecorationSet.empty,
+          },
+        }),
+      ]
+    },
+  })
+}
+
+function createChapterLintDecorations(doc: ProseMirrorNode, state: ChapterLintDecorationState) {
+  if (!state.issues.length) return DecorationSet.empty
+  const decorations: Decoration[] = []
+  const textNodes: Array<{ node: ProseMirrorNode; pos: number }> = []
+  doc.descendants((node, pos) => {
+    if (node.isText && node.text) textNodes.push({ node, pos })
+  })
+  const occurrences = new Map<string, number>()
+  for (const issue of [...state.issues].sort((left, right) => left.start - right.start)) {
+    const targetOccurrence = occurrences.get(issue.text) || 0
+    occurrences.set(issue.text, targetOccurrence + 1)
+    let foundOccurrence = 0
+    let matched = false
+    const target = issue.text
+    for (const entry of textNodes) {
+      if (!entry.node.text) continue
+      let index = entry.node.text.indexOf(target)
+      while (index >= 0) {
+        if (foundOccurrence === targetOccurrence) {
+          // Offset ordering is retained as much as possible when Markdown is parsed
+          // into ProseMirror (heading markers and formatting are not text nodes).
+          const from = entry.pos + index
+          decorations.push(Decoration.inline(from, from + target.length, {
+            class: issue.id === state.activeIssueID ? 'nova-chapter-lint-highlight nova-chapter-lint-current' : 'nova-chapter-lint-highlight',
+          }))
+          matched = true
+          index = -1
+          break
+        }
+        foundOccurrence++
+        index = entry.node.text.indexOf(target, index + Math.max(1, target.length))
+      }
+      if (matched) break
+    }
+  }
+  return decorations.length ? DecorationSet.create(doc, decorations) : DecorationSet.empty
+}
+
 /** 创建编辑器搜索高亮扩展，使用 ProseMirror Decoration 标记匹配项。 */
 export function createSearchHighlightExtension(searchStateRef: { current: SearchState }) {
   return Extension.create({

@@ -3,7 +3,7 @@ import { useLoreCategories } from '@/features/lore/use-lore-categories'
 import { LoreCategoryManager } from './LoreCategoryManager'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CheckCheck, ChevronsDownUp, ChevronsUpDown, Folder, ImagePlus, ListChecks, MoreHorizontal, Plus, Search, Sparkles, Tags, Trash2, X } from 'lucide-react'
+import { CheckCheck, ChevronsDownUp, ChevronsUpDown, ClipboardCheck, Folder, ImagePlus, ListChecks, MoreHorizontal, Plus, Search, Sparkles, Tags, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { ScrollToTopButton } from '@/components/common/ScrollToTopButton'
@@ -40,6 +40,7 @@ import type { LoreBatchImageMode } from './lore-image-task'
 import { LoreFiltersButton, LoreFilterSummary } from './LoreFilters'
 import { loreTagFilterValue, type LoreFilters } from './lore-filters'
 import { LORE_PROTAGONIST_TAG } from './tags'
+import { LoreHealthDialog } from './LoreHealthDialog'
 
 export const LORE_OVERVIEW_ID = '__lore_overview__'
 
@@ -69,6 +70,7 @@ export const LoreLibrary = memo(function LoreLibrary({
   onChanged,
   onReload,
   onGenerate,
+  onOpenFile,
   onOrganizeTypes,
   organizingDisabled,
 }: {
@@ -90,6 +92,7 @@ export const LoreLibrary = memo(function LoreLibrary({
     request: LoreItemImageGenerateRequest,
     mode: LoreBatchImageMode,
   ) => Promise<boolean>
+  onOpenFile?: (path: string) => void
 }) {
   const { t } = useTranslation()
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -111,6 +114,7 @@ export const LoreLibrary = memo(function LoreLibrary({
   const [deleteTargets, setDeleteTargets] = useState<LoreItem[] | null>(null)
   const [generationTargets, setGenerationTargets] = useState<string[] | null>(null)
   const [generationMode, setGenerationMode] = useState<LoreBatchImageMode>('missing_covers')
+  const [healthOpen, setHealthOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const selected = useMemo(
     () => filteredItems.filter((item) => selectedIds.includes(item.id)),
@@ -238,6 +242,9 @@ export const LoreLibrary = memo(function LoreLibrary({
             >
               {selecting ? <X data-icon="inline-start" /> : <ListChecks data-icon="inline-start" />}
               {t(selecting ? 'lore.library.exitSelection' : 'lore.library.batch')}
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setHealthOpen(true)}>
+              <ClipboardCheck data-icon="inline-start" />{t('lore.health.open')}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -471,6 +478,7 @@ export const LoreLibrary = memo(function LoreLibrary({
         tone="danger"
         onConfirm={deleteSelected}
       />
+      <LoreHealthDialog projectId={projectId} open={healthOpen} onOpenChange={setHealthOpen} onOpenFile={onOpenFile} />
     </div>
     <ScrollToTopButton scrollRef={scrollRef} />
     </div>
