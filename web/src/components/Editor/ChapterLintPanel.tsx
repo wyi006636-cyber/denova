@@ -35,6 +35,7 @@ const DEFAULT_ENABLED: Record<ChapterLintCategory, boolean> = {
 interface ChapterLintPanelProps {
   projectId: string
   content: string
+  refreshToken?: number
   editor: Editor | null
   onClose: () => void
   onEditBannedWords?: () => void
@@ -45,6 +46,7 @@ interface ChapterLintPanelProps {
 export function ChapterLintPanel({
   projectId,
   content,
+  refreshToken = 0,
   editor,
   onClose,
   onEditBannedWords,
@@ -88,7 +90,7 @@ export function ChapterLintPanel({
       if (!cancelled) setLoading(false)
     })
     return () => { cancelled = true }
-  }, [projectId])
+  }, [projectId, refreshToken])
 
   useEffect(() => {
     try { window.localStorage.setItem('nova.chapter-lint.categories', JSON.stringify(enabled)) } catch { /* host storage may be unavailable */ }
@@ -121,17 +123,20 @@ export function ChapterLintPanel({
   }, [occurrenceIndexes, onIssueClick])
 
   return (
-    <aside className="flex max-h-[min(70vh,680px)] w-full shrink-0 flex-col border-b border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text)] md:absolute md:right-3 md:top-12 md:z-20 md:w-[min(420px,calc(100%-24px))] md:rounded-lg md:border md:shadow-xl" aria-label={t('editor.lint.title')}>
+    <aside className="flex max-h-[min(70vh,680px)] w-full shrink-0 flex-col border-b border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text)] md:max-h-none md:w-[min(380px,34%)] md:border-b-0 md:border-r" aria-label={t('editor.lint.title')}>
       <div className="flex shrink-0 items-center gap-2 border-b border-[var(--nova-border)] px-3 py-2">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-semibold">{t('editor.lint.title')}</h2>
-          <p className="text-[11px] text-[var(--nova-text-faint)]">{t('editor.lint.summary', { count: report.issues.length })}</p>
+          <p className="text-[11px] text-[var(--nova-text-faint)]">
+            {t('editor.lint.summary', { count: report.issues.length })}
+            {report.resultsTruncated ? ` · ${t('editor.lint.truncated', { total: report.issuesTotal })}` : null}
+          </p>
         </div>
         <Button type="button" variant="ghost" size="icon-xs" aria-label={t('editor.lint.close')} onClick={onClose}><X /></Button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {loading ? <p className="py-6 text-center text-xs text-[var(--nova-text-faint)]">{t('editor.lint.loading')}</p> : null}
-        {loadError ? <p className="mb-2 rounded border border-red-500/40 bg-red-500/10 p-2 text-xs text-red-300">{t('editor.lint.loadFailed')}</p> : null}
+        {loadError ? <p className="mb-2 rounded border border-[var(--nova-danger-border)] bg-[var(--nova-danger-bg)] p-2 text-xs text-[var(--nova-danger)]">{t('editor.lint.loadFailed')}</p> : null}
         <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] text-[var(--nova-text-faint)]">
           <span>{t('editor.lint.localOnly')}</span>
           <Button type="button" variant="outline" size="xs" className="ml-auto" onClick={onEditBannedWords} disabled={!onEditBannedWords}>
@@ -139,7 +144,7 @@ export function ChapterLintPanel({
           </Button>
         </div>
         {report.invalidBannedWordLines.length > 0 ? (
-          <p className="mb-3 rounded border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-200">
+          <p className="mb-3 rounded border border-[var(--nova-warning)]/40 bg-[var(--nova-warning-bg)] p-2 text-xs text-[var(--nova-warning)]">
             {t('editor.lint.invalidBannedWords', { lines: report.invalidBannedWordLines.join(', ') })}
           </p>
         ) : null}

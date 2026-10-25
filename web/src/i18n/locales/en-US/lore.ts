@@ -329,6 +329,11 @@ const lore = {
   'lore.health.broken': 'Broken references',
   'lore.health.unused': 'No [[ ]] reference in chapter text (info)',
   'lore.health.unusedDetail': 'No [[name]] reference in chapter text',
+  'lore.health.detail.duplicate': '“{{name}}” conflicts with “{{otherName}}” as a name or keyword',
+  'lore.health.detail.empty': 'Content is empty or contains only a Markdown title',
+  'lore.health.detail.broken': 'The chapter references missing lore “{{reference}}”',
+  'lore.health.detail.unused': 'No [[name]] reference in chapter text',
+  'lore.health.detail.unknown': 'The lore scan found an issue',
   'lore.health.none': 'No issues found',
 } as const
 

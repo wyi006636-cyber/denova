@@ -29,8 +29,13 @@ describe('chapter lint', () => {
       '秘密 -> 隐情',
       { loreNames: ['存在'] },
     )
-    expect(report.counts.banned).toBe(3)
+    expect(report.counts.banned).toBe(1)
+    expect(report.issues.find(issue => issue.category === 'banned')?.occurrences).toHaveLength(3)
+    expect(report.issues.find(issue => issue.category === 'banned')?.message.params).toMatchObject({ count: 3 })
     expect(report.counts.ai).toBeGreaterThan(0)
+    const aiIssue = report.issues.find(issue => issue.category === 'ai')
+    expect(aiIssue?.occurrences).toHaveLength(3)
+    expect(aiIssue?.message.params).toMatchObject({ count: 3 })
     expect(report.counts.repeat).toBeGreaterThan(0)
     expect(report.counts.punctuation).toBeGreaterThan(0)
     expect(report.counts.reference).toBe(1)
@@ -91,7 +96,32 @@ describe('chapter lint', () => {
     expect(runChapterLint('秘密', { bannedWords: [{ word: '秘密' }], enabled: { banned: false } }).counts.banned).toBe(0)
   })
 
-  it('handles 100k varied Chinese characters with every rule enabled within budget', () => {
+  it('does not report the reviewed normal-language false positives', () => {
+    expect(runChapterLint('他挡住！！', { enabled: only('punctuation') }).issues).toEqual([])
+    expect(runChapterLint('你吃饭吗？？？', { enabled: only('punctuation') }).issues).toEqual([])
+    expect(runChapterLint('数字是 1,200两，随后继续。', { enabled: only('punctuation') }).issues).toEqual([])
+    expect(runChapterLint('他走了十分钟。', { enabled: only('ai') }).issues).toEqual([])
+    expect(runChapterLint('The secretary passed the class and kept the password.', {
+      bannedWords: [{ word: 'ass' }, { word: 'pass' }],
+      enabled: only('banned'),
+    }).issues).toEqual([])
+    expect(runChapterLint('She was not ready. She was not late. She was not afraid.', { enabled: only('repeat') }).issues).toEqual([])
+    expect(runChapterLint('In a way, the job was simple.', { enabled: only('ai') }).issues).toEqual([])
+  })
+
+  it('keeps errors ahead of a capped info list and reports truncation', () => {
+    const repeated = Array.from({ length: 600 }, (_, index) => {
+      const phrase = String.fromCharCode(0x4e00 + index) + String.fromCharCode(0x5200 + index) + String.fromCharCode(0x6000 + index)
+      return `${phrase}。${phrase}。${phrase}。`
+    }).join('')
+    const report = runChapterLint(`${repeated}[[Missing]]`, { loreTerms: [] })
+    expect(report.resultsTruncated).toBe(true)
+    expect(report.issuesTotal).toBeGreaterThan(CHAPTER_LINT_LIMITS.maxIssues)
+    expect(report.issues.some(issue => issue.category === 'reference')).toBe(true)
+    expect(report.truncatedCategories).toContain('repeat')
+  })
+
+  it('handles 100k and 200k varied Chinese characters with 150 lore terms', () => {
     const sentences = [
       '清晨的雾气沿着石阶退去，守门人检查了旧锁。',
       '雨声敲在屋檐上，旅人把地图折好放回口袋。',
@@ -105,11 +135,22 @@ describe('chapter lint', () => {
       '夜班结束前，值守员在日志里补上最后一行。',
     ]
     const source = Array.from({ length: 5000 }, (_, index) => sentences[index % sentences.length]).join('\n').slice(0, 100000)
+    const loreTerms = Array.from({ length: 150 }, (_, index) => `资料名${index}号人物`)
     const started = performance.now()
-    const report = runChapterLint(source)
+    const report = runChapterLint(source, { loreTerms })
     const elapsed = performance.now() - started
     expect(source.length).toBe(100000)
     expect(report.issues.length).toBeLessThanOrEqual(CHAPTER_LINT_LIMITS.maxIssues)
     expect(elapsed).toBeLessThan(300)
+
+    const source200k = `${source}\n${source}`
+    const started200k = performance.now()
+    const report200k = runChapterLint(source200k, { loreTerms })
+    const elapsed200k = performance.now() - started200k
+    expect(source200k.length).toBe(200001)
+    expect(report200k.issues.length).toBeLessThanOrEqual(CHAPTER_LINT_LIMITS.maxIssues)
+    // Keep the 200k figure visible for future regressions without making a
+    // noisy machine-specific wall-clock promise.
+    console.info(`chapter lint 200k: ${elapsed200k.toFixed(1)}ms`)
   })
 })

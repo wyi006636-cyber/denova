@@ -158,7 +158,7 @@ export function WritingMainRoute({
     const selected = await Promise.resolve(onSelectFile(path))
     if (selected !== false) return
     try {
-      const [result] = await applyProjectFileOperations(projectId, [{ kind: 'create', path, type: 'file', content: '# One word per line\n# word -> suggested replacement\n' }])
+      const [result] = await applyProjectFileOperations(projectId, [{ kind: 'create', path, type: 'file', content: '# One word per line / 每行一个词\n# word -> suggested replacement / 词 -> 建议替换\n' }])
       if (!result?.ok) return
       await Promise.resolve(onSelectFile(path))
     } catch (error) {

@@ -1,18 +1,16 @@
-import { mkdir } from 'node:fs/promises'
 import { expect, test } from '../support/fixtures'
 import { createAndOpenBook, createProjectFile } from '../support/api'
 
-const screenshotRoot = 'D:/vibe/denova-pr-review/chapter-lint-screenshots'
-
 test('checks a chapter and lore health without changing manuscript text', async ({ page, request }) => {
-  await mkdir(screenshotRoot, { recursive: true })
   const book = await createAndOpenBook(request, 'Chapter lint browser')
-  await createProjectFile(request, book.projectId, 'setting/banned-words.md', '秘密 -> 隐情\n')
+  await createProjectFile(request, book.projectId, 'setting/banned-words.md', '秘密 -> 隐情\ninvalid -> too -> many\n')
+  const manyBrokenReferences = Array.from({ length: 80 }, (_, index) => `[[${String.fromCodePoint(0x4e00 + index)}${index + 1}]]`).join(' ')
   await createProjectFile(request, book.projectId, 'chapters/001.md', [
     '# Chapter 001',
     '',
     '这是秘密。秘密。秘密。'.repeat(4),
     '红色的旗帜在风中展开。红色的旗帜在风中展开。红色的旗帜在风中展开。',
+    manyBrokenReferences,
     '[[Missing lore]]',
   ].join('\n'))
   await createProjectFile(request, book.projectId, 'chapters/002.md', '# Chapter 002\n\n一场平静的雨。')
@@ -41,28 +39,44 @@ test('checks a chapter and lore health without changing manuscript text', async 
   const panel = page.getByRole('complementary', { name: '本章检查', exact: true })
   await expect(panel).toBeVisible()
   await expect(panel).toContainText('发现')
-  await expect(panel.getByText('禁用词', { exact: true }).locator('..')).toContainText('12')
+  await expect(panel.getByText('禁用词', { exact: true }).locator('..')).toContainText('1')
   await expect(panel.getByText('重复', { exact: true }).locator('..')).toContainText('2')
-  await expect(panel.getByText('断链引用', { exact: true }).locator('..')).toContainText('1')
-  await page.screenshot({ path: `${screenshotRoot}/chapter-lint-wide-dark.png`, animations: 'disabled' })
+  await expect(panel.getByText('断链引用', { exact: true }).locator('..')).toContainText('81')
+  await page.screenshot({ path: test.info().outputPath('chapter-lint-wide-dark.png'), animations: 'disabled' })
 
   const bannedIssue = panel.getByRole('button').filter({ hasText: '秘密' }).first()
   await expect(bannedIssue).toBeVisible()
   await bannedIssue.click()
   await expect(page.locator('.nova-chapter-lint-current')).toHaveCount(1)
+  const firstHighlight = await page.locator('.nova-chapter-lint-current').boundingBox()
+  expect(firstHighlight).not.toBeNull()
   await bannedIssue.click()
   await expect(page.locator('.nova-chapter-lint-current')).toHaveCount(1)
+  const secondHighlight = await page.locator('.nova-chapter-lint-current').boundingBox()
+  expect(secondHighlight).not.toBeNull()
+  expect(Math.abs((secondHighlight?.y || 0) - (firstHighlight?.y || 0)) + Math.abs((secondHighlight?.x || 0) - (firstHighlight?.x || 0))).toBeGreaterThan(1)
+  const panelBox = await panel.boundingBox()
+  expect(panelBox).not.toBeNull()
+  const targetBox = secondHighlight
+  expect(targetBox).not.toBeNull()
+  const overlaps = Boolean(panelBox && targetBox
+    && targetBox.x < panelBox.x + panelBox.width
+    && panelBox.x < targetBox.x + targetBox.width
+    && targetBox.y < panelBox.y + panelBox.height
+    && panelBox.y < targetBox.y + targetBox.height)
+  expect(overlaps).toBe(false)
   await panel.getByRole('button', { name: '关闭本章检查', exact: true }).click()
   await expect(page.locator('.nova-chapter-lint-highlight')).toHaveCount(0)
 
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
   await checkButton.click()
   await expect(page.getByRole('complementary', { name: '本章检查', exact: true })).toBeVisible()
-  await page.screenshot({ path: `${screenshotRoot}/chapter-lint-wide-light.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('chapter-lint-wide-light.png'), animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('chapter-lint-light-invalid.png'), animations: 'disabled' })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: `${screenshotRoot}/chapter-lint-narrow-390.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('chapter-lint-narrow-390.png'), animations: 'disabled' })
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.screenshot({ path: `${screenshotRoot}/chapter-lint-many-issues.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('chapter-lint-many-issues.png'), animations: 'disabled' })
 
   await page.getByRole('button', { name: '关闭本章检查', exact: true }).click()
   const cleanChapter = page.locator('[data-chapter-path="chapters/002.md"]')
@@ -72,7 +86,7 @@ test('checks a chapter and lore health without changing manuscript text', async 
   const cleanPanel = page.getByRole('complementary', { name: '本章检查', exact: true })
   await expect(cleanPanel).toContainText('发现 0 个问题')
   await expect(cleanPanel.getByText('没有发现问题', { exact: true }).first()).toBeVisible()
-  await page.screenshot({ path: `${screenshotRoot}/chapter-lint-empty.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('chapter-lint-empty.png'), animations: 'disabled' })
   await cleanPanel.getByRole('button', { name: '关闭本章检查', exact: true }).click()
 
   await sidebar.getByRole('button', { name: '资料库', exact: true }).click()
@@ -84,5 +98,5 @@ test('checks a chapter and lore health without changing manuscript text', async 
   await expect(health).toContainText('重名或别名冲突')
   await expect(health).toContainText('断链引用')
   await expect(health).toContainText('正文中没有 [[ ]] 引用（信息）')
-  await page.screenshot({ path: `${screenshotRoot}/chapter-lint-lore-health.png`, animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('chapter-lint-lore-health.png'), animations: 'disabled' })
 })

@@ -22,6 +22,9 @@ type HealthIssue struct {
 	Path      string `json:"path,omitempty"`
 	Line      int    `json:"line,omitempty"`
 	Reference string `json:"reference,omitempty"`
+	// DetailKey is a stable UI lookup key. Clients localize it instead of
+	// rendering the diagnostic prose produced by the scanner.
+	DetailKey string `json:"detail_key,omitempty"`
 	Detail    string `json:"detail,omitempty"`
 }
 
@@ -65,14 +68,14 @@ func (s *Store) Health(chapterLimit, issueLimit int) (HealthReport, error) {
 			if owner, exists := nameOwners[key]; exists && owner.ID != item.ID {
 				appendHealthIssue(&report.DuplicateNames, HealthIssue{
 					Kind: "duplicate_name_or_alias", ItemID: item.ID, Name: strings.TrimSpace(term),
-					OtherName: owner.Name, Detail: "name or alias conflicts with another lore item",
+					OtherName: owner.Name, DetailKey: "lore.health.detail.duplicate",
 				}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
 				continue
 			}
 			nameOwners[key] = item
 		}
 		if loreBodyEmpty(item.Content) {
-			appendHealthIssue(&report.EmptyItems, HealthIssue{Kind: "empty_content", ItemID: item.ID, Name: item.Name, Detail: "content is empty or contains only a Markdown title"}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
+			appendHealthIssue(&report.EmptyItems, HealthIssue{Kind: "empty_content", ItemID: item.ID, Name: item.Name, DetailKey: "lore.health.detail.empty"}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
 		}
 	}
 
@@ -130,12 +133,12 @@ func (s *Store) Health(chapterLimit, issueLimit int) (HealthReport, error) {
 			if line >= len(lineStarts) || lineStarts[line] > match[0] {
 				line--
 			}
-			appendHealthIssue(&report.BrokenReferences, HealthIssue{Kind: "broken_reference", Path: rel, Line: line + 1, Reference: name, Detail: "chapter references a missing lore name"}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
+			appendHealthIssue(&report.BrokenReferences, HealthIssue{Kind: "broken_reference", Path: rel, Line: line + 1, Reference: name, DetailKey: "lore.health.detail.broken"}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
 		}
 	}
 	for _, item := range items {
 		if !referenced[item.ID] {
-			appendHealthIssue(&report.UnusedItems, HealthIssue{Kind: "unused_item", ItemID: item.ID, Name: item.Name, Detail: "no chapter references this lore item"}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
+			appendHealthIssue(&report.UnusedItems, HealthIssue{Kind: "unused_item", ItemID: item.ID, Name: item.Name, DetailKey: "lore.health.detail.unused"}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
 		}
 	}
 	return report, nil

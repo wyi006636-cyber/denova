@@ -78,23 +78,27 @@ export interface ChapterLintReport {
   counts: Record<ChapterLintCategory, number>
   invalidBannedWordLines: number[]
   elapsedMs: number
+  /** Number of findings before the display cap was applied. */
+  issuesTotal: number
+  resultsTruncated: boolean
+  /** Categories with findings that were left out by the display cap. */
+  truncatedCategories: ChapterLintCategory[]
 }
 
 export const DEFAULT_AI_TRACE_LEXICON_ZH = [
-  '仿佛', '弥漫着', '笼罩着', '交织', '斑驳', '氤氲', '缥缈', '幽暗深邃',
+  '仿佛', '弥漫着', '笼罩着', '幽暗深邃',
   '难以名状', '说不清的感觉', '微微一怔', '微微一笑', '微微点头', '嘴角勾起',
   '一抹笑意', '眼中闪过一丝', '瞳孔骤缩', '倒吸一口凉气', '负手而立', '眸光流转',
   '眉头微蹙', '身体一僵', '心头一颤', '他感到', '心中一凛', '心头一紧', '五味杂陈',
   '他意识到', '终于明白', '终于懂了', '不由得', '不禁', '莫名地', '下意识地',
-  '一股暖流涌上心头', '难以言喻', '无法形容', '宛如实质', '极其', '极度', '无比',
-  '十分', '异常', '缓缓地', '淡淡地', '轻轻地', '深深地', '有条不紊', '不紧不慢地',
-  '与此同时', '紧接着', '随后', '毫无疑问', '显而易见', '不得不说', '进行了一番',
+  '一股暖流涌上心头', '难以言喻', '无法形容', '宛如实质', '有条不紊', '不紧不慢地',
+  '毫无疑问', '显而易见', '不得不说', '进行了一番',
   '被迫地', '作为一名', '他的眼睛里充满了', '这一刻，他终于明白',
 ] as const
 
 /** English entries are intentionally multi-word, high-signal phrases. */
 export const DEFAULT_AI_TRACE_LEXICON_EN = [
-  'it is worth noting', 'there was a sense of', 'in a way', 'without a doubt',
+  'it is worth noting', 'there was a sense of', 'without a doubt',
   'needless to say', 'as if the air', 'a faint smile played', 'his eyes flashed',
   'she realized that', 'he realized that', 'finally understood', 'a surge of',
   'in that moment, he understood', 'with an air of',
@@ -109,6 +113,7 @@ const REPEAT_STOP_WORDS = new Set([
   '我们', '他们', '自己', '这个', '那个', '什么', '没有', '可以', '因为', '所以', '这是', '一个', '一种',
   '然后', '但是', '如果', '就是', '已经', '还是', '虽然', '因此', '那么', '只是', '能够', '正在', '所有',
   '这些', '那些', '他的', '她的', '我的', '你的', 'the', 'and', 'for', 'with', 'that', 'this', 'from', 'have',
+  'was', 'were', 'not', 'she', 'her', 'his', 'had', 'you', 'said', 'has', 'are', 'but', 'can', 'will',
 ])
 
 type AddIssue = (
@@ -146,7 +151,7 @@ export function runChapterLint(text: string, options: ChapterLintOptions = {}): 
   const enabled = (category: ChapterLintCategory) => options.enabled?.[category] !== false
   const issues: ChapterLintIssue[] = []
   const add: AddIssue = (category, start, end, message, severity = 'warning', extras = {}) => {
-    if (!enabled(category) || issues.length >= CHAPTER_LINT_LIMITS.maxIssues || end <= start) return
+    if (!enabled(category) || end <= start) return
     issues.push({
       id: `${category}:${start}:${end}:${issues.length}`,
       category,
@@ -161,45 +166,65 @@ export function runChapterLint(text: string, options: ChapterLintOptions = {}): 
   }
 
   if (enabled('banned')) {
+    const bannedMatches = new Map<string, { banned: BannedWord; occurrences: ChapterLintOccurrence[] }>()
     for (const banned of options.bannedWords || []) {
       const word = banned.word.trim()
       if (!word) continue
       const flags = /[A-Za-z]/.test(word) ? 'gi' : 'g'
-      const expression = new RegExp(escapeRegExp(word), flags)
+      // ASCII banned words must stand on their own. Without boundaries, `ass`
+      // also matches `class`, `passed`, and `password`.
+      const expression = new RegExp(
+        /[A-Za-z]/.test(word) ? `(?<![A-Za-z])${escapeRegExp(word)}(?![A-Za-z])` : escapeRegExp(word),
+        flags,
+      )
       let match: RegExpExecArray | null
       while ((match = expression.exec(text)) !== null) {
         const start = match.index
-        add(
-          'banned',
-          start,
-          start + match[0].length,
-          { key: 'editor.lint.issue.banned', params: { word: match[0] } },
-          'error',
-          { suggestion: banned.suggestion },
-        )
+        const key = word.toLocaleLowerCase()
+        const entry = bannedMatches.get(key) || { banned, occurrences: [] }
+        entry.occurrences.push({ start, end: start + match[0].length })
+        bannedMatches.set(key, entry)
         if (match[0].length === 0) expression.lastIndex++
       }
+    }
+    for (const { banned, occurrences } of bannedMatches.values()) {
+      const first = occurrences[0]
+      add('banned', first.start, first.end, {
+        key: 'editor.lint.issue.banned',
+        params: { word: text.slice(first.start, first.end), count: occurrences.length },
+      }, 'error', { suggestion: banned.suggestion, occurrences })
     }
   }
 
   if (enabled('ai')) {
     const language = detectTextLanguage(text)
     const lexicon = language === 'en' ? DEFAULT_AI_TRACE_LEXICON_EN : DEFAULT_AI_TRACE_LEXICON_ZH
+    const aiMatches = new Map<string, { phrase: string; occurrences: ChapterLintOccurrence[] }>()
     for (const phrase of lexicon) {
       const expression = new RegExp(escapeRegExp(phrase), language === 'en' ? 'gi' : 'g')
       let match: RegExpExecArray | null
       while ((match = expression.exec(text)) !== null) {
-        add('ai', match.index, match.index + match[0].length, {
-          key: 'editor.lint.issue.ai',
-          params: { phrase: match[0] },
-        }, 'info')
+        const key = phrase.toLocaleLowerCase()
+        const entry = aiMatches.get(key) || { phrase: match[0], occurrences: [] }
+        entry.occurrences.push({ start: match.index, end: match.index + match[0].length })
+        aiMatches.set(key, entry)
         if (match[0].length === 0) expression.lastIndex++
       }
+    }
+    for (const { phrase, occurrences } of aiMatches.values()) {
+      // Short adverbs and connectors are only useful as a density signal; one
+      // occurrence in otherwise normal prose is not evidence of generated text.
+      if (phrase.length <= 3 && occurrences.length < 2) continue
+      const first = occurrences[0]
+      add('ai', first.start, first.end, {
+        key: 'editor.lint.issue.ai',
+        params: { phrase: text.slice(first.start, first.end), count: occurrences.length },
+      }, 'info', { occurrences })
     }
   }
 
   const loreTerms = uniqueTerms([...(options.loreTerms || []), ...(options.loreNames || [])])
-  if (enabled('repeat')) detectRepeats(text, loreTerms, add)
+  if (enabled('repeat')) detectRepeats(text, buildExcludedRepeatPhrases(loreTerms), add)
   if (enabled('punctuation')) detectPunctuation(text, add)
   if (enabled('length')) detectLength(text, add)
   if (enabled('reference')) {
@@ -217,11 +242,25 @@ export function runChapterLint(text: string, options: ChapterLintOptions = {}): 
     }
   }
 
-  issues.sort((left, right) => left.start - right.start || categoryRank(left.category) - categoryRank(right.category))
+  const issuesTotal = issues.length
+  const rankedIssues = [...issues].sort((left, right) => severityRank(left.severity) - severityRank(right.severity)
+    || categoryRank(left.category) - categoryRank(right.category)
+    || left.start - right.start)
+  const visibleIssues = rankedIssues.slice(0, CHAPTER_LINT_LIMITS.maxIssues)
+  visibleIssues.sort((left, right) => left.start - right.start || categoryRank(left.category) - categoryRank(right.category))
+  const truncatedCategories = [...new Set(rankedIssues.slice(CHAPTER_LINT_LIMITS.maxIssues).map(issue => issue.category))]
   const counts = emptyCounts()
-  for (const issue of issues) counts[issue.category]++
+  for (const issue of visibleIssues) counts[issue.category]++
   const ended = typeof performance !== 'undefined' ? performance.now() : Date.now()
-  return { issues, counts, invalidBannedWordLines: [], elapsedMs: ended - started }
+  return {
+    issues: visibleIssues,
+    counts,
+    invalidBannedWordLines: [],
+    elapsedMs: ended - started,
+    issuesTotal,
+    resultsTruncated: issuesTotal > CHAPTER_LINT_LIMITS.maxIssues,
+    truncatedCategories,
+  }
 }
 
 export function runChapterLintWithBannedWords(
@@ -234,11 +273,11 @@ export function runChapterLintWithBannedWords(
   return { ...report, invalidBannedWordLines: parsed.invalidLines }
 }
 
-function detectRepeats(text: string, loreTerms: readonly string[], add: AddIssue) {
+function detectRepeats(text: string, excludedRepeatPhrases: ReadonlySet<string>, add: AddIssue) {
   const candidates = new Map<string, number[]>()
   const addCandidate = (phrase: string, start: number) => {
     const normalized = phrase.trim().toLocaleLowerCase()
-    if (!normalized || isRepeatStopWord(normalized) || isExcludedRepeatPhrase(normalized, loreTerms)) return
+    if (!normalized || isRepeatStopWord(normalized) || isRepeatStopPhrase(normalized) || excludedRepeatPhrases.has(normalized)) return
     const positions = candidates.get(normalized) || []
     positions.push(start)
     candidates.set(normalized, positions)
@@ -277,13 +316,13 @@ function detectRepeats(text: string, loreTerms: readonly string[], add: AddIssue
     .sort((left, right) => right.phrase.length - left.phrase.length || left.phrase.localeCompare(right.phrase))
   const selectedRanges: ChapterLintOccurrence[] = []
   for (const candidate of candidatesByLength) {
-    // A six-character window can produce several equally frequent overlapping
-    // slices from one sentence. Treat the selected slice plus its local
-    // neighbourhood as covered so only one longest fragment is reported.
-    const uncovered = candidate.positions.filter(start => !selectedRanges.some(range => {
-      const coverageStart = range.start - CHAPTER_LINT_LIMITS.repeatMaximumPhraseLength
-      const coverageEnd = range.end + CHAPTER_LINT_LIMITS.repeatMaximumPhraseLength
-      return start < coverageEnd && start + candidate.phrase.length > coverageStart
+    const candidateCluster = findRepeatCluster(candidate.positions, candidate.phrase.length)
+    if (candidateCluster.length < CHAPTER_LINT_LIMITS.repeatMinimumCount) continue
+    if (isRepeatClusterCovered(candidateCluster, selectedRanges)) continue
+    // Suppress only overlapping substrings from the same occurrence. A nearby
+    // phrase in another sentence must remain eligible for its own cluster.
+    const uncovered = candidateCluster.filter(start => !selectedRanges.some(range => {
+      return start < range.end && start + candidate.phrase.length > range.start
     }))
     const occurrences = findRepeatCluster(uncovered, candidate.phrase.length)
     if (occurrences.length < CHAPTER_LINT_LIMITS.repeatMinimumCount) continue
@@ -294,6 +333,17 @@ function detectRepeats(text: string, loreTerms: readonly string[], add: AddIssue
     }, 'warning', { occurrences: ranges })
     selectedRanges.push(...ranges)
   }
+}
+
+function isRepeatClusterCovered(cluster: number[], selectedRanges: ChapterLintOccurrence[]) {
+  if (cluster.length < CHAPTER_LINT_LIMITS.repeatMinimumCount || selectedRanges.length < CHAPTER_LINT_LIMITS.repeatMinimumCount) return false
+  const offsets: number[] = []
+  for (const start of cluster) {
+    const nearby = selectedRanges.find(range => Math.abs(range.start - start) <= CHAPTER_LINT_LIMITS.repeatMaximumPhraseLength)
+    if (!nearby) return false
+    offsets.push(nearby.start - start)
+  }
+  return Math.max(...offsets) - Math.min(...offsets) <= 1
 }
 
 function findRepeatCluster(positions: number[], phraseLength: number): number[] {
@@ -325,7 +375,9 @@ function dedupeOverlappingPositions(positions: number[], phraseLength: number): 
 }
 
 function detectPunctuation(text: string, add: AddIssue) {
-  const repeated = /([！？!?，,；;：:])\1+/g
+  // Repeated exclamation/question marks are common expressive dialogue. Keep
+  // the check for separators where duplication changes readability instead.
+  const repeated = /([，,；;：:])\1+/g
   let match: RegExpExecArray | null
   while ((match = repeated.exec(text)) !== null) {
     add('punctuation', match.index, match.index + match[0].length, {
@@ -362,18 +414,26 @@ function detectPunctuation(text: string, add: AddIssue) {
   while ((match = mixed.exec(text)) !== null) {
     const value = match[0]
     if (value.includes('，') && value.includes(',')) {
-      const comma = value.indexOf(',')
+      const asciiCommas = [...value].flatMap((char, index) => char === ',' ? [index] : [])
+      const invalidAsciiComma = asciiCommas.find(index => !isThousandsSeparator(value, index))
+      if (invalidAsciiComma === undefined) continue
       const ideographic = value.indexOf('，')
-      const start = match.index + Math.max(comma, ideographic)
+      const start = match.index + Math.max(invalidAsciiComma, ideographic)
       add('punctuation', start, start + 1, { key: 'editor.lint.issue.mixedPunctuation' }, 'warning')
     }
   }
   detectUnbalancedPairs(text, add)
 }
 
+function isThousandsSeparator(value: string, index: number) {
+  return index > 0 && index + 1 < value.length && /\d/.test(value[index - 1]) && /\d/.test(value[index + 1])
+}
+
 function detectUnbalancedPairs(text: string, add: AddIssue) {
   const pairs: Record<string, string> = { '(': ')', '（': '）', '[': ']', '［': '］', '【': '】', '「': '」', '『': '』', '“': '”', '‘': '’' }
   const closing = new Set(Object.values(pairs))
+  const dialogueOpeners = new Set(['「', '『', '“', '‘'])
+  const crossParagraphQuotes = new Set<string>()
   const paragraphPattern = /[^\r\n]*(?:\r?\n|$)/g
   let paragraph: RegExpExecArray | null
   while ((paragraph = paragraphPattern.exec(text)) !== null) {
@@ -389,14 +449,22 @@ function detectUnbalancedPairs(text: string, add: AddIssue) {
       else if (closing.has(char)) {
         const top = stack[stack.length - 1]
         if (!top || top.expected !== char) {
-          if (!isCrossParagraphQuote(text, index, paragraphStart, char)) {
+          const trailing = text.slice(index + 1, paragraphEnd).trim()
+          if (!(trailing.length === 0 && crossParagraphQuotes.delete(char))) {
             add('punctuation', index, index + 1, { key: 'editor.lint.issue.unbalancedClosing', params: { punctuation: char } }, 'error')
           }
         } else stack.pop()
       }
     }
     for (const unmatched of stack) {
-      if (isCrossParagraphQuote(text, unmatched.start, paragraphStart, unmatched.open)) continue
+      const before = text.slice(paragraphStart, unmatched.start)
+      const atParagraphStart = before.trim().length === 0
+      if (atParagraphStart && dialogueOpeners.has(unmatched.open)) {
+        // Dialogue may continue over several paragraphs. Keep one pending
+        // closer and only accept a closer at the end of a later paragraph.
+        crossParagraphQuotes.add(unmatched.expected)
+        continue
+      }
       add('punctuation', unmatched.start, unmatched.start + 1, { key: 'editor.lint.issue.unbalancedOpening', params: { punctuation: unmatched.open } }, 'error')
     }
   }
@@ -438,6 +506,10 @@ function categoryRank(category: ChapterLintCategory) {
   return CATEGORY_ORDER.indexOf(category)
 }
 
+function severityRank(severity: ChapterLintSeverity) {
+  return severity === 'error' ? 0 : severity === 'warning' ? 1 : 2
+}
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -446,11 +518,24 @@ function isRepeatStopWord(value: string) {
   return REPEAT_STOP_WORDS.has(value)
 }
 
-function isExcludedRepeatPhrase(value: string, loreTerms: readonly string[]) {
-  return loreTerms.some(term => {
+function isRepeatStopPhrase(value: string) {
+  return /^[a-z]+(?: [a-z]+)+$/.test(value) && value.split(' ').every(word => REPEAT_STOP_WORDS.has(word))
+}
+
+function buildExcludedRepeatPhrases(loreTerms: readonly string[]) {
+  const excluded = new Set<string>()
+  for (const term of loreTerms) {
     const normalized = term.trim().toLocaleLowerCase()
-    return normalized.length >= CHAPTER_LINT_LIMITS.repeatMinimumCjkLength && normalized.includes(value)
-  })
+    if (!normalized) continue
+    if (normalized.length <= CHAPTER_LINT_LIMITS.repeatMaximumPhraseLength) excluded.add(normalized)
+    const maxSize = Math.min(CHAPTER_LINT_LIMITS.repeatMaximumPhraseLength, normalized.length)
+    for (let size = CHAPTER_LINT_LIMITS.repeatMinimumCjkLength; size <= maxSize; size++) {
+      for (let offset = 0; offset + size <= normalized.length; offset++) {
+        excluded.add(normalized.slice(offset, offset + size))
+      }
+    }
+  }
+  return excluded
 }
 
 function uniqueTerms(terms: readonly string[]) {
@@ -470,15 +555,6 @@ function isChineseContext(text: string, start: number) {
 
 function isEnglishApostrophe(text: string, index: number) {
   return index > 0 && index + 1 < text.length && /[A-Za-z]/.test(text[index - 1]) && /[A-Za-z]/.test(text[index + 1])
-}
-
-function isCrossParagraphQuote(text: string, index: number, paragraphStart: number, punctuation: string) {
-  const leading = text.slice(paragraphStart, index)
-  const atParagraphStart = leading.trim().length === 0
-  if (atParagraphStart && ['「', '『', '“', '‘'].includes(punctuation)) return true
-  // A closing Chinese quote can belong to an opening quote in a preceding
-  // dialogue paragraph. Suppress this low-confidence false positive.
-  return ['」', '』', '”'].includes(punctuation) && /[\u3400-\u9fff]/.test(text.slice(paragraphStart, index))
 }
 
 function countEnglishWords(value: string) {

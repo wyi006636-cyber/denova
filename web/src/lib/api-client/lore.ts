@@ -25,6 +25,7 @@ export interface LoreHealthIssue {
   path?: string
   line?: number
   reference?: string
+  detail_key?: string
   detail?: string
 }
 
