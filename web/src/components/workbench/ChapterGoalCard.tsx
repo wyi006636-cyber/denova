@@ -1,12 +1,13 @@
 import { useTranslation } from 'react-i18next'
 import type { ChapterGoal } from './story-ledger-parser'
 
-export function ChapterGoalCard({ goal }: { goal?: ChapterGoal | null }) {
+export function ChapterGoalCard({ goal, onOpenPlan }: { goal?: ChapterGoal | null; onOpenPlan?: () => void }) {
   const { t } = useTranslation()
   if (!goal) {
     return (
       <div className="rounded border border-dashed border-[var(--nova-border)] bg-[var(--nova-surface)] px-2.5 py-2 text-[11px] leading-4 text-[var(--nova-text-faint)]">
-        {t('planning.chapterGoal.empty')}
+        <div>{t('planning.chapterGoal.empty')}</div>
+        {onOpenPlan ? <button type="button" className="nova-nav-item mt-1.5 rounded px-2 py-1 text-[10px] text-[var(--nova-text-muted)]" onClick={onOpenPlan}>{t('planning.chapterGoal.openPlan')}</button> : null}
       </div>
     )
   }

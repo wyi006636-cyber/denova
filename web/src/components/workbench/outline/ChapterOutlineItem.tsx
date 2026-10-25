@@ -10,6 +10,7 @@ import type { ChapterGoal } from '../story-ledger-parser'
 interface ChapterOutlineItemProps {
   chapter: ChapterSummary
   chapterGoal?: ChapterGoal | null
+  onOpenChapterPlan?: () => void
   active: boolean
   onSelectFile: (path: string) => void | Promise<void>
   onSetChapterConfirmed: (path: string, confirmed: boolean) => void | Promise<void>
@@ -24,6 +25,7 @@ interface ChapterOutlineItemProps {
 export const ChapterOutlineItem = memo(function ChapterOutlineItem({
   chapter,
   chapterGoal,
+  onOpenChapterPlan,
   active,
   onSelectFile,
   onSetChapterConfirmed,
@@ -90,7 +92,7 @@ export const ChapterOutlineItem = memo(function ChapterOutlineItem({
         >
           <ConfirmIcon className={`h-3.5 w-3.5 ${saving ? 'animate-spin' : ''}`} />
         </button>
-        {active ? <div className="border-t border-[var(--nova-border)] px-2 py-2"><ChapterGoalCard goal={chapterGoal} /></div> : null}
+        {active ? <div className="border-t border-[var(--nova-border)] px-2 py-2"><ChapterGoalCard goal={chapterGoal} onOpenPlan={onOpenChapterPlan} /></div> : null}
       </div>
     </OutlineFileActions>
   )

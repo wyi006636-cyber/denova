@@ -22,7 +22,7 @@ import { AgentSubAgentSessionPanel } from '@/components/Chat/AgentSubAgentSessio
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import type { AgentChatConversationState } from '@/features/agent-chat/AgentChatConversationTab'
-import type { ChapterGoal } from './story-ledger-parser'
+import { extractChapterPrefix, type ChapterGoal } from './story-ledger-parser'
 import { StoryLedgerView } from './StoryLedgerView'
 
 const LoreWorkspaceTab = memo(loadable(() => import('@/features/lore/LoreWorkspaceTab').then((module) => ({ default: module.LoreWorkspaceTab })), workbenchLoadingOptions))
@@ -204,6 +204,7 @@ export function WritingMainRoute({
               if (!document || document.project_id !== projectId) return []
               const active = activeTab?.kind === 'file' && activeTab.path === tab.path
               const chapter = summary?.chapters?.find(chapter => chapter.path === tab.path)
+              const latestChapterPlanPath = summary?.chapter_plans?.at(-1)?.path
               const rawEditor = (
                 <StableWritingDocumentEditor
                   active={active}
@@ -217,7 +218,8 @@ export function WritingMainRoute({
                   autoSaveEnabled={editorAutoSaveEnabled}
                   autoSaveDelayMs={editorAutoSaveDelayMs}
                   chapterSummary={chapter}
-                  chapterGoal={chapter ? chapterGoals.get(chapterAnchor(chapter.path)) ?? null : null}
+                    chapterGoal={chapter ? chapterGoals.get((extractChapterPrefix(chapter.path) || '').toLowerCase()) ?? null : null}
+                  onOpenChapterPlan={latestChapterPlanPath ? () => { void onSelectFile(latestChapterPlanPath) } : undefined}
                   onRevealChapter={onRevealChapter}
                   searchIntent={active ? editorSearchIntent : null}
                   onGenerateIllustration={onGenerateIllustration}
@@ -325,11 +327,6 @@ export function WritingMainRoute({
       ) : null}
     </WorkbenchRouteLayer>
   )
-}
-
-function chapterAnchor(path: string) {
-  const match = path.match(/\b(ch\d{5})\b/i)
-  return match?.[1].toLowerCase() ?? ''
 }
 
 export function IdeWritingInfoActions({

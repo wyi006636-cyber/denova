@@ -13,7 +13,7 @@ import { ChapterGoalCard } from '@/components/workbench/ChapterGoalCard'
 /** Document context belongs to the tab strip; this row owns editing status and commands. */
 export function MobileEditorToolbar(props: EditorToolbarProps) {
   const { t } = useTranslation()
-  const { chapterPath, chapterWords, saveStatus, editorMode, onOpenOutline, onGenerateIllustration, onRevealChapter, chapterGoal } = props
+  const { chapterPath, chapterWords, saveStatus, editorMode, onOpenOutline, onGenerateIllustration, onRevealChapter, chapterGoal, onOpenChapterPlan } = props
   const [goalOpen, setGoalOpen] = useState(false)
   return (
     <div className="nova-mobile-editor-toolbar flex h-11 shrink-0 items-center justify-between gap-2 border-b px-3">
@@ -33,7 +33,7 @@ export function MobileEditorToolbar(props: EditorToolbarProps) {
           <SheetTrigger asChild><Button variant="ghost" size="icon" aria-label={t('planning.chapterGoal.open')}><Target /></Button></SheetTrigger>
           <SheetContent side="right" className="nova-mobile-sheet gap-0 p-3">
             <SheetTitle>{t('planning.chapterGoal.title')}</SheetTitle>
-            <div className="mt-3 min-h-0 overflow-y-auto"><ChapterGoalCard goal={chapterGoal} /></div>
+            <div className="mt-3 min-h-0 overflow-y-auto"><ChapterGoalCard goal={chapterGoal} onOpenPlan={onOpenChapterPlan} /></div>
           </SheetContent>
         </Sheet> : null}
 

@@ -32,6 +32,7 @@ import {
 } from '@/lib/api'
 import { applyProjectFileOperations, type ProjectFileDocument } from '@/lib/api-client/project-files'
 import { WorkspaceFileRevisionConflictError } from '@/lib/autosave/workspace-file-revision-conflict'
+import { extractChapterPrefix, parseChapterGoals, type ChapterGoal } from '@/components/workbench/story-ledger-parser'
 
 interface ProjectWritingSurfaceProps {
   projectId: string
@@ -74,6 +75,7 @@ export function ProjectWritingSurface({
   const [summary, setSummary] = useState<WorkspaceSummary | null>(null)
   const [selectedPath, setSelectedPath] = useState(initialPath || '')
   const [document, setDocument] = useState<ProjectFileDocument | null>(null)
+  const [chapterPlanContents, setChapterPlanContents] = useState<ReadonlyMap<string, string>>(new Map())
   const [sidebarView, setSidebarView] = useState<'outline' | 'search'>('outline')
   const [searchIntent, setSearchIntent] = useState<{ path: string; query: string; line: number; nonce: number } | null>(null)
   const [loadingBook, setLoadingBook] = useState(Boolean(projectId))
@@ -91,6 +93,34 @@ export function ProjectWritingSurface({
     [summary?.chapters],
   )
   const projectFileTree = useMemo(() => buildProjectFileTreeFromNodes(tree), [tree])
+  const chapterGoals = useMemo(() => {
+    const result = new Map<string, ChapterGoal>()
+    for (const [path, content] of chapterPlanContents) {
+      for (const [anchor, goal] of parseChapterGoals(content, path)) result.set(anchor, goal)
+    }
+    return result
+  }, [chapterPlanContents])
+
+  useEffect(() => {
+    let cancelled = false
+    const paths = (summary?.chapter_plans ?? []).slice(-2).map((plan) => plan.path)
+    if (paths.length === 0) {
+      setChapterPlanContents(new Map())
+      return () => { cancelled = true }
+    }
+    void Promise.all(paths.map(async (path) => {
+      try {
+        const file = await readProjectFile(projectId, path)
+        return [path, file.content ?? ''] as const
+      } catch (cause) {
+        console.warn('[ProjectWritingSurface.tsx] failed to load chapter-group plan for chapter goals', { path, cause })
+        return null
+      }
+    })).then((loaded) => {
+      if (!cancelled) setChapterPlanContents(new Map(loaded.filter((item): item is readonly [string, string] => Boolean(item))))
+    })
+    return () => { cancelled = true }
+  }, [projectId, summary?.chapter_plans])
 
   const loadSnapshot = useCallback(async () => {
     const request = ++snapshotRequestRef.current
@@ -311,6 +341,7 @@ export function ProjectWritingSurface({
             ideas={summary?.ideas}
             outline={summary?.outline}
             chapterPlans={summary?.chapter_plans || []}
+            chapterPlanContents={chapterPlanContents}
             selectedFile={selectedPath || null}
             onSelectFile={selectOutlineFile}
             onOpenLoreTab={onOpenLoreTab}
@@ -362,6 +393,8 @@ export function ProjectWritingSurface({
                     content={document.content ?? ''}
                     revision={document.revision}
                     chapterSummary={displayedChapter}
+                    chapterGoal={displayedChapter ? chapterGoals.get((extractChapterPrefix(displayedChapter.path) || '').toLowerCase()) ?? null : null}
+                    onOpenChapterPlan={summary?.chapter_plans?.at(-1)?.path ? () => { void selectFile(summary.chapter_plans.at(-1)!.path) } : undefined}
                     searchIntent={searchIntent?.path === document.path ? searchIntent : null}
                     autoSaveEnabled={autoSaveEnabled}
                     autoSaveDelayMs={autoSaveDelayMs}
@@ -424,3 +457,4 @@ function projectTreeContainsPath(tree: ProjectBookFileNode[], path: string): boo
   }
   return false
 }
+

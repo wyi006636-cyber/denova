@@ -42,6 +42,7 @@ const planning = {
   'planning.chapterGoal.hook': '章末钩子',
   'planning.chapterGoal.untitled': '未命名章节',
   'planning.chapterGoal.open': '查看本章目标',
+  'planning.chapterGoal.openPlan': '写进当前章组',
   'planning.ledgerFilters': '台账筛选',
   'planning.ledgerFilter.all': '全部',
   'planning.ledgerFilter.planned': '仅计划',

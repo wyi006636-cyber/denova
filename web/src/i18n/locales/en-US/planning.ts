@@ -42,6 +42,7 @@ const planning = {
   'planning.chapterGoal.hook': 'Ending hook',
   'planning.chapterGoal.untitled': 'Untitled chapter',
   'planning.chapterGoal.open': 'View chapter goal',
+  'planning.chapterGoal.openPlan': 'Add to current chapter group',
   'planning.ledgerFilters': 'Ledger filters',
   'planning.ledgerFilter.all': 'All',
   'planning.ledgerFilter.planned': 'Planned only',

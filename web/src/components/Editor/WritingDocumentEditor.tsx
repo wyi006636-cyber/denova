@@ -75,6 +75,7 @@ export interface WritingDocumentEditorProps {
   autoSaveDelayMs?: number
   chapterSummary?: ChapterSummary
   chapterGoal?: ChapterGoal | null
+  onOpenChapterPlan?: () => void
   searchIntent?: EditorSearchIntent | null
   onGenerateIllustration?: (chapterPath: string) => void
   onRevealChapter?: (chapterPath: string) => void
@@ -110,6 +111,7 @@ export function WritingDocumentEditor({
   autoSaveDelayMs,
   chapterSummary,
   chapterGoal,
+  onOpenChapterPlan,
   searchIntent,
   onGenerateIllustration,
   onRevealChapter,
@@ -655,6 +657,7 @@ export function WritingDocumentEditor({
         displayTitle={chapterSummary?.display_title}
         chapterPath={chapterSummary?.path}
         chapterGoal={chapterGoal}
+        onOpenChapterPlan={onOpenChapterPlan}
         chapterWords={editorMode === 'document' && chapterSummary ? documentCharacters : undefined}
         currentLine={editorMode === 'document' && chapterSummary && editorFocused ? currentLine : undefined}
         saveStatus={saveStatus}

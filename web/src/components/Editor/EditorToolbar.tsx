@@ -23,6 +23,7 @@ export interface EditorToolbarProps {
   displayTitle?: string
   chapterPath?: string
   chapterGoal?: ChapterGoal | null
+  onOpenChapterPlan?: () => void
   chapterWords?: number
   currentLine?: number
   saveStatus: SaveStatus | null
@@ -49,6 +50,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
     displayTitle,
     chapterPath,
     chapterGoal,
+    onOpenChapterPlan,
     chapterWords,
     currentLine,
     saveStatus,
@@ -101,7 +103,7 @@ export function EditorToolbar(props: EditorToolbarProps) {
             </PopoverTrigger>
             <PopoverContent align="start" className="w-[min(360px,calc(100vw-24px))] border-[var(--nova-border)] bg-[var(--nova-menu-bg)] p-2">
               <div className="mb-1 px-1 text-[11px] font-medium text-[var(--nova-text-faint)]">{t('planning.chapterGoal.title')}</div>
-              <ChapterGoalCard goal={chapterGoal} />
+              <ChapterGoalCard goal={chapterGoal} onOpenPlan={onOpenChapterPlan} />
             </PopoverContent>
           </Popover>
         ) : null}

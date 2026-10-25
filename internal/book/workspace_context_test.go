@@ -109,6 +109,31 @@ func TestWorkspaceContextOmitsIdeasTemplateAndIndexesEditedIdeasByPath(t *testin
 	}
 }
 
+func TestWorkspaceContextIndexesStoryLedgerOnlyWhenNonEmpty(t *testing.T) {
+	dir := t.TempDir()
+	state := NewState(dir)
+	if err := state.InitWorkspace(); err != nil {
+		t.Fatalf("initialize workspace: %v", err)
+	}
+	ledger := filepath.Join(state.SettingDir(), "story-ledger.md")
+	if err := os.WriteFile(ledger, []byte{}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if context := state.WorkspaceContext(); strings.Contains(context.Dynamic, "story-ledger.md") {
+		t.Fatalf("empty story ledger should stay out of the dynamic index:\n%s", context.Dynamic)
+	}
+	if err := os.WriteFile(ledger, []byte("## t-old-seal\n- 一句话：旧印"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	context := state.WorkspaceContext()
+	if !strings.Contains(context.Dynamic, `"setting/story-ledger.md"`) {
+		t.Fatalf("non-empty story ledger path missing from dynamic index:\n%s", context.Dynamic)
+	}
+	if strings.Contains(context.Dynamic, "旧印") {
+		t.Fatalf("story ledger body must remain lazy:\n%s", context.Dynamic)
+	}
+}
+
 func TestWorkspaceContextPathIndexesStayStableAcrossBodyChanges(t *testing.T) {
 	dir := t.TempDir()
 	state := NewState(dir)

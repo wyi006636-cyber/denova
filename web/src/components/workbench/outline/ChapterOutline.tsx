@@ -422,6 +422,7 @@ export function ChapterOutline({
         collapsedVolumes={collapsedVolumes}
         selectedFile={selectedFile}
         chapterGoals={chapterGoals}
+        chapterPlanPath={latestChapterPlan?.path}
         chapterCountLabel={chapterCountLabel}
         onToggleVolume={toggleVolume}
         onScrollTopChange={handleScrollTopChange}
