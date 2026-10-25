@@ -24,7 +24,7 @@ main Agent -> final output
 
 ## Tool requirements
 
-- When continuity matters, first use `read` for the relevant workspace files, such as `CREATOR.md`, `setting/outline.md`, `setting/progress.md`, `setting/character-states.md`, the current chapter-group plan, and recent chapters. For lore, use `query_lore_items` with exact `ids`/`names` or search filters and `detail=full` to load complete bodies. Follow `next_offset` for additional pages; the default `index` only returns briefs.
+- When continuity matters, first use `read` for the relevant workspace files, such as `CREATOR.md`, `setting/outline.md`, `setting/progress.md`, `setting/character-states.md`, the current chapter-group plan, and recent chapters. If that plan names ledger IDs, read the matching sections in `setting/story-ledger.md`; read the whole ledger only when the author asks to整理伏笔 or review unresolved lines. For lore, use `query_lore_items` with exact `ids`/`names` or search filters and `detail=full` to load complete bodies. Follow `next_offset` for additional pages; the default `index` only returns briefs.
 - If the user asks only for a passage, exploratory draft, or example in chat, output the prose directly and do not write workspace files.
 - When the user asks to create or update workspace prose, use `write` for a new file or complete rewrite and `edit` for localized replacement. `old_string` must match the current file exactly and uniquely and must not contain line-number prefixes returned by `read`.
 - Inspect every `write` or `edit` result. If it contains `[tool error]`, invalid JSON arguments, `string not found`, a non-unique match, a path error, or a truncation notice, do not claim completion. Reread the target, correct the arguments, and retry, or clearly report that the write did not succeed.
@@ -42,6 +42,7 @@ main Agent -> final output
 - Classify fact changes before committing them to continuity. Incidental unnamed details need no record. New named characters, locations, items, relationships, promises, new uses of established abilities, and new hard numbers should be written and then recorded in the existing chapter-group plan, progress, character state, or lore as appropriate. Changes to established rules, core abilities, protagonist identity, major-character death, timeline contradictions, or confirmed outline promises require author confirmation first. Do not create a separate fact registry.
 - Preserve user control. Do not over-plan, over-explain, or turn the requested draft into a different story.
 - Use workspace context, selected text, lore references, and style rules only when relevant to this turn's writing scope.
+- If the chapter establishes a ledger item, update its `埋设章` when appropriate; record a possible payoff only in `待确认`, never in `实际回收` or `弃用`, without the author's confirmation.
 
 ## Output
 

@@ -22,6 +22,7 @@ func TestWorkspaceContextIndexesFilesWithoutInjectingTheirBodies(t *testing.T) {
 		filepath.Join(state.SettingDir(), "outline.md"):                "OUTLINE_BODY_SHOULD_BE_LAZY",
 		filepath.Join(state.SettingDir(), "progress.md"):               "PROGRESS_BODY_SHOULD_BE_LAZY",
 		filepath.Join(state.SettingDir(), CharacterStatesFileName):     "CHARACTER_BODY_SHOULD_BE_LAZY",
+		filepath.Join(state.SettingDir(), "story-ledger.md"):           "LEDGER_BODY_SHOULD_BE_LAZY",
 		filepath.Join(state.ChapterGroupDir(), "group01-wasteland.md"): "GROUP_BODY_SHOULD_BE_LAZY",
 		filepath.Join(dir, "chapters", "ch00001-opening.md"):           "CHAPTER_BODY_SHOULD_BE_LAZY",
 	}
@@ -62,6 +63,7 @@ func TestWorkspaceContextIndexesFilesWithoutInjectingTheirBodies(t *testing.T) {
 		"## Current Writing Source Index",
 		`"setting/progress.md"`,
 		`"setting/character-states.md"`,
+		`"setting/story-ledger.md"`,
 		`"setting/chapter-groups/group01-wasteland.md"`,
 		`"chapters/ch00001-opening.md"`,
 	} {
@@ -74,6 +76,7 @@ func TestWorkspaceContextIndexesFilesWithoutInjectingTheirBodies(t *testing.T) {
 		"OUTLINE_BODY_SHOULD_BE_LAZY",
 		"PROGRESS_BODY_SHOULD_BE_LAZY",
 		"CHARACTER_BODY_SHOULD_BE_LAZY",
+		"LEDGER_BODY_SHOULD_BE_LAZY",
 		"GROUP_BODY_SHOULD_BE_LAZY",
 		"CHAPTER_BODY_SHOULD_BE_LAZY",
 		"ON_DEMAND_LORE_BODY_STAYS_LAZY",

@@ -49,12 +49,15 @@ func (s *State) WorkspaceContext() WorkspaceContext {
 		stableFiles = append(stableFiles, workspaceContextPath{Purpose: "Long-term outline", Path: "setting/outline.md"})
 	}
 
-	dynamicFiles := make([]workspaceContextPath, 0, 2)
+	dynamicFiles := make([]workspaceContextPath, 0, 3)
 	if s.hasNonEmptyFile(filepath.Join("setting", "progress.md")) {
 		dynamicFiles = append(dynamicFiles, workspaceContextPath{Purpose: "Established writing progress", Path: "setting/progress.md"})
 	}
 	if s.hasNonEmptyFile(filepath.Join("setting", CharacterStatesFileName)) {
 		dynamicFiles = append(dynamicFiles, workspaceContextPath{Purpose: "Current character continuity state", Path: "setting/" + CharacterStatesFileName})
+	}
+	if s.hasNonEmptyFile(filepath.Join("setting", "story-ledger.md")) {
+		dynamicFiles = append(dynamicFiles, workspaceContextPath{Purpose: "Story threads and foreshadowing ledger", Path: "setting/story-ledger.md"})
 	}
 
 	stable := renderWorkspacePathIndex("Workspace Source Index", []workspaceContextPathSection{
