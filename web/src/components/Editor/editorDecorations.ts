@@ -29,6 +29,7 @@ export interface ChapterLintDecorationIssue {
 export interface ChapterLintDecorationState {
   issues: ChapterLintDecorationIssue[]
   activeIssueID?: string
+  activeOccurrenceIndex?: number
 }
 
 export const chapterLintPluginKey = new PluginKey<DecorationSet>('nova-chapter-lint-highlight')
@@ -70,7 +71,9 @@ function createChapterLintDecorations(doc: ProseMirrorNode, state: ChapterLintDe
   })
   const occurrences = new Map<string, number>()
   for (const issue of [...state.issues].sort((left, right) => left.start - right.start)) {
-    const targetOccurrence = occurrences.get(issue.text) || 0
+    const targetOccurrence = issue.id === state.activeIssueID
+      ? Math.max(0, state.activeOccurrenceIndex || 0)
+      : occurrences.get(issue.text) || 0
     occurrences.set(issue.text, targetOccurrence + 1)
     let foundOccurrence = 0
     let matched = false

@@ -327,7 +327,8 @@ const lore = {
   'lore.health.duplicate': 'Duplicate names or alias conflicts',
   'lore.health.empty': 'Empty content or title-only entries',
   'lore.health.broken': 'Broken references',
-  'lore.health.unused': 'Never referenced by a chapter (info)',
+  'lore.health.unused': 'No [[ ]] reference in chapter text (info)',
+  'lore.health.unusedDetail': 'No [[name]] reference in chapter text',
   'lore.health.none': 'No issues found',
 } as const
 

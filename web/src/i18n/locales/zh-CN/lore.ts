@@ -327,7 +327,8 @@ const lore = {
   'lore.health.duplicate': '重名或别名冲突',
   'lore.health.empty': '正文为空或只有标题',
   'lore.health.broken': '断链引用',
-  'lore.health.unused': '从未被章节引用（信息）',
+  'lore.health.unused': '正文中没有 [[ ]] 引用（信息）',
+  'lore.health.unusedDetail': '正文中没有 [[名称]] 引用',
   'lore.health.none': '没有发现问题',
 } as const
 

@@ -156,7 +156,7 @@ export function WritingDocumentEditor({
   const lastDocumentReviewNavigationNonceRef = useRef<number | null>(null)
   const searchStateRef = useRef<SearchState>({ query: '', index: 0, useRegex: false })
   const searchExtension = useMemo(() => createSearchHighlightExtension(searchStateRef), [])
-  const chapterLintDecorationStateRef = useRef<{ issues: Array<{ id: string; text: string; start: number; end: number }>; activeIssueID?: string }>({ issues: [] })
+  const chapterLintDecorationStateRef = useRef<{ issues: Array<{ id: string; text: string; start: number; end: number }>; activeIssueID?: string; activeOccurrenceIndex?: number }>({ issues: [] })
   const chapterLintExtension = useMemo(() => createChapterLintHighlightExtension(chapterLintDecorationStateRef), [])
   const lintContent = useMemo(() => draftContentRef.current, [lintRefresh])
   const dialogueHighlightExtension = useMemo(() => createDialogueHighlightExtension(), [])
@@ -667,16 +667,19 @@ export function WritingDocumentEditor({
     setChapterLintOpen(true)
   }, [])
 
-  const selectChapterLintIssue = useCallback((issue: ChapterLintIssue) => {
+  const selectChapterLintIssue = useCallback((issue: ChapterLintIssue, occurrenceIndex = 0) => {
     if (!editor || editor.isDestroyed) return
     chapterLintDecorationStateRef.current = {
       issues: chapterLintReport?.issues || [issue],
       activeIssueID: issue.id,
+      activeOccurrenceIndex: occurrenceIndex,
     }
     editor.view.dispatch(editor.state.tr.setMeta(chapterLintPluginKey, true))
     const matches = findSearchMatches(editor, issue.text)
-    const occurrence = (chapterLintReport?.issues || [issue]).filter(candidate => candidate.text === issue.text && candidate.start <= issue.start).length - 1
-    const match = matches[Math.max(0, occurrence)] || matches[0]
+    const occurrence = issue.occurrences?.[occurrenceIndex]
+    const match = occurrence
+      ? matches[Math.min(occurrenceIndex, Math.max(0, matches.length - 1))] || matches[0]
+      : matches[0]
     if (match) selectSearchMatch(editor, match)
   }, [chapterLintReport?.issues, editor])
 
@@ -729,6 +732,7 @@ export function WritingDocumentEditor({
             chapterLintDecorationStateRef.current = {
               issues: report.issues,
               activeIssueID: chapterLintDecorationStateRef.current.activeIssueID,
+              activeOccurrenceIndex: chapterLintDecorationStateRef.current.activeOccurrenceIndex,
             }
             editor?.view.dispatch(editor.state.tr.setMeta(chapterLintPluginKey, true))
           }}

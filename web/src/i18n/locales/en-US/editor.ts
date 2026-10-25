@@ -139,6 +139,17 @@ const editor = {
   'editor.lint.category.punctuation': 'Punctuation',
   'editor.lint.category.length': 'Long paragraphs/sentences',
   'editor.lint.category.reference': 'Broken lore references',
+  'editor.lint.issue.banned': 'Banned word hit: {{word}}',
+  'editor.lint.issue.ai': 'Possible AI-trace wording: {{phrase}}',
+  'editor.lint.issue.repeat': 'Short-distance repetition of “{{phrase}}” ({{count}} times)',
+  'editor.lint.issue.repeatedPunctuation': 'Repeated punctuation: {{punctuation}}',
+  'editor.lint.issue.ellipsis': 'Ellipsis style is inconsistent: use “…” in Chinese or “...” in English',
+  'editor.lint.issue.mixedPunctuation': 'Chinese and English punctuation are mixed',
+  'editor.lint.issue.unbalancedClosing': 'Unmatched bracket or quote: {{punctuation}}',
+  'editor.lint.issue.unbalancedOpening': 'Unclosed bracket or quote: {{punctuation}}',
+  'editor.lint.issue.longParagraph': 'Paragraph is too long (over {{limit}} characters)',
+  'editor.lint.issue.longSentence': 'Sentence is too long (over {{limit}})',
+  'editor.lint.issue.reference': 'Broken lore reference: {{name}}',
 } as const
 
 export default editor

@@ -139,6 +139,17 @@ const editor = {
   'editor.lint.category.punctuation': '标点',
   'editor.lint.category.length': '超长段落/句子',
   'editor.lint.category.reference': '断链引用',
+  'editor.lint.issue.banned': '命中禁用词：{{word}}',
+  'editor.lint.issue.ai': '疑似 AI 腔词：{{phrase}}',
+  'editor.lint.issue.repeat': '短距离重复“{{phrase}}”（{{count}} 次）',
+  'editor.lint.issue.repeatedPunctuation': '连续重复标点：{{punctuation}}',
+  'editor.lint.issue.ellipsis': '省略号写法不规范：中文使用“……”或英文使用“...”',
+  'editor.lint.issue.mixedPunctuation': '中英文标点混用',
+  'editor.lint.issue.unbalancedClosing': '括号或引号不配对：{{punctuation}}',
+  'editor.lint.issue.unbalancedOpening': '括号或引号缺少闭合：{{punctuation}}',
+  'editor.lint.issue.longParagraph': '段落过长（超过 {{limit}} 字）',
+  'editor.lint.issue.longSentence': '句子过长（超过 {{limit}}）',
+  'editor.lint.issue.reference': '断链资料引用：{{name}}',
 } as const
 
 export default editor

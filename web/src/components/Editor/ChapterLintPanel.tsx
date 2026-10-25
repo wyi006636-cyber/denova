@@ -38,7 +38,7 @@ interface ChapterLintPanelProps {
   editor: Editor | null
   onClose: () => void
   onEditBannedWords?: () => void
-  onIssueClick: (issue: ChapterLintIssue) => void
+  onIssueClick: (issue: ChapterLintIssue, occurrenceIndex?: number) => void
   onReportChange?: (report: ChapterLintReport) => void
 }
 
@@ -51,15 +51,24 @@ export function ChapterLintPanel({
   onIssueClick,
   onReportChange,
 }: ChapterLintPanelProps) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [bannedWords, setBannedWords] = useState('')
   const [loreNames, setLoreNames] = useState<string[]>([])
+  const [lintContent, setLintContent] = useState(content)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [enabled, setEnabled] = useState<Record<ChapterLintCategory, boolean>>(() => readPreferences())
   const [collapsed, setCollapsed] = useState<Record<ChapterLintCategory, boolean>>({
     banned: false, ai: false, repeat: false, punctuation: false, length: false, reference: false,
   })
+  const [occurrenceIndexes, setOccurrenceIndexes] = useState<Record<string, number>>({})
+
+  // Chapter checks are local but still scan the whole draft. Debouncing keeps
+  // typing responsive while preserving fresh results after the user pauses.
+  useEffect(() => {
+    const timer = window.setTimeout(() => setLintContent(content), 400)
+    return () => window.clearTimeout(timer)
+  }, [content])
 
   useEffect(() => {
     let cancelled = false
@@ -71,10 +80,10 @@ export function ChapterLintPanel({
     ]).then(([bannedFile, items]) => {
       if (cancelled) return
       setBannedWords(bannedFile?.content || '')
-      setLoreNames(items.map(item => item.name).filter(Boolean))
-    }).catch((error) => {
+      setLoreNames(items.flatMap(item => [item.name, ...(item.keywords || [])]).filter(Boolean))
+    }).catch(() => {
       if (cancelled) return
-      setLoadError(error instanceof Error ? error.message : String(error))
+      setLoadError('load-failed')
     }).finally(() => {
       if (!cancelled) setLoading(false)
     })
@@ -85,11 +94,10 @@ export function ChapterLintPanel({
     try { window.localStorage.setItem('nova.chapter-lint.categories', JSON.stringify(enabled)) } catch { /* host storage may be unavailable */ }
   }, [enabled])
 
-  const report = useMemo<ChapterLintReport>(() => runChapterLintWithBannedWords(content, bannedWords, {
-    loreNames,
-    locale: i18n.language.toLowerCase().startsWith('en') ? 'en' : 'zh',
+  const report = useMemo<ChapterLintReport>(() => runChapterLintWithBannedWords(lintContent, bannedWords, {
+    loreTerms: loreNames,
     enabled,
-  }), [bannedWords, content, enabled, i18n.language, loreNames])
+  }), [bannedWords, enabled, lintContent, loreNames])
   useEffect(() => { onReportChange?.(report) }, [onReportChange, report])
   const grouped = useMemo(() => {
     const groups = new Map<ChapterLintCategory, ChapterLintIssue[]>()
@@ -104,6 +112,13 @@ export function ChapterLintPanel({
   const toggleCategory = useCallback((category: ChapterLintCategory) => {
     setEnabled(current => ({ ...current, [category]: !current[category] }))
   }, [])
+
+  const handleIssueClick = useCallback((issue: ChapterLintIssue) => {
+    const occurrenceCount = issue.occurrences?.length || 1
+    const nextIndex = ((occurrenceIndexes[issue.id] ?? -1) + 1) % occurrenceCount
+    setOccurrenceIndexes(current => ({ ...current, [issue.id]: nextIndex }))
+    onIssueClick(issue, nextIndex)
+  }, [occurrenceIndexes, onIssueClick])
 
   return (
     <aside className="flex max-h-[min(70vh,680px)] w-full shrink-0 flex-col border-b border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text)] md:absolute md:right-3 md:top-12 md:z-20 md:w-[min(420px,calc(100%-24px))] md:rounded-lg md:border md:shadow-xl" aria-label={t('editor.lint.title')}>
@@ -146,7 +161,7 @@ export function ChapterLintPanel({
                 </div>
                 {!isCollapsed && enabled[category] ? (
                   <div className="border-t border-[var(--nova-border)] px-2 py-1">
-                    {issues.length ? issues.map(issue => <LintIssueRow key={issue.id} issue={issue} onClick={() => onIssueClick(issue)} />) : <p className="py-2 text-[11px] text-[var(--nova-text-faint)]">{t('editor.lint.none')}</p>}
+                    {issues.length ? issues.map(issue => <LintIssueRow key={issue.id} issue={issue} onClick={() => handleIssueClick(issue)} />) : <p className="py-2 text-[11px] text-[var(--nova-text-faint)]">{t('editor.lint.none')}</p>}
                   </div>
                 ) : null}
               </section>
@@ -161,10 +176,12 @@ export function ChapterLintPanel({
 }
 
 function LintIssueRow({ issue, onClick }: { issue: ChapterLintIssue; onClick: () => void }) {
+  const { t } = useTranslation()
+  const message = t(issue.message.key, issue.message.params)
   return (
     <button type="button" className="grid w-full gap-0.5 rounded px-1.5 py-1.5 text-left text-xs hover:bg-[var(--nova-hover)]" onClick={onClick}>
-      <span className="truncate font-medium">{issue.text || issue.message}</span>
-      <span className="line-clamp-2 text-[11px] text-[var(--nova-text-faint)]">{issue.message}{issue.suggestion ? ` → ${issue.suggestion}` : ''}</span>
+      <span className="truncate font-medium">{issue.text || message}</span>
+      <span className="line-clamp-2 text-[11px] text-[var(--nova-text-faint)]">{message}{issue.suggestion ? ` → ${issue.suggestion}` : ''}</span>
     </button>
   )
 }
