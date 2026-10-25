@@ -465,6 +465,7 @@ export function WritingAgentWorkspace(props: WritingAgentWorkspaceProps) {
                 onOpenChangeReview={props.onOpenChangeReview}
                 onWorkspaceChanged={(_workspace, paths) => props.onWorkspaceChanged?.(paths)}
                 onRunningChange={handleRunningChange}
+                onBeforeSend={props.onBeforeSend}
                 onDraftCommitted={(message) => commitDraftSession(session.id, message)}
                 onConversationStateChange={active ? props.onConversationStateChange : undefined}
                 pendingAction={active ? props.pendingAction : null}

@@ -104,6 +104,7 @@ const editor = {
   'editor.review.collapseComment': '折叠评论',
   'editor.review.outdated': '原文位置已变化',
   'editor.review.historicalDescription': '批注仍会随消息发送。Agent 会参考这段原文，查看当前内容后再处理。',
+  'editor.review.historicalAgentDescription': '这条 AI 批注不会随消息发送。请先点击“交给 Agent 处理”，让它进入下一条消息。',
   'editor.review.prepareFailed': '无法添加评论，请确认内容已保存且未被外部修改后重试',
   'editor.review.createFailed': '添加评论失败',
   'editor.review.updateFailed': '更新评论失败',

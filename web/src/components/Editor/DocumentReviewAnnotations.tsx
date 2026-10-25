@@ -179,6 +179,7 @@ export const DocumentReviewAnnotations = forwardRef<DocumentReviewAnnotationsHan
     group.range.widgetPos,
     group.outdated,
     group.showWidget,
+    group.comments.some((comment) => comment.source === 'agent'),
   ]))
   if (decorationLayoutCacheRef.current.key !== decorationLayoutKey) {
     decorationLayoutCacheRef.current = {
@@ -191,6 +192,7 @@ export const DocumentReviewAnnotations = forwardRef<DocumentReviewAnnotationsHan
         widgetPos: group.range.widgetPos,
         outdated: group.outdated,
         showWidget: group.showWidget,
+        agent: group.comments.some((comment) => comment.source === 'agent'),
       })),
     }
   }
@@ -353,7 +355,11 @@ export const DocumentReviewAnnotations = forwardRef<DocumentReviewAnnotationsHan
               comments={group.comments}
               quote={group.outdated ? group.quote : undefined}
               anchorLabel={group.outdated ? t('editor.review.outdated') : t('editor.review.comment')}
-              anchorDescription={group.outdated ? t('editor.review.historicalDescription') : undefined}
+              anchorDescription={group.outdated
+                ? t(group.comments.some((comment) => comment.source === 'agent')
+                  ? 'editor.review.historicalAgentDescription'
+                  : 'editor.review.historicalDescription')
+                : undefined}
               draft={group.draft ? {
                 body: group.draft.body,
                 submitting: group.draft.submitting,

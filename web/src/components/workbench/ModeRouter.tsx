@@ -612,6 +612,7 @@ export function ModeRouter(props: ModeRouterProps) {
     isLoadingEarlierHistory,
     fileSuggestions,
     onCreateSession: onCreateChatSession,
+    onBeforeSend: onBeforeWorkspaceSwitch,
     onSwitchSession: onSwitchChatSession,
     onRenameSession: onRenameChatSession,
     onDeleteSession: onDeleteChatSession,

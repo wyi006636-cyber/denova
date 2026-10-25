@@ -93,7 +93,7 @@ func TestBridgeScopesToolsAndCancelsPendingQuestion(t *testing.T) {
 	}
 }
 
-func TestBridgeExposesAddReviewCommentsFromScopedCatalog(t *testing.T) {
+func TestBridgeExposesRegisteredReviewCommentTool(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	bridge, err := startBridge(ctx, []external.Tool{

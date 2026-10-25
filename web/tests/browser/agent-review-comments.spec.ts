@@ -1,4 +1,3 @@
-import { mkdir } from 'node:fs/promises'
 import { expect, test } from '../support/fixtures'
 import { createAndOpenBook, createProjectFile, readProjectFile, saveProjectFile } from '../support/api'
 import { openWritingAgent, submitAgentChatMessage } from '../support/agent-chat'
@@ -9,10 +8,9 @@ const chapterPath = 'chapters/agent-review-comments.md'
 test('shows Agent review comments, promotes one, and sends only that comment next turn', async ({ page, request }) => {
   test.setTimeout(90_000)
   const book = await createAndOpenBook(request, 'Agent review comments')
-  const original = '# Agent review comments\n\n第一段原文。\n\n第二段原文。\n'
+  const original = '# Agent review comments\n\n第一段原文。\n\n第二段原文。\n他说：“第一个。”\n他说：“第二个。”\n'
   await createProjectFile(request, book.projectId, chapterPath, original)
-  const screenshotRoot = 'D:/vibe/denova-pr-review/agent-review-screenshots'
-  await mkdir(screenshotRoot, { recursive: true })
+  const screenshotPath = (name: string) => test.info().outputPath(name)
 
   const streamRequests: Array<Record<string, unknown>> = []
   page.on('request', (requestEvent) => {
@@ -40,7 +38,8 @@ test('shows Agent review comments, promotes one, and sends only that comment nex
   }
   await expect.poll(async () => (await review()).review_thread.comments.length).toBe(2)
   await expect(page.locator('.nova-document-review-highlight')).toHaveCount(2)
-  await page.screenshot({ path: `${screenshotRoot}/wide-dark.png`, fullPage: true, animations: 'disabled' })
+  await expect(page.getByText('原文位置已变化', { exact: true })).toHaveCount(0)
+  await page.screenshot({ path: screenshotPath('wide-dark.png'), fullPage: true, animations: 'disabled' })
 
   const firstHighlight = page.locator('.nova-document-review-highlight').first()
   await firstHighlight.click()
@@ -57,13 +56,24 @@ test('shows Agent review comments, promotes one, and sends only that comment nex
   await expect(firstThread.getByRole('button', { name: '交给 Agent 处理', exact: true })).toHaveCount(0)
   await page.locator('.nova-document-review-highlight').nth(1).click()
   await expect(page.getByText('AI 审稿', { exact: true })).toHaveCount(1)
-  await page.screenshot({ path: `${screenshotRoot}/author-and-agent.png`, fullPage: true, animations: 'disabled' })
+  await page.screenshot({ path: screenshotPath('author-and-agent.png'), fullPage: true, animations: 'disabled' })
 
   const afterPromotion = await review()
   const promoted = afterPromotion.review_thread.comments.find((comment) => comment.body.includes('补充这一段'))
   const untouched = afterPromotion.review_thread.comments.find((comment) => comment.body.includes('转折更明确'))
   expect(promoted?.source).toBe('author')
   expect(untouched?.source).toBe('agent')
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(page.locator('.nova-review-comment-thread').filter({ hasText: 'AI 建议：补充这一段的具体动机。' })).toBeVisible()
+  await page.screenshot({ path: screenshotPath('narrow-390.png'), fullPage: false, animations: 'disabled' })
+
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const collapseButtons = page.getByRole('button', { name: '折叠', exact: true })
+  if (await collapseButtons.count()) await collapseButtons.first().click()
+  if (await collapseButtons.count()) await collapseButtons.first().click()
+  await expect(page.locator('.nova-review-comment-thread')).toHaveCount(0)
+  await page.screenshot({ path: screenshotPath('folded-agent-author.png'), fullPage: false, animations: 'disabled' })
 
   await submitAgentChatMessage(page, composer, 'Please apply the promoted review comment.')
   await expect(page.getByText('Review comments created.', { exact: true }).last()).toBeVisible()
@@ -76,21 +86,16 @@ test('shows Agent review comments, promotes one, and sends only that comment nex
   expect(feedback[0].comment_ids).toEqual([promoted?.id])
   expect(feedback[0].comment_ids).not.toContain(untouched?.id)
 
-  await page.setViewportSize({ width: 390, height: 844 })
-  const narrowAgentTab = page.getByRole('tab', { name: 'Agent', exact: true }).filter({ visible: true })
-  if (await narrowAgentTab.count()) await narrowAgentTab.click()
-  await page.screenshot({ path: `${screenshotRoot}/narrow-390.png`, fullPage: true, animations: 'disabled' })
-
-  await page.setViewportSize({ width: 1440, height: 900 })
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))
-  await page.screenshot({ path: `${screenshotRoot}/wide-light.png`, fullPage: true, animations: 'disabled' })
+  await page.screenshot({ path: screenshotPath('wide-light.png'), fullPage: true, animations: 'disabled' })
 
   await saveProjectFile(request, book.projectId, chapterPath, '# Agent review comments\n\n锚点已改写。\n')
   await page.reload()
   await page.getByLabel('工作台侧边栏').getByRole('button', { name: '写作', exact: true }).click()
   await page.getByRole('button', { name: /^agent review comments\b/i }).click()
   await expect(page.getByText('原文位置已变化', { exact: true }).first()).toBeVisible()
-  await page.screenshot({ path: `${screenshotRoot}/anchor-invalid.png`, fullPage: true, animations: 'disabled' })
+  await expect(page.getByText('这条 AI 批注不会随消息发送。请先点击“交给 Agent 处理”，让它进入下一条消息。', { exact: true })).toBeVisible()
+  await page.screenshot({ path: screenshotPath('anchor-invalid.png'), fullPage: true, animations: 'disabled' })
 
   expect((await readProjectFile(request, book.projectId, chapterPath)).content).toContain('锚点已改写。')
 })

@@ -104,6 +104,7 @@ const editor = {
   'editor.review.collapseComment': 'Collapse comment',
   'editor.review.outdated': 'Original location changed',
   'editor.review.historicalDescription': 'This comment will still be sent. The Agent will use the original quote and check the current content before proceeding.',
+  'editor.review.historicalAgentDescription': 'This AI review comment will not be sent with your message. Click “Send to Agent” first to include it in the next message.',
   'editor.review.prepareFailed': 'Could not add the comment. Make sure the content is saved and has not changed elsewhere, then try again.',
   'editor.review.createFailed': 'Could not add the comment',
   'editor.review.updateFailed': 'Could not update the comment',

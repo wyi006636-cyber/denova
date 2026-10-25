@@ -13,6 +13,10 @@
   text-decoration-thickness: 2px;
 }
 
+:is(.editor-content, .nova-rich-markdown) .tiptap .nova-document-review-highlight.is-agent {
+  text-decoration-style: dashed;
+}
+
 :is(.editor-content, .nova-rich-markdown) .tiptap .nova-document-review-highlight:focus-visible {
   border-radius: 0.2rem;
   outline: 2px solid var(--nova-warning);

@@ -158,6 +158,8 @@ export interface AgentPanelProps {
   onCancelAsk?: (sessionId: string, askId: string, reason?: string) => Promise<AgentAskResolution>
   onRemoveContextCompaction?: (() => Promise<boolean>) | null
   onSend: (message: string, options?: ChatSendOptions) => boolean | Promise<boolean>
+  /** Flushes the current writing editor before a turn reads workspace content. */
+  onBeforeSend?: (message: string) => boolean | Promise<boolean>
   onAnalyzeContext: (
     message: string,
     options?: {
@@ -256,6 +258,7 @@ function AgentPanelComponent({
   onCancelAsk = cancelSessionAsk,
   onRemoveContextCompaction = removeChatContextCompaction,
   onSend,
+  onBeforeSend,
   onAnalyzeContext,
   onStop,
   onSuspend,
@@ -518,6 +521,7 @@ function AgentPanelComponent({
       await onCreateSession()
       return true
     }
+    if (onBeforeSend && isReviewPrompt(message) && !(await onBeforeSend(message))) return false
     if (persistedSettings.loading) return false
     const feedbackSelection = reviewFeedback?.filter((selection) => selection.comments.length) ?? []
     const feedback = feedbackSelection.length
@@ -920,6 +924,10 @@ function AgentPanelComponent({
       {quickPrompts.dialog}
     </aside>
   )
+}
+
+function isReviewPrompt(message: string): boolean {
+  return /(?:review|审阅).*(?:chapter|章节)/i.test(message)
 }
 
 export const AgentPanel = memo(AgentPanelComponent)

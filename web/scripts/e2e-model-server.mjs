@@ -62,7 +62,7 @@ const agentEditArguments = JSON.stringify({
 const agentReviewCommentsArguments = JSON.stringify({
   items: [
     { path: 'chapters/agent-review-comments.md', quote: '第一段原文。', body: 'AI 建议：补充这一段的具体动机。' },
-    { path: 'chapters/agent-review-comments.md', quote: '第二段原文。', body: 'AI 建议：让这一处转折更明确。' },
+    { path: 'chapters/agent-review-comments.md', quote: '他说', prefix: '他说：“第一个。”\n', body: 'AI 建议：让这一处转折更明确。' },
   ],
 })
 const branchPlanUpdate = {

@@ -62,14 +62,11 @@ func newDocumentReviewTools(workspace, projectStoreRoot string) ([]agenttool.Too
 		if strings.TrimSpace(workspace) == "" {
 			return agentschema.ToolResult{}, fmt.Errorf("cannot add review comments because the current workspace is unavailable")
 		}
-		files := book.NewService(workspace)
-		var service *documentreview.Service
-		var serviceErr error
-		if strings.TrimSpace(projectStoreRoot) != "" {
-			service, serviceErr = documentreview.ForWorkspaceAt(workspace, projectStoreRoot)
-		} else {
-			service, serviceErr = documentreview.ForWorkspace(workspace)
+		if strings.TrimSpace(projectStoreRoot) == "" {
+			return agentschema.ToolResult{}, fmt.Errorf("cannot add review comments because the Project Store is unavailable")
 		}
+		files := book.NewService(workspace)
+		service, serviceErr := documentreview.ForWorkspaceAt(workspace, projectStoreRoot)
 		if serviceErr != nil {
 			return agentschema.ToolResult{}, fmt.Errorf("open document review ledger: %w", serviceErr)
 		}

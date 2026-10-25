@@ -104,3 +104,21 @@ func TestAddReviewCommentsToolRejectsLoreAndUnsafePaths(t *testing.T) {
 		t.Fatalf("unsafe path batch = %#v", payload)
 	}
 }
+
+func TestAddReviewCommentsToolRequiresProjectStoreRoot(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspaceRoot, "chapter.md"), []byte("quote"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	definitions, err := newDocumentReviewTools(workspaceRoot, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := definitions[0].Tool.Run(context.Background(), `{"items":[{"path":"chapter.md","quote":"quote","body":"x"}]}`)
+	if err == nil || result.Status != "" {
+		t.Fatalf("empty Project Store root should fail before writing: result=%#v err=%v", result, err)
+	}
+	if _, statErr := os.Stat(filepath.Join(workspaceRoot, ".denova", "reviews", "ledger.jsonl")); !os.IsNotExist(statErr) {
+		t.Fatalf("empty Project Store root created a content-area ledger: %v", statErr)
+	}
+}
