@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Code2, Crosshair, Ellipsis, ImagePlus, PanelLeft, Save, Settings, Target, WrapText } from 'lucide-react'
+import { Code2, Crosshair, Ellipsis, ImagePlus, PanelLeft, Save, ScanSearch, Settings, Target, WrapText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -49,6 +49,7 @@ export function MobileEditorToolbar(props: EditorToolbarProps) {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               {onOpenOutline && <DropdownMenuItem onSelect={onOpenOutline}><PanelLeft />{t('planning.outlineNavigation')}</DropdownMenuItem>}
+              {props.onCheckChapter && <DropdownMenuItem onSelect={props.onCheckChapter}><ScanSearch />{t('editor.lint.open')}</DropdownMenuItem>}
               {chapterPath && onRevealChapter && <DropdownMenuItem onSelect={() => onRevealChapter(chapterPath)}><Crosshair />{t('editor.revealChapterInOutlineTooltip')}</DropdownMenuItem>}
               {onGenerateIllustration && <DropdownMenuItem disabled={props.generateIllustrationDisabled || !chapterPath} onSelect={() => { if (chapterPath) onGenerateIllustration(chapterPath) }}><ImagePlus />{t('editor.generateIllustration')}</DropdownMenuItem>}
               <DropdownMenuItem onSelect={() => void props.onSave()}><Save />{t('editor.save')}</DropdownMenuItem>

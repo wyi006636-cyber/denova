@@ -38,6 +38,7 @@ import {
 import {
   clampIndex,
   createDialogueHighlightExtension,
+  createChapterLintHighlightExtension,
   createSearchHighlightExtension,
   findSearchMatches,
   replaceAllSearchMatches,
@@ -56,6 +57,9 @@ import { createDocumentReviewExtension, type DocumentReviewDecorationState, type
 import { EditorPersistenceNotices } from './EditorPersistenceNotices'
 import { ProjectTextEditor, type ProjectTextEditorHandle } from '@/features/files/ProjectSourceEditor'
 import { persistProjectFileEditorPreferences, readProjectFileEditorPreferences } from '@/features/files/preferences'
+import { ChapterLintPanel } from './ChapterLintPanel'
+import type { ChapterLintIssue, ChapterLintReport } from '@/features/writing/chapter-lint'
+import { chapterLintPluginKey } from './editorDecorations'
 
 export type { EditorFlushHandler } from './useEditorDraftPersistence'
 export type { DocumentReviewController, DocumentReviewNavigationIntent } from '@/features/document-review/controller'
@@ -89,6 +93,7 @@ export interface WritingDocumentEditorProps {
   readingTypography?: ReadingTypographySettings
   /** Opens a collapsed writing outline without coupling the editor to a layout implementation. */
   onOpenOutline?: () => void
+  onEditBannedWords?: () => void
 }
 
 interface EditorSearchIntent {
@@ -123,6 +128,7 @@ export function WritingDocumentEditor({
   documentReviewNavigationIntent,
   readingTypography,
   onOpenOutline,
+  onEditBannedWords,
 }: WritingDocumentEditorProps) {
   const { t } = useTranslation()
   const [editorMode, setEditorMode] = useState<WritingEditorMode>('document')
@@ -141,6 +147,11 @@ export function WritingDocumentEditor({
   const [useRegex, setUseRegex] = useState(false)
   const [replaceOpen, setReplaceOpen] = useState(false)
   const [replaceText, setReplaceText] = useState('')
+  const [chapterLintOpen, setChapterLintOpen] = useState(false)
+  const [chapterLintReport, setChapterLintReport] = useState<ChapterLintReport | null>(null)
+  const [lintRefresh, setLintRefresh] = useState(0)
+  // Banned words and lore names reload only when the panel opens, not on every keystroke.
+  const [lintSourcesRefresh, setLintSourcesRefresh] = useState(0)
   const [reviewPortalTargets, setReviewPortalTargets] = useState<DocumentReviewPortalTarget[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
   const sourceEditorRef = useRef<ProjectTextEditorHandle>(null)
@@ -152,6 +163,14 @@ export function WritingDocumentEditor({
   const lastDocumentReviewNavigationNonceRef = useRef<number | null>(null)
   const searchStateRef = useRef<SearchState>({ query: '', index: 0, useRegex: false })
   const searchExtension = useMemo(() => createSearchHighlightExtension(searchStateRef), [])
+  const chapterLintDecorationStateRef = useRef<{
+    issues: Array<{ id: string; text: string; start: number; end: number; occurrences?: Array<{ start: number; end: number }> }>
+    activeIssueID?: string
+    activeOccurrenceIndex?: number
+    activeDocRange?: SearchMatch
+  }>({ issues: [] })
+  const chapterLintExtension = useMemo(() => createChapterLintHighlightExtension(chapterLintDecorationStateRef), [])
+  const lintContent = useMemo(() => draftContentRef.current, [lintRefresh])
   const dialogueHighlightExtension = useMemo(() => createDialogueHighlightExtension(), [])
   const resourceScope = projectId
   const workspaceImageExtension = useMemo(
@@ -181,6 +200,7 @@ export function WritingDocumentEditor({
       }),
       createIndentedHardBreakExtension(),
       searchExtension,
+      chapterLintExtension,
       dialogueHighlightExtension,
       workspaceImageExtension,
       reviewExtension,
@@ -329,6 +349,7 @@ export function WritingDocumentEditor({
   const handleSourceChange = useCallback((nextContent: string) => {
     draftContentRef.current = nextContent
     sourceUpdateListenersRef.current.forEach((listener) => listener())
+    setLintRefresh((value) => value + 1)
   }, [])
 
   const toggleSourceWordWrap = useCallback(() => {
@@ -413,6 +434,7 @@ export function WritingDocumentEditor({
     const updateDocumentStats = () => {
       updateCharacterStats(editor, setSelectedCharacters, setDocumentCharacters)
       setCurrentLine(getLineNumber(editor.state.doc, editor.state.selection.head))
+      setLintRefresh((value) => value + 1)
     }
     const updateSelectionStats = () => {
       updateCharacterStats(editor, setSelectedCharacters)
@@ -641,6 +663,45 @@ export function WritingDocumentEditor({
     editor?.commands.focus()
   }, [editor, useRegex])
 
+  const closeChapterLint = useCallback(() => {
+    chapterLintDecorationStateRef.current = { issues: [] }
+    editor?.view.dispatch(editor.state.tr.setMeta(chapterLintPluginKey, true))
+    setChapterLintReport(null)
+    setChapterLintOpen(false)
+  }, [editor])
+
+  const openChapterLint = useCallback(() => {
+    if (editorModeRef.current !== 'document') {
+      setEditorMode('document')
+      editorModeRef.current = 'document'
+    }
+    setLintRefresh((value) => value + 1)
+    setLintSourcesRefresh((value) => value + 1)
+    setChapterLintOpen(true)
+  }, [])
+
+  const selectChapterLintIssue = useCallback((issue: ChapterLintIssue, occurrenceIndex = 0) => {
+    if (!editor || editor.isDestroyed) return
+    const occurrence = issue.occurrences?.[occurrenceIndex] || { start: issue.start, end: issue.end }
+    const matches = findSearchMatches(editor, issue.text)
+    const sourceOccurrenceIndex = findSourceOccurrenceIndex(lintContent, issue.text, occurrence.start)
+    const match = matches[sourceOccurrenceIndex] || matches[occurrenceIndex] || matches[0]
+    chapterLintDecorationStateRef.current = {
+      issues: chapterLintReport?.issues || [issue],
+      activeIssueID: issue.id,
+      activeOccurrenceIndex: occurrenceIndex,
+      activeDocRange: match,
+    }
+    editor.view.dispatch(editor.state.tr.setMeta(chapterLintPluginKey, true))
+    if (match) {
+      selectSearchMatch(editor, match)
+      requestAnimationFrame(() => {
+        const element = editor.view.dom.querySelector('.nova-chapter-lint-current') as HTMLElement | null
+        element?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      })
+    }
+  }, [chapterLintReport?.issues, editor, lintContent])
+
   // 未选中文件时显示占位
   if (!fileName) {
     return (
@@ -674,84 +735,133 @@ export function WritingDocumentEditor({
         onOpenOutline={onOpenOutline}
         onGenerateIllustration={onGenerateIllustration}
         onRevealChapter={onRevealChapter}
+        onCheckChapter={editorMode === 'document' ? openChapterLint : undefined}
+        onEditBannedWords={onEditBannedWords}
+        chapterLintOpen={chapterLintOpen}
         generateIllustrationDisabled={generateIllustrationDisabled}
       />
-      <EditorPersistenceNotices
-        workspace={resourceScope}
-        fileName={fileName}
-        revision={revision}
-        externalConflict={externalConflict}
-        externalConflictSaving={externalConflictSaving}
-        onKeepLocal={keepLocalVersion}
-        onLoadExternal={loadExternalVersion}
-      />
-      {editorMode === 'source' && sourceDocument ? (
-        <div ref={editorContainerRef} className="min-h-0 flex-1 overflow-hidden bg-[var(--nova-bg)]">
-          <ProjectTextEditor
-            ref={sourceEditorRef}
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        {chapterLintOpen ? (
+          <ChapterLintPanel
             projectId={projectId}
-            document={sourceDocument}
-            value={draftContentRef.current}
-            wordWrap={sourceWordWrap}
-            onWordWrapToggle={toggleSourceWordWrap}
-            onChange={handleSourceChange}
-            onSave={() => void handleSave()}
-            syncExternalValue={false}
-            onQuoteSelection={!documentReview && onQuoteSelection
-              ? (selection) => onQuoteSelection({ fileName, ...selection })
-              : undefined}
+            content={lintContent}
+            refreshToken={lintSourcesRefresh}
+            editor={editor}
+            onClose={closeChapterLint}
+            onEditBannedWords={onEditBannedWords}
+            onIssueClick={selectChapterLintIssue}
+            onReportChange={(report) => {
+              setChapterLintReport(report)
+              chapterLintDecorationStateRef.current = {
+                issues: report.issues.map(issue => ({
+                  id: issue.id,
+                  text: issue.text,
+                  start: issue.start,
+                  end: issue.end,
+                  occurrences: issue.occurrences,
+                })),
+                activeIssueID: chapterLintDecorationStateRef.current.activeIssueID,
+                activeOccurrenceIndex: chapterLintDecorationStateRef.current.activeOccurrenceIndex,
+                activeDocRange: chapterLintDecorationStateRef.current.activeDocRange,
+              }
+              editor?.view.dispatch(editor.state.tr.setMeta(chapterLintPluginKey, true))
+            }}
           />
-        </div>
-      ) : (
-        <EditorSurface
-          containerRef={editorContainerRef}
-          editor={editor}
-          settings={settings}
-          themeStyle={themeStyle}
-          nativeIndent={nativeIndent}
-          search={{
-            open: searchOpen,
-            inputRef: searchInputRef,
-            query: searchQuery,
-            matchIndex: searchIndex,
-            matchCount: searchMatches.length,
-            useRegex,
-            replaceOpen,
-            replaceText,
-            onQueryChange: (query) => updateSearch(query, 0),
-            onNavigate: goToSearchMatch,
-            onClose: closeSearch,
-            onToggleRegex: toggleRegex,
-            onToggleReplace: toggleReplace,
-            onReplaceChange: setReplaceText,
-            onReplace: handleReplace,
-            onReplaceAll: handleReplaceAll,
-          }}
-          showSelectionToolbar={selectedCharacters > 0 && (documentCommentsAvailable || Boolean(onQuoteSelection))}
-          selectionToolbarMode={documentCommentsAvailable ? 'comment' : 'quote'}
-          onSelectionAction={documentCommentsAvailable ? commentCurrentSelection : quoteCurrentSelection}
-          onQuoteSelection={documentCommentsAvailable && onQuoteSelection ? quoteCurrentSelection : undefined}
-          onWritingAction={onQuoteSelection ? runSelectionAction : undefined}
-          reviewAnnotations={editor && fileName && documentReview && documentReviewTarget && documentCommentsAvailable ? (
-            <DocumentReviewAnnotations
-              ref={reviewAnnotationsRef}
-              editor={editor}
-              target={documentReviewTarget}
-              resourceLabel={fileName}
+        ) : null}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <EditorPersistenceNotices
+            workspace={resourceScope}
+            fileName={fileName}
+            revision={revision}
+            externalConflict={externalConflict}
+            externalConflictSaving={externalConflictSaving}
+            onKeepLocal={keepLocalVersion}
+            onLoadExternal={loadExternalVersion}
+          />
+          {editorMode === 'source' && sourceDocument ? (
+            <div ref={editorContainerRef} className="min-h-0 flex-1 overflow-hidden bg-[var(--nova-bg)]">
+              <ProjectTextEditor
+                ref={sourceEditorRef}
+                projectId={projectId}
+                document={sourceDocument}
+                value={draftContentRef.current}
+                wordWrap={sourceWordWrap}
+                onWordWrapToggle={toggleSourceWordWrap}
+                onChange={handleSourceChange}
+                onSave={() => void handleSave()}
+                syncExternalValue={false}
+                onQuoteSelection={!documentReview && onQuoteSelection
+                  ? (selection) => onQuoteSelection({ fileName, ...selection })
+                  : undefined}
+              />
+            </div>
+          ) : (
+            <EditorSurface
               containerRef={editorContainerRef}
-              comments={documentReview.comments.filter((comment) => sameDocumentReviewTarget(comment.target, documentReviewTarget))}
-              decorationStateRef={reviewDecorationStateRef}
-              portalTargets={reviewPortalTargets}
-              onPrepareSnapshot={prepareDocumentReviewSnapshot}
-              onCreate={documentReview.onCreate}
-              onUpdate={documentReview.onUpdate}
-              onDelete={documentReview.onDelete}
+              editor={editor}
+              settings={settings}
+              themeStyle={themeStyle}
+              nativeIndent={nativeIndent}
+              search={{
+                open: searchOpen,
+                inputRef: searchInputRef,
+                query: searchQuery,
+                matchIndex: searchIndex,
+                matchCount: searchMatches.length,
+                useRegex,
+                replaceOpen,
+                replaceText,
+                onQueryChange: (query) => updateSearch(query, 0),
+                onNavigate: goToSearchMatch,
+                onClose: closeSearch,
+                onToggleRegex: toggleRegex,
+                onToggleReplace: toggleReplace,
+                onReplaceChange: setReplaceText,
+                onReplace: handleReplace,
+                onReplaceAll: handleReplaceAll,
+              }}
+              showSelectionToolbar={selectedCharacters > 0 && (documentCommentsAvailable || Boolean(onQuoteSelection))}
+              selectionToolbarMode={documentCommentsAvailable ? 'comment' : 'quote'}
+              onSelectionAction={documentCommentsAvailable ? commentCurrentSelection : quoteCurrentSelection}
+              onQuoteSelection={documentCommentsAvailable && onQuoteSelection ? quoteCurrentSelection : undefined}
+              onWritingAction={onQuoteSelection ? runSelectionAction : undefined}
+              reviewAnnotations={editor && fileName && documentReview && documentReviewTarget && documentCommentsAvailable ? (
+                <DocumentReviewAnnotations
+                  ref={reviewAnnotationsRef}
+                  editor={editor}
+                  target={documentReviewTarget}
+                  resourceLabel={fileName}
+                  containerRef={editorContainerRef}
+                  comments={documentReview.comments.filter((comment) => sameDocumentReviewTarget(comment.target, documentReviewTarget))}
+                  decorationStateRef={reviewDecorationStateRef}
+                  portalTargets={reviewPortalTargets}
+                  onPrepareSnapshot={prepareDocumentReviewSnapshot}
+                  onCreate={documentReview.onCreate}
+                  onUpdate={documentReview.onUpdate}
+                  onDelete={documentReview.onDelete}
+                />
+              ) : null}
             />
-          ) : null}
-        />
-      )}
+          )}
+        </div>
+      </div>
     </div>
   )
+}
+
+function findSourceOccurrenceIndex(source: string, query: string, start: number) {
+  const normalizedQuery = query.toLocaleLowerCase()
+  if (!normalizedQuery) return 0
+  const normalizedSource = source.toLocaleLowerCase()
+  let index = 0
+  let searchFrom = 0
+  while (searchFrom < normalizedSource.length) {
+    const match = normalizedSource.indexOf(normalizedQuery, searchFrom)
+    if (match < 0 || match >= start) break
+    index++
+    searchFrom = match + Math.max(1, normalizedQuery.length)
+  }
+  return index
 }
 
 function sameReviewPortalTargets(current: DocumentReviewPortalTarget[], next: DocumentReviewPortalTarget[]): boolean {

@@ -68,6 +68,7 @@ func (s *Server) registerRoutes(h *hertzserver.Hertz) {
 		projects.PATCH("/book/chapter-status", apiHandlers.HandleProjectBookChapterStatus)
 		projects.POST("/book/import-character-card", apiHandlers.HandleProjectCharacterCardImport)
 		projects.GET("/book/lore/items", apiHandlers.HandleProjectLoreItems)
+		projects.GET("/book/lore/health", apiHandlers.HandleProjectLoreHealth)
 		projects.GET("/interactive/stories", apiHandlers.HandleProjectStories)
 		projects.GET("/interactive/stories/:id/branches", apiHandlers.HandleProjectStoryBranches)
 		projects.GET("/interactive/stories/:id/mentions", apiHandlers.HandleProjectStoryMentions)

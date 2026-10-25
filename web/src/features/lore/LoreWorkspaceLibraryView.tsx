@@ -20,7 +20,7 @@ import { notifyLoreUpdated } from './events'
  * and configuration Agent, while the workspace owns navigation and draft flushing. */
 export function LoreWorkspaceLibraryView({
   projectId, activeId, items, filteredItems, filters, onFiltersChange, query, onQueryChange,
-  onSelect, onCreate, onReload, onFlush, onIndexFlushHandlerChange, onOpenDirectory, onOpenLibrary,
+  onSelect, onCreate, onReload, onFlush, onIndexFlushHandlerChange, onOpenDirectory, onOpenLibrary, onOpenFile,
 }: {
   projectId: string
   activeId: typeof LORE_OVERVIEW_ID | typeof LORE_INDEX_ID | null
@@ -37,6 +37,7 @@ export function LoreWorkspaceLibraryView({
   onIndexFlushHandlerChange: (handler: EditorFlushHandler | null) => void
   onOpenDirectory?: () => void
   onOpenLibrary?: () => void
+  onOpenFile?: (path: string) => void
 }) {
   const { t } = useTranslation()
   const [indexActions, setIndexActions] = useState<HTMLDivElement | null>(null)
@@ -70,7 +71,7 @@ export function LoreWorkspaceLibraryView({
           <LoreLibrary projectId={projectId} items={items} filteredItems={filteredItems}
             filters={filters} onFiltersChange={onFiltersChange} query={query} onQueryChange={onQueryChange}
             onSelect={onSelect} onCreate={onCreate} onChanged={() => void onReload()}
-            onReload={onReload} onGenerate={generate}
+            onReload={onReload} onGenerate={generate} onOpenFile={onOpenFile}
             onOrganizeTypes={() => setClassificationOpen(true)} organizingDisabled={false} />
         </div>
         {isIndex && <LoreIndexDocument projectId={projectId} items={items} headerActionsTarget={indexActions}
