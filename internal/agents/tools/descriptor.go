@@ -18,10 +18,11 @@ import (
 const defaultToolResultMaxBytes = config.DefaultAgentToolResultLimitKB * 1024
 
 const (
-	ToolSourceLore    = agenttool.ToolSourceLore
-	ToolSourceHistory = sdktool.ToolSourceHistory
-	ToolSourceWeb     = sdktool.ToolSourceWeb
-	ToolSourceImage   = sdktool.ToolSourceImage
+	ToolSourceLore           = agenttool.ToolSourceLore
+	ToolSourceHistory        = sdktool.ToolSourceHistory
+	ToolSourceWeb            = sdktool.ToolSourceWeb
+	ToolSourceImage          = sdktool.ToolSourceImage
+	ToolSourceDocumentReview = sdktool.ToolSource("denova.document_review")
 )
 
 // validateToolDescriptors makes the descriptor catalog part of Agent

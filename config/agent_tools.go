@@ -23,6 +23,7 @@ const (
 	AgentToolLoreRead        = "lore_read"
 	AgentToolLoreWrite       = "lore_write"
 	AgentToolImageGeneration = "image_generation"
+	AgentToolDocumentReview  = "document_review"
 )
 
 // AgentToolSettings stores capability overrides for every Agent kind.
@@ -80,6 +81,7 @@ func DefaultAgentToolSettings() AgentToolSettings {
 		AgentToolScript,
 		AgentToolLoreRead,
 		AgentToolLoreWrite,
+		AgentToolDocumentReview,
 	)
 	defaults[AgentToolConfigRead] = false
 	defaults[AgentToolTodo] = false

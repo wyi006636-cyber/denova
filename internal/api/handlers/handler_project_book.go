@@ -243,6 +243,27 @@ func (h *Handlers) HandleProjectDocumentCommentDelete(ctx context.Context, c *ap
 	})
 }
 
+func (h *Handlers) HandleProjectDocumentCommentPromote(ctx context.Context, c *app.RequestContext) {
+	scope, ok := requireProjectScope(c)
+	if !ok {
+		return
+	}
+	var thread documentreview.Thread
+	var comment documentreview.Comment
+	workspace, err := h.app.WithProjectDocumentReview(ctx, scope.ProjectID, func(service *documentreview.Service, _ documentreview.SnapshotResolver) error {
+		var promoteErr error
+		thread, comment, promoteErr = service.PromoteComment(ctx, c.Param("id"))
+		return promoteErr
+	})
+	if err != nil {
+		h.writeProjectDocumentReviewError(c, err)
+		return
+	}
+	writeJSON(c, consts.StatusOK, map[string]any{
+		"project_id": scope.ProjectID, "workspace": workspace, "review_thread": thread, "comment": comment,
+	})
+}
+
 func bindCompleteLoreItemInput(c *app.RequestContext, resourceID string) (booklore.ItemInput, bool) {
 	var input booklore.ItemInput
 	if err := c.BindJSON(&input); err != nil {

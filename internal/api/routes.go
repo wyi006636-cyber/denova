@@ -90,6 +90,7 @@ func (s *Server) registerRoutes(h *hertzserver.Hertz) {
 		projects.GET("/book/document-review", apiHandlers.HandleProjectDocumentReview)
 		projects.POST("/book/document-comments", apiHandlers.HandleProjectDocumentCommentCreate)
 		projects.PATCH("/book/document-comments/:id", apiHandlers.HandleProjectDocumentCommentUpdate)
+		projects.POST("/book/document-comments/:id/promote", apiHandlers.HandleProjectDocumentCommentPromote)
 		projects.DELETE("/book/document-comments/:id", apiHandlers.HandleProjectDocumentCommentDelete)
 		projects.GET("/changes/groups", apiHandlers.HandleWorkspaceChangeGroups)
 		projects.GET("/changes/groups/:id", apiHandlers.HandleWorkspaceChangeGroup)

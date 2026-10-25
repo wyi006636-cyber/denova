@@ -10,6 +10,49 @@ const (
 	maxDisplayQuoteBytes = 32 * 1024
 )
 
+// AnchorFromQuote resolves one exact quote against the current snapshot. It
+// intentionally fails on zero or multiple matches so an Agent can correct its
+// input instead of silently attaching feedback to the wrong passage.
+func AnchorFromQuote(snapshot Snapshot, quote, prefix, suffix string) (Anchor, error) {
+	if !utf8.ValidString(snapshot.Content) {
+		return Anchor{}, newError(ErrorCodeInvalid, "review comment source file is not valid UTF-8", nil)
+	}
+	if strings.TrimSpace(snapshot.Revision) == "" {
+		return Anchor{}, newError(ErrorCodeConflict, "review comment source revision is unavailable", nil)
+	}
+	if quote == "" {
+		return Anchor{}, newError(ErrorCodeInvalid, "review comment quote is empty", nil)
+	}
+	if !utf8.ValidString(quote) || !utf8.ValidString(prefix) || !utf8.ValidString(suffix) {
+		return Anchor{}, newError(ErrorCodeInvalid, "review comment quote and context must be valid UTF-8", nil)
+	}
+	anchor := Anchor{
+		Kind:         AnchorKindTextRange,
+		Encoding:     AnchorEncodingUTF8,
+		Revision:     snapshot.Revision,
+		Quote:        quote,
+		Prefix:       prefix,
+		Suffix:       suffix,
+		DisplayQuote: strings.TrimSpace(quote),
+	}
+	if strings.TrimSpace(anchor.DisplayQuote) == "" {
+		return Anchor{}, newError(ErrorCodeInvalid, "review comment quote is empty", nil)
+	}
+	start, ok := uniqueAnchorStart(snapshot.Content, anchor)
+	if !ok {
+		if strings.Count(snapshot.Content, quote) > 1 {
+			return Anchor{}, newError(ErrorCodeConflict, "review comment quote matches multiple passages; provide prefix or suffix context", nil)
+		}
+		return Anchor{}, newError(ErrorCodeConflict, "review comment quote was not found in the current file", nil)
+	}
+	anchor.Start = start
+	anchor.End = start + len(quote)
+	if err := ValidateAnchor(snapshot, anchor); err != nil {
+		return Anchor{}, err
+	}
+	return anchor, nil
+}
+
 // ValidateAnchor proves that a client-created anchor belongs to the exact
 // canonical file snapshot the author reviewed.
 func ValidateAnchor(snapshot Snapshot, anchor Anchor) error {

@@ -76,6 +76,71 @@ func TestDocumentReviewCommentLifecyclePersistsAndRotatesThread(t *testing.T) {
 	}
 }
 
+func TestDocumentReviewAgentCommentsStayOutOfAuthorQueueUntilPromoted(t *testing.T) {
+	workspace := t.TempDir()
+	service, err := NewService(workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := Snapshot{Content: "Agent quote", Revision: workspacechange.Revision([]byte("Agent quote"))}
+	thread, agentComment, err := service.AddAgentComment(context.Background(), AddCommentRequest{
+		Target: fileReviewTarget("chapters/ch01.md"), Body: "Use a more concrete detail.", Anchor: testAnchor(snapshot, snapshot.Content),
+	}, snapshot, AgentCommentMetadata{SessionID: "session-1", RunID: "run-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if agentComment.Source != CommentSourceAgent || agentComment.AgentSessionID != "session-1" || agentComment.AgentRunID != "run-1" {
+		t.Fatalf("agent provenance = %#v", agentComment)
+	}
+	if _, err := service.ConsumeReviewComments(context.Background(), thread.ID, []string{agentComment.ID}); err == nil {
+		t.Fatal("Agent comment entered the author queue before promotion")
+	}
+	current, err := service.CurrentThread(context.Background())
+	if err != nil || len(current.Comments) != 1 || current.Comments[0].Source != CommentSourceAgent {
+		t.Fatalf("current Agent comment = %#v err=%v", current, err)
+	}
+	_, promoted, err := service.PromoteComment(context.Background(), agentComment.ID)
+	if err != nil || promoted.Source != CommentSourceAuthor {
+		t.Fatalf("promoted comment = %#v err=%v", promoted, err)
+	}
+	if _, err := service.ConsumeReviewComments(context.Background(), thread.ID, []string{agentComment.ID}); err != nil {
+		t.Fatalf("promoted comment was not consumable: %v", err)
+	}
+}
+
+func TestDocumentReviewLegacyLedgerDefaultsSourceToAuthor(t *testing.T) {
+	workspace := t.TempDir()
+	ledgerDir := filepath.Join(workspace, ".denova", "reviews")
+	if err := os.MkdirAll(ledgerDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := Snapshot{Content: "Legacy quote", Revision: workspacechange.Revision([]byte("Legacy quote"))}
+	anchor := testAnchor(snapshot, snapshot.Content)
+	legacy := map[string]any{
+		"type": "comments_upserted", "created_at": time.Now().UTC(),
+		"thread": map[string]any{"id": "legacy-thread", "created_at": time.Now().UTC(), "updated_at": time.Now().UTC()},
+		"comments": []any{map[string]any{
+			"id": "legacy-comment", "thread_id": "legacy-thread", "target": fileReviewTarget("chapters/ch01.md"),
+			"body": "legacy", "anchor": anchor, "created_at": time.Now().UTC(), "updated_at": time.Now().UTC(),
+		}},
+	}
+	data, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ledgerDir, "ledger.jsonl"), append(data, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	service, err := NewService(workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	thread, err := service.CurrentThread(context.Background())
+	if err != nil || len(thread.Comments) != 1 || thread.Comments[0].Source != CommentSourceAuthor {
+		t.Fatalf("legacy comment = %#v err=%v", thread, err)
+	}
+}
+
 func TestAgentInputDocumentReviewReceiptIsEffectSpecificAndPersistent(t *testing.T) {
 	workspace := t.TempDir()
 	service, err := NewService(workspace)
@@ -199,6 +264,23 @@ func TestNormalizeTargetRejectsWorkspacePathsOutsideTheBook(t *testing.T) {
 				t.Fatalf("NormalizeTarget(%q) error = %v, want %s", id, err, ErrorCodeInvalid)
 			}
 		})
+	}
+}
+
+func TestAnchorFromQuoteResolvesUniqueAndDisambiguatedMatches(t *testing.T) {
+	snapshot := Snapshot{Content: "开头甲\n目标\n结尾甲\n开头乙\n目标\n结尾乙", Revision: workspacechange.Revision([]byte("anchor"))}
+	if _, err := AnchorFromQuote(snapshot, "目标", "", ""); err == nil {
+		t.Fatal("repeated quote was accepted without context")
+	}
+	anchor, err := AnchorFromQuote(snapshot, "目标", "开头乙\n", "\n结尾乙")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := snapshot.Content[anchor.Start:anchor.End]; got != "目标" || anchor.DisplayQuote != "目标" {
+		t.Fatalf("resolved anchor = %#v, quote=%q", anchor, got)
+	}
+	if _, err := AnchorFromQuote(snapshot, "不存在", "", ""); err == nil {
+		t.Fatal("missing quote was accepted")
 	}
 }
 

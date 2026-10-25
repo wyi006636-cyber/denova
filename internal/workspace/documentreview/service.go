@@ -220,9 +220,24 @@ func (s *Service) CurrentThread(ctx context.Context) (Thread, error) {
 }
 
 func (s *Service) AddComment(ctx context.Context, req AddCommentRequest, snapshot Snapshot) (Thread, Comment, error) {
+	return s.addComment(ctx, req, snapshot, CommentSourceAuthor, AgentCommentMetadata{})
+}
+
+// AddAgentComment records a review note produced by a Writing Agent. The
+// source is assigned by this method rather than accepted from an HTTP request.
+func (s *Service) AddAgentComment(ctx context.Context, req AddCommentRequest, snapshot Snapshot, metadata AgentCommentMetadata) (Thread, Comment, error) {
+	return s.addComment(ctx, req, snapshot, CommentSourceAgent, metadata)
+}
+
+func (s *Service) addComment(ctx context.Context, req AddCommentRequest, snapshot Snapshot, source string, metadata AgentCommentMetadata) (Thread, Comment, error) {
 	if s == nil {
 		return Thread{}, Comment{}, newError(ErrorCodeConflict, "text review service is nil", nil)
 	}
+	normalizedSource, err := normalizeCommentSource(source)
+	if err != nil {
+		return Thread{}, Comment{}, err
+	}
+	source = normalizedSource
 	target, err := NormalizeTarget(req.Target)
 	if err != nil {
 		return Thread{}, Comment{}, err
@@ -250,13 +265,16 @@ func (s *Service) AddComment(ctx context.Context, req AddCommentRequest, snapsho
 		}
 	}
 	comment := Comment{
-		ID:        newID("document-comment"),
-		ThreadID:  thread.ID,
-		Target:    target,
-		Body:      body,
-		Anchor:    req.Anchor,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:             newID("document-comment"),
+		ThreadID:       thread.ID,
+		Target:         target,
+		Body:           body,
+		Anchor:         req.Anchor,
+		Source:         source,
+		AgentSessionID: strings.TrimSpace(metadata.SessionID),
+		AgentRunID:     strings.TrimSpace(metadata.RunID),
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 	if err := s.appendAndApply(ledgerEvent{Type: eventCommentsUpserted, CreatedAt: now, Comments: []Comment{comment}}); err != nil {
 		return Thread{}, Comment{}, err
@@ -286,6 +304,31 @@ func (s *Service) UpdateComment(ctx context.Context, req UpdateCommentRequest) (
 		return Thread{}, Comment{}, err
 	}
 	slog.InfoContext(ctx, fmt.Sprintf("[document-review] comment updated workspace=%q target_kind=%q target_id=%q thread_id=%s comment_id=%s", s.workspace, next.Target.Kind, next.Target.ID, next.ThreadID, next.ID))
+	return s.currentThreadLocked(), next, nil
+}
+
+// PromoteComment moves one Agent note into the author feedback queue. The
+// original Agent provenance remains on the comment for later inspection.
+func (s *Service) PromoteComment(ctx context.Context, id string) (Thread, Comment, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := contextError(ctx); err != nil {
+		return Thread{}, Comment{}, err
+	}
+	current := s.comments[strings.TrimSpace(id)]
+	if current == nil || current.Deleted {
+		return Thread{}, Comment{}, newError(ErrorCodeNotFound, "document comment not found", map[string]any{"comment_id": id})
+	}
+	if current.Source != CommentSourceAgent {
+		return s.currentThreadLocked(), *current, nil
+	}
+	next := *current
+	next.Source = CommentSourceAuthor
+	next.UpdatedAt = time.Now().UTC()
+	if err := s.appendAndApply(ledgerEvent{Type: eventCommentsUpserted, CreatedAt: next.UpdatedAt, Comments: []Comment{next}}); err != nil {
+		return Thread{}, Comment{}, err
+	}
+	slog.InfoContext(ctx, fmt.Sprintf("[document-review] agent comment promoted workspace=%q thread_id=%s comment_id=%s", s.workspace, next.ThreadID, next.ID))
 	return s.currentThreadLocked(), next, nil
 }
 
@@ -408,6 +451,9 @@ func (s *Service) ReviewCommentsConsumed(ctx context.Context, threadID string, c
 		if comment == nil || comment.ThreadID != threadID {
 			return false, newError(ErrorCodeConflict, "document review comment is unavailable", map[string]any{"review_thread_id": threadID, "comment_id": requestedID})
 		}
+		if comment.Source != CommentSourceAuthor {
+			return false, newError(ErrorCodeConflict, "Agent review comment must be promoted before it can be sent", map[string]any{"comment_id": requestedID})
+		}
 		if !comment.Deleted || comment.AgentInputEffectID != effectID {
 			return false, nil
 		}
@@ -434,6 +480,9 @@ func (s *Service) reviewCommentsForAgentInputLocked(threadID string, commentIDs 
 		comment := s.comments[id]
 		if comment == nil || comment.ThreadID != threadID {
 			return nil, newError(ErrorCodeConflict, "document review comment is unavailable", map[string]any{"review_thread_id": threadID, "comment_id": id})
+		}
+		if comment.Source != CommentSourceAuthor {
+			return nil, newError(ErrorCodeConflict, "Agent review comment must be promoted before it can be sent", map[string]any{"comment_id": id})
 		}
 		if comment.Deleted {
 			if comment.AgentInputEffectID != effectID {
@@ -514,6 +563,9 @@ func (s *Service) reviewCommentsLocked(threadID string, commentIDs []string) ([]
 				"review_thread_id": threadID, "comment_id": id,
 			})
 		}
+		if comment.Source != CommentSourceAuthor {
+			return nil, newError(ErrorCodeConflict, "Agent review comment must be promoted before it can be sent", map[string]any{"comment_id": id})
+		}
 		result = append(result, *comment)
 	}
 	if len(result) == 0 {
@@ -573,6 +625,12 @@ func (s *Service) applyCommentsUpserted(event ledgerEvent) error {
 	}
 	for _, input := range event.Comments {
 		comment := input
+		if strings.TrimSpace(comment.Source) == "" {
+			comment.Source = CommentSourceAuthor
+		}
+		if _, err := normalizeCommentSource(comment.Source); err != nil {
+			return err
+		}
 		thread := s.threads[comment.ThreadID]
 		if thread == nil {
 			return newError(ErrorCodeConflict, "document review comment references a missing thread", map[string]any{"thread_id": comment.ThreadID})

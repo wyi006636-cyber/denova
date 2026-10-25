@@ -4,7 +4,7 @@ import { toast } from '@/lib/toast'
 import type { ReviewFeedbackSelection } from '@/features/changes/agent/ReviewFeedbackTray'
 import { isProjectChangeForProject, type WorkspaceChangeEvent } from '@/features/changes/types'
 import { withErrorLogID } from '@/lib/api-client'
-import { createDocumentComment, deleteDocumentComment, getDocumentReview, updateDocumentComment } from './api'
+import { createDocumentComment, deleteDocumentComment, getDocumentReview, promoteDocumentComment, updateDocumentComment } from './api'
 import type { CreateDocumentCommentRequest, DocumentReviewComment, DocumentReviewThread } from './types'
 
 interface UseDocumentReviewOptions {
@@ -133,6 +133,13 @@ export function useDocumentReview({ projectId, agentVisible, onShowAgent }: UseD
     return result.comment
   }, [projectId, source, updateHiddenCommentIDs])
 
+  const promoteComment = useCallback(async (comment: DocumentReviewComment) => {
+    const result = await promoteDocumentComment(projectId, comment.id)
+    setThread(result.reviewThread)
+    notifyDocumentReviewUpdated(projectId, source, 'refresh')
+    return result.comment
+  }, [projectId, source])
+
   const removeFeedback = useCallback((commentID: string) => {
     const comment = thread.comments.find((item) => item.id === commentID)
     if (!comment) return
@@ -148,7 +155,7 @@ export function useDocumentReview({ projectId, agentVisible, onShowAgent }: UseD
 
   const feedback = useMemo<ReviewFeedbackSelection | null>(() => {
     if (!thread.id) return null
-    const comments = thread.comments.filter((comment) => !hiddenCommentIDs.has(comment.id))
+    const comments = thread.comments.filter((comment) => (comment.source || 'author') === 'author' && !hiddenCommentIDs.has(comment.id))
     return comments.length ? { source: 'document', reviewThreadId: thread.id, comments } : null
   }, [hiddenCommentIDs, thread])
 
@@ -179,6 +186,7 @@ export function useDocumentReview({ projectId, agentVisible, onShowAgent }: UseD
     addComment,
     editComment,
     removeComment,
+    promoteComment,
     removeFeedback,
     submitFeedback,
     restoreFeedback,

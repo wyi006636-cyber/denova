@@ -37,6 +37,7 @@ interface DocumentReviewAnnotationsProps {
   onCreate: (request: CreateDocumentCommentRequest) => Promise<DocumentReviewComment>
   onUpdate: (comment: DocumentReviewComment, body: string) => Promise<DocumentReviewComment>
   onDelete: (comment: DocumentReviewComment) => Promise<DocumentReviewComment>
+  onPromote?: (comment: DocumentReviewComment) => Promise<DocumentReviewComment>
 }
 
 interface DraftComment extends EditorReviewRange {
@@ -75,6 +76,7 @@ export const DocumentReviewAnnotations = forwardRef<DocumentReviewAnnotationsHan
   onCreate,
   onUpdate,
   onDelete,
+  onPromote,
 }, ref) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState<DraftComment | null>(null)
@@ -373,6 +375,13 @@ export const DocumentReviewAnnotations = forwardRef<DocumentReviewAnnotationsHan
                   throw error
                 }
               }}
+              onPromote={onPromote ? async (comment) => {
+                try { await onPromote(comment) } catch (error) {
+                  console.error('Failed to promote Agent review comment', { target, resourceLabel, commentID: comment.id, error })
+                  toast.error(withErrorLogID(t('editor.review.promoteFailed'), error))
+                  throw error
+                }
+              } : undefined}
               onCollapse={!group.outdated && !group.draft ? () => {
                 setExpandedKeys((current) => {
                   if (!current.has(group.key)) return current

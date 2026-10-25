@@ -130,7 +130,8 @@ export function AgentChatTabContent({
     onCreate: documentReview.addComment,
     onUpdate: documentReview.editComment,
     onDelete: documentReview.removeComment,
-  }), [documentReview.addComment, documentReview.editComment, documentReview.removeComment, documentReview.visibleComments])
+    onPromote: documentReview.promoteComment,
+  }), [documentReview.addComment, documentReview.editComment, documentReview.promoteComment, documentReview.removeComment, documentReview.visibleComments])
   const reviewFeedback = useMemo<ReviewFeedbackBatch | null>(() => (
     documentReview.feedback ? [documentReview.feedback] : null
   ), [documentReview.feedback])

@@ -48,7 +48,8 @@ export function usePluginPageLore({ projectId, agentVisible, onShowAgent, onShow
     onCreate: review.addComment,
     onUpdate: review.editComment,
     onDelete: review.removeComment,
-  }), [review.visibleComments, review.addComment, review.editComment, review.removeComment])
+    onPromote: review.promoteComment,
+  }), [review.visibleComments, review.addComment, review.editComment, review.promoteComment, review.removeComment])
   const removeReference = useCallback((id: string) => setReferences(current => current.filter(value => value !== id)), [])
   // Workspace-file comments belong to the Writing surface, which can navigate
   // those files. This surface exposes the same queue for lore comments only.

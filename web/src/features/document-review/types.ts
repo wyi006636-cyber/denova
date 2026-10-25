@@ -26,6 +26,9 @@ export interface DocumentReviewComment {
   target: DocumentReviewTarget
   body: string
   anchor: DocumentReviewAnchor
+  source?: 'author' | 'agent'
+  agent_session_id?: string
+  agent_run_id?: string
   created_at: string
   updated_at: string
   deleted?: boolean

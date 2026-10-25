@@ -14,6 +14,7 @@ export interface DocumentReviewController {
     body: string,
   ) => Promise<DocumentReviewComment>
   onDelete: (comment: DocumentReviewComment) => Promise<DocumentReviewComment>
+  onPromote?: (comment: DocumentReviewComment) => Promise<DocumentReviewComment>
 }
 
 /** A nonce makes repeated navigation to the same comment observable. */

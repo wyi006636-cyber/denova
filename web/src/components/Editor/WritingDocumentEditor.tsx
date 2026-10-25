@@ -739,6 +739,7 @@ export function WritingDocumentEditor({
               onCreate={documentReview.onCreate}
               onUpdate={documentReview.onUpdate}
               onDelete={documentReview.onDelete}
+              onPromote={documentReview.onPromote}
             />
           ) : null}
         />

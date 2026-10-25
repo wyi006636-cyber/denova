@@ -47,6 +47,8 @@ const agents = {
   'agents.tool.workspaceWrite.subtitle': 'write / edit',
   'agents.tool.imageGeneration.title': 'Generate Images',
   'agents.tool.imageGeneration.subtitle': 'generate_image',
+  'agents.tool.documentReview.title': 'Add Inline Review Comments',
+  'agents.tool.documentReview.subtitle': 'add_review_comments',
   'agents.tool.shell.title': 'Shell Commands',
   'agents.tool.shell.subtitle': 'bash / pwsh',
   'agents.tool.browser.title': 'Browser',
