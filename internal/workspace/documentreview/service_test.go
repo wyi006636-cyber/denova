@@ -76,6 +76,66 @@ func TestDocumentReviewCommentLifecyclePersistsAndRotatesThread(t *testing.T) {
 	}
 }
 
+func TestDocumentReviewAgentCommentSurvivesAuthorConsumptionAndReplay(t *testing.T) {
+	workspace := t.TempDir()
+	service, err := NewService(workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := Snapshot{Content: "作者锚点\n\nAgent 锚点", Revision: workspacechange.Revision([]byte("作者锚点\n\nAgent 锚点"))}
+	thread, authorComment, err := service.AddComment(context.Background(), AddCommentRequest{
+		Target: fileReviewTarget("chapters/ch01.md"), Body: "作者要求", Anchor: testAnchor(snapshot, "作者锚点"),
+	}, snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	thread, agentComment, err := service.AddAgentComment(context.Background(), AddCommentRequest{
+		Target: fileReviewTarget("chapters/ch01.md"), Body: "Agent 建议", Anchor: testAnchor(snapshot, "Agent 锚点"),
+	}, snapshot, AgentCommentMetadata{SessionID: "session-review", RunID: "run-review"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if thread.ID == "" || authorComment.ThreadID != thread.ID || agentComment.ThreadID != thread.ID {
+		t.Fatalf("comments were split across threads: thread=%#v author=%#v agent=%#v", thread, authorComment, agentComment)
+	}
+
+	consumed, err := service.ConsumeReviewComments(context.Background(), thread.ID, []string{authorComment.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(consumed) != 1 || consumed[0].ID != authorComment.ID {
+		t.Fatalf("consumed author comments = %#v", consumed)
+	}
+	current, err := service.CurrentThread(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.ID != thread.ID || len(current.Comments) != 1 || current.Comments[0].ID != agentComment.ID || current.Comments[0].Source != CommentSourceAgent {
+		t.Fatalf("pending Agent comment disappeared after author consumption: %#v", current)
+	}
+
+	reloaded, err := NewService(workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replayed, err := reloaded.CurrentThread(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replayed.ID != thread.ID || len(replayed.Comments) != 1 || replayed.Comments[0].ID != agentComment.ID || replayed.Comments[0].Source != CommentSourceAgent {
+		t.Fatalf("pending Agent comment did not survive ledger replay: %#v", replayed)
+	}
+	if _, err := reloaded.GetReviewComments(context.Background(), thread.ID, []string{agentComment.ID}); err == nil {
+		t.Fatal("unpromoted Agent comment entered the author queue")
+	}
+	if _, _, err := reloaded.PromoteComment(context.Background(), agentComment.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reloaded.GetReviewComments(context.Background(), thread.ID, []string{agentComment.ID}); err != nil {
+		t.Fatalf("promoted Agent comment was not available to the author queue: %v", err)
+	}
+}
+
 func TestDocumentReviewAgentCommentsStayOutOfAuthorQueueUntilPromoted(t *testing.T) {
 	workspace := t.TempDir()
 	service, err := NewService(workspace)

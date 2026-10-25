@@ -15,6 +15,7 @@ const narrative = '石门缓缓开启，暖色灯光照亮了前方的旧车站�
 const gameOpeningMarker = '[Source: story opening configuration; purpose: generate the first playable turn]'
 const gameOpeningNarrative = '暮色落在旧车站外，石门后的轨道传来遥远的回声。'
 const agentEditMarker = 'E2E_EDIT_CHAPTER'
+const agentReviewCommentsMarker = 'E2E_AGENT_REVIEW_COMMENTS'
 const delayedReplyMarker = 'E2E_DELAYED_AGENT_REPLY'
 const sessionADelayMarker = 'E2E_SESSION_A_DELAY'
 const sessionBDelayMarker = 'E2E_SESSION_B_DELAY'
@@ -57,6 +58,12 @@ const externalSecretPath = path.join(runtimeRoot, 'e2e-external-secret.txt')
 const agentEditArguments = JSON.stringify({
   path: 'chapters/e2e-agent-chapter.md',
   edits: [{ old_string: 'Agent 修改前。', new_string: 'Agent 已通过工具完成修改。' }],
+})
+const agentReviewCommentsArguments = JSON.stringify({
+  items: [
+    { path: 'chapters/agent-review-comments.md', quote: '第一段原文。', body: 'AI 建议：补充这一段的具体动机。' },
+    { path: 'chapters/agent-review-comments.md', quote: '第二段原文。', body: 'AI 建议：让这一处转折更明确。' },
+  ],
 })
 const branchPlanUpdate = {
   mode: 'replace_document',
@@ -667,6 +674,20 @@ const server = createServer(async (request, response) => {
       ? textCompletionFrames('The requested chapter update is complete.')
       : toolCompletionFrames('edit', agentEditArguments, 'call-edit-e2e-chapter')
     writeChatCompletion(response, frames)
+    return
+  }
+  if (requestIncludesMarker(body, agentReviewCommentsMarker)) {
+    recordRequest(agentReviewCommentsMarker)
+    if (!requestIncludesTool(body, 'add_review_comments')) {
+      writeChatCompletion(response, textCompletionFrames('The review tool is unavailable; quote each issue in chat.'))
+      return
+    }
+    const hasResult = toolResultMessages(body, 'add_review_comments').length > 0
+    if (!hasResult) {
+      writeChatCompletion(response, toolCompletionFrames('add_review_comments', agentReviewCommentsArguments, 'call-add-review-comments'))
+      return
+    }
+    writeChatCompletion(response, textCompletionFrames('Review comments created.'))
     return
   }
   for (const [marker, label] of [

@@ -127,7 +127,7 @@ func newDocumentReviewTools(workspace, projectStoreRoot string) ([]agenttool.Too
 	if err != nil {
 		return nil, err
 	}
-	definition, err := defineTool(tool, workspaceWriteDescriptor(ToolSourceDocumentReview, config.AgentToolDocumentReview, agenttool.ToolRecoveryReconcilable))
+	definition, err := defineTool(tool, documentReviewDescriptor(config.AgentToolDocumentReview, agenttool.ToolRecoveryReconcilable))
 	if err != nil {
 		return nil, err
 	}

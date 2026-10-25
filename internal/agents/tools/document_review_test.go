@@ -41,6 +41,21 @@ func TestAddReviewCommentsToolPersistsIndependentResults(t *testing.T) {
 	if tool == nil {
 		t.Fatal("add_review_comments tool missing")
 	}
+	for _, definition := range definitions {
+		info, infoErr := definition.Tool.Info(context.Background())
+		if infoErr != nil {
+			t.Fatal(infoErr)
+		}
+		if info.Name != "add_review_comments" {
+			continue
+		}
+		if definition.Descriptor.MutationScope != agenttool.ToolMutationExternal || definition.Descriptor.PostCheck != agenttool.ToolPostCheckExternalReceipt {
+			t.Fatalf("review ledger mutation was classified as workspace content: %#v", definition.Descriptor)
+		}
+		if definition.Descriptor.Presentation != agenttool.UniformToolPresentation(agenttool.ToolPresentationGeneric) {
+			t.Fatalf("review ledger mutation used file presentation: %#v", definition.Descriptor.Presentation)
+		}
+	}
 	ctx := ContextWithWorkspaceChangeScope(context.Background(), WorkspaceChangeScope{SessionID: "session-1", RunID: "run-1"})
 	result, err := tool.Run(ctx, `{"items":[{"path":"chapters/one.md","quote":"第一段","body":"good"},{"path":"chapters/one.md","quote":"重复","body":"ambiguous"},{"path":"chapters/one.md","quote":"重复","prefix":"第二段\n","body":"good too"},{"path":"outside.json","quote":"x","body":"bad"}]}`)
 	if err != nil || result.Status != agentschema.ToolResultSuccess {

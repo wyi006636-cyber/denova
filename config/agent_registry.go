@@ -248,7 +248,10 @@ var agentToolCapabilities = []AgentToolCapability{
 	capabilityDefinition(AgentToolLoreRead, "agents.tool.loreRead.title", "agents.tool.loreRead.subtitle", []string{"query_lore_items", "list_lore_materials"}, descriptorWithSource(readOnlyDescriptor(agenttool.ToolPresentationGeneric, agentschema.ToolResultRecoveryRerun), agenttool.ToolSource("denova.lore"))),
 	capabilityDefinition(AgentToolLoreWrite, "agents.tool.loreWrite.title", "agents.tool.loreWrite.subtitle", []string{"write_lore_items"}, descriptorWithSource(workspaceWriteDescriptor(agenttool.ToolRecoveryReconcilable, agenttool.ToolPresentationFile), agenttool.ToolSource("denova.lore"))),
 	capabilityDefinition(AgentToolImageGeneration, "agents.tool.imageGeneration.title", "agents.tool.imageGeneration.subtitle", []string{"generate_image"}, descriptorWithSource(workspaceWriteDescriptor(agenttool.ToolRecoveryNonIdempotent, agenttool.ToolPresentationImage), agenttool.ToolSourceImage)),
-	subAgentUnavailableCapabilityDefinition(AgentToolDocumentReview, "agents.tool.documentReview.title", "agents.tool.documentReview.subtitle", []string{"add_review_comments"}, descriptorWithSource(workspaceWriteDescriptor(agenttool.ToolRecoveryReconcilable, agenttool.ToolPresentationFile), agenttool.ToolSource("denova.document_review"))),
+	subAgentUnavailableCapabilityDefinition(AgentToolDocumentReview, "agents.tool.documentReview.title", "agents.tool.documentReview.subtitle", []string{"add_review_comments"}, descriptorWithSource(descriptorSummary(
+		agenttool.ToolExecutionWorkspaceExclusive, agenttool.ToolMutationExternal, agenttool.ToolPostCheckExternalReceipt,
+		agenttool.ToolRecoveryReconcilable, agenttool.SteeringFinishCurrent, agenttool.ToolPresentationGeneric,
+	), agenttool.ToolSource("denova.document_review"))),
 }
 
 func AgentToolCapabilities() []AgentToolCapability {

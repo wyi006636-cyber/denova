@@ -191,6 +191,12 @@ function App() {
       // Lore tools persist outside the workspace file tree, so Agent completion
       // invalidates Lore projections explicitly as well as file summaries.
       notifyLoreUpdated({ projectId, source: 'writing-agent' })
+      // Review tools persist Project Store metadata rather than workspace files.
+      // Refresh the document-review projection when an Agent turn settles so
+      // newly created AI annotations appear without a page reload.
+      window.dispatchEvent(new CustomEvent('nova:document-review-updated', {
+        detail: { projectId, source: 0, action: 'refresh' },
+      }))
       notifyVersionChange()
       if (impact === 'structure') notifyProjectStructureChange()
     }
