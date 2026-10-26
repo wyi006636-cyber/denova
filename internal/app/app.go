@@ -23,6 +23,7 @@ import (
 	appagentruntime "denova/internal/app/agentruntime"
 	automationapp "denova/internal/app/automation"
 	bookapp "denova/internal/app/book"
+	casebookapp "denova/internal/app/casebook"
 	imageapp "denova/internal/app/image"
 	loreapp "denova/internal/app/lore"
 	modelsapp "denova/internal/app/models"
@@ -104,6 +105,7 @@ type App struct {
 	automationApp      *automationapp.Service
 	activityApp        *activityapp.Service
 	bookApp            *bookapp.Service
+	casebookApp        *casebookapp.Service
 	resourceCatalog    *resourcecatalogapp.Service
 	resourceMarket     *resourceexchange.Market
 	resourceExchange   *resourceexchange.Service
@@ -357,6 +359,7 @@ func (a *App) ensureServices() {
 		}
 		a.activityApp = activityapp.NewService(dataDir, a.automationApp)
 		a.bookApp = bookapp.NewService(dataDir, a.projectRegistry, a.bookMetaStore)
+		a.casebookApp = casebookapp.NewService(a)
 		a.resourceCatalog = resourcecatalogapp.NewService(dataDir, resourceCatalogHost{app: a})
 		a.resourceMarket = resourceexchange.NewMarket(dataDir)
 		a.resourceExchange = resourceexchange.New(dataDir, a.projectRegistry, a.resourceCatalog, a.platform)
@@ -428,6 +431,13 @@ func (a *App) ProjectBook() *projectbookapp.Service {
 func (a *App) ProjectFiles() *projectfilesapp.Service {
 	a.ensureServices()
 	return a.projectFiles
+}
+
+// Casebook exposes explicit author actions for the file-backed writing case
+// library. It remains Project-scoped and never becomes an Agent tool.
+func (a *App) Casebook() *casebookapp.Service {
+	a.ensureServices()
+	return a.casebookApp
 }
 
 func (a *App) interactiveService() *InteractiveAppService {
