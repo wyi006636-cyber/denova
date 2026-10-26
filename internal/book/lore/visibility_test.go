@@ -27,6 +27,15 @@ func TestVisibleItemsFiltersChapterWindowsAndHidesFutureOnlyItems(t *testing.T) 
 	}
 }
 
+func TestResolveSpanVisibilityPrefersFocusedChapter(t *testing.T) {
+	if got := ResolveSpanVisibility("chapters/ch00020-opening.md", "ch00030", LoreScopeAsOf); got.Cursor != "ch00020" || got.Scope != LoreScopeAsOf {
+		t.Fatalf("focused chapter should win: %#v", got)
+	}
+	if got := ResolveSpanVisibility("chapters/第三章.md", "ch00030", LoreScopeAsOf); got.Cursor != "ch00030" {
+		t.Fatalf("explicit cursor should be fallback: %#v", got)
+	}
+}
+
 func TestVisibleSpansMarkdownDoesNotTruncate(t *testing.T) {
 	items := []Item{{ID: "secret", Name: "Secret", Spans: []Span{{ID: "s", From: "ch00030", Content: "secret body"}}}}
 	if got, err := VisibleSpansMarkdown(items, "ch00030", LoreScopeAsOf, 64); err == nil || got != "" {

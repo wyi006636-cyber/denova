@@ -76,7 +76,7 @@ func StartExternalTurn(ctx context.Context, cfg ExternalTurnConfig) (*ExternalTu
 	if c == nil || (cfg.Adapter == nil && cfg.Runtime == nil) || cfg.Config.ActiveAgentRuntime == nil {
 		return nil, errors.New("external Game turn requires a conversation and engine")
 	}
-	ctx = lore.ContextWithSpanVisibility(ctx, lore.SpanVisibility{Cursor: cfg.Request.LoreAsOf, Scope: cfg.Request.LoreScope})
+	ctx = lore.ContextWithSpanVisibility(ctx, lore.ResolveSpanVisibility(cfg.Request.IDEContext.CurrentFile, cfg.Request.LoreAsOf, cfg.Request.LoreScope))
 	sum := sha256.Sum256([]byte(cfg.Request.CommandID))
 	turn := &ExternalTurn{config: cfg, identity: agentrun.CycleIdentity{CommandID: agentrun.CommandID(cfg.Request.CommandID), OperationID: agentrun.OperationID(externalGameOperationPrefix + hex.EncodeToString(sum[:16])), Cycle: 1}, calls: map[string]externalGameCall{}}
 	// Replacement identity must survive process loss as part of the accepted
@@ -176,7 +176,7 @@ func (turn *ExternalTurn) Wait(ctx context.Context) agentrun.Outcome {
 		if turn.config.Release != nil {
 			defer turn.config.Release()
 		}
-		ctx = lore.ContextWithSpanVisibility(ctx, lore.SpanVisibility{Cursor: turn.config.Request.LoreAsOf, Scope: turn.config.Request.LoreScope})
+		ctx = lore.ContextWithSpanVisibility(ctx, lore.ResolveSpanVisibility(turn.config.Request.IDEContext.CurrentFile, turn.config.Request.LoreAsOf, turn.config.Request.LoreScope))
 		turn.outcome = turn.run(ctx)
 	})
 	return turn.outcome

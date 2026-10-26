@@ -110,6 +110,26 @@ func TestCustomCategoryRenameMoveDeletePreservesLore(t *testing.T) {
 	}
 }
 
+func TestNameCatalogReportsCursorHiddenIDsWithoutLeakingNames(t *testing.T) {
+	store := NewStore(t.TempDir())
+	if _, err := store.Create(ItemInput{ID: "future-secret", Type: "world", Name: "Future Secret", Spans: []Span{{ID: "later", From: "ch00030", Content: "future body"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Create(ItemInput{ID: "current-secret", Type: "world", Name: "Current Secret", Spans: []Span{{ID: "now", From: "ch00020", Content: "current body"}}}); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := store.NameCatalogMarkdown(NameCatalogOptions{Cursor: "ch00020", Scope: LoreScopeAsOf})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(catalog, "Current Secret") || strings.Contains(catalog, "Future Secret") || strings.Contains(catalog, "future body") {
+		t.Fatalf("catalog leaked hidden lore: %s", catalog)
+	}
+	if !strings.Contains(catalog, "1 lore item(s) are not visible at the current chapter cursor") || !strings.Contains(catalog, "future-secret") {
+		t.Fatalf("catalog omitted hidden-id notice: %s", catalog)
+	}
+}
+
 func TestCreateAndReclassifyAfterDefaultCategoryRemoval(t *testing.T) {
 	store := NewStore(t.TempDir())
 	if _, err := store.MutateCategory(CategoryMutation{Op: "delete", ID: "world", DestinationID: "item"}); err != nil {

@@ -24,6 +24,18 @@ type SpanVisibility struct {
 	Scope  string
 }
 
+// ResolveSpanVisibility applies the request contract shared by writing and
+// game turns: a focused chapter filename wins over an explicit cursor, while
+// a missing focused anchor falls back to the request cursor. The returned
+// value is normalized for use in context propagation and filtering.
+func ResolveSpanVisibility(currentFile, loreAsOf, scope string) SpanVisibility {
+	cursor := ExtractChapterPrefix(currentFile)
+	if cursor == "" {
+		cursor = loreAsOf
+	}
+	return SpanVisibility{Cursor: normalizeChapterPrefix(cursor), Scope: normalizeLoreScope(scope)}
+}
+
 type spanVisibilityContextKey struct{}
 
 // ContextWithSpanVisibility carries one request's lore cursor into tool calls.
@@ -212,6 +224,8 @@ func VisibleSpansMarkdown(items []Item, cursor, scope string, maxBytes int) (str
 	} else {
 		fmt.Fprintf(&sb, "Chapter-scoped lore (scope=as_of; cursor=%s):\n\n", normalizeChapterPrefix(cursor))
 	}
+	blockCount := 0
+	contentBytes := sb.Len()
 	for _, item := range visible {
 		if len(item.Spans) == 0 {
 			continue
@@ -236,12 +250,24 @@ func VisibleSpansMarkdown(items []Item, cursor, scope string, maxBytes int) (str
 		if block.Len() == 0 {
 			continue
 		}
-		candidate := strings.TrimSpace(sb.String() + block.String() + "\n")
-		if visibleSpanContextTitleBytes+len([]byte(candidate)) > maxBytes {
+		blockText := strings.TrimSpace(block.String())
+		if blockText == "" {
+			continue
+		}
+		separatorBytes := 0
+		if blockCount > 0 {
+			separatorBytes = len("\n\n")
+		}
+		candidateBytes := contentBytes + separatorBytes + len([]byte(blockText))
+		if visibleSpanContextTitleBytes+candidateBytes > maxBytes {
 			return "", fmt.Errorf("chapter-scoped lore exceeds %d bytes; shorten spans or choose a narrower chapter", maxBytes)
 		}
-		sb.WriteString(block.String())
-		sb.WriteByte('\n')
+		if separatorBytes > 0 {
+			sb.WriteString("\n\n")
+		}
+		sb.WriteString(blockText)
+		contentBytes = candidateBytes
+		blockCount++
 	}
 	return strings.TrimSpace(sb.String()), nil
 }

@@ -79,13 +79,10 @@ func IDEWorkspaceRuntimeContextsForContextWithLore(state *book.State, ide IDECon
 		contexts.Dynamic = strings.TrimSpace(strings.Join(nonEmptyStrings(contexts.Dynamic, extra), "\n\n"))
 	}
 	if state != nil {
-		cursor := lore.ExtractChapterPrefix(ide.CurrentFile)
-		if cursor == "" {
-			cursor = loreAsOf
-		}
+		visibility := lore.ResolveSpanVisibility(ide.CurrentFile, loreAsOf, loreScope)
 		items, err := lore.NewStore(state.Workspace()).List()
 		if err == nil {
-			spanContext, spanErr := lore.VisibleSpansMarkdown(items, cursor, loreScope, lore.VisibleSpanContextMaxBytes)
+			spanContext, spanErr := lore.VisibleSpansMarkdown(items, visibility.Cursor, visibility.Scope, lore.VisibleSpanContextMaxBytes)
 			if spanErr == nil {
 				contexts.Lore = strings.TrimSpace(spanContext)
 			}
@@ -101,15 +98,12 @@ func ValidateLoreSpanContext(state *book.State, ide IDEContextRef, loreAsOf, lor
 	if state == nil {
 		return nil
 	}
-	cursor := lore.ExtractChapterPrefix(ide.CurrentFile)
-	if cursor == "" {
-		cursor = loreAsOf
-	}
+	visibility := lore.ResolveSpanVisibility(ide.CurrentFile, loreAsOf, loreScope)
 	items, err := lore.NewStore(state.Workspace()).List()
 	if err != nil {
 		return err
 	}
-	_, err = lore.VisibleSpansMarkdown(items, cursor, loreScope, lore.VisibleSpanContextMaxBytes)
+	_, err = lore.VisibleSpansMarkdown(items, visibility.Cursor, visibility.Scope, lore.VisibleSpanContextMaxBytes)
 	return err
 }
 

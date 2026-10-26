@@ -329,6 +329,35 @@ func TestInteractiveConversationOmitsLoreSpanFragmentWithoutStoryCursor(t *testi
 	}
 }
 
+func TestInteractiveConversationFailsWhenChapterLoreFragmentIsTruncated(t *testing.T) {
+	workspace := t.TempDir()
+	if _, err := lore.NewStore(workspace).Create(lore.ItemInput{
+		ID: "large-span", Type: "world", Name: "Large Span",
+		Spans: []lore.Span{{ID: "opening", From: "ch00020", Content: strings.Repeat("x", 40001)}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	storyStore := interactive.NewStore(workspace)
+	story, err := storyStore.CreateStory(interactive.CreateStoryRequest{Title: "小预算", LoreAsOf: "ch00020", StoryTellerID: "classic", ReplyTargetChars: 800})
+	if err != nil {
+		t.Fatal(err)
+	}
+	limit := 30000
+	cfg := &config.Config{Language: "en-US", AgentContexts: config.AgentContextSettings{InteractiveStory: config.AgentContextOverride{MaxFragmentBytes: &limit}}}
+	conversation := NewConversation(storyStore, t.TempDir(), workspace, story.ID, "", "查看设定", story.ReplyTargetChars, cfg)
+	assembled, err := conversation.AssembleModelContext(context.Background(), "查看设定", agentcontext.ModelContextInput{
+		UserMessage: "查看设定", Budget: conversation.ModelContextBudget(),
+	})
+	if err == nil {
+		for _, fragment := range assembled.Context.Fragments {
+			t.Logf("fragment source=%q truncated=%v bytes=%d note=%q", fragment.Source, fragment.Truncated, len(fragment.Content), fragment.Note)
+		}
+	}
+	if err == nil || !strings.Contains(err.Error(), "Game context exceeds") {
+		t.Fatalf("truncated chapter lore should fail the turn: %v", err)
+	}
+}
+
 func finalInteractiveUserContent(messages []*agentschema.Message) string {
 	for index := len(messages) - 1; index >= 0; index-- {
 		if messages[index] != nil && messages[index].Role == agentschema.User {

@@ -67,7 +67,7 @@ func externalGameForTest(t *testing.T, store *interactive.Store, story string, c
 }
 
 const gameStateArgs = `{"state_changes":[{"op":"replace","actor_id":"story","field_id":"当前事件","value":"The gate opens"},{"op":"replace","actor_id":"story","field_id":"当前详细地点","value":"By the gate"}]}`
-const gameCompleteArgs = `{"state_changes":[{"op":"replace","actor_id":"story","field_id":"当前事件","value":"The gate opens"}],"choices":["Enter","Observe","Listen","Inspect","Wait"]}`
+const gameCompleteArgs = `{"state_changes":[{"op":"replace","actor_id":"story","field_id":"当前事件","value":"The gate opens"},{"op":"replace","actor_id":"story","field_id":"当前详细地点","value":"By the gate"}],"choices":["Enter","Observe","Listen","Inspect","Wait"]}`
 
 func gameHostCall(t *testing.T, ctx context.Context, host external.Host, id, name, arguments string) external.ToolResult {
 	t.Helper()

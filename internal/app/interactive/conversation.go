@@ -511,7 +511,7 @@ func (c *Conversation) AssembleModelContext(ctx context.Context, originalMessage
 		activeBranchPlan = storyCtx.Snapshot.BranchPlan
 		branchPlan = storyCtx.Snapshot.BranchPlan.Markdown
 	}
-	loreVisibility := lore.SpanVisibility{Cursor: storyCtx.Meta.LoreAsOf, Scope: lore.LoreScopeAsOf}
+	loreVisibility := lore.ResolveSpanVisibility("", storyCtx.Meta.LoreAsOf, lore.LoreScopeAsOf)
 	loreRuntime, err := buildInteractiveStoryLoreContext(c.workspace, activeBranchPlan, input.UserMessage, loreVisibility)
 	if err != nil {
 		return agentcontext.ModelContextResult{}, err
@@ -640,6 +640,17 @@ func (c *Conversation) AssembleModelContext(ctx context.Context, originalMessage
 	stableLeadingMessage := ""
 	residentVisible := residentLore
 	for _, fragment := range assembled.Fragments {
+		if fragment.Source == "interactive.lore.as_of" {
+			if fragment.Truncated {
+				locale := ""
+				if c.cfg != nil {
+					locale = c.cfg.Language
+				}
+				slog.ErrorContext(ctx, "[lore] game chapter-scoped context exceeds injection budget", "bytes", len([]byte(fragment.Content)), "limit", fragment.Limit)
+				return agentcontext.ModelContextResult{}, fmt.Errorf("%s", i18n.New(locale).T("interactive.contextTooLarge", "bytes", len([]byte(fragment.Content)), "limit", fragment.Limit))
+			}
+			continue
+		}
 		if fragment.Source == "interactive.resident_lore" {
 			if fragment.Truncated {
 				locale := ""
@@ -653,7 +664,7 @@ func (c *Conversation) AssembleModelContext(ctx context.Context, originalMessage
 			if fragment.Included && fragment.Content != "" {
 				stableLeadingMessage = agentcontext.StandaloneMessage(fragment.Title, fragment.Content, "")
 			}
-			break
+			continue
 		}
 	}
 	sourceParts := interactiveStoryContextSources(storyCtx.Meta.Title, storyCtx.Meta.Origin, protagonistContext, teller, checkpointSummary, branchPlan, residentVisible, loreRevision, loreRuntime, ruleSummary, actorStateRuntime, stateSchemaInitialization, turnHistory, input.UserMessage)

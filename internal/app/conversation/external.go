@@ -113,6 +113,7 @@ func prepareExternalInput(ctx context.Context, runtime Runtime, request agentcha
 	if err != nil {
 		return external.StartRequest{}, err
 	}
+	visibility := lore.ResolveSpanVisibility(request.IDEContext.CurrentFile, request.LoreAsOf, request.LoreScope)
 	return external.StartRequest{
 		ProjectID: runtime.ProjectID, AttachmentRoot: runtime.ProjectStore, Session: runtime.Session, CommandID: request.CommandID,
 		Fingerprint: agentexecution.RequestSemanticFingerprint(request),
@@ -128,6 +129,6 @@ func prepareExternalInput(ctx context.Context, runtime Runtime, request agentcha
 		InputCommitEffect: options.InputCommitEffect, BookService: runtime.BookService, OnMutationsVerified: options.OnMutationsVerified,
 		ProviderInputMaxBytes: config.ResolveAgentContext(&runtime.Config, runtime.AgentKind).MaxProviderInputBytes,
 		Locale:                runtime.Config.Language,
-		LoreVisibility:        lore.SpanVisibility{Cursor: request.LoreAsOf, Scope: request.LoreScope},
+		LoreVisibility:        visibility,
 	}, nil
 }

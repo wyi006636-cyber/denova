@@ -89,10 +89,7 @@ func (execution Execution) Start(ctx context.Context, request agentchat.ChatRequ
 	// Bind the request-scoped lore projection to the execution context so
 	// query_lore_items and other tool calls cannot read future spans. This value
 	// is process-local and never enters the Agent definition or journal.
-	ctx = lore.ContextWithSpanVisibility(ctx, lore.SpanVisibility{Cursor: lore.ExtractChapterPrefix(request.IDEContext.CurrentFile), Scope: request.LoreScope})
-	if strings.TrimSpace(request.LoreAsOf) != "" && lore.ExtractChapterPrefix(request.IDEContext.CurrentFile) == "" {
-		ctx = lore.ContextWithSpanVisibility(ctx, lore.SpanVisibility{Cursor: request.LoreAsOf, Scope: request.LoreScope})
-	}
+	ctx = lore.ContextWithSpanVisibility(ctx, lore.ResolveSpanVisibility(request.IDEContext.CurrentFile, request.LoreAsOf, request.LoreScope))
 	if execution.engines != nil && execution.runtime.Session != nil {
 		release, err := execution.engines.AdmitExecution(ctx, execution.runtime.Session, execution.runtime.Config.ActiveAgentRuntime)
 		if err != nil {

@@ -203,14 +203,7 @@ func projectReferenceFragments(bookService *book.Service, references []string, b
 }
 
 func loreVisibilityForRequest(req ChatRequest) lore.SpanVisibility {
-	visibility := lore.SpanVisibility{
-		Cursor: lore.ExtractChapterPrefix(req.IDEContext.CurrentFile),
-		Scope:  req.LoreScope,
-	}
-	if visibility.Cursor == "" {
-		visibility.Cursor = req.LoreAsOf
-	}
-	return visibility
+	return lore.ResolveSpanVisibility(req.IDEContext.CurrentFile, req.LoreAsOf, req.LoreScope)
 }
 
 func projectLoreReferenceFragments(bookService *book.Service, references []string, visibility lore.SpanVisibility) []agentcontext.Fragment {
