@@ -59,6 +59,9 @@ func (s *State) WorkspaceContext() WorkspaceContext {
 	if s.hasNonEmptyFile(filepath.Join("setting", "story-ledger.md")) {
 		dynamicFiles = append(dynamicFiles, workspaceContextPath{Purpose: "Story threads and foreshadowing ledger", Path: "setting/story-ledger.md"})
 	}
+	if s.hasNonEmptyFile(filepath.Join("setting", "case-index.md")) {
+		dynamicFiles = append(dynamicFiles, workspaceContextPath{Purpose: "Writing method case index", Path: "setting/case-index.md"})
+	}
 
 	stable := renderWorkspacePathIndex("Workspace Source Index", []workspaceContextPathSection{
 		{Title: "Canonical writing files", Paths: stableFiles},

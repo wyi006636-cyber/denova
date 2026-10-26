@@ -25,6 +25,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import type { AgentChatConversationState } from '@/features/agent-chat/AgentChatConversationTab'
 import { extractChapterPrefix, type ChapterGoal } from './story-ledger-parser'
 import { StoryLedgerView } from './StoryLedgerView'
+import { CasebookView } from './CasebookView'
 
 const LoreWorkspaceTab = memo(loadable(() => import('@/features/lore/LoreWorkspaceTab').then((module) => ({ default: module.LoreWorkspaceTab })), workbenchLoadingOptions))
 const StableImageFilePreview = memo(ImageFilePreview)
@@ -283,6 +284,13 @@ export function WritingMainRoute({
                       return typeof result === 'object' ? result : {}
                     }}
                     onBeforeList={onBeforeLedgerList}
+                    rawEditor={rawEditor}
+                  />
+                ) : tab.path.toLocaleLowerCase() === 'setting/case-index.md' ? (
+                  <CasebookView
+                    projectId={projectId}
+                    path={tab.path}
+                    onSelectFile={async (path) => { await onSelectFile(path) }}
                     rawEditor={rawEditor}
                   />
                 ) : rawEditor}
