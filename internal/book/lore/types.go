@@ -101,6 +101,14 @@ type ReadResult struct {
 	Missing []string
 }
 
+// NotVisibleLore identifies an enabled item that exists in the library but is
+// outside the request's chapter cursor. It intentionally carries only the
+// stable ID so callers can update or delete it without leaking future canon.
+type NotVisibleLore struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+}
+
 // Provenance records an item's external origin without exposing it in
 // model-visible lore markdown. It is intentionally generic so future importers
 // can use the same storage boundary.

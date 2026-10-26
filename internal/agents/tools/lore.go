@@ -78,7 +78,7 @@ func newLoreTools(workspace string, allowWrite bool, options ...loreToolsOptions
 	if len(options) > 0 {
 		readPolicy = options[0].ReadPolicy
 	}
-	queryTool, err := agenttool.InferTool("query_lore_items", "Query enabled lore by exact ids or unique names, or search by groups, keywords, categories and load modes. Exact selectors cannot be combined with search filters. detail=index (default) returns briefs; detail=full returns complete bodies. Both include material_count and cover_asset_id, not media content. Empty selectors return the project category and name catalog. Follow next_offset with the same arguments to continue; missing_ids or missing_names never include later-page results. Use list_lore_materials only when actual material metadata is needed. Re-read earlier lore observations here using their retained selectors; exact body reads require detail=full.", func(ctx context.Context, input queryLoreItemsInput) (string, error) {
+	queryTool, err := agenttool.InferTool("query_lore_items", "Query enabled lore by exact ids or unique names, or search by groups, keywords, categories and load modes. Exact selectors cannot be combined with search filters. detail=index (default) returns briefs; detail=full returns complete bodies and visible chapter-scoped canon. Both include material_count and cover_asset_id, not media content. Empty selectors return the project category and name catalog. Follow next_offset with the same arguments to continue; missing_ids or missing_names never include later-page results. An item that exists in the library but is hidden by the current chapter cursor is reported as not_visible_at_cursor with its id only; use that id to update or delete it without opening future canon. Keyword matching includes visible chapter-scoped span text. Use list_lore_materials only when actual material metadata is needed. Re-read earlier lore observations here using their retained selectors; exact body reads require detail=full.", func(ctx context.Context, input queryLoreItemsInput) (string, error) {
 		if workspace == "" {
 			return "", fmt.Errorf("cannot query lore because the current workspace is unavailable")
 		}
@@ -133,7 +133,7 @@ func newLoreTools(workspace string, allowWrite bool, options ...loreToolsOptions
 	if !allowWrite {
 		return tools, nil
 	}
-	writeTool, err := agenttool.InferTool("write_lore_items", "Batch-create, partially update, or delete lore items. Each item is one independently retrievable entity or coherent topic, such as a character, location, faction, item, or world rule. Organize library-wide updates into separate items in the same batch, not one omnibus entry. Keep related facts about the same entity together. Find matching existing items with query_lore_items and read their bodies before updating; reuse their exact IDs instead of creating duplicates. Creation requires at least name; updates send only changed fields, while omitted fields retain their values. The optional spans field records chapter-scoped canon with ch##### anchors; it describes established setting changes, not current character state or future plot plans. A supplied content replaces the whole body, so preserve still-valid canon. The backend may generate brief_description on creation. Put post-chapter current location, injuries, psychology, goals, and possessions in setting/character-states.md instead of lore. Do not store chapter planning or future plot in lore.", func(ctx context.Context, input writeLoreItemsInput) (agentschema.ToolResult, error) {
+	writeTool, err := agenttool.InferTool("write_lore_items", "Batch-create, partially update, or delete lore items. Each item is one independently retrievable entity or coherent topic, such as a character, location, faction, item, or world rule. Organize library-wide updates into separate items in the same batch, not one omnibus entry. Keep related facts about the same entity together. Find matching existing items with query_lore_items and read their bodies before updating; reuse their exact IDs instead of creating duplicates. If query_lore_items reports not_visible_at_cursor, use its id for an explicit author-approved update or delete; do not create a same-name duplicate. Creation requires at least name; updates send only changed fields, while omitted fields retain their values. The optional spans field records chapter-scoped canon with ch##### anchors; it describes established setting changes, not current character state or future plot plans. A supplied content replaces the whole body, so preserve still-valid canon. The backend may generate brief_description on creation. Put post-chapter current location, injuries, psychology, goals, and possessions in setting/character-states.md instead of lore. Do not store chapter planning or future plot in lore.", func(ctx context.Context, input writeLoreItemsInput) (agentschema.ToolResult, error) {
 		_ = ctx
 		if workspace == "" {
 			return agentschema.ToolResult{}, fmt.Errorf("cannot write lore because the current workspace is unavailable")
@@ -212,6 +212,10 @@ func formatLoreQueryResult(result lore.QueryResult, input queryLoreItemsInput) s
 		}
 		missing, _ := json.Marshal(result.Missing)
 		fmt.Fprintf(&sb, "%s: %s\n", field, missing)
+	}
+	if len(result.NotVisible) > 0 {
+		notVisible, _ := json.Marshal(result.NotVisible)
+		fmt.Fprintf(&sb, "not_visible_at_cursor: %s\n", notVisible)
 	}
 	fmt.Fprintln(&sb)
 	for _, group := range result.Groups {

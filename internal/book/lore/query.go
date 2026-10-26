@@ -16,6 +16,7 @@ type QueryOptions struct {
 type QueryResult struct {
 	Items      []Item
 	Missing    []string
+	NotVisible []NotVisibleLore
 	Groups     []IndexGroup
 	Total      int
 	NextOffset *int
@@ -44,7 +45,18 @@ func (s *Store) Query(options QueryOptions) (QueryResult, error) {
 		if err != nil {
 			return result, err
 		}
-		read.Items = VisibleItems(read.Items, options.Cursor, options.Scope)
+		allItems := append([]Item(nil), read.Items...)
+		visibleItems := VisibleItems(allItems, options.Cursor, options.Scope)
+		visibleIDs := make(map[string]bool, len(visibleItems))
+		for _, item := range visibleItems {
+			visibleIDs[item.ID] = true
+		}
+		for _, item := range allItems {
+			if !visibleIDs[item.ID] {
+				result.NotVisible = append(result.NotVisible, NotVisibleLore{ID: item.ID, Status: "not_visible_at_cursor"})
+			}
+		}
+		read.Items = visibleItems
 		result.Missing = read.Missing
 		result.Total = len(read.Items)
 		start := min(options.Offset, result.Total)

@@ -141,6 +141,7 @@ func (s *ChatAppService) startTaskWithError(ctx context.Context, expectedSession
 		runtimeContexts.Stable,
 		runtimeContexts.DynamicTitle,
 		runtimeContexts.Dynamic,
+		runtimeContexts.Lore,
 	).WithInputVisibility(req.InputVisibility).WithInputDisplayContent(req.DisplayMessage)
 	var verifiedMutations []agenttool.Mutation
 	var postRunVerification agenttool.Verification

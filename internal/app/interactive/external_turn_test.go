@@ -18,6 +18,7 @@ import (
 	"denova/internal/agents/prompts"
 	agentrun "denova/internal/agents/run"
 	"denova/internal/agents/runtime/external"
+	"denova/internal/book/lore"
 	"denova/internal/interactive"
 
 	"github.com/alfredxw/denova/agent"
@@ -75,6 +76,31 @@ func gameHostCall(t *testing.T, ctx context.Context, host external.Host, id, nam
 		t.Fatalf("%s: result=%+v err=%v", name, result, err)
 	}
 	return result
+}
+
+func TestExternalGameToolUsesStoryLoreCursor(t *testing.T) {
+	store, story, cfg := externalGameFixture(t)
+	if _, err := lore.NewStore(cfg.Workspace).Create(lore.ItemInput{
+		ID: "cursor-secret", Name: "Cursor Secret", Type: "world",
+		Spans: []lore.Span{{ID: "current", From: "ch00020", Content: "visible game canon"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cfg.ActiveAgentRuntime = &config.RuntimeSelection{Kind: config.RuntimeClaude, Claude: &config.ClaudeRuntimeSettings{Model: "test"}}
+	turn := externalGameForTest(t, store, story, cfg, agentchat.ChatRequest{CommandID: "game-lore-cursor", Message: "Continue", LoreAsOf: "ch00030"}, gameAdapterFunc(func(ctx context.Context, _ external.Input, host external.Host) (external.Result, error) {
+		result := gameHostCall(t, ctx, host, "query", "query_lore_items", `{"names":["Cursor Secret"],"detail":"full"}`)
+		if !strings.Contains(result.Text, "visible game canon") {
+			t.Fatalf("game tool did not receive the story cursor: %s", result.Text)
+		}
+		if err := host.Emit(agentrun.Event{Type: "chunk", Data: map[string]any{"content": "The cursor is honored."}}); err != nil {
+			t.Fatal(err)
+		}
+		gameHostCall(t, ctx, host, "submit", "submit_interactive_turn", gameCompleteArgs)
+		return external.Result{}, ctx.Err()
+	}))
+	if outcome := turn.Wait(t.Context()); outcome.Status != agentrun.OutcomeCompleted {
+		t.Fatalf("external game cursor turn failed: %+v", outcome)
+	}
 }
 
 func TestGameSwitchesNativeCodexClaudeNativeWithoutRewritingHistory(t *testing.T) {

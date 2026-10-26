@@ -175,6 +175,13 @@ func matchLoreIndexTerm(item Item, keyword string) (int, []string) {
 	matchFuzzy("fuzzy tags", 65, item.Tags...)
 	matchContains("brief", 60, item.BriefDescription)
 	matchContains("content", 40, item.Content)
+	spanContents := make([]string, 0, len(item.Spans))
+	for _, span := range item.Spans {
+		if content := strings.TrimSpace(span.Content); content != "" {
+			spanContents = append(spanContents, content)
+		}
+	}
+	matchContains("visible span", 40, spanContents...)
 	return bestScore, sources
 }
 

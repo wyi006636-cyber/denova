@@ -10,14 +10,20 @@ import (
 	"time"
 
 	"denova/internal/agents/runtime/external"
+	"denova/internal/book/lore"
 
 	agentschema "github.com/alfredxw/denova/agent/schema"
 )
 
 func TestBridgeReplayIdentityBindsPayload(t *testing.T) {
-	ctx, cancel := context.WithCancel(t.Context())
+	base := lore.ContextWithSpanVisibility(t.Context(), lore.SpanVisibility{Cursor: "ch00030", Scope: lore.LoreScopeAsOf})
+	ctx, cancel := context.WithCancel(base)
 	defer cancel()
-	host := &testHost{}
+	var got lore.SpanVisibility
+	host := &testHost{onCall: func(callCtx context.Context, _ external.ToolCall) (external.ToolResult, error) {
+		got = lore.SpanVisibilityFromContext(callCtx)
+		return external.ToolResult{Text: "Committed product outcome", Success: true}, nil
+	}}
 	bridge, err := startBridge(ctx, []external.Tool{
 		{Name: "record", Schema: json.RawMessage(`{"type":"object"}`)},
 		{Name: "other", Schema: json.RawMessage(`{"type":"object"}`)},
@@ -83,6 +89,9 @@ func TestBridgeReplayIdentityBindsPayload(t *testing.T) {
 	}
 	if len(host.calls) != 1 {
 		t.Fatalf("replayed deliveries repeated effects: %#v", host.calls)
+	}
+	if got.Cursor != "ch00030" || got.Scope != lore.LoreScopeAsOf {
+		t.Fatalf("Antigravity bridge lost lore visibility: %#v", got)
 	}
 }
 

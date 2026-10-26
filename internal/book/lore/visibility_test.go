@@ -38,6 +38,27 @@ func TestVisibleSpansMarkdownDoesNotTruncate(t *testing.T) {
 	}
 }
 
+func TestVisibleSpansMarkdownCountsFragmentTitleAndOmitsEmptyBookSpanNote(t *testing.T) {
+	items := []Item{{ID: "secret", Name: "Secret", Spans: []Span{{ID: "s", From: "ch00030", Content: strings.Repeat("sentinel ", 40)}}}}
+	full, err := VisibleSpansMarkdown(items, "ch00030", LoreScopeAsOf, VisibleSpanContextMaxBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The exact budget is the body plus the assembler's title wrapper. The
+	// same output must therefore pass at the boundary without a hidden cut.
+	boundary := visibleSpanContextTitleBytes + len([]byte(full))
+	got, err := VisibleSpansMarkdown(items, "ch00030", LoreScopeAsOf, boundary)
+	if err != nil || got != full {
+		t.Fatalf("boundary rendering changed or failed: len=%d err=%v", len(got), err)
+	}
+	if got, err := VisibleSpansMarkdown([]Item{{ID: "stable", Name: "Stable", Content: "always"}}, "", LoreScopeAsOf, 1024); err != nil || got != "" {
+		t.Fatalf("no spans should not emit a no-cursor fragment: %q err=%v", got, err)
+	}
+	if got, err := VisibleSpansMarkdown(items, "", LoreScopeAsOf, 1024); err != nil || !strings.Contains(got, "no chapter cursor") {
+		t.Fatalf("writing context should explain omitted spans when the book has spans: %q err=%v", got, err)
+	}
+}
+
 func TestSpanValidationRejectsInvalidUpdatesWithoutChangingFile(t *testing.T) {
 	workspace := t.TempDir()
 	store := NewStore(workspace)

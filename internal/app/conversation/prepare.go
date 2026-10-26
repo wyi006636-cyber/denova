@@ -135,6 +135,7 @@ func ProjectConversation(runtime Runtime, request agentchat.ChatRequest) *agentc
 		runtime.Session, &runtime.Config, config.AgentKindIDE,
 		runtimeContexts.StableTitle, runtimeContexts.Stable,
 		runtimeContexts.DynamicTitle, runtimeContexts.Dynamic,
+		runtimeContexts.Lore,
 	).WithInputVisibility(request.InputVisibility).WithInputDisplayContent(request.DisplayMessage)
 }
 

@@ -75,7 +75,7 @@ func (s *Store) Health(chapterLimit, issueLimit int) (HealthReport, error) {
 			}
 			nameOwners[key] = item
 		}
-		if loreBodyEmpty(item.Content) {
+		if loreBodyEmpty(item.Content) && len(item.Spans) == 0 {
 			appendHealthIssue(&report.EmptyItems, HealthIssue{Kind: "empty_content", ItemID: item.ID, Name: item.Name, DetailKey: "lore.health.detail.empty"}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
 		}
 	}

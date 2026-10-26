@@ -15,6 +15,7 @@ import (
 	externaljournal "denova/internal/agents/runtime/external/journal"
 	"denova/internal/agents/session"
 	agenttool "denova/internal/agents/tool"
+	"denova/internal/book/lore"
 	"denova/internal/i18n"
 	"denova/internal/observability"
 
@@ -68,6 +69,7 @@ func (operation *Operation) Wait(ctx context.Context) agentrun.Outcome {
 		var runErr error
 		var runtimeSession *RuntimeSession
 		runCtx, cancel := context.WithCancel(ctx)
+		runCtx = lore.ContextWithSpanVisibility(runCtx, operation.request.LoreVisibility)
 		operation.mu.Lock()
 		operation.runContext = runCtx
 		operation.mu.Unlock()

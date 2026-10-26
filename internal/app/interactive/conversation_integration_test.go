@@ -301,6 +301,34 @@ func TestInteractiveConversationFiltersLoreSpansByStoryChapterCursor(t *testing.
 	}
 }
 
+func TestInteractiveConversationOmitsLoreSpanFragmentWithoutStoryCursor(t *testing.T) {
+	workspace := t.TempDir()
+	loreStore := lore.NewStore(workspace)
+	if _, err := loreStore.Create(lore.ItemInput{
+		ID: "secret", Type: "world", Name: "未来设定",
+		Spans: []lore.Span{{ID: "later", From: "ch00030", Content: "第三十章后才成立。"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	storyStore := interactive.NewStore(workspace)
+	story, err := storyStore.CreateStory(interactive.CreateStoryRequest{Title: "无截止章", StoryTellerID: "classic", ReplyTargetChars: 800})
+	if err != nil {
+		t.Fatal(err)
+	}
+	conversation := NewConversation(storyStore, t.TempDir(), workspace, story.ID, "", "查看设定", story.ReplyTargetChars, nil)
+	assembled, err := conversation.AssembleModelContext(context.Background(), "查看设定", agentcontext.ModelContextInput{
+		UserMessage: "查看设定", Budget: conversation.ModelContextBudget(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range assembled.Context.Fragments {
+		if fragment.Source == "interactive.lore.as_of" {
+			t.Fatalf("empty story cursor should not inject lore fragment: %#v", fragment)
+		}
+	}
+}
+
 func finalInteractiveUserContent(messages []*agentschema.Message) string {
 	for index := len(messages) - 1; index >= 0; index-- {
 		if messages[index] != nil && messages[index].Role == agentschema.User {

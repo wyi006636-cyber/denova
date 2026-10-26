@@ -580,7 +580,10 @@ func (c *Conversation) AssembleModelContext(ctx context.Context, originalMessage
 		if spanErr != nil {
 			return agentcontext.ModelContextResult{}, spanErr
 		}
-		if strings.TrimSpace(spanContext) != "" {
+		// An empty game cursor means no chapter-scoped canon is admitted. The
+		// writing path may retain an explanatory note, but game turns should not
+		// carry an interactive.lore.as_of fragment at all in that state.
+		if strings.TrimSpace(loreVisibility.Cursor) != "" && strings.TrimSpace(spanContext) != "" {
 			fragments = append(fragments, agentcontext.Fragment{
 				ID: "interactive_lore_as_of", Source: "interactive.lore.as_of", Title: "Chapter-scoped Lore for This Turn",
 				Purpose: "provide lore spans visible at the story's declared chapter cursor",

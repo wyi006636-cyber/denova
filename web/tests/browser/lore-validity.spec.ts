@@ -25,6 +25,10 @@ test('shows chapter-scoped lore validity issues in health check', async ({ page,
     id: 'disconnected', enabled: true, type: 'world', name: '断前缀', importance: 'minor',
     tags: [], keywords: [], load_mode: 'auto', content: '',
     spans: [{ id: 'missing', from: 'ch00999', content: '尚未建章。' }],
+  }, {
+    id: 'invalid-prefix', enabled: true, type: 'world', name: '非法前缀', importance: 'minor',
+    tags: [], keywords: [], load_mode: 'auto', content: '',
+    spans: [{ id: 'invalid', from: 'chapter-30', content: '非法章节锚点。' }],
   })
   await saveProjectFile(request, book.projectId, 'setting/lore/items.json', JSON.stringify(collection, null, 2) + '\n')
 
@@ -39,6 +43,7 @@ test('shows chapter-scoped lore validity issues in health check', async ({ page,
   await expect(health).toContainText('资料有效范围')
   await expect(health).toContainText('生效章不早于失效章')
   await expect(health).toContainText('没有对应的章节文件')
+  await expect(health).toContainText('不是 ch##### 章节前缀')
   // Keep the acceptance group and its concrete diagnostics in the captured
   // viewport instead of leaving the panel scrolled on unrelated groups.
   for (const title of [/重名或别名冲突/, /正文为空或只有标题/, /断链引用/]) {
@@ -46,6 +51,7 @@ test('shows chapter-scoped lore validity issues in health check', async ({ page,
   }
   await expect(health).toContainText('生效章不早于失效章')
   await expect(health).toContainText('没有对应的章节文件')
+  await expect(health).toContainText('不是 ch##### 章节前缀')
   await page.screenshot({ path: test.info().outputPath('lore-validity-wide-dark.png'), animations: 'disabled' })
 
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))

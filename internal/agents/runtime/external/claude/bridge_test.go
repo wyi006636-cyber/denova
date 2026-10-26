@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"denova/internal/agents/runtime/external"
+	"denova/internal/book/lore"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -126,5 +127,31 @@ func TestBridgeExposesRegisteredReviewCommentTool(t *testing.T) {
 	}
 	if !seen {
 		t.Fatalf("Claude bridge did not expose add_review_comments: %#v", list.Tools)
+	}
+}
+
+func TestBridgePropagatesLoreVisibilityToHostTool(t *testing.T) {
+	base := lore.ContextWithSpanVisibility(t.Context(), lore.SpanVisibility{Cursor: "ch00030", Scope: lore.LoreScopeAsOf})
+	var got lore.SpanVisibility
+	host := &testHost{call: func(ctx context.Context, _ external.ToolCall) (external.ToolResult, error) {
+		got = lore.SpanVisibilityFromContext(ctx)
+		return external.ToolResult{Text: "ok", Success: true}, nil
+	}}
+	bridge, err := startBridge(base, []external.Tool{{Name: "ask", Description: "Ask", Schema: json.RawMessage(`{"type":"object"}`)}}, host, func() {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bridge.close()
+	client := mcp.NewClient(&mcp.Implementation{Name: "fixture", Version: "1"}, nil)
+	session, err := client.Connect(base, &mcp.StreamableClientTransport{Endpoint: bridge.url, HTTPClient: &http.Client{Transport: authorizedTransport{bridge.token}}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	if _, err := session.CallTool(base, &mcp.CallToolParams{Meta: mcp.Meta{"claudecode/toolUseId": "visibility-1"}, Name: "ask", Arguments: map[string]any{}}); err != nil {
+		t.Fatal(err)
+	}
+	if got.Cursor != "ch00030" || got.Scope != lore.LoreScopeAsOf {
+		t.Fatalf("Claude bridge lost lore visibility: %#v", got)
 	}
 }

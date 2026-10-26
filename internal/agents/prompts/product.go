@@ -34,6 +34,10 @@ type IDEWorkspaceRuntimeContexts struct {
 	Stable       string
 	DynamicTitle string
 	Dynamic      string
+	// Lore is a separate turn-scoped fragment. Keeping it out of Dynamic
+	// avoids marker-based splitting when a workspace path contains the same
+	// heading text and lets the assembler account for its title explicitly.
+	Lore string
 }
 
 func IDEWorkspaceRuntimeContextsForState(state *book.State) IDEWorkspaceRuntimeContexts {
@@ -82,8 +86,8 @@ func IDEWorkspaceRuntimeContextsForContextWithLore(state *book.State, ide IDECon
 		items, err := lore.NewStore(state.Workspace()).List()
 		if err == nil {
 			spanContext, spanErr := lore.VisibleSpansMarkdown(items, cursor, loreScope, lore.VisibleSpanContextMaxBytes)
-			if spanErr == nil && strings.TrimSpace(spanContext) != "" {
-				contexts.Dynamic = strings.TrimSpace(strings.Join(nonEmptyStrings(contexts.Dynamic, "## Chapter-scoped Lore for This Turn\n\n"+spanContext), "\n\n"))
+			if spanErr == nil {
+				contexts.Lore = strings.TrimSpace(spanContext)
 			}
 		}
 	}

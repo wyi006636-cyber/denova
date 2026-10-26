@@ -98,11 +98,14 @@ func TestHealthFindsLoreValidityRangeProblems(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(chapterDir, "ch00020.md"), []byte("chapter"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(chapterDir, "ch00020-alt.md"), []byte("chapter"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	report, err := store.Health(10, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.ValidityRanges) != 4 {
+	if len(report.ValidityRanges) != 5 {
 		t.Fatalf("validity issues = %#v", report.ValidityRanges)
 	}
 	keys := map[string]bool{}
@@ -113,5 +116,17 @@ func TestHealthFindsLoreValidityRangeProblems(t *testing.T) {
 		if !keys[key] {
 			t.Fatalf("missing detail key %q in %#v", key, report.ValidityRanges)
 		}
+	}
+	if len(report.EmptyItems) != 0 {
+		t.Fatalf("an item with saved spans is not empty content: %#v", report.EmptyItems)
+	}
+	ambiguous := false
+	for _, issue := range report.ValidityRanges {
+		if issue.DetailKey == "lore.health.detail.range.ambiguous" {
+			ambiguous = true
+		}
+	}
+	if !ambiguous {
+		t.Fatalf("missing ambiguous chapter-prefix issue: %#v", report.ValidityRanges)
 	}
 }

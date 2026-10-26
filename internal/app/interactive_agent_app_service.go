@@ -15,6 +15,7 @@ import (
 	agentrun "denova/internal/agents/run"
 	agentruntime "denova/internal/agents/runtime"
 	interactiveapp "denova/internal/app/interactive"
+	"denova/internal/book/lore"
 	"denova/internal/interactive"
 )
 
@@ -204,6 +205,13 @@ func (s *InteractiveAppService) startInteractiveTask(ctx context.Context, reques
 	options := cycle.options(task.ID())
 	options.TurnID = identity.request.RegenerateFromTurnID
 	acceptCtx, releaseAcceptance := apptask.AcceptanceContext(ctx, task)
+	// Carry the story's declared lore cursor through the complete run context,
+	// including native child tools and external MCP bridges. This is request
+	// scoped and never persisted as runtime state.
+	acceptCtx = lore.ContextWithSpanVisibility(acceptCtx, lore.SpanVisibility{
+		Cursor: cycle.storyContext.Meta.LoreAsOf,
+		Scope:  lore.LoreScopeAsOf,
+	})
 	if cycle.externalAssembly != nil {
 		state, stateErr := agentruntime.GameState(options, cycle.store)
 		if stateErr == nil {

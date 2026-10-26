@@ -18,6 +18,7 @@ import (
 	"denova/internal/agents/session"
 	"denova/internal/agents/toolruntime"
 	appagentruntime "denova/internal/app/agentruntime"
+	"denova/internal/book/lore"
 
 	publiccontext "github.com/alfredxw/denova/agent/context"
 	agentschema "github.com/alfredxw/denova/agent/schema"
@@ -127,5 +128,6 @@ func prepareExternalInput(ctx context.Context, runtime Runtime, request agentcha
 		InputCommitEffect: options.InputCommitEffect, BookService: runtime.BookService, OnMutationsVerified: options.OnMutationsVerified,
 		ProviderInputMaxBytes: config.ResolveAgentContext(&runtime.Config, runtime.AgentKind).MaxProviderInputBytes,
 		Locale:                runtime.Config.Language,
+		LoreVisibility:        lore.SpanVisibility{Cursor: request.LoreAsOf, Scope: request.LoreScope},
 	}, nil
 }

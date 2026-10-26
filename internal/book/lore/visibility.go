@@ -179,6 +179,14 @@ func cloneSpans(spans []Span) []Span {
 
 const VisibleSpanContextMaxBytes = 256 * 1024
 
+// VisibleSpanContextTitle is the stable fragment title used by every model
+// context assembler. The title is kept here so the renderer and validation
+// share one byte budget instead of validating a body that is later wrapped and
+// truncated by the generic assembler.
+const VisibleSpanContextTitle = "Chapter-scoped Lore for This Turn"
+
+const visibleSpanContextTitleBytes = len("# " + VisibleSpanContextTitle + "\n\n")
+
 // VisibleSpansMarkdown renders only chapter-scoped canon for a turn-scoped
 // model fragment. It deliberately excludes Item.Content, which belongs to the
 // cache-stable Lore Index, and fails rather than truncating a partial span.
@@ -186,8 +194,16 @@ func VisibleSpansMarkdown(items []Item, cursor, scope string, maxBytes int) (str
 	if maxBytes <= 0 {
 		maxBytes = VisibleSpanContextMaxBytes
 	}
+	if !hasLoreSpans(items) {
+		return "", nil
+	}
 	if normalizeLoreScope(scope) != LoreScopeBook && normalizeChapterPrefix(cursor) == "" {
 		return "Chapter-scoped lore is omitted because this request has no chapter cursor. Use the focused ch##### chapter or an explicit request cursor.", nil
+	}
+	// The shared assembler adds "# <title>\\n\\n" around Content. Reserve
+	// those bytes here so a valid body can never be truncated after admission.
+	if maxBytes <= visibleSpanContextTitleBytes {
+		return "", fmt.Errorf("chapter-scoped lore exceeds %d bytes; shorten spans or choose a narrower chapter", maxBytes)
 	}
 	visible := VisibleItems(items, cursor, scope)
 	var sb strings.Builder
@@ -220,11 +236,21 @@ func VisibleSpansMarkdown(items []Item, cursor, scope string, maxBytes int) (str
 		if block.Len() == 0 {
 			continue
 		}
-		if sb.Len()+block.Len()+1 > maxBytes {
+		candidate := strings.TrimSpace(sb.String() + block.String() + "\n")
+		if visibleSpanContextTitleBytes+len([]byte(candidate)) > maxBytes {
 			return "", fmt.Errorf("chapter-scoped lore exceeds %d bytes; shorten spans or choose a narrower chapter", maxBytes)
 		}
 		sb.WriteString(block.String())
 		sb.WriteByte('\n')
 	}
 	return strings.TrimSpace(sb.String()), nil
+}
+
+func hasLoreSpans(items []Item) bool {
+	for _, item := range items {
+		if len(item.Spans) > 0 {
+			return true
+		}
+	}
+	return false
 }

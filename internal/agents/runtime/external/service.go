@@ -18,6 +18,7 @@ import (
 	agenttool "denova/internal/agents/tool"
 	"denova/internal/agents/toolruntime"
 	"denova/internal/book"
+	"denova/internal/book/lore"
 
 	agentschema "github.com/alfredxw/denova/agent/schema"
 	sdktool "github.com/alfredxw/denova/agent/tool"
@@ -71,7 +72,11 @@ type StartRequest struct {
 	Checkpoint            *externaljournal.Checkpoint
 	ProviderInputMaxBytes int
 	Locale                string
-	PriorMutations        []agenttool.Mutation
+	// LoreVisibility is request-scoped and is copied into the operation run
+	// context so external MCP host tools observe the same chapter cursor as the
+	// prompt. It is never persisted in the external journal.
+	LoreVisibility lore.SpanVisibility
+	PriorMutations []agenttool.Mutation
 }
 
 func (service *Service) Start(ctx context.Context, request StartRequest) (*Operation, error) {
