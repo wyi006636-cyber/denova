@@ -169,7 +169,9 @@ const editor = {
   'editor.lint.statsCalculating': 'Calculating…',
   'editor.lint.statsCopy': 'Copy as Markdown',
   'editor.lint.statsCopied': 'Copied',
-  'editor.lint.statsChapterTruncated': 'Only the first {{count}} chapters were included.',
+  'editor.lint.statsChapterTruncated': 'Only the first {{count}} chapters were included.{{chapters}}',
+  'editor.lint.statsDropped': ' Skipped: {{chapters}}',
+  'editor.lint.statsDroppedMany': ' Skipped: {{chapters}} and {{count}} chapters',
   'editor.lint.statsCharacterTruncated': 'Only the first {{count}} characters were included.',
   'editor.lint.statsSkipped': '{{count}} chapter(s) could not be read and were skipped.',
   'editor.lint.statsFailed': 'Could not read chapters. Try again.',
@@ -186,6 +188,9 @@ const editor = {
   'editor.lint.statsPunctuationValue': 'Ellipses {{ellipsis}} · dashes {{dash}} · exclamations {{exclamation}}',
   'editor.lint.statsRepeated': 'Repeated phrases',
   'editor.lint.statsRepeatedNone': 'No 2–4 character phrase reached three occurrences',
+  'editor.lint.statsRepeatedPending': 'Click “Calculate multi-chapter stats” to compute repeated phrases',
+  'editor.lint.statsUnitCharacters': 'characters',
+  'editor.lint.statsUnitWords': 'words',
   'editor.lint.statsElapsed': 'This run took about {{ms}} ms; results stay in the browser and do not write the manuscript.',
 } as const
 

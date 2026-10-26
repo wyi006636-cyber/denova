@@ -21,6 +21,12 @@ interface DialogueRange {
   closer: string
 }
 
+type ParsedCharacter = VoiceLintCharacter & {
+  aliases: readonly string[]
+  avoid: string[]
+  names: string[]
+}
+
 const VOICE_SECTION_HEADINGS = new Set(['说话方式', 'voice'])
 const VOICE_FIELD_NAMES = new Set(['禁忌说法', 'avoid'])
 const SPEECH_VERBS = [
@@ -33,6 +39,7 @@ const DIALOGUE_PAIRS: Record<string, string> = {
   '『': '』',
   '“': '”',
   '‘': '’',
+  '"': '"',
 }
 
 /** Parse only the optional Voice/说话方式 section of one lore body. */
@@ -40,7 +47,9 @@ export function parseVoiceRules(markdown: string): ParsedVoiceRules {
   const lines = markdown.split(/\r?\n/)
   const headingIndex = lines.findIndex(line => {
     const match = line.match(/^##\s+(.+?)\s*$/)
-    return Boolean(match && VOICE_SECTION_HEADINGS.has(match[1].trim().toLocaleLowerCase()))
+    if (!match) return false
+    const heading = match[1].trim().toLocaleLowerCase()
+    return VOICE_SECTION_HEADINGS.has(heading) || heading.startsWith('说话方式') || heading.startsWith('voice ')
   })
   if (headingIndex < 0) return { avoid: [] }
 
@@ -60,6 +69,9 @@ export function parseVoiceRules(markdown: string): ParsedVoiceRules {
 
 /** Run the zero-token check for a chapter's quoted dialogue. */
 export function runVoiceLint(text: string, characters: readonly VoiceLintCharacter[]): { issues: ChapterLintIssue[]; parsedCharacters: number } {
+  // Keep every named character available for attribution. A character with no
+  // voice rule is still enough to prove that a quote is known and should not
+  // be blamed on another character's avoid list.
   const parsed = characters
     .map(character => ({
       ...character,
@@ -67,14 +79,15 @@ export function runVoiceLint(text: string, characters: readonly VoiceLintCharact
       avoid: parseVoiceRules(character.content).avoid,
       names: [character.name, ...(character.aliases || [])].map(value => value.trim()).filter(Boolean),
     }))
-    .filter(character => character.names.length > 0 && character.avoid.length > 0)
-  if (!parsed.length) return { issues: [], parsedCharacters: 0 }
+    .filter(character => character.names.length > 0)
+  const avoidCharacters = parsed.filter(character => character.avoid.length > 0)
+  if (!avoidCharacters.length) return { issues: [], parsedCharacters: 0 }
 
   const issues: ChapterLintIssue[] = []
   const seen = new Set<string>()
   for (const dialogue of extractDialogueRanges(text)) {
     const speaker = findSpeaker(text, dialogue, parsed)
-    const candidates = speaker ? [speaker] : parsed
+    const candidates = speaker ? (speaker.avoid.length ? [speaker] : []) : avoidCharacters
     const content = text.slice(dialogue.start, dialogue.end)
     let reportedUnknown = false
     for (const character of candidates) {
@@ -107,16 +120,17 @@ export function runVoiceLint(text: string, characters: readonly VoiceLintCharact
       if (reportedUnknown) break
     }
   }
-  return { issues, parsedCharacters: parsed.length }
+  return { issues, parsedCharacters: avoidCharacters.length }
 }
 
 function parseAvoidTerms(raw: string) {
-  const quoted = [...raw.matchAll(/[「『“\"]([^」』”\"]+)[」』”\"]/g)].map(match => match[1].trim()).filter(Boolean)
-  if (quoted.length) return quoted
-  return raw
-    .split(/[、，,;；]/)
+  const pieces = raw.match(/[「『“"][^」』”"]+[」』”"]|[^、，,;；]+/g) || []
+  return pieces
     .map(value => value.trim())
-    .map(value => value.replace(/^(?:不会说|不用|不说|避免|avoid)\s*/i, '').trim())
+    .map(value => value
+      .replace(/^[「『“"]+|[」』”"]+$/g, '')
+      .replace(/^(?:不会说|不用|不说|避免|avoid)\s*/i, '')
+      .trim())
     .filter(Boolean)
 }
 
@@ -134,33 +148,56 @@ function extractDialogueRanges(text: string): DialogueRange[] {
   return ranges
 }
 
-function findSpeaker(
-  text: string,
-  dialogue: DialogueRange,
-  characters: Array<VoiceLintCharacter & { aliases: readonly string[]; avoid: string[]; names: string[] }>,
-) {
+function findSpeaker(text: string, dialogue: DialogueRange, characters: ParsedCharacter[]) {
   // `dialogue.start` points just after the opening quote, so exclude that
   // opener before matching the nearby attribution phrase.
   const before = text.slice(Math.max(0, dialogue.start - 120), Math.max(0, dialogue.start - 1))
   const after = text.slice(dialogue.end + 1, Math.min(text.length, dialogue.end + 121))
   const beforeSentence = before.slice(Math.max(0, Math.max(before.lastIndexOf('\n'), before.lastIndexOf('。'), before.lastIndexOf('！'), before.lastIndexOf('？'), before.lastIndexOf('!'), before.lastIndexOf('?')) + 1))
   const afterSentence = after.split(/[。！？!?\n]/, 1)[0]
-  for (const character of characters) {
-    const names = [...character.names].sort((left, right) => right.length - left.length)
-    for (const name of names) {
-      const escapedName = escapeRegExp(name)
-      const verb = SPEECH_VERBS.map(escapeRegExp).join('|')
-      const beforeExpression = new RegExp(`${escapedName}[^。！？!?\\n]{0,24}(?:${verb})\\s*[:：]?\\s*$`, 'i')
-      const afterExpression = new RegExp(`^\\s*[,，、:：]?\\s*${escapedName}[^。！？!?\\n]{0,24}(?:${verb})`, 'i')
-      if (beforeExpression.test(beforeSentence) || afterExpression.test(afterSentence)) return character
+  const verbPattern = new RegExp(`(?:${SPEECH_VERBS.map(escapeRegExp).join('|')})`, 'gi')
+  return findNearestAttribution(beforeSentence, characters, verbPattern, 'before')
+    || findNearestAttribution(afterSentence, characters, verbPattern, 'after')
+}
+
+function findNearestAttribution(
+  sentence: string,
+  characters: ParsedCharacter[],
+  verbPattern: RegExp,
+  side: 'before' | 'after',
+) {
+  const verbs = [...sentence.matchAll(verbPattern)]
+  const orderedVerbs = side === 'before' ? verbs.reverse() : verbs
+  for (const verb of orderedVerbs) {
+    const verbStart = verb.index ?? 0
+    const between = side === 'before' ? sentence.slice(verbStart + verb[0].length) : ''
+    if (side === 'before' && !/^[\s:：,，、]*$/.test(between)) continue
+    const prefix = side === 'before'
+      ? sentence.slice(Math.max(0, verbStart - 24), verbStart)
+      : sentence.slice(0, verbStart)
+    const matches: Array<{ character: ParsedCharacter; index: number; length: number }> = []
+    for (const character of characters) {
+      for (const name of character.names) {
+        let offset = prefix.indexOf(name)
+        while (offset >= 0) {
+          matches.push({ character, index: offset, length: name.length })
+          offset = prefix.indexOf(name, offset + 1)
+        }
+      }
+    }
+    if (matches.length) {
+      matches.sort((left, right) => right.index - left.index || right.length - left.length)
+      return matches[0].character
     }
   }
   return undefined
 }
 
 function findTerm(value: string, term: string) {
-  const flags = /[A-Za-z]/.test(term) ? 'i' : ''
-  const expression = new RegExp(escapeRegExp(term), flags)
+  const isLatinWord = /^[A-Za-z]+(?:['’ -][A-Za-z]+)*$/.test(term)
+  const flags = isLatinWord ? 'i' : ''
+  const pattern = isLatinWord ? `\\b${escapeRegExp(term)}\\b` : escapeRegExp(term)
+  const expression = new RegExp(pattern, flags)
   const match = expression.exec(value)
   return match ? { start: match.index, end: match.index + match[0].length } : undefined
 }

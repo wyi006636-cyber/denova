@@ -169,7 +169,9 @@ const editor = {
   'editor.lint.statsCalculating': '统计中…',
   'editor.lint.statsCopy': '复制为 Markdown',
   'editor.lint.statsCopied': '已复制',
-  'editor.lint.statsChapterTruncated': '只统计了前 {{count}} 章。',
+  'editor.lint.statsChapterTruncated': '只统计了前 {{count}} 章。{{chapters}}',
+  'editor.lint.statsDropped': '已跳过：{{chapters}}',
+  'editor.lint.statsDroppedMany': '已跳过：{{chapters}}等 {{count}} 章',
   'editor.lint.statsCharacterTruncated': '只统计了前 {{count}} 字。',
   'editor.lint.statsSkipped': '有 {{count}} 章读取失败，已跳过。',
   'editor.lint.statsFailed': '读取章节失败，请重试。',
@@ -186,6 +188,9 @@ const editor = {
   'editor.lint.statsPunctuationValue': '省略号 {{ellipsis}} · 破折号 {{dash}} · 叹号 {{exclamation}}',
   'editor.lint.statsRepeated': '重复短语',
   'editor.lint.statsRepeatedNone': '没有达到 3 次的 2–4 字短语',
+  'editor.lint.statsRepeatedPending': '点击“统计多章”后计算重复短语',
+  'editor.lint.statsUnitCharacters': '字',
+  'editor.lint.statsUnitWords': '词',
   'editor.lint.statsElapsed': '本次统计约 {{ms}} ms；结果只在浏览器内计算，不写入正文。',
 } as const
 

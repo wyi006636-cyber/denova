@@ -1,5 +1,5 @@
 /**
- * Deterministic, browser-only prose statistics.  Nothing in this module
+ * Deterministic, browser-only prose statistics. Nothing in this module
  * writes project files or calls a model; callers decide which chapters to
  * provide and can use the returned Markdown as a copyable draft.
  */
@@ -14,9 +14,9 @@ export const STYLE_FINGERPRINT_LIMITS = {
 } as const
 
 /**
- * These are deliberately small, common function words.  A repeated phrase
- * containing only one of them is usually grammar noise rather than a useful
- * style signal, so it is omitted from the fingerprint.
+ * A phrase is filtered only when the complete phrase is a function word.
+ * Filtering individual characters would hide useful repetitions such as
+ * 「看了看」 merely because they contain 「了」.
  */
 export const STYLE_FINGERPRINT_FUNCTION_WORDS = new Set([
   '的', '了', '着', '过', '地', '得', '和', '与', '及', '或', '而', '但', '却', '也',
@@ -24,10 +24,8 @@ export const STYLE_FINGERPRINT_FUNCTION_WORDS = new Set([
   '是', '有', '无', '不', '没', '未', '能', '会', '要', '可', '这', '那', '其', '他',
   '她', '它', '我', '你', '们', '一个', '一种', '然后', '但是', '因为', '所以',
   '如果', '就是', '已经', '还是', '虽然', '因此', '那么', '只是', '能够', '正在',
-  '所有', '这些', '那些', '什么', '没有', '可以', '自己', '他们', '我们',
+  '所有', '这些', '那些', '什么', '没有', '可以', '自己', '他们', '我们', '不是',
 ])
-const SINGLE_FUNCTION_WORDS = new Set([...STYLE_FINGERPRINT_FUNCTION_WORDS].filter(word => [...word].length === 1))
-const MULTI_FUNCTION_WORDS = [...STYLE_FINGERPRINT_FUNCTION_WORDS].filter(word => [...word].length > 1)
 
 export interface StyleFingerprintChapter {
   path?: string
@@ -70,6 +68,7 @@ export interface StyleFingerprintResult {
   requestedChapterCount: number
   skippedChapterCount: number
   elapsedMs: number
+  truncatedChapterLabels?: string[]
 }
 
 export interface StyleFingerprintOptions {
@@ -77,11 +76,16 @@ export interface StyleFingerprintOptions {
   maxChapters?: number
   maxCharacters?: number
   skippedChapterCount?: number
+  truncatedChapterLabels?: readonly string[]
 }
+
+export type StyleFingerprintMarkdownLocale = 'zh' | 'en'
 
 const CJK_PATTERN = /[\u3400-\u9fff]/g
 const WORD_PATTERN = /[A-Za-z]+(?:['’][A-Za-z]+)?/g
 const CONTENT_PATTERN = /[\p{L}\p{N}\u3400-\u9fff]/u
+const ATX_HEADING_PATTERN = /^\s{0,3}#{1,6}(?:\s+|$)/
+const ABBREVIATION_PATTERN = /(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc|i\.e|e\.g)\.$/i
 
 /** Calculate the fingerprint for the supplied chapters in source order. */
 export function computeStyleFingerprint(
@@ -102,7 +106,7 @@ export function computeStyleFingerprint(
       truncatedByChapters = true
       break
     }
-    const content = chapter.content || ''
+    const content = normalizeMarkdownBody(chapter.content || '')
     const available = maxCharacters - characterCount
     if (available <= 0) {
       truncatedByCharacters = true
@@ -115,9 +119,8 @@ export function computeStyleFingerprint(
       characterCount += contentLength
       continue
     }
-    // Character limits are a prefix limit.  Cutting a chapter is intentional:
-    // "first 200k characters" is more useful than silently dropping the last
-    // selected chapter altogether.
+    // Character limits are a prefix limit. Cutting a chapter is intentional:
+    // "first 200k characters" is more useful than silently dropping it.
     accepted.push(takeNonWhitespacePrefix(content, available))
     characterCount = maxCharacters
     truncatedByCharacters = true
@@ -126,8 +129,9 @@ export function computeStyleFingerprint(
 
   const text = accepted.join('\n\n')
   const paragraphs = splitParagraphs(text)
+  const sentenceUnit = chooseSentenceUnit(text)
   const sentences = paragraphs.flatMap(splitSentences).filter(hasProseContent)
-  const sentenceValues = sentences.map(measureSentence)
+  const sentenceValues = sentences.map(sentence => measureSentence(sentence, sentenceUnit))
   const paragraphValues = paragraphs
     .filter(hasProseContent)
     .map(paragraph => countNonWhitespaceCharacters(paragraph))
@@ -135,12 +139,15 @@ export function computeStyleFingerprint(
   const dialogueParagraphCount = dialogueFlags.filter(Boolean).length
   const dialogueRuns = collectDialogueRuns(dialogueFlags)
   const punctuationPerThousand = countPunctuation(text, characterCount)
+  const repeatedPhrases = options.includeRepeatedPhrases === false ? [] : findRepeatedPhrases(text)
+  // Keep the timer around the complete operation, including repeated phrase
+  // extraction, so the displayed number represents what the author waited for.
   const ended = typeof performance !== 'undefined' ? performance.now() : Date.now()
 
   return {
     chapterCount: accepted.length,
     characterCount,
-    sentenceLength: quantiles(sentenceValues, sentenceValues.some(value => value.unit === 'words') ? 'words' : 'characters'),
+    sentenceLength: quantiles(sentenceValues, sentenceUnit),
     paragraphLength: quantiles(paragraphValues, 'characters'),
     dialogueParagraphRatio: paragraphs.length ? dialogueParagraphCount / paragraphs.length : 0,
     dialogueParagraphCount,
@@ -148,32 +155,53 @@ export function computeStyleFingerprint(
     dialogueRunAverage: dialogueRuns.length ? round(sum(dialogueRuns) / dialogueRuns.length, 2) : 0,
     dialogueRunLongest: dialogueRuns.length ? Math.max(...dialogueRuns) : 0,
     punctuationPerThousand,
-    repeatedPhrases: options.includeRepeatedPhrases === false ? [] : findRepeatedPhrases(text),
+    repeatedPhrases,
     truncated: truncatedByChapters || truncatedByCharacters,
     truncatedByChapters,
     truncatedByCharacters,
     requestedChapterCount,
     skippedChapterCount: options.skippedChapterCount ?? 0,
     elapsedMs: ended - started,
+    truncatedChapterLabels: options.truncatedChapterLabels ? [...options.truncatedChapterLabels] : undefined,
   }
 }
 
 /** Produce a short Markdown block that can be pasted into a style profile. */
-export function styleFingerprintToMarkdown(result: StyleFingerprintResult): string {
+export function styleFingerprintToMarkdown(
+  result: StyleFingerprintResult,
+  locale: StyleFingerprintMarkdownLocale = 'zh',
+): string {
+  if (locale === 'en') {
+    const unit = result.sentenceLength.unit === 'words' ? 'words' : 'characters'
+    const lines = [
+      `- Scope: ${result.chapterCount} chapter(s), ${result.characterCount} characters.`,
+      `- Sentence length: P50 ${result.sentenceLength.p50}, P90 ${result.sentenceLength.p90} (${unit}).`,
+      `- Paragraph length: P50 ${result.paragraphLength.p50}, P90 ${result.paragraphLength.p90} characters.`,
+      `- Dialogue: ${formatPercent(result.dialogueParagraphRatio)} of paragraphs contain dialogue; average run ${result.dialogueRunAverage}, longest ${result.dialogueRunLongest} paragraphs.`,
+      `- Punctuation per 1,000 characters: ellipses ${result.punctuationPerThousand.ellipsis}, dashes ${result.punctuationPerThousand.dash}, exclamations ${result.punctuationPerThousand.exclamation}.`,
+    ]
+    if (result.repeatedPhrases.length) lines.push(`- Repeated phrases: ${result.repeatedPhrases.map(item => `"${item.phrase}" ${item.count} times`).join(', ')}.`)
+    if (result.truncatedByChapters) lines.push(`- Scope note: only the first ${result.chapterCount} chapter(s) were included${formatDroppedLabels(result.truncatedChapterLabels, '; skipped: ')}.`)
+    if (result.truncatedByCharacters) lines.push(`- Scope note: only the first ${result.characterCount} characters were included.`)
+    if (result.skippedChapterCount) lines.push(`- Read note: ${result.skippedChapterCount} chapter(s) could not be read and were skipped.`)
+    return lines.join('\n')
+  }
   const lines = [
     `- 范围：${result.chapterCount} 章，${result.characterCount} 字。`,
-    `- 句长：P50 ${result.sentenceLength.p50}，P90 ${result.sentenceLength.p90}（按${result.sentenceLength.unit === 'words' ? '英文词数' : '字符'}统计）。`,
+    `- 句长：P50 ${result.sentenceLength.p50}，P90 ${result.sentenceLength.p90}（按${result.sentenceLength.unit === 'words' ? '词数' : '字数'}统计）。`,
     `- 段长：P50 ${result.paragraphLength.p50}，P90 ${result.paragraphLength.p90} 字。`,
     `- 对白：${formatPercent(result.dialogueParagraphRatio)} 的段落含对白，连续对白平均 ${result.dialogueRunAverage} 段，最长 ${result.dialogueRunLongest} 段。`,
     `- 标点（每千字）：省略号 ${result.punctuationPerThousand.ellipsis}，破折号 ${result.punctuationPerThousand.dash}，叹号 ${result.punctuationPerThousand.exclamation}。`,
   ]
-  if (result.repeatedPhrases.length) {
-    lines.push(`- 重复短语：${result.repeatedPhrases.map(item => `「${item.phrase}」${item.count} 次`).join('、')}。`)
-  }
-  if (result.truncatedByChapters) lines.push(`- 范围提示：只统计了前 ${result.chapterCount} 章。`)
+  if (result.repeatedPhrases.length) lines.push(`- 重复短语：${result.repeatedPhrases.map(item => `「${item.phrase}」${item.count} 次`).join('、')}。`)
+  if (result.truncatedByChapters) lines.push(`- 范围提示：只统计了前 ${result.chapterCount} 章${formatDroppedLabels(result.truncatedChapterLabels, '，已跳过：')}。`)
   if (result.truncatedByCharacters) lines.push(`- 范围提示：只统计了前 ${result.characterCount} 字。`)
   if (result.skippedChapterCount) lines.push(`- 读取提示：有 ${result.skippedChapterCount} 章读取失败，未参与统计。`)
   return lines.join('\n')
+}
+
+function normalizeMarkdownBody(value: string) {
+  return value.split(/\r?\n/).filter(line => !ATX_HEADING_PATTERN.test(line)).join('\n')
 }
 
 function countNonWhitespaceCharacters(value: string) {
@@ -205,6 +233,7 @@ function splitSentences(paragraph: string) {
     const isPeriod = character === '.'
       && (index + 1 === paragraph.length || /\s/u.test(paragraph[index + 1] || ''))
       && !/\d/u.test(paragraph[index - 1] || '')
+      && !isAbbreviationPeriod(paragraph, index)
     const isSentencePunctuation = /[。！？!?…]/.test(character)
     if (!isSentencePunctuation && !isPeriod) continue
     let end = index + 1
@@ -220,31 +249,43 @@ function splitSentences(paragraph: string) {
   return sentences
 }
 
+function isAbbreviationPeriod(value: string, index: number) {
+  return ABBREVIATION_PATTERN.test(value.slice(Math.max(0, index - 6), index + 1))
+}
+
 function hasProseContent(value: string) {
   return CONTENT_PATTERN.test(value)
 }
 
-function measureSentence(value: string): { value: number; unit: 'characters' | 'words' } {
-  const cjk = (value.match(CJK_PATTERN) || []).length
-  const nonWhitespace = countSentenceCharacters(value)
-  if (cjk > 0 && cjk / Math.max(1, nonWhitespace) >= 0.15) {
-    return { value: nonWhitespace, unit: 'characters' }
-  }
-  return { value: value.match(WORD_PATTERN)?.length || 0, unit: 'words' }
+function chooseSentenceUnit(text: string): 'characters' | 'words' {
+  // The body decides one unit for the whole result. In a mixed chapter the
+  // minority language is converted to that unit (each CJK character counts as
+  // one word in a word-based result; Latin tokens count as characters in a
+  // character-based result) so one percentile never mixes scales.
+  const compact = text.replace(/\s/gu, '')
+  const cjk = (compact.match(CJK_PATTERN) || []).length
+  return cjk > compact.length / 2 ? 'characters' : 'words'
+}
+
+function measureSentence(value: string, unit: 'characters' | 'words') {
+  return unit === 'characters' ? countSentenceCharacters(value) : countSentenceWords(value)
 }
 
 function countSentenceCharacters(value: string) {
-  return countNonWhitespaceCharacters(value.replace(/[。！？!?….,，、；;：:「」『』“”‘’"'（）()]/g, ''))
+  return countNonWhitespaceCharacters(value.replace(/[\p{P}\p{S}]/gu, ''))
 }
 
-function quantiles(values: Array<number | { value: number; unit: 'characters' | 'words' }>, unit: 'characters' | 'words'): StyleFingerprintQuantiles {
-  const numbers = values
-    .map(value => typeof value === 'number' ? value : value.value)
-    .filter(value => value > 0)
-    .sort((left, right) => left - right)
+function countSentenceWords(value: string) {
+  const latinWords = value.match(WORD_PATTERN)?.length || 0
+  const cjkWords = (value.match(CJK_PATTERN) || []).length
+  return latinWords + cjkWords
+}
+
+function quantiles(values: number[], unit: 'characters' | 'words'): StyleFingerprintQuantiles {
+  const numbers = values.filter(value => value > 0).sort((left, right) => left - right)
   return {
-    p50: percentile(numbers, 0.5),
-    p90: percentile(numbers, 0.9),
+    p50: Math.round(percentile(numbers, 0.5)),
+    p90: Math.round(percentile(numbers, 0.9)),
     sampleCount: numbers.length,
     unit,
   }
@@ -252,8 +293,12 @@ function quantiles(values: Array<number | { value: number; unit: 'characters' | 
 
 function percentile(values: number[], percentileValue: number) {
   if (!values.length) return 0
-  const index = Math.min(values.length - 1, Math.ceil(values.length * percentileValue) - 1)
-  return values[Math.max(0, index)]
+  const position = (values.length - 1) * percentileValue
+  const lower = Math.floor(position)
+  const upper = Math.ceil(position)
+  if (lower === upper) return values[lower]
+  const weight = position - lower
+  return values[lower] + (values[upper] - values[lower]) * weight
 }
 
 function hasDialogue(paragraph: string) {
@@ -264,12 +309,8 @@ function collectDialogueRuns(flags: boolean[]) {
   const runs: number[] = []
   let current = 0
   for (const flag of flags) {
-    if (flag) {
-      current++
-    } else if (current) {
-      runs.push(current)
-      current = 0
-    }
+    if (flag) current++
+    else if (current) { runs.push(current); current = 0 }
   }
   if (current) runs.push(current)
   return runs
@@ -281,36 +322,54 @@ function countPunctuation(text: string, characterCount: number): StyleFingerprin
   const dash = text.match(/—+|——+|--+/g)?.length || 0
   const exclamation = text.match(/[!！]/g)?.length || 0
   const scale = 1000 / characterCount
-  return {
-    ellipsis: round(ellipsis * scale, 2),
-    dash: round(dash * scale, 2),
-    exclamation: round(exclamation * scale, 2),
-  }
+  return { ellipsis: round(ellipsis * scale, 2), dash: round(dash * scale, 2), exclamation: round(exclamation * scale, 2) }
 }
 
 function findRepeatedPhrases(text: string): StyleFingerprintPhrase[] {
   const counts = new Map<string, number>()
   const ranges = text.match(/[\u3400-\u9fff]+/g) || []
   for (const range of ranges) {
-    for (let length = STYLE_FINGERPRINT_LIMITS.repeatedPhraseMinimumLength; length <= STYLE_FINGERPRINT_LIMITS.repeatedPhraseMaximumLength; length++) {
-      for (let index = 0; index + length <= range.length; index++) {
+    // Do not count overlapping windows from one continuous run as separate
+    // occurrences; this prevents 「哈哈哈哈」 from becoming three repeats.
+    const lastEnd = new Map<string, number>()
+    for (let index = 0; index < range.length; index++) {
+      for (let length = STYLE_FINGERPRINT_LIMITS.repeatedPhraseMinimumLength; length <= STYLE_FINGERPRINT_LIMITS.repeatedPhraseMaximumLength; length++) {
+        if (index + length > range.length) break
         const phrase = range.slice(index, index + length)
-        if (isFunctionPhrase(phrase)) continue
+        if (STYLE_FINGERPRINT_FUNCTION_WORDS.has(phrase)) continue
+        if ((lastEnd.get(phrase) ?? -1) > index) continue
+        lastEnd.set(phrase, index + length)
         counts.set(phrase, (counts.get(phrase) || 0) + 1)
       }
     }
   }
-  return [...counts.entries()]
-    .filter(([, count]) => count >= STYLE_FINGERPRINT_LIMITS.repeatedPhraseMinimumCount)
-    .sort((left, right) => right[1] - left[1] || right[0].length - left[0].length || left[0].localeCompare(right[0]))
+  const candidates = [...counts.entries()].filter(([, count]) => count >= STYLE_FINGERPRINT_LIMITS.repeatedPhraseMinimumCount)
+  const maximal = candidates.filter(([phrase, count]) => {
+    // Reduplicated oral phrases such as 「看了看」 are useful style signals
+    // even when a surrounding subject/object produces a longer same-count
+    // window. Preserve them while still collapsing ordinary fragments.
+    const reduplicated = phrase.length >= 3 && phrase[0] === phrase[phrase.length - 1]
+    if (!reduplicated && candidates.some(([shorter, shorterCount]) => shorter.length < phrase.length && shorterCount === count && shorter.length >= 3 && shorter[0] === shorter[shorter.length - 1] && phrase.includes(shorter))) return false
+    return reduplicated || !candidates.some(([longer, longerCount]) => longer.length > phrase.length && longerCount === count && longer.includes(phrase))
+  })
+  return maximal
+    .sort((left, right) => {
+      const leftReduplicated = left[0].length >= 3 && left[0][0] === left[0][left[0].length - 1]
+      const rightReduplicated = right[0].length >= 3 && right[0][0] === right[0][right[0].length - 1]
+      return Number(rightReduplicated) - Number(leftReduplicated)
+        || right[1] - left[1]
+        || right[0].length - left[0].length
+        || left[0].localeCompare(right[0])
+    })
     .slice(0, STYLE_FINGERPRINT_LIMITS.maxRepeatedPhrases)
     .map(([phrase, count]) => ({ phrase, count }))
 }
 
-function isFunctionPhrase(phrase: string) {
-  if (STYLE_FINGERPRINT_FUNCTION_WORDS.has(phrase)) return true
-  if ([...phrase].some(character => SINGLE_FUNCTION_WORDS.has(character))) return true
-  return MULTI_FUNCTION_WORDS.some(word => phrase.includes(word))
+function formatDroppedLabels(labels: readonly string[] | undefined, prefix: string) {
+  if (!labels?.length) return ''
+  const shown = labels.slice(0, 3).join('、')
+  const suffix = labels.length > 3 ? `等 ${labels.length} 章` : shown
+  return `${prefix}${suffix}`
 }
 
 function formatPercent(value: number) {

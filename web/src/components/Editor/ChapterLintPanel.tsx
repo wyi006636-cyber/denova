@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 import { ChevronDown, ChevronRight, Copy, ExternalLink, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -16,6 +16,7 @@ import {
 import {
   computeStyleFingerprint,
   styleFingerprintToMarkdown,
+  STYLE_FINGERPRINT_LIMITS,
   type StyleFingerprintResult,
 } from '@/features/writing/style-fingerprint'
 import { runVoiceLint } from '@/features/writing/voice-lint'
@@ -43,6 +44,11 @@ const DEFAULT_ENABLED: Record<ChapterLintCategory, boolean> = {
 
 type LintTab = 'issues' | 'stats'
 
+const STATS_ERROR_KEYS = {
+  'stats-failed': 'editor.lint.statsFailed',
+  'copy-failed': 'editor.lint.copyFailed',
+} as const
+
 interface ChapterLintPanelProps {
   projectId: string
   content: string
@@ -66,7 +72,7 @@ export function ChapterLintPanel({
   onIssueClick,
   onReportChange,
 }: ChapterLintPanelProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [bannedWords, setBannedWords] = useState('')
   const [loreItems, setLoreItems] = useState<LoreItem[]>([])
   const [chapters, setChapters] = useState<ChapterSummary[]>([])
@@ -84,6 +90,8 @@ export function ChapterLintPanel({
   const [statsLoading, setStatsLoading] = useState(false)
   const [statsError, setStatsError] = useState('')
   const [copied, setCopied] = useState(false)
+  const statsRequestGeneration = useRef(0)
+  const selectionTouched = useRef(false)
 
   // Chapter checks are local but still scan the whole draft. Debouncing keeps
   // typing responsive while preserving fresh results after the user pauses.
@@ -109,11 +117,12 @@ export function ChapterLintPanel({
       setSelectedChapterPaths(current => {
         const available = new Set(nextChapters.map(chapter => chapter.path))
         const retained = current.filter(path => available.has(path))
-        if (currentChapterPath && available.has(currentChapterPath) && !retained.includes(currentChapterPath)) {
-          retained.unshift(currentChapterPath)
+        if (!selectionTouched.current && !retained.length) {
+          return currentChapterPath && available.has(currentChapterPath)
+            ? [currentChapterPath]
+            : nextChapters.slice(0, 1).map(chapter => chapter.path)
         }
-        const unique = [...new Set(retained)]
-        return unique.length ? unique : currentChapterPath ? [currentChapterPath] : nextChapters.slice(0, 1).map(chapter => chapter.path)
+        return [...new Set(retained)]
       })
     }).catch(() => {
       if (!cancelled) setLoadError('load-failed')
@@ -124,10 +133,11 @@ export function ChapterLintPanel({
   }, [currentChapterPath, projectId, refreshToken])
 
   useEffect(() => {
-    if (currentChapterPath && !selectedChapterPaths.includes(currentChapterPath)) {
-      setSelectedChapterPaths(paths => [...new Set([currentChapterPath, ...paths])])
-    }
-  }, [currentChapterPath, selectedChapterPaths])
+    setStatsOverride(null)
+    setStatsError('')
+    setStatsLoading(false)
+    statsRequestGeneration.current += 1
+  }, [content, currentChapterPath, projectId, refreshToken])
 
   useEffect(() => {
     try { window.localStorage.setItem('nova.chapter-lint.categories', JSON.stringify(enabled)) } catch { /* host storage may be unavailable */ }
@@ -187,7 +197,10 @@ export function ChapterLintPanel({
   }, [occurrenceIndexes, onIssueClick])
 
   const toggleChapter = useCallback((path: string) => {
+    selectionTouched.current = true
+    statsRequestGeneration.current += 1
     setStatsOverride(null)
+    setStatsError('')
     setSelectedChapterPaths(current => current.includes(path)
       ? current.filter(item => item !== path)
       : [...new Set([...current, path])])
@@ -196,15 +209,20 @@ export function ChapterLintPanel({
   const calculateMultiChapterStats = useCallback(async () => {
     const paths = selectedChapterPaths
     if (!paths.length) return
+    const generation = ++statsRequestGeneration.current
     setStatsLoading(true)
     setStatsError('')
     let skipped = 0
     const loaded: Array<{ path: string; content: string }> = []
+    const orderedPaths = [
+      ...chapters.filter(chapter => paths.includes(chapter.path)).map(chapter => chapter.path),
+      ...paths.filter(path => !chapters.some(chapter => chapter.path === path)),
+    ]
     try {
-      for (const path of paths) {
+      for (const path of orderedPaths) {
         try {
           if (path === currentChapterPath) {
-            loaded.push({ path, content: lintContent })
+            loaded.push({ path, content })
           } else {
             const file = await readProjectFile(projectId, path)
             loaded.push({ path, content: file.content || '' })
@@ -213,23 +231,30 @@ export function ChapterLintPanel({
           skipped++
         }
       }
-      setStatsOverride(computeStyleFingerprint(loaded, { skippedChapterCount: skipped }))
+      if (generation !== statsRequestGeneration.current) return
+      const result = computeStyleFingerprint(loaded, {
+        skippedChapterCount: skipped,
+        truncatedChapterLabels: orderedPaths.length > STYLE_FINGERPRINT_LIMITS.maxChapters
+          ? orderedPaths.slice(STYLE_FINGERPRINT_LIMITS.maxChapters).map(path => chapters.find(chapter => chapter.path === path)?.display_title || path)
+          : undefined,
+      })
+      setStatsOverride(result)
     } catch {
-      setStatsError('stats-failed')
+      if (generation === statsRequestGeneration.current) setStatsError('stats-failed')
     } finally {
-      setStatsLoading(false)
+      if (generation === statsRequestGeneration.current) setStatsLoading(false)
     }
-  }, [currentChapterPath, lintContent, projectId, selectedChapterPaths])
+  }, [chapters, content, currentChapterPath, projectId, selectedChapterPaths])
 
   const copyStats = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(styleFingerprintToMarkdown(stats))
+      await navigator.clipboard.writeText(styleFingerprintToMarkdown(stats, i18n.language.toLocaleLowerCase().startsWith('en') ? 'en' : 'zh'))
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1600)
     } catch {
       setStatsError('copy-failed')
     }
-  }, [stats])
+  }, [i18n.language, stats])
 
   return (
     <aside className="flex max-h-[min(70vh,680px)] w-full shrink-0 flex-col border-b border-[var(--nova-border)] bg-[var(--nova-surface-2)] text-[var(--nova-text)] md:max-h-none md:w-[clamp(220px,40%,360px)] md:border-b-0 md:border-r" aria-label={t('editor.lint.title')}>
@@ -246,16 +271,17 @@ export function ChapterLintPanel({
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {loading ? <p className="py-6 text-center text-xs text-[var(--nova-text-faint)]">{t('editor.lint.loading')}</p> : null}
         {loadError ? <p className="mb-2 rounded border border-[var(--nova-danger-border)] bg-[var(--nova-danger-bg)] p-2 text-xs text-[var(--nova-danger)]">{t('editor.lint.loadFailed')}</p> : null}
-        <div role="tablist" aria-label={t('editor.lint.tabs')} className="mb-3 grid grid-cols-2 rounded-md border border-[var(--nova-border)] p-0.5">
+        {!loading ? <div role="tablist" aria-label={t('editor.lint.tabs')} className="mb-3 grid grid-cols-2 rounded-md border border-[var(--nova-border)] p-0.5">
           <button type="button" role="tab" aria-selected={tab === 'issues'} className={`rounded px-2 py-1.5 text-xs ${tab === 'issues' ? 'bg-[var(--nova-active)] font-medium' : 'text-[var(--nova-text-faint)]'}`} onClick={() => setTab('issues')}>{t('editor.lint.issuesTab')}</button>
           <button type="button" role="tab" aria-selected={tab === 'stats'} className={`rounded px-2 py-1.5 text-xs ${tab === 'stats' ? 'bg-[var(--nova-active)] font-medium' : 'text-[var(--nova-text-faint)]'}`} onClick={() => setTab('stats')}>{t('editor.lint.statsTab')}</button>
-        </div>
-        {tab === 'stats' ? (
+        </div> : null}
+        {!loading && tab === 'stats' ? (
           <StyleFingerprintView
             chapters={chapters}
             currentChapterPath={currentChapterPath}
             selectedChapterPaths={selectedChapterPaths}
             stats={stats}
+            multiChapterCalculated={Boolean(statsOverride)}
             loading={statsLoading}
             error={statsError}
             copied={copied}
@@ -263,7 +289,7 @@ export function ChapterLintPanel({
             onCalculate={calculateMultiChapterStats}
             onCopy={copyStats}
           />
-        ) : (
+        ) : !loading ? (
           <IssueList
             t={t}
             report={report}
@@ -275,7 +301,7 @@ export function ChapterLintPanel({
             onIssueClick={handleIssueClick}
             onEditBannedWords={onEditBannedWords}
           />
-        )}
+        ) : null}
         <p className="mt-3 text-[10px] leading-relaxed text-[var(--nova-text-faint)]">{t('editor.lint.source', { source: AI_TRACE_LEXICON_SOURCE })}</p>
         {editor ? <span className="sr-only">{t('editor.lint.editorReady')}</span> : null}
       </div>
@@ -351,6 +377,7 @@ function StyleFingerprintView({
   currentChapterPath,
   selectedChapterPaths,
   stats,
+  multiChapterCalculated,
   loading,
   error,
   copied,
@@ -362,6 +389,7 @@ function StyleFingerprintView({
   currentChapterPath: string | null | undefined
   selectedChapterPaths: string[]
   stats: StyleFingerprintResult
+  multiChapterCalculated: boolean
   loading: boolean
   error: string
   copied: boolean
@@ -370,12 +398,22 @@ function StyleFingerprintView({
   onCopy: () => void
 }) {
   const { t } = useTranslation()
+  const sentenceUnit = stats.sentenceLength.unit === 'words'
+    ? t('editor.lint.statsUnitWords')
+    : t('editor.lint.statsUnitCharacters')
+  const errorKey = STATS_ERROR_KEYS[error as keyof typeof STATS_ERROR_KEYS]
+  const droppedChapterSummary = stats.truncatedChapterLabels?.length
+    ? stats.truncatedChapterLabels.length > 3
+      ? t('editor.lint.statsDroppedMany', { chapters: stats.truncatedChapterLabels.slice(0, 3).join('、'), count: stats.truncatedChapterLabels.length })
+      : t('editor.lint.statsDropped', { chapters: stats.truncatedChapterLabels.join('、') })
+    : ''
   return (
     <div data-testid="style-fingerprint-panel" className="grid gap-3">
       <div className="rounded-md border border-[var(--nova-border)] p-2">
-        <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="mb-2 grid gap-1">
           <p className="text-xs font-medium">{t('editor.lint.statsScope')}</p>
-          <span className="text-[10px] text-[var(--nova-text-faint)]">{t('editor.lint.statsSelected', { count: selectedChapterPaths.length })}{selectedChapterPaths.length > 12 ? ` · ${t('editor.lint.statsWillCap')}` : null}</span>
+          <span className="text-[10px] leading-relaxed text-[var(--nova-text-faint)]">{t('editor.lint.statsSelected', { count: selectedChapterPaths.length })}</span>
+          {selectedChapterPaths.length > STYLE_FINGERPRINT_LIMITS.maxChapters ? <span className="text-[10px] leading-relaxed text-[var(--nova-text-faint)]">{t('editor.lint.statsWillCap')}</span> : null}
         </div>
         <div className="max-h-36 overflow-y-auto rounded border border-[var(--nova-border)] p-1">
           {chapters.length ? chapters.map(chapter => (
@@ -394,10 +432,10 @@ function StyleFingerprintView({
             <Copy data-icon="inline-start" />{copied ? t('editor.lint.statsCopied') : t('editor.lint.statsCopy')}
           </Button>
         </div>
-        {error ? <p className="mt-2 text-[11px] text-[var(--nova-danger)]">{t(`editor.lint.${error}`)}</p> : null}
+        {error && errorKey ? <p className="mt-2 text-[11px] text-[var(--nova-danger)]">{t(errorKey)}</p> : null}
       </div>
       {stats.truncated ? <p className="rounded border border-[var(--nova-warning)]/40 bg-[var(--nova-warning-bg)] p-2 text-xs text-[var(--nova-warning)]">
-        {stats.truncatedByChapters ? t('editor.lint.statsChapterTruncated', { count: stats.chapterCount }) : null}
+        {stats.truncatedByChapters ? t('editor.lint.statsChapterTruncated', { count: stats.chapterCount, chapters: droppedChapterSummary }) : null}
         {stats.truncatedByChapters && stats.truncatedByCharacters ? ' ' : null}
         {stats.truncatedByCharacters ? t('editor.lint.statsCharacterTruncated', { count: stats.characterCount }) : null}
       </p> : null}
@@ -405,8 +443,8 @@ function StyleFingerprintView({
       <div className="grid grid-cols-2 gap-2 text-xs">
         <StatCard label={t('editor.lint.statsChapters')} value={String(stats.chapterCount)} />
         <StatCard label={t('editor.lint.statsCharacters')} value={String(stats.characterCount)} />
-        <StatCard label={t('editor.lint.statsSentence')} value={`${stats.sentenceLength.p50} / ${stats.sentenceLength.p90}`} hint={t('editor.lint.statsP50P90')} />
-        <StatCard label={t('editor.lint.statsParagraph')} value={`${stats.paragraphLength.p50} / ${stats.paragraphLength.p90}`} hint={t('editor.lint.statsP50P90')} />
+        <StatCard label={t('editor.lint.statsSentence')} value={`${stats.sentenceLength.p50} / ${stats.sentenceLength.p90} ${sentenceUnit}`} hint={t('editor.lint.statsP50P90')} />
+        <StatCard label={t('editor.lint.statsParagraph')} value={`${stats.paragraphLength.p50} / ${stats.paragraphLength.p90} ${t('editor.lint.statsUnitCharacters')}`} hint={t('editor.lint.statsP50P90')} />
         <StatCard label={t('editor.lint.statsDialogueRatio')} value={`${Math.round(stats.dialogueParagraphRatio * 100)}%`} />
         <StatCard label={t('editor.lint.statsDialogueRuns')} value={`${stats.dialogueRunAverage} / ${stats.dialogueRunLongest}`} hint={t('editor.lint.statsAverageLongest')} />
       </div>
@@ -416,7 +454,7 @@ function StyleFingerprintView({
       </div>
       <div className="rounded-md border border-[var(--nova-border)] p-2 text-xs">
         <p className="mb-1 font-medium">{t('editor.lint.statsRepeated')}</p>
-        {stats.repeatedPhrases.length ? <ul className="grid gap-1 text-[var(--nova-text-faint)]">{stats.repeatedPhrases.map(item => <li key={item.phrase}>「{item.phrase}」 × {item.count}</li>)}</ul> : <p className="text-[var(--nova-text-faint)]">{t('editor.lint.statsRepeatedNone')}</p>}
+        {stats.repeatedPhrases.length ? <ul className="grid gap-1 text-[var(--nova-text-faint)]">{stats.repeatedPhrases.map(item => <li key={item.phrase}>「{item.phrase}」 × {item.count}</li>)}</ul> : <p className="text-[var(--nova-text-faint)]">{t(multiChapterCalculated ? 'editor.lint.statsRepeatedNone' : 'editor.lint.statsRepeatedPending')}</p>}
       </div>
       <p className="text-[10px] text-[var(--nova-text-faint)]">{t('editor.lint.statsElapsed', { ms: Math.round(stats.elapsedMs) })}</p>
       {currentChapterPath && !selectedChapterPaths.length ? <p className="text-[10px] text-[var(--nova-text-faint)]">{currentChapterPath}</p> : null}

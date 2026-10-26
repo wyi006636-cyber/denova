@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   STYLE_FINGERPRINT_LIMITS,
   computeStyleFingerprint,
+  styleFingerprintToMarkdown,
 } from './style-fingerprint'
 
 describe('style fingerprint', () => {
@@ -57,9 +58,57 @@ describe('style fingerprint', () => {
   })
 
   it('keeps 200k-character statistics in the intended fast path', () => {
-    const source = '清晨的雾气沿着石阶退去，守门人检查了旧锁。'.repeat(10000).slice(0, 200_000)
+    const alphabet = [...'甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥春夏秋冬风雨雷电山川湖海']
+    let source = ''
+    for (let index = 0; source.length < STYLE_FINGERPRINT_LIMITS.maxCharacters; index++) source += alphabet[(index * 37 + index * index) % alphabet.length]
+    source = source.slice(0, STYLE_FINGERPRINT_LIMITS.maxCharacters)
     const result = computeStyleFingerprint([{ content: source }])
     expect(result.characterCount).toBe(200_000)
     expect(result.elapsedMs).toBeLessThan(300)
+  })
+
+  it('removes ATX headings and chooses one sentence unit for mixed prose', () => {
+    const result = computeStyleFingerprint([{ content: '# Chapter 001\n\n沈宁说：「在下不会退。」\n\n红色旗帜在风中展开。红色旗帜在风中展开。' }])
+    expect(result.characterCount).toBe(32)
+    expect(result.sentenceLength).toMatchObject({ p50: 9, p90: 9, unit: 'characters', sampleCount: 3 })
+    expect(result.dialogueParagraphRatio).toBe(0.5)
+    expect(styleFingerprintToMarkdown(result)).toContain('按字数统计')
+  })
+
+  it('uses the body majority language for mixed English and Chinese sentences', () => {
+    const result = computeStyleFingerprint([{ content: '他推开门。屋里没有人。OK.' }])
+    expect(result.sentenceLength.unit).toBe('characters')
+    expect(result.sentenceLength.p50).toBe(4)
+    expect(result.sentenceLength.p90).toBe(5)
+  })
+
+  it('uses a conventional median and interpolated P90 for even samples', () => {
+    const result = computeStyleFingerprint([{ content: '甲乙。甲乙丙丁。甲乙丙丁戊己。甲乙丙丁戊己庚辛。' }])
+    expect(result.sentenceLength).toMatchObject({ p50: 5, p90: 7, sampleCount: 4 })
+  })
+
+  it('does not split common English abbreviations into a sentence', () => {
+    const result = computeStyleFingerprint([{ content: 'Mr. Smith went to the old house. He did not stay.' }])
+    expect(result.sentenceLength).toMatchObject({ sampleCount: 2, unit: 'words', p50: 6, p90: 7 })
+  })
+
+  it('counts useful repeated phrases without overlapping fragments', () => {
+    const result = computeStyleFingerprint([{ content: [
+      '红色旗帜立在门口。'.repeat(3),
+      '旧门锁生了锈。'.repeat(3),
+      '他看了看天。'.repeat(3),
+      '这不是出路。'.repeat(3),
+      '哈哈哈哈。',
+    ].join('') }])
+    expect(result.repeatedPhrases.some(item => item.phrase === '看了看' && item.count === 3)).toBe(true)
+    expect(result.repeatedPhrases.some(item => item.phrase === '一个')).toBe(false)
+    expect(result.repeatedPhrases.some(item => item.phrase === '色旗帜')).toBe(false)
+    expect(result.repeatedPhrases.some(item => item.phrase === '哈哈')).toBe(false)
+  })
+
+  it('localizes copied Markdown', () => {
+    const result = computeStyleFingerprint([{ content: 'One two three.' }], { includeRepeatedPhrases: false })
+    expect(styleFingerprintToMarkdown(result, 'en')).toContain('Scope:')
+    expect(styleFingerprintToMarkdown(result, 'en')).toContain('(words)')
   })
 })

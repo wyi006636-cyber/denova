@@ -14,6 +14,7 @@ describe('voice lint', () => {
       avoid: ['sir', 'formal connectors'],
     })
     expect(parseVoiceRules('## 资料\n\n- 禁忌说法：在下')).toEqual({ avoid: [] })
+    expect(parseVoiceRules('## 说话方式（可选）\n\n- 禁忌说法：「在下」、鄙人')).toEqual({ avoid: ['在下', '鄙人'] })
   })
 
   it('warns when an attributed character uses an avoided phrase', () => {
@@ -52,5 +53,36 @@ describe('voice lint', () => {
     const result = runVoiceLint('沈宁说：「在下不会退。」', [{ ...character, content: '# 沈宁\n\n没有口吻约定。' }])
     expect(result.parsedCharacters).toBe(0)
     expect(result.issues).toEqual([])
+  })
+
+  it('uses all named characters for attribution, even when one has no avoid list', () => {
+    const result = runVoiceLint('张三说：「在下不走」', [
+      { name: '张三', content: '# 张三\n\n没有口吻约定。' },
+      { name: '李四', content: '## 说话方式\n\n- 禁忌说法：在下' },
+    ])
+    expect(result.issues).toEqual([])
+  })
+
+  it('chooses the name closest to the speech verb', () => {
+    const result = runVoiceLint('张三看着李四说：「在下不走」', [
+      { name: '张三', content: '## 说话方式\n\n- 禁忌说法：在下' },
+      { name: '李四', content: '## 说话方式\n\n- 禁忌说法：哼' },
+    ])
+    expect(result.issues).toEqual([])
+  })
+
+  it('accepts English commas and ASCII double quotes and respects Latin word boundaries', () => {
+    const john = { name: 'John', content: '## Voice\n\n- Avoid: art' }
+    expect(runVoiceLint('John said, “do not start”', [john]).issues).toEqual([])
+    expect(runVoiceLint('John said “do not start”', [john]).issues).toEqual([])
+    expect(runVoiceLint('John said “the art of leaving”', [john]).issues[0]).toMatchObject({ severity: 'warning', text: 'art' })
+    expect(runVoiceLint('“the art of leaving,” John said.', [john]).issues[0]).toMatchObject({ severity: 'warning', text: 'art' })
+    expect(runVoiceLint('John said, "the art"', [john]).issues[0]).toMatchObject({ severity: 'warning', text: 'art' })
+    expect(runVoiceLint('John said, "do not start"', [john]).issues).toEqual([])
+  })
+
+  it('keeps quoted and unquoted avoid terms on the same field', () => {
+    expect(parseVoiceRules('## 说话方式\n\n- 禁忌说法：「在下」、鄙人')).toEqual({ avoid: ['在下', '鄙人'] })
+    expect(parseVoiceRules('## Voice\n\n- Avoid: “sir”; formal connectors')).toEqual({ avoid: ['sir', 'formal connectors'] })
   })
 })
