@@ -82,12 +82,12 @@ func TestExternalGameToolUsesStoryLoreCursor(t *testing.T) {
 	store, story, cfg := externalGameFixture(t)
 	if _, err := lore.NewStore(cfg.Workspace).Create(lore.ItemInput{
 		ID: "cursor-secret", Name: "Cursor Secret", Type: "world",
-		Spans: []lore.Span{{ID: "current", From: "ch00020", Content: "visible game canon"}},
+		Spans: []lore.Span{{ID: "current", From: "ch00025", Content: "visible game canon"}},
 	}); err != nil {
 		t.Fatal(err)
 	}
 	cfg.ActiveAgentRuntime = &config.RuntimeSelection{Kind: config.RuntimeClaude, Claude: &config.ClaudeRuntimeSettings{Model: "test"}}
-	turn := externalGameForTest(t, store, story, cfg, agentchat.ChatRequest{CommandID: "game-lore-cursor", Message: "Continue", LoreAsOf: "ch00030"}, gameAdapterFunc(func(ctx context.Context, _ external.Input, host external.Host) (external.Result, error) {
+	turn := externalGameForTest(t, store, story, cfg, agentchat.ChatRequest{CommandID: "game-lore-cursor", Message: "Continue", LoreAsOf: "ch00030", IDEContext: prompts.IDEContextRef{CurrentFile: "chapters/ch00020-opening.md"}}, gameAdapterFunc(func(ctx context.Context, _ external.Input, host external.Host) (external.Result, error) {
 		result := gameHostCall(t, ctx, host, "query", "query_lore_items", `{"names":["Cursor Secret"],"detail":"full"}`)
 		if !strings.Contains(result.Text, "visible game canon") {
 			t.Fatalf("game tool did not receive the story cursor: %s", result.Text)

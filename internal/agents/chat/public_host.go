@@ -6,6 +6,7 @@ import (
 	agentrun "denova/internal/agents/run"
 	agenttoolruntime "denova/internal/agents/toolruntime"
 	producttools "denova/internal/agents/tools"
+	"denova/internal/book/lore"
 
 	agentexecution "github.com/alfredxw/denova/agent/engine/execution"
 	agentmiddleware "github.com/alfredxw/denova/agent/engine/middleware"
@@ -57,6 +58,12 @@ func (middleware *PublicHostMiddleware) BeforeAgent(
 	if middleware.trace != nil {
 		ctx = middleware.trace.BindPublicRunTrace(ctx, runID)
 	}
+	// Native runs derive their cycle context from the Agent owner context, so
+	// bind the request cursor at the public lifecycle boundary where both
+	// writing and game tools receive the same request.
+	ctx = lore.ContextWithSpanVisibility(ctx, lore.ResolveSpanVisibility(
+		middleware.request.IDEContext.CurrentFile, middleware.request.LoreAsOf, middleware.request.LoreScope,
+	))
 	ctx = producttools.ContextWithWorkspaceChangeScope(ctx, producttools.WorkspaceChangeScope{
 		RunID: runID, SessionID: middleware.options.SessionID,
 		ReviewThreadID: middleware.options.ReviewThreadID,

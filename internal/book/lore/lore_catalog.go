@@ -96,7 +96,20 @@ func (s *Store) NameCatalogMarkdown(options NameCatalogOptions) (string, error) 
 	}
 	hiddenNotice := ""
 	if len(hiddenIDs) > 0 {
-		hiddenNotice = fmt.Sprintf("\n%d lore item(s) are not visible at the current chapter cursor; query or update by exact id: %s\n", len(hiddenIDs), strings.Join(hiddenIDs, ", "))
+		const hiddenIDLimit = 30
+		shownHiddenIDs := hiddenIDs
+		if len(shownHiddenIDs) > hiddenIDLimit {
+			shownHiddenIDs = shownHiddenIDs[:hiddenIDLimit]
+		}
+		notice := "not visible at the current chapter cursor"
+		if strings.TrimSpace(options.Cursor) == "" {
+			notice = "not visible because there is no chapter cursor for this request"
+		}
+		extra := ""
+		if omitted := len(hiddenIDs) - len(shownHiddenIDs); omitted > 0 {
+			extra = fmt.Sprintf(", +%d more", omitted)
+		}
+		hiddenNotice = fmt.Sprintf("\n%d lore item(s) are %s; query or update by exact id: %s%s\n", len(hiddenIDs), notice, strings.Join(shownHiddenIDs, ", "), extra)
 	}
 	hiddenNoticeBytes := len([]byte(hiddenNotice))
 
