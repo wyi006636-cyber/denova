@@ -56,3 +56,23 @@ func TestWorkspaceContextChapterIndexIgnoresContentOnlyChanges(t *testing.T) {
 		t.Fatalf("content-only update changed path context: first=%q second=%q", first, second)
 	}
 }
+
+func TestChapterPathsIgnoreReferenceSources(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "chapters"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "references", "sources"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "chapters", "ch00001.md"), []byte("chapter"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "references", "sources", "source.md"), []byte("source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := scanChapterPaths(root)
+	if len(entries) != 1 || entries[0].Path != "chapters/ch00001.md" {
+		t.Fatalf("chapter scan included reference source: %#v", entries)
+	}
+}

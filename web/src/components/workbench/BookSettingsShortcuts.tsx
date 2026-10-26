@@ -17,11 +17,12 @@ import { OutlineFileActions } from './outline/OutlineFileActions'
 import { flattenFileTree } from './workbench-utils'
 
 const STORAGE_PREFIX = 'nova.outline.pinned-settings:'
-const PINNED_STORAGE_VERSION = 4
+const PINNED_STORAGE_VERSION = 5
 const LEGACY_DEFAULT_PINNED_PATHS = ['setting/outline.md', 'CREATOR.md', 'setting/progress.md']
 const LORE_TAB_PIN_KEY = '@lore-tab'
 const STORY_LEDGER_PIN_PATH = 'setting/story-ledger.md'
-const DEFAULT_PINNED_PATHS = [...LEGACY_DEFAULT_PINNED_PATHS, 'ideas.md', LORE_TAB_PIN_KEY, 'setting/character-states.md', STORY_LEDGER_PIN_PATH]
+const CASEBOOK_INDEX_PATH = 'setting/case-index.md'
+const DEFAULT_PINNED_PATHS = [...LEGACY_DEFAULT_PINNED_PATHS, 'ideas.md', LORE_TAB_PIN_KEY, 'setting/character-states.md', STORY_LEDGER_PIN_PATH, CASEBOOK_INDEX_PATH]
 const CURRENT_CHAPTER_PLAN_PIN_KEY = '@current-chapter-plan'
 const HEADER_ACTION_TOOLTIP_DELAY_MS = DEFAULT_TOOLTIP_DELAY_MS
 
@@ -344,6 +345,7 @@ function discoverBookSettings({ tree, outline, ideas, chapterPlans, t }: {
     [LORE_TAB_PIN_KEY, { kind: 'lore', title: t('planning.loreSettings'), exists: true, pinKey: LORE_TAB_PIN_KEY, description: t('tab.loreTitle') }],
     ['setting/character-states.md', { kind: 'file', path: 'setting/character-states.md', title: t('planning.characterStates'), exists: existingPaths.has('setting/character-states.md') }],
     ['setting/story-ledger.md', { kind: 'file', path: 'setting/story-ledger.md', title: t('planning.storyLedger'), exists: existingPaths.has('setting/story-ledger.md') }],
+    [CASEBOOK_INDEX_PATH, { kind: 'file', path: CASEBOOK_INDEX_PATH, title: t('planning.casebook.title'), exists: existingPaths.has(CASEBOOK_INDEX_PATH) }],
   ])
   if (latestChapterPlan) {
     known.set(CURRENT_CHAPTER_PLAN_PIN_KEY, {
@@ -368,6 +370,8 @@ function isBookSettingPath(path: string, chapterPlanPaths: Set<string>) {
   return normalized.endsWith('.md')
     && !normalized.startsWith('chapters/')
     && !normalized.startsWith('interactive/')
+    && !normalized.startsWith('references/')
+    && !normalized.startsWith('setting/cases/')
     && !normalized.startsWith('.nova/')
     && !normalized.startsWith('.denova/')
     && !chapterPlanPaths.has(path)
@@ -406,6 +410,9 @@ export function readPinnedPaths(projectId: string) {
     if (parsed?.version === 3 && isStringArray(parsed.paths)) {
       return withStoryLedger(parsed.paths)
     }
+    if (parsed?.version === 4 && isStringArray(parsed.paths)) {
+      return withCasebook(withStoryLedger(parsed.paths))
+    }
     return DEFAULT_PINNED_PATHS
   } catch {
     return DEFAULT_PINNED_PATHS
@@ -432,6 +439,13 @@ function withStoryLedger(paths: string[]) {
   const loreIndex = paths.indexOf(LORE_TAB_PIN_KEY)
   const insertAt = loreIndex < 0 ? paths.length : loreIndex + 1
   return [...paths.slice(0, insertAt), STORY_LEDGER_PIN_PATH, ...paths.slice(insertAt)]
+}
+
+function withCasebook(paths: string[]) {
+  if (paths.includes(CASEBOOK_INDEX_PATH)) return paths
+  const ledgerIndex = paths.indexOf(STORY_LEDGER_PIN_PATH)
+  const insertAt = ledgerIndex < 0 ? paths.length : ledgerIndex + 1
+  return [...paths.slice(0, insertAt), CASEBOOK_INDEX_PATH, ...paths.slice(insertAt)]
 }
 
 function samePaths(left: string[], right: string[]) {

@@ -193,3 +193,28 @@ func TestWorkspaceContextBoundsRecentChapterAndGroupPaths(t *testing.T) {
 		}
 	}
 }
+
+func TestWorkspaceContextCaseIndexAddsPathWithoutReadingSources(t *testing.T) {
+	dir := t.TempDir()
+	state := NewState(dir)
+	if err := state.InitWorkspace(); err != nil {
+		t.Fatal(err)
+	}
+	if context := state.WorkspaceContext().Dynamic; strings.Contains(context, "case-index.md") {
+		t.Fatalf("empty case index unexpectedly appeared: %q", context)
+	}
+	if err := os.WriteFile(filepath.Join(state.SettingDir(), "case-index.md"), []byte("# 写法案例\n\n## 已收藏\n\n- c-one | 开篇 | 先写异常\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "references", "sources"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	quote := "来源中的原文不应该进入上下文索引"
+	if err := os.WriteFile(filepath.Join(dir, "references", "sources", "source.txt"), []byte(quote), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	context := state.WorkspaceContext().Dynamic
+	if !strings.Contains(context, `"setting/case-index.md"`) || strings.Contains(context, quote) || strings.Contains(context, "references/sources") {
+		t.Fatalf("case context leaked content: %q", context)
+	}
+}
