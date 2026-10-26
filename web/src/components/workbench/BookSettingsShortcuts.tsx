@@ -365,7 +365,7 @@ function discoverBookSettings({ tree, outline, ideas, chapterPlans, t }: {
   return [...known.values()]
 }
 
-function isBookSettingPath(path: string, chapterPlanPaths: Set<string>) {
+export function isBookSettingPath(path: string, chapterPlanPaths: Set<string>) {
   const normalized = path.toLocaleLowerCase()
   return normalized.endsWith('.md')
     && !normalized.startsWith('chapters/')
@@ -402,13 +402,13 @@ export function readPinnedPaths(projectId: string) {
       return parsed.paths
     }
     if (parsed?.version === 2 && isStringArray(parsed.paths)) {
-      return withStoryLedger(withLoreTab(parsed.paths))
+      return withCasebook(withStoryLedger(withLoreTab(parsed.paths)))
     }
     if (isStringArray(parsed)) {
-      return samePaths(parsed, LEGACY_DEFAULT_PINNED_PATHS) ? DEFAULT_PINNED_PATHS : withStoryLedger(withLoreTab(parsed))
+      return samePaths(parsed, LEGACY_DEFAULT_PINNED_PATHS) ? DEFAULT_PINNED_PATHS : withCasebook(withStoryLedger(withLoreTab(parsed)))
     }
     if (parsed?.version === 3 && isStringArray(parsed.paths)) {
-      return withStoryLedger(parsed.paths)
+      return withCasebook(withStoryLedger(parsed.paths))
     }
     if (parsed?.version === 4 && isStringArray(parsed.paths)) {
       return withCasebook(withStoryLedger(parsed.paths))

@@ -23,9 +23,12 @@ const (
 	CaseQuoteMissing      = "case_quote_missing"
 	CaseQuoteAmbiguous    = "case_quote_ambiguous"
 	CaseQuoteTooLong      = "case_quote_too_long"
+	CaseQuoteEmpty        = "case_quote_empty"
 	CaseSourceMissing     = "case_source_missing"
 	CaseSourceOutsideBook = "case_source_outside_book"
 	CaseInvalid           = "case_invalid"
+	CaseIssueMissing      = "case_file_missing"
+	CaseIssueInvalid      = "case_format_invalid"
 )
 
 // Error is a stable, localizable error returned by case actions.
@@ -60,6 +63,8 @@ type CaseDocument struct {
 	bookcase.Case
 	SourceExists bool   `json:"source_exists"`
 	Revision     string `json:"revision"`
+	Registered   bool   `json:"registered"`
+	Issue        string `json:"issue,omitempty"`
 }
 
 type IndexSnapshot struct {
@@ -96,23 +101,52 @@ func (service *Service) List(ctx context.Context, projectID string) (Snapshot, e
 	if err != nil {
 		return Snapshot{}, err
 	}
-	if !index.Found {
-		return Snapshot{Entries: []bookcase.IndexEntry{}, Cases: []CaseDocument{}}, nil
+	entries := []bookcase.IndexEntry{}
+	if index.Found {
+		entries = bookcase.ParseIndexMarkdown(index.Document.Content)
 	}
-	entries := bookcase.ParseIndexMarkdown(index.Document.Content)
 	cases := make([]CaseDocument, 0, len(entries))
+	indexed := make(map[string]struct{}, len(entries))
 	for _, entry := range entries {
+		indexed[entry.ID] = struct{}{}
 		path := bookcase.CaseDirectory + entry.ID + ".md"
 		document, readErr := files.ReadFile(ctx, projectID, path)
 		if readErr != nil {
 			// Keep the index row visible when a case file is missing; the UI can
 			// show an actionable broken-entry state instead of dropping it.
-			cases = append(cases, CaseDocument{Case: bookcase.Case{ID: entry.ID, Status: entry.Status, Direction: entry.Direction, Method: entry.Method, Path: path}, Revision: "missing"})
+			cases = append(cases, CaseDocument{Case: bookcase.Case{ID: entry.ID, Status: entry.Status, Direction: entry.Direction, Method: entry.Method, Path: path}, Registered: true, Issue: CaseIssueMissing})
 			continue
 		}
 		parsed, parseErr := bookcase.ParseCaseMarkdown(document.Content)
 		if parseErr != nil {
-			cases = append(cases, CaseDocument{Case: bookcase.Case{ID: entry.ID, Status: entry.Status, Path: path}, Revision: document.Revision})
+			cases = append(cases, CaseDocument{Case: bookcase.Case{ID: entry.ID, Status: entry.Status, Path: path}, Registered: true, Issue: CaseIssueInvalid})
+			continue
+		}
+		parsed.Path = path
+		parsed.Revision = document.Revision
+		sourceExists := false
+		if parsed.Source != "" {
+			if sourceDoc, sourceErr := files.ReadFile(ctx, projectID, parsed.Source); sourceErr == nil && sourceDoc.Kind == projectfiles.DocumentText {
+				sourceExists = true
+			}
+		}
+		cases = append(cases, CaseDocument{Case: parsed, SourceExists: sourceExists, Revision: document.Revision, Registered: true})
+	}
+	// A case file can be created before its compact index row. Resolve the
+	// directory so authors can still inspect and collect that orphan case.
+	for _, path := range service.casePaths(ctx, files, projectID) {
+		id := strings.TrimSuffix(strings.TrimPrefix(path, bookcase.CaseDirectory), ".md")
+		if _, ok := indexed[id]; ok {
+			continue
+		}
+		document, readErr := files.ReadFile(ctx, projectID, path)
+		if readErr != nil {
+			cases = append(cases, CaseDocument{Case: bookcase.Case{ID: id, Path: path}, Issue: CaseIssueInvalid})
+			continue
+		}
+		parsed, parseErr := bookcase.ParseCaseMarkdown(document.Content)
+		if parseErr != nil {
+			cases = append(cases, CaseDocument{Case: bookcase.Case{ID: id, Path: path}, Issue: CaseIssueInvalid})
 			continue
 		}
 		parsed.Path = path
@@ -173,7 +207,10 @@ func (service *Service) Toggle(ctx context.Context, projectID string, request To
 		return ToggleResult{}, errCode(CaseRevisionConflict, fmt.Errorf("case revision changed"))
 	}
 	indexRevision := strings.TrimSpace(request.IndexRevision)
-	if indexRevision != "" && indexRevision != index.Document.Revision {
+	if indexRevision == "" {
+		return ToggleResult{}, errCode(CaseRevisionConflict, errors.New("case index revision is required"))
+	}
+	if indexRevision != index.Document.Revision {
 		return ToggleResult{}, errCode(CaseRevisionConflict, errors.New("case index revision changed"))
 	}
 
@@ -181,7 +218,7 @@ func (service *Service) Toggle(ctx context.Context, projectID string, request To
 	quoteLocation := 0
 	if request.Collected {
 		targetStatus = bookcase.StatusCollected
-		if !strings.HasPrefix(parsed.Source, "references/sources/") || strings.Contains(parsed.Source, "..") || strings.Contains(parsed.Source, `\\`) {
+		if !isSourcePathInsideBook(parsed.Source) {
 			return ToggleResult{}, errCode(CaseSourceOutsideBook, errors.New("case source must be under references/sources"))
 		}
 		source, sourceErr := files.ReadFile(ctx, projectID, parsed.Source)
@@ -193,12 +230,9 @@ func (service *Service) Toggle(ctx context.Context, projectID string, request To
 		}
 		location, locateErr := bookcase.QuoteLocatedWithContext(source.Content, parsed.Quote, parsed.Prefix, parsed.Suffix)
 		if locateErr != nil {
-			code := CaseQuoteMissing
-			if strings.Contains(locateErr.Error(), "multiple") {
-				code = CaseQuoteAmbiguous
-			}
-			if strings.Contains(locateErr.Error(), "exceeds") {
-				code = CaseQuoteTooLong
+			code := quoteErrorCode(locateErr)
+			if code == "" {
+				code = CaseQuoteMissing
 			}
 			return ToggleResult{}, errCode(code, locateErr)
 		}
@@ -209,6 +243,9 @@ func (service *Service) Toggle(ctx context.Context, projectID string, request To
 		return ToggleResult{}, errCode(CaseInvalid, err)
 	}
 	indexContent, err := bookcase.PatchIndexStatus(index.Document.Content, id, targetStatus)
+	if err != nil && !bookcase.IndexHasEntry(index.Document.Content, id) && request.Collected {
+		indexContent, err = bookcase.EnsureIndexEntry(index.Document.Content, id, parsed.Direction, parsed.Method, targetStatus)
+	}
 	if err != nil {
 		return ToggleResult{}, errCode(CaseInvalid, err)
 	}
@@ -231,7 +268,7 @@ func (service *Service) Toggle(ctx context.Context, projectID string, request To
 	}
 	updated.Path = path
 	updated.Revision = caseSaved.Revision
-	return ToggleResult{Case: CaseDocument{Case: updated, Revision: caseSaved.Revision, SourceExists: true}, Index: IndexSnapshot{Content: indexContent, Revision: indexSaved.Revision}, Collected: request.Collected}, nil
+	return ToggleResult{Case: CaseDocument{Case: updated, Revision: caseSaved.Revision, SourceExists: true, Registered: true}, Index: IndexSnapshot{Content: indexContent, Revision: indexSaved.Revision}, Collected: request.Collected}, nil
 }
 
 func rollbackCase(ctx context.Context, files *projectfiles.Service, projectID, path, revision, content string) error {
@@ -272,12 +309,63 @@ func normalizeCasePath(input string) (string, string, error) {
 	if input == "" {
 		return "", "", errors.New("case path is required")
 	}
-	if filepath.IsAbs(input) || !strings.HasPrefix(input, bookcase.CaseDirectory) || !strings.HasSuffix(strings.ToLower(input), ".md") {
+	if filepath.IsAbs(input) || filepath.VolumeName(input) != "" || !strings.HasPrefix(input, bookcase.CaseDirectory) || !strings.HasSuffix(strings.ToLower(input), ".md") {
 		return "", "", errors.New("case path must be a Markdown file under setting/cases")
 	}
 	id := strings.TrimSuffix(strings.TrimPrefix(input, bookcase.CaseDirectory), ".md")
-	if id == "" || strings.Contains(id, "/") || id == "." || id == ".." {
+	if id == "" || strings.Contains(id, "/") || id == "." || id == ".." || hasParentPathSegment(input) {
 		return "", "", errors.New("case path contains an invalid id")
 	}
 	return bookcase.CaseDirectory + id + ".md", id, nil
+}
+
+func (service *Service) casePaths(ctx context.Context, files *projectfiles.Service, projectID string) []string {
+	response, err := files.ResolveTree(ctx, projectID, projectfiles.TreeResolveRequest{
+		Targets:     []projectfiles.TreeResolveTarget{{Path: strings.TrimSuffix(bookcase.CaseDirectory, "/")}},
+		EntryBudget: 100_000,
+	})
+	if err != nil || len(response.Results) == 0 || !response.Results[0].OK {
+		return nil
+	}
+	paths := make([]string, 0)
+	for _, directory := range response.Results[0].Directories {
+		for _, entry := range directory.Entries {
+			if entry.Type == projectfiles.EntryFile && strings.HasPrefix(entry.Path, bookcase.CaseDirectory) && strings.HasSuffix(strings.ToLower(entry.Path), ".md") {
+				paths = append(paths, entry.Path)
+			}
+		}
+	}
+	return paths
+}
+
+func hasParentPathSegment(value string) bool {
+	for _, segment := range strings.Split(value, "/") {
+		if segment == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+func isSourcePathInsideBook(value string) bool {
+	value = strings.TrimSpace(strings.ReplaceAll(value, `\`, "/"))
+	if value == "" || filepath.IsAbs(value) || filepath.VolumeName(value) != "" || !strings.HasPrefix(value, "references/sources/") {
+		return false
+	}
+	return !hasParentPathSegment(value)
+}
+
+func quoteErrorCode(err error) string {
+	switch bookcase.QuoteErrorCode(err) {
+	case bookcase.QuoteErrorEmpty:
+		return CaseQuoteEmpty
+	case bookcase.QuoteErrorAmbiguous:
+		return CaseQuoteAmbiguous
+	case bookcase.QuoteErrorTooLong:
+		return CaseQuoteTooLong
+	case bookcase.QuoteErrorMissing:
+		return CaseQuoteMissing
+	default:
+		return ""
+	}
 }

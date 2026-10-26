@@ -72,7 +72,7 @@ func writeCasebookError(c *app.RequestContext, err error) {
 		status = consts.StatusNotFound
 	case casebookapp.CaseRevisionConflict:
 		status = consts.StatusConflict
-	case casebookapp.CaseInvalid, casebookapp.CaseSourceOutsideBook, casebookapp.CaseQuoteMissing, casebookapp.CaseQuoteAmbiguous, casebookapp.CaseQuoteTooLong:
+	case casebookapp.CaseInvalid, casebookapp.CaseSourceOutsideBook, casebookapp.CaseQuoteMissing, casebookapp.CaseQuoteAmbiguous, casebookapp.CaseQuoteTooLong, casebookapp.CaseQuoteEmpty:
 		status = consts.StatusBadRequest
 	default:
 		status = consts.StatusInternalServerError
@@ -91,6 +91,8 @@ func writeCasebookError(c *app.RequestContext, err error) {
 		key = "api.casebook.quoteAmbiguous"
 	case casebookapp.CaseQuoteTooLong:
 		key = "api.casebook.quoteTooLong"
+	case casebookapp.CaseQuoteEmpty:
+		key = "api.casebook.quoteEmpty"
 	case casebookapp.CaseSourceMissing:
 		key = "api.casebook.sourceMissing"
 	case casebookapp.CaseSourceOutsideBook:

@@ -18,7 +18,7 @@ interface CasebookViewProps {
 type Filter = 'all' | 'collected' | 'pending'
 
 export function CasebookView({ projectId, path, onSelectFile, rawEditor }: CasebookViewProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [cases, setCases] = useState<CaseEntry[]>([])
   const [indexRevision, setIndexRevision] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
@@ -27,19 +27,20 @@ export function CasebookView({ projectId, path, onSelectFile, rawEditor }: Caseb
   const [loading, setLoading] = useState(true)
   const [savingID, setSavingID] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [actionErrors, setActionErrors] = useState<Record<string, string>>({})
   const [raw, setRaw] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const reload = async () => {
-    setLoading(true)
+  const reload = async ({ showLoading = true, preserveError = false }: { showLoading?: boolean; preserveError?: boolean } = {}) => {
+    if (showLoading) setLoading(true)
     try {
       const snapshot = await getCasebook(projectId)
       setCases(snapshot.cases)
       setIndexRevision(snapshot.index.revision)
-      setError('')
+      if (!preserveError) setError('')
     } catch (cause) {
       console.error('[CasebookView.tsx] failed to load casebook', { projectId, cause })
-      setError(t('planning.casebook.loadFailed'))
+      if (!preserveError) setError(t('planning.casebook.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -54,9 +55,10 @@ export function CasebookView({ projectId, path, onSelectFile, rawEditor }: Caseb
   }), [cases, direction, filter])
 
   const toggle = async (item: CaseEntry) => {
-    if (!item.path || !item.revision || savingID) return
+    if (!item.path || !item.revision || item.issue || savingID) return
     setSavingID(item.id)
     setError('')
+    setActionErrors((current) => { const next = { ...current }; delete next[item.id]; return next })
     try {
       const response = await toggleCasebookCase(projectId, {
         path: item.path,
@@ -68,8 +70,8 @@ export function CasebookView({ projectId, path, onSelectFile, rawEditor }: Caseb
       setCases((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, ...response.case, revision: response.case.revision } : candidate))
     } catch (cause) {
       console.error('[CasebookView.tsx] failed to toggle case status', { projectId, caseID: item.id, cause })
-      setError(localizeCasebookError(cause, t))
-      await reload()
+      setActionErrors((current) => ({ ...current, [item.id]: localizeCasebookError(cause, t) }))
+      await reload({ showLoading: false, preserveError: true })
     } finally {
       setSavingID(null)
     }
@@ -82,6 +84,7 @@ export function CasebookView({ projectId, path, onSelectFile, rawEditor }: Caseb
       scenario: t('planning.casebook.scenario'),
       method: t('planning.casebook.method'),
       avoid: t('planning.casebook.avoid'),
+      separator: i18n.language.toLocaleLowerCase().startsWith('en') ? ':' : '：',
     })
     if (!prompt) return
     window.dispatchEvent(new CustomEvent(WRITING_AGENT_INIT_EVENT, { detail: { prompt, autoSend: false } }))
@@ -156,14 +159,23 @@ export function CasebookView({ projectId, path, onSelectFile, rawEditor }: Caseb
       </div>
       {error ? <div role="alert" className="mx-3 mt-2 rounded border border-[var(--nova-danger)]/40 bg-[var(--nova-danger-bg)] px-2.5 py-2 text-[11px] text-[var(--nova-danger)]">{error}</div> : null}
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        {loading ? <div className="flex items-center justify-center gap-2 py-12 text-xs text-[var(--nova-text-faint)]"><Loader2 className="h-4 w-4 animate-spin" />{t('planning.casebook.loading')}</div> : cases.length === 0 ? <EmptyCasebook onImport={() => inputRef.current?.click()} t={t} /> : visibleCases.length === 0 ? <div className="rounded border border-dashed border-[var(--nova-border)] px-3 py-8 text-center text-xs text-[var(--nova-text-faint)]">{t('planning.casebook.noMatches')}</div> : <div className="mx-auto max-w-4xl space-y-2">{visibleCases.map((item) => <CaseRow key={item.id} item={item} expanded={expandedID === item.id} saving={savingID === item.id} onToggle={() => setExpandedID(expandedID === item.id ? null : item.id)} onStatus={() => void toggle(item)} onBring={() => bringMethod(item)} onOpenSource={() => { if (item.source) void onSelectFile(item.source) }} t={t} />)}</div>}
+        {loading ? <div className="flex items-center justify-center gap-2 py-12 text-xs text-[var(--nova-text-faint)]"><Loader2 className="h-4 w-4 animate-spin" />{t('planning.casebook.loading')}</div> : cases.length === 0 ? <EmptyCasebook onImport={() => inputRef.current?.click()} t={t} /> : visibleCases.length === 0 ? <div className="rounded border border-dashed border-[var(--nova-border)] px-3 py-8 text-center text-xs text-[var(--nova-text-faint)]">{t('planning.casebook.noMatches')}</div> : <div className="mx-auto max-w-4xl space-y-2">{visibleCases.map((item) => <CaseRow key={item.id} item={item} expanded={expandedID === item.id} saving={savingID === item.id} error={actionErrors[item.id]} onToggle={() => setExpandedID(expandedID === item.id ? null : item.id)} onStatus={() => void toggle(item)} onBring={() => bringMethod(item)} onOpenSource={() => { if (item.source) void onSelectFile(item.source) }} t={t} />)}</div>}
       </div>
     </div>
   )
 }
 
-function CaseRow({ item, expanded, saving, onToggle, onStatus, onBring, onOpenSource, t }: { item: CaseEntry; expanded: boolean; saving: boolean; onToggle: () => void; onStatus: () => void; onBring: () => void; onOpenSource: () => void; t: (key: string, options?: Record<string, unknown>) => string }) {
-  return <div className="rounded border border-[var(--nova-border)] bg-[var(--nova-surface)]"><button type="button" className="flex w-full min-w-0 items-center gap-2 px-3 py-2.5 text-left" aria-expanded={expanded} onClick={onToggle}>{expanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" />}<span className="shrink-0 rounded bg-[var(--nova-surface-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--nova-text-muted)]">{item.id}</span><span className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--nova-text)]">{item.title || item.method || t('planning.casebook.untitled')}</span><span className="shrink-0 rounded border border-[var(--nova-border)] px-1.5 py-0.5 text-[10px] text-[var(--nova-text-muted)]">{item.status === '已收藏' ? t('planning.casebook.status.collected') : t('planning.casebook.status.pending')}</span></button>{expanded ? <div className="space-y-3 border-t border-[var(--nova-border)] px-3 py-3 text-xs"><dl className="grid min-w-0 gap-1.5 sm:grid-cols-2"><Field label={t('planning.casebook.direction')} value={item.direction} /><Field label={t('planning.casebook.scenario')} value={item.scenario} /><Field label={t('planning.casebook.method')} value={item.method} /><Field label={t('planning.casebook.avoid')} value={item.avoid} /></dl><div className="rounded bg-[var(--nova-surface-2)] p-2.5"><div className="text-[10px] text-[var(--nova-text-faint)]">{t('planning.casebook.excerpt')} · {item.location || '—'}</div><p className="mt-1 whitespace-pre-wrap break-words text-[var(--nova-text-muted)]">{item.quote || t('planning.casebook.noExcerpt')}</p></div>{item.source ? <div className="flex flex-wrap items-center gap-2 text-[10px] text-[var(--nova-text-faint)]"><span className={item.source_exists === false ? 'text-[var(--nova-warning)]' : ''}>{item.source}</span>{item.source_exists !== false ? <button type="button" className="text-[var(--nova-accent)] hover:underline" onClick={onOpenSource}>{t('planning.casebook.openSource')}</button> : <span>{t('planning.casebook.sourceMissing')}</span>}</div> : null}<div className="flex flex-wrap items-center gap-2"><Button type="button" size="sm" variant={item.status === '已收藏' ? 'outline' : 'default'} className="h-7 gap-1 text-[11px]" disabled={saving || !item.path || !item.revision} onClick={onStatus}>{saving ? <Loader2 className="h-3 w-3 animate-spin" /> : item.status === '已收藏' ? <RotateCcw className="h-3 w-3" /> : <Check className="h-3 w-3" />}{item.status === '已收藏' ? t('planning.casebook.unfavorite') : t('planning.casebook.favorite')}</Button><Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-[11px]" disabled={item.status !== '已收藏'} onClick={onBring}><MessageCircle className="h-3 w-3" />{t('planning.casebook.bringMethod')}</Button></div></div> : null}</div>
+function CaseRow({ item, expanded, saving, error, onToggle, onStatus, onBring, onOpenSource, t }: { item: CaseEntry; expanded: boolean; saving: boolean; error?: string; onToggle: () => void; onStatus: () => void; onBring: () => void; onOpenSource: () => void; t: (key: string, options?: Record<string, unknown>) => string }) {
+  const broken = Boolean(item.issue) || item.source_exists === false
+  const brokenLabel = item.issue === 'case_file_missing'
+    ? t('planning.casebook.fileMissing')
+    : item.issue === 'case_format_invalid'
+      ? t('planning.casebook.formatInvalid')
+      : t('planning.casebook.sourceMissing')
+  const badge = broken
+    ? brokenLabel
+    : !item.registered ? t('planning.casebook.unregistered') : item.status === '已收藏' ? t('planning.casebook.status.collected') : t('planning.casebook.status.pending')
+  return <div className="rounded border border-[var(--nova-border)] bg-[var(--nova-surface)]"><button type="button" className="flex w-full min-w-0 items-center gap-2 px-3 py-2.5 text-left" aria-expanded={expanded} onClick={onToggle}>{expanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-faint)]" />}<span className="shrink-0 rounded bg-[var(--nova-surface-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--nova-text-muted)]">{item.id}</span><span className="min-w-0 flex-1 truncate text-xs font-medium text-[var(--nova-text)]">{item.title || item.method || t('planning.casebook.untitled')}</span><span className="shrink-0 rounded border border-[var(--nova-border)] px-1.5 py-0.5 text-[10px] text-[var(--nova-text-muted)]">{badge}</span></button>{expanded ? <div className="space-y-3 border-t border-[var(--nova-border)] px-3 py-3 text-xs">{broken ? <div role="status" className="rounded bg-[var(--nova-warning-bg)] px-2.5 py-2 text-[var(--nova-warning)]">{brokenLabel}</div> : null}<dl className="grid min-w-0 gap-1.5 sm:grid-cols-2"><Field label={t('planning.casebook.direction')} value={item.direction} /><Field label={t('planning.casebook.scenario')} value={item.scenario} /><Field label={t('planning.casebook.method')} value={item.method} /><Field label={t('planning.casebook.avoid')} value={item.avoid} /></dl><div className="rounded bg-[var(--nova-surface-2)] p-2.5"><div className="text-[10px] text-[var(--nova-text-faint)]">{t('planning.casebook.excerpt')} · {item.location || '—'}</div><p className="mt-1 whitespace-pre-wrap break-words text-[var(--nova-text-muted)]">{item.quote || t('planning.casebook.noExcerpt')}</p></div>{item.source ? <div className="flex flex-wrap items-center gap-2 text-[10px] text-[var(--nova-text-faint)]"><span className={item.source_exists === false ? 'text-[var(--nova-warning)]' : ''}>{item.source}</span>{item.source_exists !== false ? <button type="button" className="text-[var(--nova-accent)] hover:underline" onClick={onOpenSource}>{t('planning.casebook.openSource')}</button> : <span>{t('planning.casebook.sourceMissing')}</span>}</div> : null}{error ? <div role="alert" className="rounded bg-[var(--nova-danger-bg)] px-2.5 py-2 text-[var(--nova-danger)]">{error}</div> : null}<div className="flex flex-wrap items-center gap-2"><Button type="button" size="sm" variant={item.status === '已收藏' ? 'outline' : 'default'} className="h-7 gap-1 text-[11px]" disabled={saving || broken || !item.path || !item.revision} onClick={onStatus}>{saving ? <Loader2 className="h-3 w-3 animate-spin" /> : item.status === '已收藏' ? <RotateCcw className="h-3 w-3" /> : <Check className="h-3 w-3" />}{item.status === '已收藏' ? t('planning.casebook.unfavorite') : t('planning.casebook.favorite')}</Button><Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-[11px]" disabled={item.status !== '已收藏' || broken} onClick={onBring}><MessageCircle className="h-3 w-3" />{t('planning.casebook.bringMethod')}</Button></div></div> : null}</div>
 }
 
 function Field({ label, value }: { label: string; value?: string }) { return <div className="grid min-w-0 grid-cols-[auto,minmax(0,1fr)] gap-2"><dt className="text-[var(--nova-text-faint)]">{label}</dt><dd className="min-w-0 whitespace-pre-wrap break-words text-[var(--nova-text-muted)]">{value || '—'}</dd></div> }
@@ -183,6 +195,7 @@ function safeSourceName(name: string) {
 function localizeCasebookError(error: unknown, t: (key: string) => string) {
   if (!(error instanceof APIError)) return t('planning.casebook.actionFailed')
   switch (error.code) {
+    case 'case_quote_empty': return t('planning.casebook.error.quoteEmpty')
     case 'case_quote_missing': return t('planning.casebook.error.quoteMissing')
     case 'case_quote_ambiguous': return t('planning.casebook.error.quoteAmbiguous')
     case 'case_quote_too_long': return t('planning.casebook.error.quoteTooLong')

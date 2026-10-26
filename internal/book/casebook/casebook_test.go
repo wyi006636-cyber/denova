@@ -24,6 +24,33 @@ func TestParseCaseMarkdownRequiresExactCollectedStatus(t *testing.T) {
 	}
 }
 
+func TestParseAndPatchEnglishCaseKeepsEnglishLabels(t *testing.T) {
+	raw := "# c-opening Hook\r\n\r\n- Status: pending\r\n- Direction: opening\r\n- Use when: chapter start\r\n- Method: show the anomaly\r\n- Do not copy: source facts\r\n- Source: references/sources/example.txt\r\n- Quote: The light came on.\r\n"
+	parsed, err := ParseCaseMarkdown(raw)
+	if err != nil || parsed.Status != StatusPending || parsed.Direction != "opening" {
+		t.Fatalf("parsed = %#v, err=%v", parsed, err)
+	}
+	updated, err := PatchCaseStatus(raw, StatusCollected, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(updated, "- Status: collected\r\n") || !strings.Contains(updated, "- Location: line 4\r\n") || !strings.Contains(updated, "\r\n") {
+		t.Fatalf("English/CRLF patch = %q", updated)
+	}
+}
+
+func TestEnglishIndexSectionsAndOrphanEntry(t *testing.T) {
+	raw := "# Writing cases\n\n## Collected\n\n## Pending\n\n"
+	updated, err := EnsureIndexEntry(raw, "c-one", "opening", "show the anomaly", StatusCollected)
+	if err != nil || !strings.Contains(updated, "## Collected\n\n- c-one | opening | show the anomaly") {
+		t.Fatalf("updated index = %q, err=%v", updated, err)
+	}
+	entries := ParseIndexMarkdown(updated)
+	if len(entries) != 1 || entries[0].Status != StatusCollected {
+		t.Fatalf("entries = %#v", entries)
+	}
+}
+
 func TestQuoteLocatedUniqueAndLine(t *testing.T) {
 	location, err := QuoteLocated("第一行\n灯亮了。\n第三行", "灯亮了。")
 	if err != nil || location.Line != 2 {
@@ -42,8 +69,11 @@ func TestQuoteLocatedUniqueAndLine(t *testing.T) {
 	if _, err := QuoteLocated("短", strings.Repeat("字", MaxQuoteRunes+1)); err == nil {
 		t.Fatal("long quote must fail")
 	}
-	if _, err := QuoteLocated("短", "  "); err == nil {
+	if _, err := QuoteLocated("短", "  "); err == nil || QuoteErrorCode(err) != QuoteErrorEmpty {
 		t.Fatal("empty quote must fail")
+	}
+	if _, err := QuoteLocated("相同\n相同", "相同"); err == nil || QuoteErrorCode(err) != QuoteErrorAmbiguous {
+		t.Fatal("ambiguous quote must have a stable code")
 	}
 }
 

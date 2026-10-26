@@ -19,6 +19,8 @@ export interface CaseEntry {
   path?: string
   revision?: string
   source_exists?: boolean
+  registered?: boolean
+  issue?: string
 }
 
 export interface CaseIndexEntry {

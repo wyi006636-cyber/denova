@@ -16,4 +16,15 @@ describe('caseMethodPrompt', () => {
   it('returns empty text for pending cases', () => {
     expect(caseMethodPrompt({ status: '待确认', direction: '开篇', scenario: '', method: '待确认', avoid: '' }, labels)).toBe('')
   })
+
+  it('uses an ASCII separator for the English interface', () => {
+    expect(caseMethodPrompt({
+      status: '已收藏', direction: 'opening', scenario: 'chapter start', method: 'show the anomaly', avoid: 'do not copy the source',
+    }, { direction: 'Direction', scenario: 'Use when', method: 'Method', avoid: 'Do not copy', separator: ':' })).toBe([
+      'Direction: opening',
+      'Use when: chapter start',
+      'Method: show the anomaly',
+      'Do not copy: do not copy the source',
+    ].join('\n'))
+  })
 })
