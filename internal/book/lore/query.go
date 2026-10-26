@@ -44,6 +44,7 @@ func (s *Store) Query(options QueryOptions) (QueryResult, error) {
 		if err != nil {
 			return result, err
 		}
+		read.Items = VisibleItems(read.Items, options.Cursor, options.Scope)
 		result.Missing = read.Missing
 		result.Total = len(read.Items)
 		start := min(options.Offset, result.Total)

@@ -154,6 +154,7 @@ func (s *InteractiveAppService) prepareInteractiveAgentCycle(ctx context.Context
 	ruleChecksEnabled := !storyRuntime.ModuleRefs.RuleSystemDisabled && len(storyRuntime.TRPGSystem.RuleTemplates) > 0
 	cycle.request = agentchat.ChatRequest{
 		CommandID: request.CommandID, Message: strings.TrimSpace(request.Message), ResumeInterruptionID: strings.TrimSpace(request.ResumeInterruptionID),
+		LoreAsOf:      storyContext.Meta.LoreAsOf,
 		StyleScenes:   append([]string(nil), request.StyleScenes...),
 		AttachmentIDs: append([]string(nil), request.AttachmentIDs...),
 		AttachedFiles: append([]agentschema.Attachment(nil), request.AttachedFiles...),

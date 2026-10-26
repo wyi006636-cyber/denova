@@ -1,6 +1,7 @@
 package lore
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -61,5 +62,56 @@ func TestHealthBoundsChapterAndIssueResults(t *testing.T) {
 	}
 	if report.ChaptersTotal != 3 || report.ChaptersScanned != 1 || !report.ResultsTruncated || len(report.BrokenReferences) != 1 {
 		t.Fatalf("health bounds not applied: %#v", report)
+	}
+}
+
+func TestHealthFindsLoreValidityRangeProblems(t *testing.T) {
+	workspace := t.TempDir()
+	store := NewStore(workspace)
+	if _, err := store.Create(ItemInput{
+		Name: "Secret", Content: "", Spans: []Span{
+			{ID: "bad-prefix", From: "chapter-30", Content: "bad"},
+			{ID: "reversed", From: "ch00030", Until: "ch00020", Content: "reversed"},
+			{ID: "missing", From: "ch00099", Content: "missing"},
+		},
+	}); err == nil {
+		// Persistence rejects malformed ranges by design. Seed the fixture
+		// directly so Health can still diagnose imported or hand-edited files.
+		t.Fatal("expected malformed range persistence to fail")
+	}
+	path := filepath.Join(workspace, "setting", "lore", "items.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(Collection{Version: 4, Categories: DefaultCategories(), Items: []Item{{ID: "secret", Enabled: true, Type: "world", Name: "Secret", Importance: "important", Tags: []string{}, Keywords: []string{}, LoadMode: "auto", Spans: []Span{{ID: "bad-prefix", From: "chapter-30", Content: "bad"}, {ID: "reversed", From: "ch00030", Until: "ch00020", Content: "reversed"}, {ID: "missing", From: "ch00099", Content: "missing"}}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := append(raw, '\n')
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	chapterDir := filepath.Join(workspace, "chapters")
+	if err := os.MkdirAll(chapterDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(chapterDir, "ch00020.md"), []byte("chapter"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report, err := store.Health(10, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.ValidityRanges) != 4 {
+		t.Fatalf("validity issues = %#v", report.ValidityRanges)
+	}
+	keys := map[string]bool{}
+	for _, issue := range report.ValidityRanges {
+		keys[issue.DetailKey] = true
+	}
+	for _, key := range []string{"lore.health.detail.range.invalid_prefix", "lore.health.detail.range.reversed", "lore.health.detail.range.unmatched"} {
+		if !keys[key] {
+			t.Fatalf("missing detail key %q in %#v", key, report.ValidityRanges)
+		}
 	}
 }

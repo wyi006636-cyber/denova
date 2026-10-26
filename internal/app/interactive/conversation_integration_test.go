@@ -268,6 +268,48 @@ func TestInteractiveConversationBuildsHistoryAndPersistsAssistantToStory(t *test
 	}
 }
 
+func TestInteractiveConversationFiltersLoreSpansByStoryChapterCursor(t *testing.T) {
+	workspace := t.TempDir()
+	loreStore := lore.NewStore(workspace)
+	if _, err := loreStore.Create(lore.ItemInput{
+		ID: "secret", Type: "world", Name: "秘密设定",
+		Spans: []lore.Span{{ID: "later", From: "ch00030", Content: "第三十章后才成立。"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	storyStore := interactive.NewStore(workspace)
+	story, err := storyStore.CreateStory(interactive.CreateStoryRequest{
+		Title: "按章过滤", LoreAsOf: "ch00030", StoryTellerID: "classic", ReplyTargetChars: 800,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	conversation := NewConversation(storyStore, t.TempDir(), workspace, story.ID, "", "查看设定", story.ReplyTargetChars, nil)
+	assembled, err := conversation.AssembleModelContext(context.Background(), "查看设定", agentcontext.ModelContextInput{
+		UserMessage: "查看设定", Budget: conversation.ModelContextBudget(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(finalInteractiveUserContent(assembled.Messages), "第三十章后才成立") {
+		t.Fatalf("story cursor should inject visible lore span: %s", finalInteractiveUserContent(assembled.Messages))
+	}
+	for _, fragment := range assembled.Context.Fragments {
+		if fragment.Source == "interactive.resident_lore" && strings.Contains(fragment.Content, "第三十章后才成立") {
+			t.Fatalf("chapter span leaked into stable lore index: %#v", fragment)
+		}
+	}
+}
+
+func finalInteractiveUserContent(messages []*agentschema.Message) string {
+	for index := len(messages) - 1; index >= 0; index-- {
+		if messages[index] != nil && messages[index].Role == agentschema.User {
+			return messages[index].Content
+		}
+	}
+	return ""
+}
+
 func TestInteractiveOpeningRequiresAutomaticProtagonistSelectionBeforeTurnSubmission(t *testing.T) {
 	store := interactive.NewStore(t.TempDir())
 	story, err := store.CreateStory(interactive.CreateStoryRequest{Title: "雾港"})

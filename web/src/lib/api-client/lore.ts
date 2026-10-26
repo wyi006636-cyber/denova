@@ -34,6 +34,7 @@ export interface LoreHealthReport {
   empty_items: LoreHealthIssue[]
   broken_references: LoreHealthIssue[]
   unused_items: LoreHealthIssue[]
+  validity_ranges: LoreHealthIssue[]
   chapters_scanned: number
   chapters_total: number
   issues_total: number
@@ -55,6 +56,7 @@ export async function getLoreHealth(projectId: string, options: { chapterLimit?:
     empty_items: response.report?.empty_items || [],
     broken_references: response.report?.broken_references || [],
     unused_items: response.report?.unused_items || [],
+    validity_ranges: response.report?.validity_ranges || [],
   }
 }
 

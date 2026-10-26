@@ -10,6 +10,7 @@ import (
 	"denova/config"
 	"denova/internal/agents/decision"
 	"denova/internal/agents/modeltask"
+	"denova/internal/book/lore"
 	"denova/internal/interactive"
 )
 
@@ -27,7 +28,13 @@ func (c *Conversation) selectTurnPresentation(ctx context.Context, narrative str
 	if !settings.Background && !settings.Characters && !settings.Ambient {
 		return base, nil, nil
 	}
-	items, err := loadPresentationCatalog(c.workspace, settings, base, plan, narrative)
+	visibility := lore.SpanVisibility{}
+	c.mu.Lock()
+	if c.cycleStoryConfig != nil {
+		visibility.Cursor = c.cycleStoryConfig.LoreAsOf
+	}
+	c.mu.Unlock()
+	items, err := loadPresentationCatalog(c.workspace, settings, base, plan, narrative, visibility)
 	if err != nil {
 		return base, nil, err
 	}

@@ -8,6 +8,7 @@ import (
 
 	"denova/config"
 	"denova/internal/agents/conversationconfig"
+	"denova/internal/book/lore"
 )
 
 const (
@@ -229,8 +230,12 @@ func mapToStoryEventRecord(raw map[string]any) (StoryEventRecord, error) {
 	}
 	if envelope.Type == StoryEventTypeTurnAbandoned {
 		var abandoned TurnAbandonedEvent
-		if err := mapToStruct(raw, &abandoned); err != nil { return StoryEventRecord{}, err }
-		if err := validateTurnAbandonedEvent(abandoned); err != nil { return StoryEventRecord{}, err }
+		if err := mapToStruct(raw, &abandoned); err != nil {
+			return StoryEventRecord{}, err
+		}
+		if err := validateTurnAbandonedEvent(abandoned); err != nil {
+			return StoryEventRecord{}, err
+		}
 	}
 	if envelope.Type == StoryEventTypeBranchPlanUpdated || envelope.Type == StoryEventTypeBranchPlanRevised {
 		var event BranchPlanUpdatedEvent
@@ -316,6 +321,11 @@ func validateStoryMeta(meta StoryMeta) error {
 	}
 	if len(meta.Branches) == 0 {
 		return fmt.Errorf("故事元信息缺少 branches")
+	}
+	if strings.TrimSpace(meta.LoreAsOf) != "" {
+		if _, ok := lore.NormalizeChapterPrefix(meta.LoreAsOf); !ok {
+			return fmt.Errorf("story lore_as_of must be a ch##### chapter prefix")
+		}
 	}
 	for branchID, branch := range meta.Branches {
 		if branch.RuntimeConfig == nil {

@@ -132,7 +132,7 @@ func (s *ChatAppService) startTaskWithError(ctx context.Context, expectedSession
 		return nil, err
 	}
 	systemPrompt := executor.Composition
-	runtimeContexts := prompts.IDEWorkspaceRuntimeContextsForContext(runtime.state, req.IDEContext)
+	runtimeContexts := prompts.IDEWorkspaceRuntimeContextsForContextWithLore(runtime.state, req.IDEContext, req.LoreAsOf, req.LoreScope)
 	conversation := agentconversation.NewSessionConversationForAgentWithRuntimeContexts(
 		runtime.sess,
 		&runtime.cfg,

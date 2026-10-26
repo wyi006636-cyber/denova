@@ -13,6 +13,7 @@ import (
 	"denova/config"
 	"denova/internal/agents/conversationconfig"
 	"denova/internal/agents/conversationjournal"
+	"denova/internal/book/lore"
 	"denova/internal/style"
 )
 
@@ -103,6 +104,7 @@ func (s *Store) CreateStory(req CreateStoryRequest) (StorySummary, error) {
 		StoryTellerID:        strings.TrimSpace(req.StoryTellerID),
 		PlanningTemplateID:   NormalizeGamePlanningTemplateID(req.PlanningTemplateID),
 		PlanningMode:         normalizeStoryPlanningMode(planningMode),
+		LoreAsOf:             strings.TrimSpace(req.LoreAsOf),
 		ModuleRefs:           cloneStoryDirectorModuleRefs(req.ModuleRefs),
 		ReplyTargetChars:     normalizeStoryReplyTargetChars(req.ReplyTargetChars),
 		ChoiceCount:          normalizeStoryChoiceCount(req.ChoiceCount),
@@ -118,6 +120,13 @@ func (s *Store) CreateStory(req CreateStoryRequest) (StorySummary, error) {
 	}
 	if err := validateStoryChoiceCount(story.ChoiceCount); err != nil {
 		return StorySummary{}, err
+	}
+	if story.LoreAsOf != "" {
+		prefix, ok := lore.NormalizeChapterPrefix(story.LoreAsOf)
+		if !ok {
+			return StorySummary{}, fmt.Errorf("story lore_as_of must be a ch##### chapter prefix")
+		}
+		story.LoreAsOf = prefix
 	}
 	if story.StoryTellerID == "" {
 		story.StoryTellerID = style.DefaultID
@@ -142,6 +151,7 @@ func (s *Store) CreateStory(req CreateStoryRequest) (StorySummary, error) {
 		StoryTellerID:        story.StoryTellerID,
 		PlanningTemplateID:   story.PlanningTemplateID,
 		PlanningMode:         story.PlanningMode,
+		LoreAsOf:             story.LoreAsOf,
 		ModuleRefs:           cloneStoryDirectorModuleRefs(story.ModuleRefs),
 		ReplyTargetChars:     story.ReplyTargetChars,
 		ChoiceCount:          story.ChoiceCount,
@@ -330,6 +340,14 @@ func (s *Store) UpdateStory(storyID string, req UpdateStoryRequest) (StorySummar
 		}
 		meta.PlanningMode = mode
 	}
+	if req.LoreAsOf != nil {
+		meta.LoreAsOf = strings.TrimSpace(*req.LoreAsOf)
+		if meta.LoreAsOf != "" {
+			if _, ok := lore.NormalizeChapterPrefix(meta.LoreAsOf); !ok {
+				return StorySummary{}, fmt.Errorf("story lore_as_of must be a ch##### chapter prefix")
+			}
+		}
+	}
 	if req.ReplyTargetChars != nil {
 		if *req.ReplyTargetChars <= 0 {
 			return StorySummary{}, fmt.Errorf("互动故事单轮目标字数必须大于 0")
@@ -469,6 +487,9 @@ func storyConfigUpdatedFields(req UpdateStoryRequest) []string {
 	}
 	if req.PlanningMode != nil {
 		fields = append(fields, "planning_mode")
+	}
+	if req.LoreAsOf != nil {
+		fields = append(fields, "lore_as_of")
 	}
 	if req.ModuleRefs != nil {
 		fields = append(fields, "module_refs")

@@ -98,7 +98,7 @@ func projectTurnContextFragments(input turnContextProjectionInput) []agentcontex
 		appendFragment(fragment)
 	}
 	fragments = append(fragments, projectReferenceFragments(input.BookService, req.References, input.Budget)...)
-	fragments = append(fragments, projectLoreReferenceFragments(input.BookService, req.LoreReferences)...)
+	fragments = append(fragments, projectLoreReferenceFragments(input.BookService, req.LoreReferences, loreVisibilityForRequest(req))...)
 	fragments = append(fragments, projectSelectionFragments(req.Selections)...)
 	if block, ok := req.ResolvedReviewFeedback.ModelContextBlock(); ok {
 		appendFragment(turnFragment(
@@ -202,7 +202,18 @@ func projectReferenceFragments(bookService *book.Service, references []string, b
 	return fragments
 }
 
-func projectLoreReferenceFragments(bookService *book.Service, references []string) []agentcontext.Fragment {
+func loreVisibilityForRequest(req ChatRequest) lore.SpanVisibility {
+	visibility := lore.SpanVisibility{
+		Cursor: lore.ExtractChapterPrefix(req.IDEContext.CurrentFile),
+		Scope:  req.LoreScope,
+	}
+	if visibility.Cursor == "" {
+		visibility.Cursor = req.LoreAsOf
+	}
+	return visibility
+}
+
+func projectLoreReferenceFragments(bookService *book.Service, references []string, visibility lore.SpanVisibility) []agentcontext.Fragment {
 	if len(references) == 0 {
 		return nil
 	}
@@ -216,6 +227,7 @@ func projectLoreReferenceFragments(bookService *book.Service, references []strin
 		if err != nil {
 			loadError = err
 		} else {
+			items = lore.VisibleItems(items, visibility.Cursor, visibility.Scope)
 			for _, item := range items {
 				itemsByID[item.ID] = item
 			}
@@ -230,7 +242,7 @@ func projectLoreReferenceFragments(bookService *book.Service, references []strin
 		}
 		seen[ref] = true
 		content := ""
-		title := "@Lore:" + ref
+		title := "Lore Reference"
 		note := "source=" + sourcePath + "; explicit structured lore reference"
 		if loadError != nil {
 			content = "Lore read failed: " + loadError.Error()
@@ -240,8 +252,10 @@ func projectLoreReferenceFragments(bookService *book.Service, references []strin
 			title = "@Lore:" + item.Name
 			note += "; id=" + item.ID
 		} else {
-			content = "Read failed: the lore item does not exist."
-			note += "; read_failed"
+			// A future-only item must be indistinguishable from an unavailable
+			// explicit reference at this cursor. Do not emit its name or body.
+			content = "Read failed: the lore item is not visible at the current chapter cursor."
+			note += "; not_visible"
 		}
 		fragment := turnFragment(
 			fmt.Sprintf("workspace_lore_reference_%d", index+1),

@@ -64,5 +64,20 @@ func ReferenceMarkdown(item Item) string {
 		sb.WriteString(content)
 		sb.WriteString("\n```\n")
 	}
+	for _, span := range item.Spans {
+		if strings.TrimSpace(span.Content) == "" {
+			continue
+		}
+		fmt.Fprintf(&sb, "\n### Chapter-scoped canon (%s", span.ID)
+		if strings.TrimSpace(span.From) != "" {
+			fmt.Fprintf(&sb, "; from=%s", span.From)
+		}
+		if strings.TrimSpace(span.Until) != "" {
+			fmt.Fprintf(&sb, "; until=%s", span.Until)
+		}
+		sb.WriteString(")\n\n```markdown\n")
+		sb.WriteString(strings.TrimSpace(span.Content))
+		sb.WriteString("\n```")
+	}
 	return strings.TrimSpace(sb.String())
 }

@@ -33,16 +33,17 @@ type writeLoreItemsInput struct {
 }
 
 type writeLoreItemInput struct {
-	ID               string   `json:"id,omitempty" jsonschema:"description=Lore ID. An update requires the exact existing ID; creation may omit it for automatic generation."`
-	Enabled          *bool    `json:"enabled,omitempty" jsonschema:"description=Whether the lore item is enabled. A disabled item remains stored but is excluded from the lore index, read tools, and model context. Omit when uncertain."`
-	Type             string   `json:"type,omitempty" jsonschema:"description=Exact category ID from the project catalog. Creation defaults to world, or the first non-character category if world was removed; omission during update retains the current value."`
-	Name             string   `json:"name,omitempty" jsonschema:"description=Lore name. Required for creation; omission during update retains the current value."`
-	Importance       string   `json:"importance,omitempty" jsonschema:"description=Importance: major, important, or minor. Creation defaults to important; omission during update retains the current value."`
-	Tags             []string `json:"tags,omitempty" jsonschema:"description=Tags. Omission during update retains the current value; an empty array clears it."`
-	BriefDescription string   `json:"brief_description,omitempty" jsonschema:"description=Index description. Start with type and name, then use 3-5 sentences for identity, aliases, key facts, use cases, and trigger terms. Omission on creation generates it from the body; omission on update retains the current value."`
-	Keywords         []string `json:"keywords,omitempty" jsonschema:"description=Aliases, keywords, or trigger terms. Omission during update retains the current value; an empty array clears it."`
-	LoadMode         string   `json:"load_mode,omitempty" jsonschema:"description=Load mode: resident, auto, or manual. Creation infers it automatically; omission during update retains the current value."`
-	Content          string   `json:"content,omitempty" jsonschema:"description=Markdown body for this entity or coherent topic only, in the author's language. Include its stable canon and relevant relationships; put other independently retrievable entities in separate items. Reference other entries with [[Exact Lore Name]] using their unique project-local names. References do not load target bodies automatically; read them by name when needed. Renaming an entry does not rewrite references, so update referring bodies when asked to rename consistently. On update this replaces the entire body: read the existing item first and preserve still-valid facts. Omission retains the current value. Put per-chapter current location, injuries, psychology, and goals in setting/character-states.md instead of lore."`
+	ID               string      `json:"id,omitempty" jsonschema:"description=Lore ID. An update requires the exact existing ID; creation may omit it for automatic generation."`
+	Enabled          *bool       `json:"enabled,omitempty" jsonschema:"description=Whether the lore item is enabled. A disabled item remains stored but is excluded from the lore index, read tools, and model context. Omit when uncertain."`
+	Type             string      `json:"type,omitempty" jsonschema:"description=Exact category ID from the project catalog. Creation defaults to world, or the first non-character category if world was removed; omission during update retains the current value."`
+	Name             string      `json:"name,omitempty" jsonschema:"description=Lore name. Required for creation; omission during update retains the current value."`
+	Importance       string      `json:"importance,omitempty" jsonschema:"description=Importance: major, important, or minor. Creation defaults to important; omission during update retains the current value."`
+	Tags             []string    `json:"tags,omitempty" jsonschema:"description=Tags. Omission during update retains the current value; an empty array clears it."`
+	BriefDescription string      `json:"brief_description,omitempty" jsonschema:"description=Index description. Start with type and name, then use 3-5 sentences for identity, aliases, key facts, use cases, and trigger terms. Omission on creation generates it from the body; omission on update retains the current value."`
+	Keywords         []string    `json:"keywords,omitempty" jsonschema:"description=Aliases, keywords, or trigger terms. Omission during update retains the current value; an empty array clears it."`
+	LoadMode         string      `json:"load_mode,omitempty" jsonschema:"description=Load mode: resident, auto, or manual. Creation infers it automatically; omission during update retains the current value."`
+	Content          string      `json:"content,omitempty" jsonschema:"description=Markdown body for this entity or coherent topic only, in the author's language. Include its stable canon and relevant relationships; put other independently retrievable entities in separate items. Reference other entries with [[Exact Lore Name]] using their unique project-local names. References do not load target bodies automatically; read them by name when needed. Renaming an entry does not rewrite references, so update referring bodies when asked to rename consistently. On update this replaces the entire body: read the existing item first and preserve still-valid facts. Omission retains the current value. Put per-chapter current location, injuries, psychology, and goals in setting/character-states.md instead of lore."`
+	Spans            []lore.Span `json:"spans,omitempty" jsonschema:"description=Optional chapter-scoped canon segments. Omission preserves existing segments on update; an explicit empty array clears them. Use ch##### anchors; from is inclusive and until is exclusive. These are established setting changes, not character state or plot plans."`
 }
 
 type loreToolsOptions struct {
@@ -84,9 +85,10 @@ func newLoreTools(workspace string, allowWrite bool, options ...loreToolsOptions
 		if err := validateQueryLoreItemsInput(input); err != nil {
 			return "", err
 		}
+		visibility := lore.SpanVisibilityFromContext(ctx)
 		store := lore.NewStore(workspace)
 		if !hasLoreQuerySelectors(input) {
-			return store.NameCatalogMarkdown(lore.NameCatalogOptions{Offset: input.Offset, MaxBytes: lore.IndexDefaultMaxBytes})
+			return store.NameCatalogMarkdown(lore.NameCatalogOptions{Offset: input.Offset, MaxBytes: lore.IndexDefaultMaxBytes, Cursor: visibility.Cursor, Scope: visibility.Scope})
 		}
 		if len(input.Types) > 0 {
 			categories, err := store.Categories()
@@ -104,6 +106,7 @@ func newLoreTools(workspace string, allowWrite bool, options ...loreToolsOptions
 			IndexOptions: lore.IndexOptions{
 				GroupNames: input.GroupNames, Keywords: input.Keywords, Match: input.Match,
 				Types: input.Types, LoadModes: input.LoadModes, Limit: input.Limit, Offset: input.Offset,
+				Cursor: visibility.Cursor, Scope: visibility.Scope,
 			},
 		})
 		if err != nil {
@@ -130,7 +133,7 @@ func newLoreTools(workspace string, allowWrite bool, options ...loreToolsOptions
 	if !allowWrite {
 		return tools, nil
 	}
-	writeTool, err := agenttool.InferTool("write_lore_items", "Batch-create, partially update, or delete lore items. Each item is one independently retrievable entity or coherent topic, such as a character, location, faction, item, or world rule. Organize library-wide updates into separate items in the same batch, not one omnibus entry. Keep related facts about the same entity together. Find matching existing items with query_lore_items and read their bodies before updating; reuse their exact IDs instead of creating duplicates. Creation requires at least name; updates send only changed fields, while omitted fields retain their values. A supplied content replaces the whole body, so preserve still-valid canon. The backend may generate brief_description on creation. Put post-chapter current location, injuries, psychology, goals, and possessions in setting/character-states.md instead of lore. Do not store chapter planning or future plot in lore.", func(ctx context.Context, input writeLoreItemsInput) (agentschema.ToolResult, error) {
+	writeTool, err := agenttool.InferTool("write_lore_items", "Batch-create, partially update, or delete lore items. Each item is one independently retrievable entity or coherent topic, such as a character, location, faction, item, or world rule. Organize library-wide updates into separate items in the same batch, not one omnibus entry. Keep related facts about the same entity together. Find matching existing items with query_lore_items and read their bodies before updating; reuse their exact IDs instead of creating duplicates. Creation requires at least name; updates send only changed fields, while omitted fields retain their values. The optional spans field records chapter-scoped canon with ch##### anchors; it describes established setting changes, not current character state or future plot plans. A supplied content replaces the whole body, so preserve still-valid canon. The backend may generate brief_description on creation. Put post-chapter current location, injuries, psychology, goals, and possessions in setting/character-states.md instead of lore. Do not store chapter planning or future plot in lore.", func(ctx context.Context, input writeLoreItemsInput) (agentschema.ToolResult, error) {
 		_ = ctx
 		if workspace == "" {
 			return agentschema.ToolResult{}, fmt.Errorf("cannot write lore because the current workspace is unavailable")
@@ -218,6 +221,7 @@ func formatLoreQueryResult(result lore.QueryResult, input queryLoreItemsInput) s
 	for _, item := range result.Items {
 		if !full {
 			item.Content = ""
+			item.Spans = nil
 		}
 		fmt.Fprintln(&sb, lore.ReferenceMarkdown(item))
 		fmt.Fprintln(&sb, loreMaterialSummaryMarkdown(item))
@@ -253,6 +257,7 @@ func buildWriteLoreOperations(store *lore.Store, input writeLoreItemsInput) ([]l
 			Keywords:         item.Keywords,
 			LoadMode:         item.LoadMode,
 			Content:          item.Content,
+			Spans:            item.Spans,
 		}
 		op := "create"
 		if item.ID != "" {
@@ -284,7 +289,7 @@ func buildWriteLoreOperations(store *lore.Store, input writeLoreItemsInput) ([]l
 func hasWriteLoreItemChanges(item writeLoreItemInput) bool {
 	return item.Enabled != nil || strings.TrimSpace(item.Type) != "" || strings.TrimSpace(item.Name) != "" ||
 		strings.TrimSpace(item.Importance) != "" || item.Tags != nil || strings.TrimSpace(item.BriefDescription) != "" ||
-		item.Keywords != nil || strings.TrimSpace(item.LoadMode) != "" || strings.TrimSpace(item.Content) != ""
+		item.Keywords != nil || strings.TrimSpace(item.LoadMode) != "" || strings.TrimSpace(item.Content) != "" || item.Spans != nil
 }
 
 func formatWriteLoreItemsResult(result lore.ApplyResult) string {

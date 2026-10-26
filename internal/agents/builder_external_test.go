@@ -2,6 +2,7 @@ package agents
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -135,6 +136,43 @@ func TestExternalCodexReadOnlyAssemblyOmitsDocumentReviewTool(t *testing.T) {
 			t.Fatal("Codex read-only external assembly exposed add_review_comments")
 		}
 	}
+}
+
+func TestExternalIDEAssemblyPublishesLoreSpanSchema(t *testing.T) {
+	runtime := config.RuntimeSelection{Kind: config.RuntimeClaude, Claude: &config.ClaudeRuntimeSettings{Model: "test-model"}}
+	cfg := &config.Config{
+		Workspace:          t.TempDir(),
+		DenovaDir:          t.TempDir(),
+		ProjectStoreDir:    t.TempDir(),
+		ActiveAgentRuntime: &runtime,
+		AgentTools:         config.DefaultAgentToolSettings(),
+	}
+	assembly, err := BuildExternalConversationAssembly(t.Context(), cfg, nil, prompts.IDEStoryTeller{}, config.AgentKindIDE, AgentHostCapabilities{Interactive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	definitions, err := assembly.PrepareTools(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, definition := range definitions {
+		info, err := definition.Tool.Info(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Name != "write_lore_items" {
+			continue
+		}
+		wire, err := json.Marshal(info)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(wire), "spans") {
+			t.Fatalf("external write_lore_items schema omitted spans: %s", wire)
+		}
+		return
+	}
+	t.Fatal("external IDE assembly did not expose write_lore_items")
 }
 
 type externalPluginToolset struct {

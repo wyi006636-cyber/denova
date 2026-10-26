@@ -83,6 +83,8 @@ interface AgentChatRequestBody {
     content: string
   }>
   ide_context?: { current_file?: string; open_files?: string[] }
+  lore_as_of?: string
+  lore_scope?: 'as_of' | 'book'
   plan_mode?: boolean
   writing_skill?: string
   image_preset_id?: string
@@ -222,6 +224,8 @@ export function buildAgentChatRequestBody(body: AgentChatRequestBody): AgentChat
     style_scenes: body.style_scenes || [],
     selections: body.selections || [],
     ide_context: body.ide_context,
+    lore_as_of: body.lore_as_of?.trim() || undefined,
+    lore_scope: body.lore_scope || undefined,
     page_context: body.page_context,
     plan_mode: body.plan_mode || false,
     writing_skill: body.writing_skill || undefined,

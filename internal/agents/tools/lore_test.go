@@ -230,3 +230,28 @@ func TestWriteLoreItemsKeepsBatchEntitiesSeparateDuringPartialUpdates(t *testing
 	}
 	t.Fatal("write_lore_items was not registered")
 }
+
+func TestWriteLoreItemsSchemaIncludesChapterSpans(t *testing.T) {
+	definitions, err := newLoreTools(t.TempDir(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, definition := range definitions {
+		info, err := definition.Tool.Info(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Name != "write_lore_items" {
+			continue
+		}
+		wire, err := json.Marshal(info)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(wire), "spans") || !strings.Contains(info.Desc, "chapter-scoped") {
+			t.Fatalf("write_lore_items schema/description omitted spans: %s", wire)
+		}
+		return
+	}
+	t.Fatal("write_lore_items was not registered")
+}

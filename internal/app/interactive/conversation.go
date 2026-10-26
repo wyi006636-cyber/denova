@@ -314,6 +314,7 @@ func applyCycleStoryConfig(target *interactive.StoryMeta, source interactive.Sto
 	target.PlanningTemplateID = source.PlanningTemplateID
 	target.StoryDirectorID = source.StoryDirectorID
 	target.PlanningMode = source.PlanningMode
+	target.LoreAsOf = source.LoreAsOf
 	target.ModuleRefs = source.ModuleRefs
 	target.ReplyTargetChars = source.ReplyTargetChars
 	target.ChoiceCount = source.ChoiceCount
@@ -510,7 +511,8 @@ func (c *Conversation) AssembleModelContext(ctx context.Context, originalMessage
 		activeBranchPlan = storyCtx.Snapshot.BranchPlan
 		branchPlan = storyCtx.Snapshot.BranchPlan.Markdown
 	}
-	loreRuntime, err := buildInteractiveStoryLoreContext(c.workspace, activeBranchPlan, input.UserMessage)
+	loreVisibility := lore.SpanVisibility{Cursor: storyCtx.Meta.LoreAsOf, Scope: lore.LoreScopeAsOf}
+	loreRuntime, err := buildInteractiveStoryLoreContext(c.workspace, activeBranchPlan, input.UserMessage, loreVisibility)
 	if err != nil {
 		return agentcontext.ModelContextResult{}, err
 	}
@@ -573,6 +575,20 @@ func (c *Conversation) AssembleModelContext(ctx context.Context, originalMessage
 			Note:      "source=setting/lore/items.json index guide and enabled items; lifecycle=replaceable stable prefix; revision=" + strings.TrimSpace(loreRevision),
 		})
 	}
+	if loreItems, listErr := loreStore.List(); listErr == nil {
+		spanContext, spanErr := lore.VisibleSpansMarkdown(loreItems, loreVisibility.Cursor, loreVisibility.Scope, lore.VisibleSpanContextMaxBytes)
+		if spanErr != nil {
+			return agentcontext.ModelContextResult{}, spanErr
+		}
+		if strings.TrimSpace(spanContext) != "" {
+			fragments = append(fragments, agentcontext.Fragment{
+				ID: "interactive_lore_as_of", Source: "interactive.lore.as_of", Title: "Chapter-scoped Lore for This Turn",
+				Purpose: "provide lore spans visible at the story's declared chapter cursor",
+				Content: spanContext, Placement: agentcontext.PlacementFinalUserPrefix, Limit: lore.VisibleSpanContextMaxBytes, Included: true,
+				Note: "source=setting/lore/items.json; scope=as_of; cursor=" + strings.TrimSpace(loreVisibility.Cursor),
+			})
+		}
+	}
 	if strings.TrimSpace(tellerTurnContextPrompt) != "" {
 		fragments = append(fragments, agentcontext.Fragment{
 			ID: "interactive_turn_rules", Source: "interactive.turn_rules", Title: "Storyteller Rules for This Turn",
@@ -603,7 +619,7 @@ func (c *Conversation) AssembleModelContext(ctx context.Context, originalMessage
 	}
 	presentationSource := interactiveContextSource{Source: "StageSelection", Title: "Turn Presentation", Purpose: "explain host-owned media selection", Content: "Stage media are selected automatically from the completed prose after submission. Do not select stage media.", Limit: presentationContextMaxBytes}
 	if !c.PresentationSelectedByHost() {
-		presentationSource = buildPresentationContext(c.workspace, storyCtx.Meta.PresentationSettings, snapshotPresentation(storyCtx.Snapshot, storyCtx.Meta.PresentationSettings), activeBranchPlan, input.UserMessage)
+		presentationSource = buildPresentationContext(c.workspace, storyCtx.Meta.PresentationSettings, snapshotPresentation(storyCtx.Snapshot, storyCtx.Meta.PresentationSettings), activeBranchPlan, input.UserMessage, loreVisibility)
 	}
 	fragments = append(fragments, agentcontext.Fragment{
 		ID: "interactive_presentation", Source: presentationSource.Source, Title: presentationSource.Title,

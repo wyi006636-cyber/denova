@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, FileWarning, HeartPulse } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, FileWarning, HeartPulse, Ruler } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { getLoreHealth, type LoreHealthIssue, type LoreHealthReport } from '@/lib/api-client/lore'
@@ -10,7 +10,7 @@ export function LoreHealthDialog({ projectId, open, onOpenChange, onOpenFile }: 
   const [report, setReport] = useState<LoreHealthReport | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ unused_items: true })
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({ unused_items: true, validity_ranges: false })
   useEffect(() => {
     if (!open) return
     let cancelled = false
@@ -28,6 +28,7 @@ export function LoreHealthDialog({ projectId, open, onOpenChange, onOpenFile }: 
     { key: 'empty_items', title: t('lore.health.empty'), icon: FileWarning, items: report.empty_items },
     { key: 'broken_references', title: t('lore.health.broken'), icon: AlertTriangle, items: report.broken_references },
     { key: 'unused_items', title: t('lore.health.unused'), icon: HeartPulse, items: report.unused_items },
+    { key: 'validity_ranges', title: t('lore.health.validity'), icon: Ruler, items: report.validity_ranges },
   ] : [], [report, t])
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -60,6 +61,10 @@ function HealthGroup({ title, icon: Icon, items, collapsed, onToggle, onOpenFile
     if (item.kind === 'empty_content') return t('lore.health.detail.empty')
     if (item.kind === 'broken_reference') return t('lore.health.detail.broken', { reference: item.reference })
     if (item.kind === 'unused_item') return t('lore.health.detail.unused')
+    if (item.detail_key === 'lore.health.detail.range.invalid_prefix' || item.kind === 'invalid_lore_range_prefix') return t('lore.health.detail.range.invalidPrefix', { field: item.detail || 'chapter' })
+    if (item.detail_key === 'lore.health.detail.range.unmatched' || item.kind === 'unmatched_lore_range_prefix') return t('lore.health.detail.range.unmatched', { prefix: item.reference })
+    if (item.detail_key === 'lore.health.detail.range.ambiguous' || item.kind === 'ambiguous_lore_range_prefix') return t('lore.health.detail.range.ambiguous', { prefix: item.reference })
+    if (item.detail_key === 'lore.health.detail.range.reversed' || item.kind === 'reversed_lore_range') return t('lore.health.detail.range.reversed')
     return t('lore.health.detail.unknown')
   }
   return (

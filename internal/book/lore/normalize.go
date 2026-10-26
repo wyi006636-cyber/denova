@@ -30,6 +30,7 @@ func normalizeLoreItem(item Item) Item {
 	item.Importance = normalizeLoreImportance(item.Importance)
 	item.LoadMode = normalizeLoreLoadMode(item.LoadMode, item.Importance)
 	item.Content = strings.TrimSpace(item.Content)
+	item.Spans = normalizeLoreSpans(item.Spans)
 	item.Tags = normalizeLoreTags(item.Tags)
 	item.Keywords = normalizeLoreKeywords(item.Keywords)
 	item.BriefDescription = strings.TrimSpace(item.BriefDescription)
@@ -39,6 +40,27 @@ func normalizeLoreItem(item Item) Item {
 	item.Image = normalizeLoreItemImage(item.Image)
 	item.Provenance = normalizeLoreProvenance(item.Provenance)
 	return item
+}
+
+func normalizeLoreSpans(spans []Span) []Span {
+	if spans == nil {
+		return nil
+	}
+	result := make([]Span, 0, len(spans))
+	for _, span := range spans {
+		span.ID = strings.TrimSpace(span.ID)
+		span.From = strings.TrimSpace(span.From)
+		if normalized := normalizeChapterPrefix(span.From); normalized != "" {
+			span.From = normalized
+		}
+		span.Until = strings.TrimSpace(span.Until)
+		if normalized := normalizeChapterPrefix(span.Until); normalized != "" {
+			span.Until = normalized
+		}
+		span.Content = strings.TrimSpace(span.Content)
+		result = append(result, span)
+	}
+	return result
 }
 
 func normalizeLoreTypeSource(value string) string {
@@ -403,4 +425,3 @@ func TypeLabel(t string) string {
 		return "其他"
 	}
 }
-

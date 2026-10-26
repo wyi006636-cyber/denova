@@ -306,12 +306,34 @@ func (c *SessionConversation) runtimeContextFragments() []agentcontext.Fragment 
 		if title == "" {
 			title = "Current Turn Dynamic Context"
 		}
-		fragments = append(fragments, agentcontext.Fragment{
-			ID: "workspace_runtime_dynamic", Source: "workspace.runtime.dynamic", Title: title,
-			Purpose: "provide turn-scoped workspace sources for the current request",
-			Content: c.dynamicContext, Placement: agentcontext.PlacementFinalUserPrefix, Included: true,
-			Note: "source=workspace source projection; placement=final user prefix; file bodies=on demand",
-		})
+		dynamic := c.dynamicContext
+		const loreMarker = "## Chapter-scoped Lore for This Turn"
+		loreIndex := strings.Index(dynamic, loreMarker)
+		if loreIndex < 0 {
+			fragments = append(fragments, agentcontext.Fragment{
+				ID: "workspace_runtime_dynamic", Source: "workspace.runtime.dynamic", Title: title,
+				Purpose: "provide turn-scoped workspace sources for the current request",
+				Content: dynamic, Placement: agentcontext.PlacementFinalUserPrefix, Included: true,
+				Note: "source=workspace source projection; placement=final user prefix; file bodies=on demand",
+			})
+		} else {
+			base := strings.TrimSpace(dynamic[:loreIndex])
+			loreContext := strings.TrimSpace(dynamic[loreIndex:])
+			if base != "" {
+				fragments = append(fragments, agentcontext.Fragment{
+					ID: "workspace_runtime_dynamic", Source: "workspace.runtime.dynamic", Title: title,
+					Purpose: "provide turn-scoped workspace sources for the current request",
+					Content: base, Placement: agentcontext.PlacementFinalUserPrefix, Included: true,
+					Note: "source=workspace source projection; placement=final user prefix; file bodies=on demand",
+				})
+			}
+			fragments = append(fragments, agentcontext.Fragment{
+				ID: "workspace_lore_as_of", Source: "workspace.lore.as_of", Title: "Chapter-scoped Lore for This Turn",
+				Purpose: "provide chapter-scoped lore that is valid for this request",
+				Content: loreContext, Placement: agentcontext.PlacementFinalUserPrefix, Limit: agentcontext.DefaultMaxFragmentBytes, Included: true,
+				Note: "source=setting/lore/items.json; placement=final user prefix; spans are excluded from the stable prefix",
+			})
+		}
 	}
 	return fragments
 }

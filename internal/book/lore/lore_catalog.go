@@ -13,6 +13,8 @@ type NameCatalogOptions struct {
 	MaxBytes        int
 	ExcludeResident bool
 	OmitWhenEmpty   bool
+	Cursor          string
+	Scope           string
 }
 
 // NameCatalogMarkdown returns a bounded catalog for candidate discovery.
@@ -34,7 +36,7 @@ func (s *Store) NameCatalogMarkdown(options NameCatalogOptions) (string, error) 
 	categoryCatalog.WriteByte('\n')
 	prefix := categoryCatalog.String()
 	filtered := make([]Item, 0, len(items))
-	for _, item := range items {
+	for _, item := range VisibleItems(items, options.Cursor, options.Scope) {
 		if options.ExcludeResident && item.LoadMode == LoadModeResident {
 			continue
 		}

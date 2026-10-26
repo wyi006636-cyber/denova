@@ -157,6 +157,7 @@ func storySummaryFromProjection(projection *storyJournalProjection) StorySummary
 		ID:      meta.StoryID, Title: meta.Title, TitleSource: meta.TitleSource, Origin: meta.Origin,
 		Protagonist:   meta.Protagonist,
 		StoryTellerID: meta.StoryTellerID, PlanningTemplateID: normalizedGamePlanningTemplateID(meta.PlanningTemplateID),
+		LoreAsOf:         meta.LoreAsOf,
 		ModuleRefs:       cloneStoryDirectorModuleRefs(meta.ModuleRefs),
 		PlanningMode:     meta.PlanningMode,
 		ReplyTargetChars: meta.ReplyTargetChars, ChoiceCount: meta.ChoiceCount,
