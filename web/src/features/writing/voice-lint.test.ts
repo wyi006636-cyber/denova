@@ -84,5 +84,26 @@ describe('voice lint', () => {
   it('keeps quoted and unquoted avoid terms on the same field', () => {
     expect(parseVoiceRules('## 说话方式\n\n- 禁忌说法：「在下」、鄙人')).toEqual({ avoid: ['在下', '鄙人'] })
     expect(parseVoiceRules('## Voice\n\n- Avoid: “sir”; formal connectors')).toEqual({ avoid: ['sir', 'formal connectors'] })
+    expect(parseVoiceRules('## 说话方式\n\n- 禁忌说法：不会说「在下」；不用书面连接词')).toEqual({ avoid: ['在下', '书面连接词'] })
+    expect(parseVoiceRules('## Voice\n\n- Avoid: Avoid “sir”; formal connectors')).toEqual({ avoid: ['sir', 'formal connectors'] })
+  })
+
+  it('keeps the longer overlapping name closest to the speech verb', () => {
+    const result = runVoiceLint('沈宁说：「在下不走」', [
+      { name: '沈宁', content: '## 说话方式\n\n- 禁忌说法：在下' },
+      { name: '宁', content: '## 说话方式\n\n- 禁忌说法：哼' },
+    ])
+    expect(result.issues).toHaveLength(1)
+    expect(result.issues[0]).toMatchObject({ severity: 'warning', text: '在下', message: { params: { name: '沈宁' } } })
+    expect(runVoiceLint('沈宁说：「哼」', [
+      { name: '沈宁', content: '## 说话方式\n\n- 禁忌说法：在下' },
+      { name: '宁', content: '## 说话方式\n\n- 禁忌说法：哼' },
+    ]).issues).toEqual([])
+  })
+
+  it('matches Latin names case-insensitively without matching inside another word', () => {
+    const son = { name: 'Son', content: '## Voice\n\n- Avoid: art' }
+    expect(runVoiceLint('son said, "the art"', [son]).issues[0]).toMatchObject({ severity: 'warning', text: 'art' })
+    expect(runVoiceLint('Johnson said, "the art"', [son]).issues[0]?.severity).toBe('info')
   })
 })

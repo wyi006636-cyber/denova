@@ -171,7 +171,7 @@ const editor = {
   'editor.lint.statsCopied': 'Copied',
   'editor.lint.statsChapterTruncated': 'Only the first {{count}} chapters were included.{{chapters}}',
   'editor.lint.statsDropped': ' Skipped: {{chapters}}',
-  'editor.lint.statsDroppedMany': ' Skipped: {{chapters}} and {{count}} chapters',
+  'editor.lint.statsDroppedMany': ' Skipped: {{chapters}}, plus {{count}} additional chapter(s)',
   'editor.lint.statsCharacterTruncated': 'Only the first {{count}} characters were included.',
   'editor.lint.statsSkipped': '{{count}} chapter(s) could not be read and were skipped.',
   'editor.lint.statsFailed': 'Could not read chapters. Try again.',

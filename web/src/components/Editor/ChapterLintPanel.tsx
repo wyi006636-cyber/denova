@@ -201,6 +201,9 @@ export function ChapterLintPanel({
     statsRequestGeneration.current += 1
     setStatsOverride(null)
     setStatsError('')
+    // A selection change invalidates the in-flight request immediately. Drop
+    // its loading indicator so the author can start a fresh calculation.
+    setStatsLoading(false)
     setSelectedChapterPaths(current => current.includes(path)
       ? current.filter(item => item !== path)
       : [...new Set([...current, path])])
@@ -213,7 +216,7 @@ export function ChapterLintPanel({
     setStatsLoading(true)
     setStatsError('')
     let skipped = 0
-    const loaded: Array<{ path: string; content: string }> = []
+    const loaded: Array<{ path: string; label: string; content: string }> = []
     const orderedPaths = [
       ...chapters.filter(chapter => paths.includes(chapter.path)).map(chapter => chapter.path),
       ...paths.filter(path => !chapters.some(chapter => chapter.path === path)),
@@ -222,10 +225,12 @@ export function ChapterLintPanel({
       for (const path of orderedPaths) {
         try {
           if (path === currentChapterPath) {
-            loaded.push({ path, content })
+            const chapter = chapters.find(item => item.path === path)
+            loaded.push({ path, label: chapter?.display_title || chapter?.file_name || path, content })
           } else {
             const file = await readProjectFile(projectId, path)
-            loaded.push({ path, content: file.content || '' })
+            const chapter = chapters.find(item => item.path === path)
+            loaded.push({ path, label: chapter?.display_title || chapter?.file_name || path, content: file.content || '' })
           }
         } catch {
           skipped++
@@ -234,9 +239,6 @@ export function ChapterLintPanel({
       if (generation !== statsRequestGeneration.current) return
       const result = computeStyleFingerprint(loaded, {
         skippedChapterCount: skipped,
-        truncatedChapterLabels: orderedPaths.length > STYLE_FINGERPRINT_LIMITS.maxChapters
-          ? orderedPaths.slice(STYLE_FINGERPRINT_LIMITS.maxChapters).map(path => chapters.find(chapter => chapter.path === path)?.display_title || path)
-          : undefined,
       })
       setStatsOverride(result)
     } catch {
@@ -397,15 +399,16 @@ function StyleFingerprintView({
   onCalculate: () => void
   onCopy: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const sentenceUnit = stats.sentenceLength.unit === 'words'
     ? t('editor.lint.statsUnitWords')
     : t('editor.lint.statsUnitCharacters')
   const errorKey = STATS_ERROR_KEYS[error as keyof typeof STATS_ERROR_KEYS]
+  const markdownLocale = i18n.language.toLocaleLowerCase().startsWith('en') ? 'en' : 'zh'
   const droppedChapterSummary = stats.truncatedChapterLabels?.length
     ? stats.truncatedChapterLabels.length > 3
-      ? t('editor.lint.statsDroppedMany', { chapters: stats.truncatedChapterLabels.slice(0, 3).join('、'), count: stats.truncatedChapterLabels.length })
-      : t('editor.lint.statsDropped', { chapters: stats.truncatedChapterLabels.join('、') })
+      ? t('editor.lint.statsDroppedMany', { chapters: stats.truncatedChapterLabels.slice(0, 3).join(markdownLocale === 'en' ? ', ' : '、'), count: stats.truncatedChapterLabels.length - 3 })
+      : t('editor.lint.statsDropped', { chapters: stats.truncatedChapterLabels.join(markdownLocale === 'en' ? ', ' : '、') })
     : ''
   return (
     <div data-testid="style-fingerprint-panel" className="grid gap-3">

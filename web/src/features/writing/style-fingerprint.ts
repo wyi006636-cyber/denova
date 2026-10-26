@@ -11,6 +11,9 @@ export const STYLE_FINGERPRINT_LIMITS = {
   repeatedPhraseMinimumCount: 3,
   repeatedPhraseMinimumLength: 2,
   repeatedPhraseMaximumLength: 4,
+  // Fragment filtering is linear after this cap; keep a bounded candidate
+  // set when a repetitive 200k-character sample produces many phrases.
+  maxRepeatedPhraseCandidates: 4096,
 } as const
 
 /**
@@ -29,6 +32,7 @@ export const STYLE_FINGERPRINT_FUNCTION_WORDS = new Set([
 
 export interface StyleFingerprintChapter {
   path?: string
+  label?: string
   content: string
 }
 
@@ -85,7 +89,10 @@ const CJK_PATTERN = /[\u3400-\u9fff]/g
 const WORD_PATTERN = /[A-Za-z]+(?:['’][A-Za-z]+)?/g
 const CONTENT_PATTERN = /[\p{L}\p{N}\u3400-\u9fff]/u
 const ATX_HEADING_PATTERN = /^\s{0,3}#{1,6}(?:\s+|$)/
-const ABBREVIATION_PATTERN = /(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc|i\.e|e\.g)\.$/i
+// These abbreviations contain periods that must not end a sentence. Keep the
+// list explicit so adding a new common form does not alter sentence parsing by
+// accident.
+const ABBREVIATION_PATTERN = /(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc|i\.e|e\.g|U\.S|U\.S\.A|a\.m|p\.m)\.$/i
 
 /** Calculate the fingerprint for the supplied chapters in source order. */
 export function computeStyleFingerprint(
@@ -97,13 +104,16 @@ export function computeStyleFingerprint(
   const maxCharacters = options.maxCharacters ?? STYLE_FINGERPRINT_LIMITS.maxCharacters
   const requestedChapterCount = chapters.length
   const accepted: string[] = []
+  const computedTruncatedChapterLabels: string[] = []
   let characterCount = 0
   let truncatedByChapters = false
   let truncatedByCharacters = false
 
-  for (const chapter of chapters) {
+  for (let chapterIndex = 0; chapterIndex < chapters.length; chapterIndex++) {
+    const chapter = chapters[chapterIndex]
     if (accepted.length >= maxChapters) {
       truncatedByChapters = true
+      computedTruncatedChapterLabels.push(...chapters.slice(chapterIndex).map(chapter => chapter.label || chapter.path || '').filter(Boolean))
       break
     }
     const content = normalizeMarkdownBody(chapter.content || '')
@@ -162,7 +172,9 @@ export function computeStyleFingerprint(
     requestedChapterCount,
     skippedChapterCount: options.skippedChapterCount ?? 0,
     elapsedMs: ended - started,
-    truncatedChapterLabels: options.truncatedChapterLabels ? [...options.truncatedChapterLabels] : undefined,
+    truncatedChapterLabels: computedTruncatedChapterLabels.length
+      ? computedTruncatedChapterLabels
+      : options.truncatedChapterLabels ? [...options.truncatedChapterLabels] : undefined,
   }
 }
 
@@ -181,7 +193,7 @@ export function styleFingerprintToMarkdown(
       `- Punctuation per 1,000 characters: ellipses ${result.punctuationPerThousand.ellipsis}, dashes ${result.punctuationPerThousand.dash}, exclamations ${result.punctuationPerThousand.exclamation}.`,
     ]
     if (result.repeatedPhrases.length) lines.push(`- Repeated phrases: ${result.repeatedPhrases.map(item => `"${item.phrase}" ${item.count} times`).join(', ')}.`)
-    if (result.truncatedByChapters) lines.push(`- Scope note: only the first ${result.chapterCount} chapter(s) were included${formatDroppedLabels(result.truncatedChapterLabels, '; skipped: ')}.`)
+    if (result.truncatedByChapters) lines.push(`- Scope note: only the first ${result.chapterCount} chapter(s) were included${formatDroppedLabels(result.truncatedChapterLabels, '; skipped: ', 'en')}.`)
     if (result.truncatedByCharacters) lines.push(`- Scope note: only the first ${result.characterCount} characters were included.`)
     if (result.skippedChapterCount) lines.push(`- Read note: ${result.skippedChapterCount} chapter(s) could not be read and were skipped.`)
     return lines.join('\n')
@@ -194,7 +206,7 @@ export function styleFingerprintToMarkdown(
     `- 标点（每千字）：省略号 ${result.punctuationPerThousand.ellipsis}，破折号 ${result.punctuationPerThousand.dash}，叹号 ${result.punctuationPerThousand.exclamation}。`,
   ]
   if (result.repeatedPhrases.length) lines.push(`- 重复短语：${result.repeatedPhrases.map(item => `「${item.phrase}」${item.count} 次`).join('、')}。`)
-  if (result.truncatedByChapters) lines.push(`- 范围提示：只统计了前 ${result.chapterCount} 章${formatDroppedLabels(result.truncatedChapterLabels, '，已跳过：')}。`)
+  if (result.truncatedByChapters) lines.push(`- 范围提示：只统计了前 ${result.chapterCount} 章${formatDroppedLabels(result.truncatedChapterLabels, '，已跳过：', 'zh')}。`)
   if (result.truncatedByCharacters) lines.push(`- 范围提示：只统计了前 ${result.characterCount} 字。`)
   if (result.skippedChapterCount) lines.push(`- 读取提示：有 ${result.skippedChapterCount} 章读取失败，未参与统计。`)
   return lines.join('\n')
@@ -327,48 +339,163 @@ function countPunctuation(text: string, characterCount: number): StyleFingerprin
 
 function findRepeatedPhrases(text: string): StyleFingerprintPhrase[] {
   const counts = new Map<string, number>()
-  const ranges = text.match(/[\u3400-\u9fff]+/g) || []
-  for (const range of ranges) {
-    // Do not count overlapping windows from one continuous run as separate
-    // occurrences; this prevents 「哈哈哈哈」 from becoming three repeats.
+  const ranges = [...text.matchAll(/[\u3400-\u9fff]+/g)]
+  for (const match of ranges) {
+    countPhraseWindows(match[0], counts)
+  }
+
+  // Keep only the highest-frequency candidates before fragment filtering.
+  // Without this bound a periodic 200k-character sample can create tens of
+  // thousands of candidates and turn the UI into an O(n²) operation.
+  const ranked = [...counts.entries()]
+    .filter(([phrase, count]) => count >= STYLE_FINGERPRINT_LIMITS.repeatedPhraseMinimumCount && !isSingleCharacterReduplication(phrase))
+    .sort(comparePhraseCandidates)
+    .slice(0, STYLE_FINGERPRINT_LIMITS.maxRepeatedPhraseCandidates)
+  if (!ranked.length) return []
+
+  const selected = new Set(ranked.map(([phrase]) => phrase))
+  const positions = collectPhrasePositions(ranges, selected)
+  const candidates = ranked.map(([phrase, count]) => ({
+    phrase,
+    count,
+    starts: positions.get(phrase) || [],
+    shape: phraseOccurrenceShape(positions.get(phrase) || []),
+  }))
+  const reduplicatedCandidates = new Set(
+    candidates.filter(candidate => isReduplicatedPhrase(candidate.phrase)).map(candidate => `${candidate.count}\u0000${candidate.phrase}`),
+  )
+
+  // Index substrings by (count, phrase) so maximal-fragment filtering stays
+  // linear in the bounded candidate set instead of comparing every pair.
+  const containedByLonger = new Set<string>()
+  for (const candidate of candidates) {
+    for (let length = STYLE_FINGERPRINT_LIMITS.repeatedPhraseMinimumLength; length < candidate.phrase.length; length++) {
+      for (let index = 0; index + length <= candidate.phrase.length; index++) {
+        containedByLonger.add(`${candidate.count}\u0000${candidate.phrase.slice(index, index + length)}`)
+      }
+    }
+  }
+  const maximal = candidates.filter(candidate => {
+    const reduplicated = isReduplicatedPhrase(candidate.phrase)
+    // A longer same-count candidate owns ordinary fragments. Reduplicated
+    // oral phrases such as 「看了看」 remain useful style signals.
+    if (reduplicated) return true
+    for (let length = 3; length < candidate.phrase.length; length++) {
+      for (let index = 0; index + length <= candidate.phrase.length; index++) {
+        if (reduplicatedCandidates.has(`${candidate.count}\u0000${candidate.phrase.slice(index, index + length)}`)) return false
+      }
+    }
+    return !containedByLonger.has(`${candidate.count}\u0000${candidate.phrase}`)
+  })
+
+  // Equal-length windows from the same repeated passage have the same gap
+  // pattern and overlapping starts. Keep the earliest window as the single
+  // representative; distinct passages stay separate because their starts do
+  // not overlap. This removes sliding fragments without a pairwise scan.
+  const representatives = new Map<string, Array<typeof maximal[number]>>()
+  for (const candidate of maximal) {
+    const firstStart = candidate.starts[0] ?? Number.MAX_SAFE_INTEGER
+    const bucket = Math.floor(firstStart / candidate.phrase.length)
+    const keyPrefix = `${candidate.phrase.length}:${candidate.count}:${candidate.shape}`
+    let replaced = false
+    for (const bucketOffset of [-1, 0, 1]) {
+      const key = `${keyPrefix}:${bucket + bucketOffset}`
+      const existingCandidates = representatives.get(key) || []
+      const existingIndex = existingCandidates.findIndex(existing => sameSlidingWindowFamily(existing, candidate))
+      if (existingIndex < 0) continue
+      if ((candidate.starts[0] ?? Number.MAX_SAFE_INTEGER) < (existingCandidates[existingIndex].starts[0] ?? Number.MAX_SAFE_INTEGER)) existingCandidates[existingIndex] = candidate
+      representatives.set(key, existingCandidates)
+      replaced = true
+      break
+    }
+    if (!replaced) {
+      const key = `${keyPrefix}:${bucket}`
+      representatives.set(key, [...(representatives.get(key) || []), candidate])
+    }
+  }
+
+  return [...representatives.values()].flat()
+    .sort((left, right) => comparePhraseCandidates([left.phrase, left.count], [right.phrase, right.count]))
+    .slice(0, STYLE_FINGERPRINT_LIMITS.maxRepeatedPhrases)
+    .map(({ phrase, count }) => ({ phrase, count }))
+}
+
+function countPhraseWindows(range: string, counts: Map<string, number>) {
+  // Do not count overlapping windows from one continuous run as separate
+  // occurrences; this prevents 「哈哈哈哈」 from becoming repeated 「哈哈」.
+  const lastEnd = new Map<string, number>()
+  for (let index = 0; index < range.length; index++) {
+    for (let length = STYLE_FINGERPRINT_LIMITS.repeatedPhraseMinimumLength; length <= STYLE_FINGERPRINT_LIMITS.repeatedPhraseMaximumLength; length++) {
+      if (index + length > range.length) break
+      const phrase = range.slice(index, index + length)
+      if (STYLE_FINGERPRINT_FUNCTION_WORDS.has(phrase)) continue
+      if ((lastEnd.get(phrase) ?? -1) > index) continue
+      lastEnd.set(phrase, index + length)
+      counts.set(phrase, (counts.get(phrase) || 0) + 1)
+    }
+  }
+}
+
+function collectPhrasePositions(ranges: RegExpMatchArray[], selected: Set<string>) {
+  const positions = new Map<string, number[]>()
+  for (const match of ranges) {
+    const range = match[0]
+    const rangeStart = match.index ?? 0
     const lastEnd = new Map<string, number>()
     for (let index = 0; index < range.length; index++) {
       for (let length = STYLE_FINGERPRINT_LIMITS.repeatedPhraseMinimumLength; length <= STYLE_FINGERPRINT_LIMITS.repeatedPhraseMaximumLength; length++) {
         if (index + length > range.length) break
         const phrase = range.slice(index, index + length)
-        if (STYLE_FINGERPRINT_FUNCTION_WORDS.has(phrase)) continue
-        if ((lastEnd.get(phrase) ?? -1) > index) continue
+        if (!selected.has(phrase) || (lastEnd.get(phrase) ?? -1) > index) continue
         lastEnd.set(phrase, index + length)
-        counts.set(phrase, (counts.get(phrase) || 0) + 1)
+        const starts = positions.get(phrase) || []
+        starts.push(rangeStart + index)
+        positions.set(phrase, starts)
       }
     }
   }
-  const candidates = [...counts.entries()].filter(([, count]) => count >= STYLE_FINGERPRINT_LIMITS.repeatedPhraseMinimumCount)
-  const maximal = candidates.filter(([phrase, count]) => {
-    // Reduplicated oral phrases such as 「看了看」 are useful style signals
-    // even when a surrounding subject/object produces a longer same-count
-    // window. Preserve them while still collapsing ordinary fragments.
-    const reduplicated = phrase.length >= 3 && phrase[0] === phrase[phrase.length - 1]
-    if (!reduplicated && candidates.some(([shorter, shorterCount]) => shorter.length < phrase.length && shorterCount === count && shorter.length >= 3 && shorter[0] === shorter[shorter.length - 1] && phrase.includes(shorter))) return false
-    return reduplicated || !candidates.some(([longer, longerCount]) => longer.length > phrase.length && longerCount === count && longer.includes(phrase))
-  })
-  return maximal
-    .sort((left, right) => {
-      const leftReduplicated = left[0].length >= 3 && left[0][0] === left[0][left[0].length - 1]
-      const rightReduplicated = right[0].length >= 3 && right[0][0] === right[0][right[0].length - 1]
-      return Number(rightReduplicated) - Number(leftReduplicated)
-        || right[1] - left[1]
-        || right[0].length - left[0].length
-        || left[0].localeCompare(right[0])
-    })
-    .slice(0, STYLE_FINGERPRINT_LIMITS.maxRepeatedPhrases)
-    .map(([phrase, count]) => ({ phrase, count }))
+  return positions
 }
 
-function formatDroppedLabels(labels: readonly string[] | undefined, prefix: string) {
+function phraseOccurrenceShape(starts: readonly number[]) {
+  if (starts.length < 2) return ''
+  const gaps: number[] = []
+  for (let index = 1; index < starts.length; index++) gaps.push(starts[index] - starts[index - 1])
+  return gaps.join(',')
+}
+
+function sameSlidingWindowFamily(left: { phrase: string; count: number; starts: number[]; shape: string }, right: { phrase: string; count: number; starts: number[]; shape: string }) {
+  if (left.count !== right.count || left.phrase.length !== right.phrase.length || left.shape !== right.shape || left.starts.length !== right.starts.length) return false
+  const distance = Math.abs((left.starts[0] ?? 0) - (right.starts[0] ?? 0))
+  return distance < left.phrase.length
+}
+
+function isSingleCharacterReduplication(phrase: string) {
+  return phrase.length >= 2 && [...phrase].every(character => character === phrase[0])
+}
+
+function isReduplicatedPhrase(phrase: string) {
+  return phrase.length >= 3 && phrase[0] === phrase[phrase.length - 1]
+}
+
+function comparePhraseCandidates(left: [string, number], right: [string, number]) {
+  const leftReduplicated = isReduplicatedPhrase(left[0])
+  const rightReduplicated = isReduplicatedPhrase(right[0])
+  return Number(rightReduplicated) - Number(leftReduplicated)
+    || right[1] - left[1]
+    || right[0].length - left[0].length
+    || left[0].localeCompare(right[0])
+}
+
+function formatDroppedLabels(labels: readonly string[] | undefined, prefix: string, locale: StyleFingerprintMarkdownLocale) {
   if (!labels?.length) return ''
+  if (locale === 'en') {
+    const shown = labels.slice(0, 3).join(', ')
+    const suffix = labels.length > 3 ? `${shown}, and ${labels.length - 3} more` : shown
+    return `${prefix}${suffix}`
+  }
   const shown = labels.slice(0, 3).join('、')
-  const suffix = labels.length > 3 ? `等 ${labels.length} 章` : shown
+  const suffix = labels.length > 3 ? `${shown}等 ${labels.length - 3} 章` : shown
   return `${prefix}${suffix}`
 }
 

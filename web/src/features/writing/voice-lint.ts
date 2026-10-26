@@ -124,12 +124,14 @@ export function runVoiceLint(text: string, characters: readonly VoiceLintCharact
 }
 
 function parseAvoidTerms(raw: string) {
-  const pieces = raw.match(/[「『“"][^」』”"]+[」』”"]|[^、，,;；]+/g) || []
-  return pieces
+  // Split the field before stripping labels so a prefix such as
+  // `不会说「在下」` cannot leave the opening quote attached to the term.
+  return raw.split(/[、，,;；]/g)
     .map(value => value.trim())
     .map(value => value
+      .replace(/^(?:不会说|不用|不说|避免|avoid)\s*(?::|：)?\s*/i, '')
+      .replace(/^(?:不会说|不用|不说|避免|avoid)\s*(?::|：)?\s*/i, '')
       .replace(/^[「『“"]+|[」』”"]+$/g, '')
-      .replace(/^(?:不会说|不用|不说|避免|avoid)\s*/i, '')
       .trim())
     .filter(Boolean)
 }
@@ -178,19 +180,36 @@ function findNearestAttribution(
     const matches: Array<{ character: ParsedCharacter; index: number; length: number }> = []
     for (const character of characters) {
       for (const name of character.names) {
-        let offset = prefix.indexOf(name)
-        while (offset >= 0) {
-          matches.push({ character, index: offset, length: name.length })
-          offset = prefix.indexOf(name, offset + 1)
-        }
+        matches.push(...findNameMatches(prefix, name).map(match => ({ character, ...match })))
       }
     }
     if (matches.length) {
-      matches.sort((left, right) => right.index - left.index || right.length - left.length)
+      // The name whose *end* is closest to the speech verb wins. When names
+      // overlap (for example 沈宁 and 宁), keep the longer match at that end.
+      matches.sort((left, right) => (right.index + right.length) - (left.index + left.length) || right.length - left.length || right.index - left.index)
       return matches[0].character
     }
   }
   return undefined
+}
+
+function findNameMatches(value: string, name: string) {
+  const matches: Array<{ index: number; length: number }> = []
+  const latinName = /^[A-Za-z][A-Za-z' -]*$/.test(name)
+  if (!latinName) {
+    let offset = value.indexOf(name)
+    while (offset >= 0) {
+      matches.push({ index: offset, length: name.length })
+      offset = value.indexOf(name, offset + 1)
+    }
+    return matches
+  }
+
+  const expression = new RegExp(`(?<![A-Za-z])${escapeRegExp(name)}(?![A-Za-z])`, 'gi')
+  for (const match of value.matchAll(expression)) {
+    if (match.index !== undefined) matches.push({ index: match.index, length: match[0].length })
+  }
+  return matches
 }
 
 function findTerm(value: string, term: string) {
