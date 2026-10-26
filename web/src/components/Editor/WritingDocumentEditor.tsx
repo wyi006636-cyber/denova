@@ -745,6 +745,7 @@ export function WritingDocumentEditor({
           <ChapterLintPanel
             projectId={projectId}
             content={lintContent}
+            currentChapterPath={fileName}
             refreshToken={lintSourcesRefresh}
             editor={editor}
             onClose={closeChapterLint}

@@ -27,6 +27,7 @@ export type ChapterLintCategory =
   | 'punctuation'
   | 'length'
   | 'reference'
+  | 'voice'
 
 export type ChapterLintSeverity = 'error' | 'warning' | 'info'
 
@@ -107,7 +108,7 @@ export const DEFAULT_AI_TRACE_LEXICON_EN = [
 /** Source: skills/humanize/references/ai-trace-lexicon.md. */
 export const AI_TRACE_LEXICON_SOURCE = 'skills/humanize/references/ai-trace-lexicon.md'
 
-const CATEGORY_ORDER: ChapterLintCategory[] = ['banned', 'ai', 'repeat', 'punctuation', 'length', 'reference']
+const CATEGORY_ORDER: ChapterLintCategory[] = ['banned', 'ai', 'repeat', 'punctuation', 'length', 'reference', 'voice']
 const CJK_PATTERN = /[\u3400-\u9fff]/g
 const REPEAT_STOP_WORDS = new Set([
   '我们', '他们', '自己', '这个', '那个', '什么', '没有', '可以', '因为', '所以', '这是', '一个', '一种',
