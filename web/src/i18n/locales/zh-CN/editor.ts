@@ -171,7 +171,7 @@ const editor = {
   'editor.lint.statsCopied': '已复制',
   'editor.lint.statsChapterTruncated': '只统计了前 {{count}} 章。{{chapters}}',
   'editor.lint.statsDropped': '已跳过：{{chapters}}',
-  'editor.lint.statsDroppedMany': '已跳过：{{chapters}}等 {{count}} 章',
+  'editor.lint.statsDroppedMany': '已跳过：{{chapters}}，另有 {{count}} 章',
   'editor.lint.statsCharacterTruncated': '只统计了前 {{count}} 字。',
   'editor.lint.statsSkipped': '有 {{count}} 章读取失败，已跳过。',
   'editor.lint.statsFailed': '读取章节失败，请重试。',

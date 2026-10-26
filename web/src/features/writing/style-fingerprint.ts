@@ -495,7 +495,7 @@ function formatDroppedLabels(labels: readonly string[] | undefined, prefix: stri
     return `${prefix}${suffix}`
   }
   const shown = labels.slice(0, 3).join('、')
-  const suffix = labels.length > 3 ? `${shown}等 ${labels.length - 3} 章` : shown
+  const suffix = labels.length > 3 ? `${shown}，另有 ${labels.length - 3} 章` : shown
   return `${prefix}${suffix}`
 }
 

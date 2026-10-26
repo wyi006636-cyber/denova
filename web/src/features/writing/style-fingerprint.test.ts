@@ -160,7 +160,7 @@ describe('style fingerprint', () => {
     ], { maxChapters: 1 })
     const zh = styleFingerprintToMarkdown(result, 'zh')
     const en = styleFingerprintToMarkdown(result, 'en')
-    expect(zh).toContain('已跳过：第二章、第三章、第四章等 1 章')
+    expect(zh).toContain('已跳过：第二章、第三章、第四章，另有 1 章')
     expect(en).toContain('skipped: 第二章, 第三章, 第四章')
     expect(en).toContain('and 1 more')
     expect(en).not.toContain('等')
