@@ -130,13 +130,25 @@ func (s *Store) NameCatalogMarkdown(options NameCatalogOptions) (string, error) 
 	}
 
 	// Very small caller-provided budgets still receive useful source metadata.
-	minimal := fmt.Sprintf("# Lore Name Catalog\nsource: %s\nrevision: %s\ntotal: %d\nshown: 0\nomitted: %d%s", ItemsRelativePath, revision, len(entries), len(entries)-offset, hiddenNotice)
-	if len([]byte(minimal)) <= maxBytes {
-		return minimal, nil
+	// The hidden-id list is only a lookup hint, so fall back to a count-only
+	// notice before refusing the whole catalog.
+	notices := []string{hiddenNotice}
+	if len(hiddenIDs) > 0 {
+		notices = append(notices, fmt.Sprintf("\n%d lore item(s) are hidden for this request.", len(hiddenIDs)))
 	}
-	compact := fmt.Sprintf("# Lore Name Catalog\nTotal: %d; omitted: %d. Use query_lore_items.%s", len(entries), len(entries)-offset, hiddenNotice)
-	if len([]byte(compact)) <= maxBytes {
-		return compact, nil
+	var minimal string
+	for index, notice := range notices {
+		candidate := fmt.Sprintf("# Lore Name Catalog\nsource: %s\nrevision: %s\ntotal: %d\nshown: 0\nomitted: %d%s", ItemsRelativePath, revision, len(entries), len(entries)-offset, notice)
+		if index == 0 {
+			minimal = candidate
+		}
+		if len([]byte(candidate)) <= maxBytes {
+			return candidate, nil
+		}
+		compact := fmt.Sprintf("# Lore Name Catalog\nTotal: %d; omitted: %d. Use query_lore_items.%s", len(entries), len(entries)-offset, notice)
+		if len([]byte(compact)) <= maxBytes {
+			return compact, nil
+		}
 	}
 	return "", fmt.Errorf("lore name catalog limit is too small; at least %d bytes are required", len([]byte(minimal)))
 }

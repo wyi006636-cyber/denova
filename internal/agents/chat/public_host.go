@@ -60,10 +60,14 @@ func (middleware *PublicHostMiddleware) BeforeAgent(
 	}
 	// Native runs derive their cycle context from the Agent owner context, so
 	// bind the request cursor at the public lifecycle boundary where both
-	// writing and game tools receive the same request.
-	ctx = lore.ContextWithSpanVisibility(ctx, lore.ResolveSpanVisibility(
+	// writing and game tools receive the same request. Child Agents are built
+	// with an empty request; keep the cursor they inherit from the parent turn.
+	visibility := lore.ResolveSpanVisibility(
 		middleware.request.IDEContext.CurrentFile, middleware.request.LoreAsOf, middleware.request.LoreScope,
-	))
+	)
+	if visibility.Cursor != "" || visibility.Scope == lore.LoreScopeBook {
+		ctx = lore.ContextWithSpanVisibility(ctx, visibility)
+	}
 	ctx = producttools.ContextWithWorkspaceChangeScope(ctx, producttools.WorkspaceChangeScope{
 		RunID: runID, SessionID: middleware.options.SessionID,
 		ReviewThreadID: middleware.options.ReviewThreadID,

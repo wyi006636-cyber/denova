@@ -175,6 +175,26 @@ func TestNameCatalogCapsHiddenIDsAndKeepsVisibleEntries(t *testing.T) {
 	}
 }
 
+func TestNameCatalogTinyBudgetFallsBackToHiddenCount(t *testing.T) {
+	store := NewStore(t.TempDir())
+	for index := 0; index < 40; index++ {
+		id := fmt.Sprintf("future-%02d-%s", index, strings.Repeat("x", 45))
+		if _, err := store.Create(ItemInput{ID: id, Type: "world", Name: fmt.Sprintf("Future %02d", index), Spans: []Span{{ID: "later", From: "ch00030", Content: "future body"}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	catalog, err := store.NameCatalogMarkdown(NameCatalogOptions{Cursor: "ch00020", Scope: LoreScopeAsOf, MaxBytes: 512})
+	if err != nil {
+		t.Fatalf("tiny budget should fall back to a count-only notice: %v", err)
+	}
+	if len(catalog) > 512 || !strings.Contains(catalog, "40 lore item(s) are hidden for this request") {
+		t.Fatalf("unexpected tiny-budget catalog (%d bytes): %s", len(catalog), catalog)
+	}
+	if strings.Contains(catalog, "Future 00") || strings.Contains(catalog, "future body") {
+		t.Fatalf("hidden lore leaked into catalog: %s", catalog)
+	}
+}
+
 func TestNameCatalogExplainsMissingCursor(t *testing.T) {
 	store := NewStore(t.TempDir())
 	if _, err := store.Create(ItemInput{ID: "future-secret", Type: "world", Name: "Future Secret", Spans: []Span{{ID: "later", From: "ch00030", Content: "future body"}}}); err != nil {
