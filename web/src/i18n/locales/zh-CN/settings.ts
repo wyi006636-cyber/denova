@@ -42,6 +42,8 @@ const settings = {
   'settings.decision.invalidEndpoint': '请填写有效的 HTTP 或 HTTPS 地址；密钥请填在独立字段中。',
 
   'settings.analytics.enabled': '分享使用统计',
+  'settings.statistics.enabled': '启用本地统计',
+  'settings.statistics.description': '对所有项目生效。关闭后隐藏统计入口，并停止稿量和模型用量记录；已有记录和创作内容保留。重新开启后，游戏活动仍从现存故事日志汇总。',
   'settings.analytics.noticeTitle': '使用统计不包含创作内容',
   'settings.analytics.noticeDescription': 'Denova 默认开启使用统计，用于改进产品，包括活跃、功能触达、留存、执行结果和耗时。你可以现在关闭，也可以随时在「设置 → 常规」中修改。',
   'settings.analytics.settingsDescription': '向 Umami Cloud 分享活跃、功能触达、留存、版本、平台、执行结果和耗时。此设置属于当前电脑用户，对写作和游戏统一生效。',

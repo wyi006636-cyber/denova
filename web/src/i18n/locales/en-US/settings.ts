@@ -42,6 +42,8 @@ const settings = {
   'settings.decision.invalidEndpoint': 'Enter a valid HTTP or HTTPS URL; put credentials in the separate API key field.',
 
   'settings.analytics.enabled': 'Share usage statistics',
+  'settings.statistics.enabled': 'Enable local statistics',
+  'settings.statistics.description': 'Applies to all projects. Turning this off hides Statistics and stops recording manuscript changes and model usage. Existing records and creative content are kept. After re-enabling, Game activity still includes retained story history.',
   'settings.analytics.noticeTitle': 'Usage statistics without creative content',
   'settings.analytics.noticeDescription': 'Usage statistics are enabled by default to help improve Denova, including activity, feature reach, return visits, execution outcomes and duration. You can turn them off now or anytime in Settings → General.',
   'settings.analytics.settingsDescription': 'Share activity, feature reach, return visits, app version, platform, execution outcomes and duration with Umami Cloud. This preference applies to this computer’s user, across writing and games.',

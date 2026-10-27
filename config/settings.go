@@ -408,6 +408,9 @@ func Merge(parent, child Settings) Settings {
 	if child.UpdateCheckEnabled != nil {
 		out.UpdateCheckEnabled = child.UpdateCheckEnabled
 	}
+	if child.StatisticsEnabled != nil {
+		out.StatisticsEnabled = child.StatisticsEnabled
+	}
 	if child.UpdateDownloadEnabled != nil {
 		out.UpdateDownloadEnabled = child.UpdateDownloadEnabled
 	}
