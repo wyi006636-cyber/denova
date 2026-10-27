@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"denova/internal/agents/runtime/external"
+	"denova/internal/book/lore"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -126,5 +128,76 @@ func TestBridgeExposesRegisteredReviewCommentTool(t *testing.T) {
 	}
 	if !seen {
 		t.Fatalf("Claude bridge did not expose add_review_comments: %#v", list.Tools)
+	}
+}
+
+func TestBridgePropagatesLoreVisibilityToHostTool(t *testing.T) {
+	base := lore.ContextWithSpanVisibility(t.Context(), lore.SpanVisibility{Cursor: "ch00030", Scope: lore.LoreScopeAsOf})
+	var got lore.SpanVisibility
+	host := &testHost{call: func(ctx context.Context, _ external.ToolCall) (external.ToolResult, error) {
+		got = lore.SpanVisibilityFromContext(ctx)
+		return external.ToolResult{Text: "ok", Success: true}, nil
+	}}
+	bridge, err := startBridge(base, []external.Tool{{Name: "ask", Description: "Ask", Schema: json.RawMessage(`{"type":"object"}`)}}, host, func() {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bridge.close()
+	client := mcp.NewClient(&mcp.Implementation{Name: "fixture", Version: "1"}, nil)
+	session, err := client.Connect(base, &mcp.StreamableClientTransport{Endpoint: bridge.url, HTTPClient: &http.Client{Transport: authorizedTransport{bridge.token}}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	if _, err := session.CallTool(base, &mcp.CallToolParams{Meta: mcp.Meta{"claudecode/toolUseId": "visibility-1"}, Name: "ask", Arguments: map[string]any{}}); err != nil {
+		t.Fatal(err)
+	}
+	if got.Cursor != "ch00030" || got.Scope != lore.LoreScopeAsOf {
+		t.Fatalf("Claude bridge lost lore visibility: %#v", got)
+	}
+}
+
+func TestBridgeQueryLoreUsesFocusedChapterCursor(t *testing.T) {
+	workspace := t.TempDir()
+	if _, err := lore.NewStore(workspace).Create(lore.ItemInput{
+		ID: "cursor-secret", Type: "world", Name: "Cursor Secret",
+		Spans: []lore.Span{{ID: "opening", From: "ch00020", Content: "opening canon"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	base := lore.ContextWithSpanVisibility(t.Context(), lore.ResolveSpanVisibility("chapters/ch00020-opening.md", "", lore.LoreScopeAsOf))
+	host := &testHost{call: func(ctx context.Context, call external.ToolCall) (external.ToolResult, error) {
+		if call.Name != "query_lore_items" {
+			return external.ToolResult{Text: "unexpected tool", Success: false}, nil
+		}
+		visibility := lore.SpanVisibilityFromContext(ctx)
+		items, err := lore.NewStore(workspace).List()
+		if err != nil {
+			return external.ToolResult{}, err
+		}
+		for _, item := range lore.VisibleItems(items, visibility.Cursor, visibility.Scope) {
+			if item.ID == "cursor-secret" && strings.Contains(item.Spans[0].Content, "opening canon") {
+				return external.ToolResult{Text: "opening canon", Success: true}, nil
+			}
+		}
+		return external.ToolResult{Text: "cursor span missing", Success: false}, nil
+	}}
+	bridge, err := startBridge(base, []external.Tool{{Name: "query_lore_items", Description: "Query Lore", Schema: json.RawMessage(`{"type":"object"}`)}}, host, func() {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bridge.close()
+	client := mcp.NewClient(&mcp.Implementation{Name: "fixture", Version: "1"}, nil)
+	session, err := client.Connect(base, &mcp.StreamableClientTransport{Endpoint: bridge.url, HTTPClient: &http.Client{Transport: authorizedTransport{bridge.token}}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+	result, err := session.CallTool(base, &mcp.CallToolParams{Meta: mcp.Meta{"claudecode/toolUseId": "query-1"}, Name: "query_lore_items", Arguments: map[string]any{"names": []string{"Cursor Secret"}, "detail": "full"}})
+	if err != nil || result.IsError || len(result.Content) == 0 {
+		t.Fatalf("query_lore_items bridge call failed: %#v %v", result, err)
+	}
+	if text, ok := result.Content[0].(*mcp.TextContent); !ok || !strings.Contains(text.Text, "opening canon") {
+		t.Fatalf("bridge query lost focused span: %#v", result.Content)
 	}
 }

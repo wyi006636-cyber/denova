@@ -155,6 +155,44 @@ func TestLoreGroupQueriesPreserveMarkdownAndObserveOnlyFullBodies(t *testing.T) 
 	t.Fatal("query_lore_items was not registered")
 }
 
+func TestLoreQueryReportsCursorHiddenItemsAndSearchesVisibleSpans(t *testing.T) {
+	workspace := t.TempDir()
+	store := lore.NewStore(workspace)
+	if _, err := store.Create(lore.ItemInput{ID: "future", Name: "Future Secret", Content: "", Spans: []lore.Span{{ID: "later", From: "ch00030", Content: "future sentinel"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Create(lore.ItemInput{ID: "current", Name: "Current Secret", Content: "", Spans: []lore.Span{{ID: "now", From: "ch00020", Content: "visible sentinel"}}}); err != nil {
+		t.Fatal(err)
+	}
+	definitions, err := newLoreTools(workspace, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var query agenttool.Tool
+	for _, definition := range definitions {
+		info, infoErr := definition.Tool.Info(context.Background())
+		if infoErr == nil && info.Name == "query_lore_items" {
+			query = definition.Tool
+			break
+		}
+	}
+	if query == nil {
+		t.Fatal("query tool missing")
+	}
+	visibleCtx := lore.ContextWithSpanVisibility(context.Background(), lore.SpanVisibility{Cursor: "ch00020", Scope: lore.LoreScopeAsOf})
+	result, err := query.Run(visibleCtx, `{"names":["Future Secret"],"detail":"full"}`)
+	if err != nil || result.Status != agentschema.ToolResultSuccess {
+		t.Fatalf("hidden exact query failed: %#v %v", result, err)
+	}
+	if !strings.Contains(result.ModelContent, `not_visible_at_cursor: [{"id":"future","status":"not_visible_at_cursor"}]`) || strings.Contains(result.ModelContent, "future sentinel") || strings.Contains(result.ModelContent, "missing_names") {
+		t.Fatalf("hidden exact query leaked or misclassified: %s", result.ModelContent)
+	}
+	result, err = query.Run(visibleCtx, `{"keywords":["visible sentinel"],"detail":"full"}`)
+	if err != nil || result.Status != agentschema.ToolResultSuccess || !strings.Contains(result.ModelContent, "visible sentinel") {
+		t.Fatalf("visible span keyword query failed: %#v %v", result, err)
+	}
+}
+
 func TestWriteLoreItemsKeepsBatchEntitiesSeparateDuringPartialUpdates(t *testing.T) {
 	workspace := t.TempDir()
 	definitions, err := newLoreTools(workspace, true)
@@ -225,6 +263,31 @@ func TestWriteLoreItemsKeepsBatchEntitiesSeparateDuringPartialUpdates(t *testing
 		}
 		if !reflect.DeepEqual(after, want) {
 			t.Fatalf("batch update changed unrelated data:\n got %#v\nwant %#v", after, want)
+		}
+		return
+	}
+	t.Fatal("write_lore_items was not registered")
+}
+
+func TestWriteLoreItemsSchemaIncludesChapterSpans(t *testing.T) {
+	definitions, err := newLoreTools(t.TempDir(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, definition := range definitions {
+		info, err := definition.Tool.Info(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Name != "write_lore_items" {
+			continue
+		}
+		wire, err := json.Marshal(info)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(wire), "spans") || !strings.Contains(info.Desc, "chapter-scoped") {
+			t.Fatalf("write_lore_items schema/description omitted spans: %s", wire)
 		}
 		return
 	}

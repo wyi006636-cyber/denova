@@ -162,8 +162,8 @@ func (s *Store) ResidentIndexMarkdown(maxBytes int) (string, error) {
 		return "", err
 	}
 	entries := make([]loreIndexEntry, 0, len(items))
-	for _, item := range items {
-		if item.LoadMode == LoadModeResident {
+	for _, item := range VisibleItems(items, "", LoreScopeAsOf) {
+		if item.LoadMode == LoadModeResident && strings.TrimSpace(item.Content) != "" {
 			entries = append(entries, loreIndexEntry{Item: item})
 		}
 	}
@@ -187,6 +187,7 @@ func (s *Store) ResidentContextMarkdown() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	items = VisibleItems(items, "", LoreScopeAsOf)
 	sort.SliceStable(items, func(i, j int) bool { return items[i].ID < items[j].ID })
 	var sb strings.Builder
 	for _, item := range items {

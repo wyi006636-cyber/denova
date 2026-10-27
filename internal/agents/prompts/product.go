@@ -11,6 +11,7 @@ import (
 
 	"denova/config"
 	"denova/internal/book"
+	"denova/internal/book/lore"
 	imageprompting "denova/internal/image/prompting"
 )
 
@@ -33,6 +34,10 @@ type IDEWorkspaceRuntimeContexts struct {
 	Stable       string
 	DynamicTitle string
 	Dynamic      string
+	// Lore is a separate turn-scoped fragment. Keeping it out of Dynamic
+	// avoids marker-based splitting when a workspace path contains the same
+	// heading text and lets the assembler account for its title explicitly.
+	Lore string
 }
 
 func IDEWorkspaceRuntimeContextsForState(state *book.State) IDEWorkspaceRuntimeContexts {
@@ -56,18 +61,50 @@ func IDEWorkspaceRuntimeContextsForState(state *book.State) IDEWorkspaceRuntimeC
 // with the bounded, request-scoped IDE focus paths. Keeping the request DTO out
 // of this package makes prompt composition independent from chat transport.
 func IDEWorkspaceRuntimeContextsForContext(state *book.State, ide IDEContextRef) IDEWorkspaceRuntimeContexts {
+	return IDEWorkspaceRuntimeContextsForContextWithLore(state, ide, "", lore.LoreScopeAsOf)
+}
+
+// IDEWorkspaceRuntimeContextsForContextWithLore adds the request-scoped
+// chapter lore fragment while keeping the existing stable workspace index
+// unchanged. The focused chapter prefix wins over an explicit cursor.
+func IDEWorkspaceRuntimeContextsForContextWithLore(state *book.State, ide IDEContextRef, loreAsOf, loreScope string) IDEWorkspaceRuntimeContexts {
 	contexts := IDEWorkspaceRuntimeContextsForState(state)
 	ideContext := IDEContextRuntimeContext(ide)
-	if strings.TrimSpace(ideContext) == "" {
-		return contexts
+	if strings.TrimSpace(ideContext) != "" {
+		extra := fmt.Sprintf(
+			"## Current IDE State (provided by the frontend request; paths only; at most %d open files)\n\n%s",
+			ideContextMaxOpenFiles,
+			ideContext,
+		)
+		contexts.Dynamic = strings.TrimSpace(strings.Join(nonEmptyStrings(contexts.Dynamic, extra), "\n\n"))
 	}
-	extra := fmt.Sprintf(
-		"## Current IDE State (provided by the frontend request; paths only; at most %d open files)\n\n%s",
-		ideContextMaxOpenFiles,
-		ideContext,
-	)
-	contexts.Dynamic = strings.TrimSpace(strings.Join(nonEmptyStrings(contexts.Dynamic, extra), "\n\n"))
+	if state != nil {
+		visibility := lore.ResolveSpanVisibility(ide.CurrentFile, loreAsOf, loreScope)
+		items, err := lore.NewStore(state.Workspace()).List()
+		if err == nil {
+			spanContext, spanErr := lore.VisibleSpansMarkdown(items, visibility.Cursor, visibility.Scope, lore.VisibleSpanContextMaxBytes)
+			if spanErr == nil {
+				contexts.Lore = strings.TrimSpace(spanContext)
+			}
+		}
+	}
 	return contexts
+}
+
+// ValidateLoreSpanContext checks the complete request-scoped span fragment
+// before an Agent run is admitted. Callers should surface the returned error
+// instead of allowing the shared assembler to truncate a span midway.
+func ValidateLoreSpanContext(state *book.State, ide IDEContextRef, loreAsOf, loreScope string) error {
+	if state == nil {
+		return nil
+	}
+	visibility := lore.ResolveSpanVisibility(ide.CurrentFile, loreAsOf, loreScope)
+	items, err := lore.NewStore(state.Workspace()).List()
+	if err != nil {
+		return err
+	}
+	_, err = lore.VisibleSpansMarkdown(items, visibility.Cursor, visibility.Scope, lore.VisibleSpanContextMaxBytes)
+	return err
 }
 
 func IDEContextRuntimeContext(ide IDEContextRef) string {

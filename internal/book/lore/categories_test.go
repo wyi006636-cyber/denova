@@ -3,6 +3,7 @@ package lore
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -107,6 +108,104 @@ func TestCustomCategoryRenameMoveDeletePreservesLore(t *testing.T) {
 	backups, _ := filepath.Glob(filepath.Join(store.workspace, "setting", "lore", "backups", "categories-removal-*.json"))
 	if len(backups) != 1 {
 		t.Fatal("category removal has no recovery copy")
+	}
+}
+
+func TestNameCatalogReportsCursorHiddenIDsWithoutLeakingNames(t *testing.T) {
+	store := NewStore(t.TempDir())
+	if _, err := store.Create(ItemInput{ID: "future-secret", Type: "world", Name: "Future Secret", Spans: []Span{{ID: "later", From: "ch00030", Content: "future body"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Create(ItemInput{ID: "current-secret", Type: "world", Name: "Current Secret", Spans: []Span{{ID: "now", From: "ch00020", Content: "current body"}}}); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := store.NameCatalogMarkdown(NameCatalogOptions{Cursor: "ch00020", Scope: LoreScopeAsOf})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(catalog, "Current Secret") || strings.Contains(catalog, "Future Secret") || strings.Contains(catalog, "future body") {
+		t.Fatalf("catalog leaked hidden lore: %s", catalog)
+	}
+	if !strings.Contains(catalog, "1 lore item(s) are not visible at the current chapter cursor") || !strings.Contains(catalog, "future-secret") {
+		t.Fatalf("catalog omitted hidden-id notice: %s", catalog)
+	}
+}
+
+func TestNameCatalogCapsHiddenIDsAndKeepsVisibleEntries(t *testing.T) {
+	workspace := t.TempDir()
+	store := NewStore(workspace)
+	items := make([]Item, 0, 1303)
+	for index := 0; index < 1300; index++ {
+		items = append(items, Item{
+			ID: fmt.Sprintf("future-%04d", index), Enabled: true, Type: "world", Name: fmt.Sprintf("Future %04d", index),
+			LoadMode: LoadModeAuto, Spans: []Span{{ID: "later", From: "ch00030", Content: "future body"}},
+		})
+	}
+	for index := 0; index < 3; index++ {
+		items = append(items, Item{
+			ID: fmt.Sprintf("current-%02d", index), Enabled: true, Type: "world", Name: fmt.Sprintf("Current %02d", index),
+			LoadMode: LoadModeAuto, Spans: []Span{{ID: "now", From: "ch00020", Content: "current body"}},
+		})
+	}
+	if err := os.MkdirAll(filepath.Dir(store.itemsPath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(Collection{Version: loreItemsVersion, Categories: DefaultCategories(), Items: items})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(store.itemsPath(), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	catalog, err := store.NameCatalogMarkdown(NameCatalogOptions{Cursor: "ch00020", Scope: LoreScopeAsOf})
+	if err != nil {
+		t.Fatalf("large hidden catalog failed: %v", err)
+	}
+	for index := 0; index < 3; index++ {
+		if !strings.Contains(catalog, fmt.Sprintf("Current %02d", index)) {
+			t.Fatalf("visible lore item %d missing from catalog: %s", index, catalog)
+		}
+	}
+	if !strings.Contains(catalog, "1300 lore item(s) are not visible") || !strings.Contains(catalog, "+1270 more") {
+		t.Fatalf("hidden-id notice was not bounded: %s", catalog)
+	}
+	if strings.Contains(catalog, "Future 0000") || strings.Contains(catalog, "future body") {
+		t.Fatalf("hidden lore leaked into catalog: %s", catalog)
+	}
+}
+
+func TestNameCatalogTinyBudgetFallsBackToHiddenCount(t *testing.T) {
+	store := NewStore(t.TempDir())
+	for index := 0; index < 40; index++ {
+		id := fmt.Sprintf("future-%02d-%s", index, strings.Repeat("x", 45))
+		if _, err := store.Create(ItemInput{ID: id, Type: "world", Name: fmt.Sprintf("Future %02d", index), Spans: []Span{{ID: "later", From: "ch00030", Content: "future body"}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	catalog, err := store.NameCatalogMarkdown(NameCatalogOptions{Cursor: "ch00020", Scope: LoreScopeAsOf, MaxBytes: 512})
+	if err != nil {
+		t.Fatalf("tiny budget should fall back to a count-only notice: %v", err)
+	}
+	if len(catalog) > 512 || !strings.Contains(catalog, "40 lore item(s) are hidden for this request") {
+		t.Fatalf("unexpected tiny-budget catalog (%d bytes): %s", len(catalog), catalog)
+	}
+	if strings.Contains(catalog, "Future 00") || strings.Contains(catalog, "future body") {
+		t.Fatalf("hidden lore leaked into catalog: %s", catalog)
+	}
+}
+
+func TestNameCatalogExplainsMissingCursor(t *testing.T) {
+	store := NewStore(t.TempDir())
+	if _, err := store.Create(ItemInput{ID: "future-secret", Type: "world", Name: "Future Secret", Spans: []Span{{ID: "later", From: "ch00030", Content: "future body"}}}); err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := store.NameCatalogMarkdown(NameCatalogOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(catalog, "no chapter cursor for this request") || strings.Contains(catalog, "current chapter cursor") {
+		t.Fatalf("missing-cursor notice is unclear: %s", catalog)
 	}
 }
 

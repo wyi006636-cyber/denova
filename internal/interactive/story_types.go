@@ -24,6 +24,7 @@ type CreateStoryRequest struct {
 	StoryTellerID             string                            `json:"story_teller_id"`
 	PlanningTemplateID        string                            `json:"planning_template_id,omitempty"`
 	PlanningMode              string                            `json:"planning_mode,omitempty"`
+	LoreAsOf                  string                            `json:"lore_as_of,omitempty"`
 	ModuleRefs                *StoryDirectorModuleRefs          `json:"module_refs,omitempty"`
 	ReplyTargetChars          int                               `json:"reply_target_chars"`
 	ChoiceCount               int                               `json:"choice_count"`
@@ -139,6 +140,7 @@ type UpdateStoryRequest struct {
 	StoryTellerID             string                           `json:"story_teller_id"`
 	PlanningTemplateID        string                           `json:"planning_template_id,omitempty"`
 	PlanningMode              *string                          `json:"planning_mode,omitempty"`
+	LoreAsOf                  *string                          `json:"lore_as_of,omitempty"`
 	ModuleRefs                *StoryDirectorModuleRefs         `json:"module_refs,omitempty"`
 	ReplyTargetChars          *int                             `json:"reply_target_chars,omitempty"`
 	ChoiceCount               *int                             `json:"choice_count,omitempty"`
@@ -177,6 +179,7 @@ type StorySummary struct {
 	PlanningTemplateID    string                     `json:"planning_template_id"`
 	LegacyStoryDirectorID string                     `json:"story_director_id,omitempty"`
 	PlanningMode          string                     `json:"planning_mode"`
+	LoreAsOf              string                     `json:"lore_as_of,omitempty"`
 	ModuleRefs            *StoryDirectorModuleRefs   `json:"module_refs,omitempty"`
 	ReplyTargetChars      int                        `json:"reply_target_chars"`
 	ChoiceCount           int                        `json:"choice_count"`
@@ -240,24 +243,27 @@ type BranchSummary struct {
 }
 
 type StoryMeta struct {
-	Preview                   bool                             `json:"preview,omitempty"`
-	V                         int                              `json:"v"`
-	Type                      string                           `json:"type"`
-	StoryID                   string                           `json:"story_id"`
-	Title                     string                           `json:"title"`
-	TitleSource               string                           `json:"title_source"`
-	Origin                    string                           `json:"origin"`
-	Protagonist               StoryProtagonist                 `json:"protagonist"`
-	StoryTellerID             string                           `json:"story_teller_id"`
-	PlanningTemplateID        string                           `json:"planning_template_id,omitempty"`
-	StoryDirectorID           string                           `json:"story_director_id,omitempty"`
-	PlanningMode              string                           `json:"planning_mode"`
-	ModuleRefs                *StoryDirectorModuleRefs         `json:"module_refs,omitempty"`
-	ReplyTargetChars          int                              `json:"reply_target_chars"`
-	ChoiceCount               int                              `json:"choice_count"`
-	Opening                   StoryOpeningConfig               `json:"opening"`
-	ImageSettings             StoryImageSettings               `json:"image_settings"`
-	CheckSettings             StoryCheckSettings               `json:"check_settings,omitempty"`
+	Preview            bool                     `json:"preview,omitempty"`
+	V                  int                      `json:"v"`
+	Type               string                   `json:"type"`
+	StoryID            string                   `json:"story_id"`
+	Title              string                   `json:"title"`
+	TitleSource        string                   `json:"title_source"`
+	Origin             string                   `json:"origin"`
+	Protagonist        StoryProtagonist         `json:"protagonist"`
+	StoryTellerID      string                   `json:"story_teller_id"`
+	PlanningTemplateID string                   `json:"planning_template_id,omitempty"`
+	StoryDirectorID    string                   `json:"story_director_id,omitempty"`
+	PlanningMode       string                   `json:"planning_mode"`
+	ModuleRefs         *StoryDirectorModuleRefs `json:"module_refs,omitempty"`
+	ReplyTargetChars   int                      `json:"reply_target_chars"`
+	ChoiceCount        int                      `json:"choice_count"`
+	Opening            StoryOpeningConfig       `json:"opening"`
+	ImageSettings      StoryImageSettings       `json:"image_settings"`
+	CheckSettings      StoryCheckSettings       `json:"check_settings,omitempty"`
+	// LoreAsOf stores an optional ch##### chapter anchor for lore filtering.
+	// It is independent from turn count and remains empty by default.
+	LoreAsOf                  string                           `json:"lore_as_of,omitempty"`
 	SpeechSettings            StorySpeechSettings              `json:"speech_settings,omitempty"`
 	PresentationSettings      *StoryPresentationSettings       `json:"presentation_settings,omitempty"`
 	StateSchemaPolicy         *StoryStateSchemaPolicy          `json:"state_schema_policy,omitempty"`

@@ -93,11 +93,13 @@ func newLoreIndexMembershipResource(workspace string) Adapter {
 			Name: "lore_index_membership", Description: "Custom index-group associations and detail overrides for each existing lore item, including disabled items. List query matches ID or name. Update replaces only index_memberships; [] restores automatic grouping. Apply one item at a time and retry only failures.",
 			Scopes: []string{"workspace"}, Operations: []string{ReadList, ReadGet, ApplyUpdate}, RevisionField: "revision", Reference: "references/lore-index.md",
 		},
-		list: func(_ context.Context, request ReadRequest) (any, error) {
+		list: func(ctx context.Context, request ReadRequest) (any, error) {
 			items, err := store.ListAll()
 			if err != nil {
 				return nil, err
 			}
+			visibility := lore.SpanVisibilityFromContext(ctx)
+			items = lore.VisibleItems(items, visibility.Cursor, visibility.Scope)
 			values := []loreIndexMembershipDocument{}
 			query := strings.ToLower(request.Query)
 			for _, item := range items {

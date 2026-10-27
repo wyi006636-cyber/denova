@@ -84,6 +84,10 @@ func (c *SessionConversation) AssembleModelContext(ctx context.Context, _ string
 			slog.ErrorContext(ctx, "[lore] stable workspace context exceeds injection budget", "bytes", len(c.stableContext), "limit", fragment.Limit)
 			return agentcontext.ModelContextResult{}, fmt.Errorf("%s", i18n.New(locale).T("lore.index.contextTooLarge", "limit", fragment.Limit))
 		}
+		if fragment.Source == "workspace.lore.as_of" && fragment.Truncated {
+			slog.ErrorContext(ctx, "[lore] chapter-scoped context exceeds injection budget", "bytes", len(c.loreContext), "limit", fragment.Limit)
+			return agentcontext.ModelContextResult{}, fmt.Errorf("chapter-scoped lore exceeds %d bytes; shorten spans or choose a narrower chapter", fragment.Limit)
+		}
 	}
 	return agentcontext.ModelContextResult{
 		Messages: assembled.Messages, Context: assembled,
@@ -306,11 +310,20 @@ func (c *SessionConversation) runtimeContextFragments() []agentcontext.Fragment 
 		if title == "" {
 			title = "Current Turn Dynamic Context"
 		}
+		dynamic := c.dynamicContext
 		fragments = append(fragments, agentcontext.Fragment{
 			ID: "workspace_runtime_dynamic", Source: "workspace.runtime.dynamic", Title: title,
 			Purpose: "provide turn-scoped workspace sources for the current request",
-			Content: c.dynamicContext, Placement: agentcontext.PlacementFinalUserPrefix, Included: true,
+			Content: dynamic, Placement: agentcontext.PlacementFinalUserPrefix, Included: true,
 			Note: "source=workspace source projection; placement=final user prefix; file bodies=on demand",
+		})
+	}
+	if strings.TrimSpace(c.loreContext) != "" {
+		fragments = append(fragments, agentcontext.Fragment{
+			ID: "workspace_lore_as_of", Source: "workspace.lore.as_of", Title: "Chapter-scoped Lore for This Turn",
+			Purpose: "provide chapter-scoped lore that is valid for this request",
+			Content: c.loreContext, Placement: agentcontext.PlacementFinalUserPrefix, Limit: agentcontext.DefaultMaxFragmentBytes, Included: true,
+			Note: "source=setting/lore/items.json; placement=final user prefix; spans are excluded from the stable prefix",
 		})
 	}
 	return fragments

@@ -20,6 +20,7 @@ export interface StorySummary {
   story_teller_id: string
   planning_template_id: string
   planning_mode?: StoryPlanningMode
+  lore_as_of?: string
   module_refs?: StoryDirectorModuleRefs
   reply_target_chars: number
   choice_count: number
@@ -216,6 +217,7 @@ export interface InteractiveStoryUpdateInput {
   check_settings?: StoryCheckSettings
   opening?: StoryOpeningConfig
   state_schema_policy?: StoryStateSchemaPolicy
+  lore_as_of?: string
 }
 
 export interface StoryDirectorTRPGSystem {

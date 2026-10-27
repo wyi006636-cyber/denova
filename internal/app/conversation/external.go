@@ -18,6 +18,7 @@ import (
 	"denova/internal/agents/session"
 	"denova/internal/agents/toolruntime"
 	appagentruntime "denova/internal/app/agentruntime"
+	"denova/internal/book/lore"
 
 	publiccontext "github.com/alfredxw/denova/agent/context"
 	agentschema "github.com/alfredxw/denova/agent/schema"
@@ -112,6 +113,7 @@ func prepareExternalInput(ctx context.Context, runtime Runtime, request agentcha
 	if err != nil {
 		return external.StartRequest{}, err
 	}
+	visibility := lore.ResolveSpanVisibility(request.IDEContext.CurrentFile, request.LoreAsOf, request.LoreScope)
 	return external.StartRequest{
 		ProjectID: runtime.ProjectID, AttachmentRoot: runtime.ProjectStore, Session: runtime.Session, CommandID: request.CommandID,
 		Fingerprint: agentexecution.RequestSemanticFingerprint(request),
@@ -127,5 +129,6 @@ func prepareExternalInput(ctx context.Context, runtime Runtime, request agentcha
 		InputCommitEffect: options.InputCommitEffect, BookService: runtime.BookService, OnMutationsVerified: options.OnMutationsVerified,
 		ProviderInputMaxBytes: config.ResolveAgentContext(&runtime.Config, runtime.AgentKind).MaxProviderInputBytes,
 		Locale:                runtime.Config.Language,
+		LoreVisibility:        visibility,
 	}, nil
 }

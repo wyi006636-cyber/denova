@@ -2,6 +2,7 @@ package lore
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -13,6 +14,8 @@ type NameCatalogOptions struct {
 	MaxBytes        int
 	ExcludeResident bool
 	OmitWhenEmpty   bool
+	Cursor          string
+	Scope           string
 }
 
 // NameCatalogMarkdown returns a bounded catalog for candidate discovery.
@@ -33,14 +36,34 @@ func (s *Store) NameCatalogMarkdown(options NameCatalogOptions) (string, error) 
 	}
 	categoryCatalog.WriteByte('\n')
 	prefix := categoryCatalog.String()
-	filtered := make([]Item, 0, len(items))
-	for _, item := range items {
+	visibleItems := VisibleItems(items, options.Cursor, options.Scope)
+	visibleIDs := make(map[string]struct{}, len(visibleItems))
+	for _, item := range visibleItems {
+		visibleIDs[item.ID] = struct{}{}
+	}
+	hiddenIDs := make([]string, 0)
+	if !strings.EqualFold(strings.TrimSpace(options.Scope), LoreScopeBook) {
+		for _, item := range items {
+			if options.ExcludeResident && item.LoadMode == LoadModeResident {
+				continue
+			}
+			if len(item.Spans) == 0 {
+				continue
+			}
+			if _, ok := visibleIDs[item.ID]; !ok {
+				hiddenIDs = append(hiddenIDs, item.ID)
+			}
+		}
+		sort.Strings(hiddenIDs)
+	}
+	filtered := make([]Item, 0, len(visibleItems))
+	for _, item := range visibleItems {
 		if options.ExcludeResident && item.LoadMode == LoadModeResident {
 			continue
 		}
 		filtered = append(filtered, item)
 	}
-	if options.OmitWhenEmpty && len(filtered) == 0 {
+	if options.OmitWhenEmpty && len(filtered) == 0 && len(hiddenIDs) == 0 {
 		return "", nil
 	}
 	entries := make([]loreIndexEntry, 0, len(filtered))
@@ -71,31 +94,61 @@ func (s *Store) NameCatalogMarkdown(options NameCatalogOptions) (string, error) 
 		name := boundedLoreCatalogName(item.Name, 512)
 		lines = append(lines, fmt.Sprintf("- [%s/%s] %s\n", item.Type, item.Importance, name))
 	}
+	hiddenNotice := ""
+	if len(hiddenIDs) > 0 {
+		const hiddenIDLimit = 30
+		shownHiddenIDs := hiddenIDs
+		if len(shownHiddenIDs) > hiddenIDLimit {
+			shownHiddenIDs = shownHiddenIDs[:hiddenIDLimit]
+		}
+		notice := "not visible at the current chapter cursor"
+		if strings.TrimSpace(options.Cursor) == "" {
+			notice = "not visible because there is no chapter cursor for this request"
+		}
+		extra := ""
+		if omitted := len(hiddenIDs) - len(shownHiddenIDs); omitted > 0 {
+			extra = fmt.Sprintf(", +%d more", omitted)
+		}
+		hiddenNotice = fmt.Sprintf("\n%d lore item(s) are %s; query or update by exact id: %s%s\n", len(hiddenIDs), notice, strings.Join(shownHiddenIDs, ", "), extra)
+	}
+	hiddenNoticeBytes := len([]byte(hiddenNotice))
 
 	shown := 0
 	shownLineBytes := 0
 	for shown < len(lines) {
 		candidateShown := shown + 1
-		candidateBytes := len(prefix) + len([]byte(renderLoreNameCatalogHeader(revision, len(entries), offset, candidateShown))) + shownLineBytes + len([]byte(lines[shown]))
+		candidateBytes := len(prefix) + len([]byte(renderLoreNameCatalogHeader(revision, len(entries), offset, candidateShown))) + shownLineBytes + len([]byte(lines[shown])) + hiddenNoticeBytes
 		if candidateBytes > maxBytes {
 			break
 		}
 		shownLineBytes += len([]byte(lines[shown]))
 		shown++
 	}
-	result := prefix + renderLoreNameCatalog(revision, len(entries), offset, shown, lines[:shown])
+	result := prefix + renderLoreNameCatalog(revision, len(entries), offset, shown, lines[:shown]) + hiddenNotice
 	if len([]byte(result)) <= maxBytes {
 		return strings.TrimSpace(result), nil
 	}
 
 	// Very small caller-provided budgets still receive useful source metadata.
-	minimal := fmt.Sprintf("# Lore Name Catalog\nsource: %s\nrevision: %s\ntotal: %d\nshown: 0\nomitted: %d", ItemsRelativePath, revision, len(entries), len(entries)-offset)
-	if len([]byte(minimal)) <= maxBytes {
-		return minimal, nil
+	// The hidden-id list is only a lookup hint, so fall back to a count-only
+	// notice before refusing the whole catalog.
+	notices := []string{hiddenNotice}
+	if len(hiddenIDs) > 0 {
+		notices = append(notices, fmt.Sprintf("\n%d lore item(s) are hidden for this request.", len(hiddenIDs)))
 	}
-	compact := fmt.Sprintf("# Lore Name Catalog\nTotal: %d; omitted: %d. Use query_lore_items.", len(entries), len(entries)-offset)
-	if len([]byte(compact)) <= maxBytes {
-		return compact, nil
+	var minimal string
+	for index, notice := range notices {
+		candidate := fmt.Sprintf("# Lore Name Catalog\nsource: %s\nrevision: %s\ntotal: %d\nshown: 0\nomitted: %d%s", ItemsRelativePath, revision, len(entries), len(entries)-offset, notice)
+		if index == 0 {
+			minimal = candidate
+		}
+		if len([]byte(candidate)) <= maxBytes {
+			return candidate, nil
+		}
+		compact := fmt.Sprintf("# Lore Name Catalog\nTotal: %d; omitted: %d. Use query_lore_items.%s", len(entries), len(entries)-offset, notice)
+		if len([]byte(compact)) <= maxBytes {
+			return compact, nil
+		}
 	}
 	return "", fmt.Errorf("lore name catalog limit is too small; at least %d bytes are required", len([]byte(minimal)))
 }

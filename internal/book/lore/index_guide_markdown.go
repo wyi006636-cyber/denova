@@ -48,7 +48,7 @@ func renderIndexGuide(collection Collection) (string, error) {
 			sb.WriteString("\n\n")
 		}
 		for _, item := range group.items {
-			if !item.Enabled {
+			if !item.Enabled || (strings.TrimSpace(item.Content) == "" && len(item.Spans) > 0) {
 				continue
 			}
 			if emitted[item.ID] {

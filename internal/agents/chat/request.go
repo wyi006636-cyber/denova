@@ -37,14 +37,18 @@ type ChatRequest struct {
 	PageContext       *PageContext             `json:"page_context,omitempty"`
 	PageInstructions  string                   `json:"-"`
 	IDEContext        prompts.IDEContextRef    `json:"ide_context,omitempty"`
-	ReviewFeedback    agentreview.Refs         `json:"review_feedback,omitempty"`
-	PlanMode          bool                     `json:"plan_mode"`
-	WritingSkill      string                   `json:"writing_skill"`
-	ImagePresetID     string                   `json:"image_preset_id"`
-	TellerID          string                   `json:"teller_id"`
-	Locale            string                   `json:"-"`
-	InputVisibility   agentrun.InputVisibility `json:"-"`
-	AttachedFiles     []agentschema.Attachment `json:"-"`
+	// LoreAsOf and LoreScope are one-turn visibility controls. LoreAsOf stores
+	// only a ch##### anchor; the focused chapter path takes precedence.
+	LoreAsOf        string                   `json:"lore_as_of,omitempty"`
+	LoreScope       string                   `json:"lore_scope,omitempty"`
+	ReviewFeedback  agentreview.Refs         `json:"review_feedback,omitempty"`
+	PlanMode        bool                     `json:"plan_mode"`
+	WritingSkill    string                   `json:"writing_skill"`
+	ImagePresetID   string                   `json:"image_preset_id"`
+	TellerID        string                   `json:"teller_id"`
+	Locale          string                   `json:"-"`
+	InputVisibility agentrun.InputVisibility `json:"-"`
+	AttachedFiles   []agentschema.Attachment `json:"-"`
 
 	// StyleRules 由后端按当前导演配置注入（场景 → 共享文风参考索引）。
 	// StyleScenes 非空时只注入用户本轮通过 # 指定的场景；为空时作为场景化建议参与本轮上下文。
@@ -79,6 +83,8 @@ type CallerInput struct {
 	Selections           []TextSelectionRef    `json:"selections,omitempty"`
 	PageContext          *PageContext          `json:"page_context,omitempty"`
 	IDEContext           prompts.IDEContextRef `json:"ide_context,omitempty"`
+	LoreAsOf             string                `json:"lore_as_of,omitempty"`
+	LoreScope            string                `json:"lore_scope,omitempty"`
 	ReviewFeedback       agentreview.Refs      `json:"review_feedback,omitempty"`
 	PlanMode             bool                  `json:"plan_mode"`
 	WritingSkill         string                `json:"writing_skill,omitempty"`
@@ -100,8 +106,9 @@ func CaptureChatRequestCallerInput(req ChatRequest) ChatRequest {
 		AttachmentIDs:        cloneStrings(req.AttachmentIDs),
 		References:           cloneStrings(req.References), LoreReferences: cloneStrings(req.LoreReferences),
 		StyleScenes: cloneStrings(req.StyleScenes), Selections: cloneTextSelectionRefs(req.Selections),
-		PageContext:    clonePageContext(req.PageContext),
-		IDEContext:     prompts.IDEContextRef{CurrentFile: req.IDEContext.CurrentFile, OpenFiles: cloneStrings(req.IDEContext.OpenFiles)},
+		PageContext: clonePageContext(req.PageContext),
+		IDEContext:  prompts.IDEContextRef{CurrentFile: req.IDEContext.CurrentFile, OpenFiles: cloneStrings(req.IDEContext.OpenFiles)},
+		LoreAsOf:    req.LoreAsOf, LoreScope: req.LoreScope,
 		ReviewFeedback: req.ReviewFeedback.Clone(),
 		PlanMode:       req.PlanMode, WritingSkill: req.WritingSkill,
 		ImagePresetID: req.ImagePresetID, TellerID: req.TellerID, Locale: req.Locale,
@@ -131,8 +138,9 @@ func (input CallerInput) Request() ChatRequest {
 		ResumeInterruptionID: input.ResumeInterruptionID, AttachmentIDs: cloneStrings(input.AttachmentIDs),
 		References: cloneStrings(input.References), LoreReferences: cloneStrings(input.LoreReferences),
 		StyleScenes: cloneStrings(input.StyleScenes), Selections: cloneTextSelectionRefs(input.Selections),
-		PageContext:    clonePageContext(input.PageContext),
-		IDEContext:     prompts.IDEContextRef{CurrentFile: input.IDEContext.CurrentFile, OpenFiles: cloneStrings(input.IDEContext.OpenFiles)},
+		PageContext: clonePageContext(input.PageContext),
+		IDEContext:  prompts.IDEContextRef{CurrentFile: input.IDEContext.CurrentFile, OpenFiles: cloneStrings(input.IDEContext.OpenFiles)},
+		LoreAsOf:    input.LoreAsOf, LoreScope: input.LoreScope,
 		ReviewFeedback: input.ReviewFeedback.Clone(), PlanMode: input.PlanMode,
 		WritingSkill: input.WritingSkill, ImagePresetID: input.ImagePresetID, TellerID: input.TellerID, Locale: input.Locale,
 	}

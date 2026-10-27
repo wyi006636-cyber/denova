@@ -38,7 +38,7 @@ type presentationCatalogMaterial struct {
 
 // The dynamic catalog is a final-user prefix. Complete item groups are selected
 // in stable priority order; omitted items stay discoverable through Lore tools.
-func buildPresentationContext(workspace string, settings *interactive.StoryPresentationSettings, stage *interactive.TurnPresentation, plan *interactive.BranchPlan, userAction string) interactiveContextSource {
+func buildPresentationContext(workspace string, settings *interactive.StoryPresentationSettings, stage *interactive.TurnPresentation, plan *interactive.BranchPlan, userAction string, visibility lore.SpanVisibility) interactiveContextSource {
 	settings = interactive.NormalizeStoryPresentationSettings(settings)
 	if stage == nil {
 		stage = &interactive.TurnPresentation{}
@@ -61,7 +61,7 @@ func buildPresentationContext(workspace string, settings *interactive.StoryPrese
 	if settings.Ambient {
 		content.WriteString("Ambient audio is enabled. Select at most one matching local audio material for the final scene through presentation.ambient. Preserve an unchanged track; use ambient:null when the scene no longer has suitable ambience. Mere mentions and memories do not change the scene. Never generate an audio file or invent references.\n")
 	}
-	items, err := loadPresentationCatalog(workspace, settings, stage, plan, userAction)
+	items, err := loadPresentationCatalog(workspace, settings, stage, plan, userAction, visibility)
 	if err != nil {
 		slog.Warn("[interactive-presentation] failed to build material catalog", "error", err)
 		content.WriteString("Material catalog unavailable; preserve the current stage.\n")
@@ -90,7 +90,7 @@ func buildPresentationContext(workspace string, settings *interactive.StoryPrese
 
 // loadPresentationCatalog shares exact enabled associations and stable ordering
 // between inline selection and host-owned selection. It never loads media bytes.
-func loadPresentationCatalog(workspace string, settings *interactive.StoryPresentationSettings, stage *interactive.TurnPresentation, plan *interactive.BranchPlan, userAction string) ([]presentationCatalogItem, error) {
+func loadPresentationCatalog(workspace string, settings *interactive.StoryPresentationSettings, stage *interactive.TurnPresentation, plan *interactive.BranchPlan, userAction string, visibility lore.SpanVisibility) ([]presentationCatalogItem, error) {
 	items, err := lore.NewStore(workspace).List()
 	if err != nil {
 		return nil, err
@@ -98,6 +98,7 @@ func loadPresentationCatalog(workspace string, settings *interactive.StoryPresen
 	if stage == nil {
 		stage = &interactive.TurnPresentation{}
 	}
+	items = lore.VisibleItems(items, visibility.Cursor, visibility.Scope)
 	priority := map[string]int{}
 	if plan != nil {
 		for _, name := range interactive.ParseLoreReferences(plan.Markdown) {

@@ -248,7 +248,8 @@ func (s *Store) indexQueryItems(options IndexOptions) ([]Item, []IndexGroup, err
 		}
 	}
 	items := []Item{}
-	for _, item := range collection.Items {
+	visible := VisibleItems(collection.Items, options.Cursor, options.Scope)
+	for _, item := range visible {
 		if item.Enabled && (len(options.GroupNames) == 0 || selected[item.ID]) {
 			items = append(items, resolveItem(item, collection.Assets))
 		}

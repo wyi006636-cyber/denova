@@ -33,6 +33,7 @@ type HealthReport struct {
 	EmptyItems       []HealthIssue `json:"empty_items"`
 	BrokenReferences []HealthIssue `json:"broken_references"`
 	UnusedItems      []HealthIssue `json:"unused_items"`
+	ValidityRanges   []HealthIssue `json:"validity_ranges"`
 	ChaptersScanned  int           `json:"chapters_scanned"`
 	ChaptersTotal    int           `json:"chapters_total"`
 	IssuesTotal      int           `json:"issues_total"`
@@ -74,7 +75,7 @@ func (s *Store) Health(chapterLimit, issueLimit int) (HealthReport, error) {
 			}
 			nameOwners[key] = item
 		}
-		if loreBodyEmpty(item.Content) {
+		if loreBodyEmpty(item.Content) && len(item.Spans) == 0 {
 			appendHealthIssue(&report.EmptyItems, HealthIssue{Kind: "empty_content", ItemID: item.ID, Name: item.Name, DetailKey: "lore.health.detail.empty"}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
 		}
 	}
@@ -95,6 +96,47 @@ func (s *Store) Health(chapterLimit, issueLimit int) (HealthReport, error) {
 		return nil
 	})
 	sort.Strings(chapterPaths)
+	chapterMatches := make(map[string][]string)
+	for _, path := range chapterPaths {
+		if prefix := ExtractChapterPrefix(filepath.Base(path)); prefix != "" {
+			rel, relErr := filepath.Rel(s.workspace, path)
+			if relErr == nil {
+				chapterMatches[prefix] = append(chapterMatches[prefix], filepath.ToSlash(rel))
+			}
+		}
+	}
+	for _, item := range items {
+		for _, span := range item.Spans {
+			spanID := strings.TrimSpace(span.ID)
+			validateRangeBoundary := func(boundary, field string) {
+				boundary = strings.TrimSpace(boundary)
+				if boundary == "" {
+					return
+				}
+				prefix, ok := NormalizeChapterPrefix(boundary)
+				if !ok {
+					appendHealthIssue(&report.ValidityRanges, HealthIssue{Kind: "invalid_lore_range_prefix", ItemID: item.ID, Name: item.Name, Reference: spanID, DetailKey: "lore.health.detail.range.invalid_prefix", Detail: field}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
+					return
+				}
+				matches := chapterMatches[prefix]
+				switch len(matches) {
+				case 0:
+					appendHealthIssue(&report.ValidityRanges, HealthIssue{Kind: "unmatched_lore_range_prefix", ItemID: item.ID, Name: item.Name, Reference: prefix, DetailKey: "lore.health.detail.range.unmatched", Detail: field}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
+				case 1:
+					// A unique match is healthy; retain no diagnostic record.
+				default:
+					appendHealthIssue(&report.ValidityRanges, HealthIssue{Kind: "ambiguous_lore_range_prefix", ItemID: item.ID, Name: item.Name, Reference: prefix, Path: strings.Join(matches, ", "), DetailKey: "lore.health.detail.range.ambiguous", Detail: field}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
+				}
+			}
+			validateRangeBoundary(span.From, "from")
+			validateRangeBoundary(span.Until, "until")
+			if from, fromOK := chapterNumber(span.From); fromOK {
+				if until, untilOK := chapterNumber(span.Until); untilOK && from >= until {
+					appendHealthIssue(&report.ValidityRanges, HealthIssue{Kind: "reversed_lore_range", ItemID: item.ID, Name: item.Name, Reference: spanID, DetailKey: "lore.health.detail.range.reversed"}, issueLimit, &report.IssuesTotal, &report.ResultsTruncated)
+				}
+			}
+		}
+	}
 	referenced := make(map[string]bool)
 	for index, path := range chapterPaths {
 		report.ChaptersTotal++

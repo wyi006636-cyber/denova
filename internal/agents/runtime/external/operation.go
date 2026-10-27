@@ -15,6 +15,7 @@ import (
 	externaljournal "denova/internal/agents/runtime/external/journal"
 	"denova/internal/agents/session"
 	agenttool "denova/internal/agents/tool"
+	"denova/internal/book/lore"
 	"denova/internal/i18n"
 	"denova/internal/observability"
 
@@ -68,6 +69,12 @@ func (operation *Operation) Wait(ctx context.Context) agentrun.Outcome {
 		var runErr error
 		var runtimeSession *RuntimeSession
 		runCtx, cancel := context.WithCancel(ctx)
+		// A prepared request may carry an explicit cursor (including book scope),
+		// but an empty request must preserve visibility already bound by the
+		// product entry. Never erase a focused chapter with an empty value.
+		if operation.request.LoreVisibility.Cursor != "" || operation.request.LoreVisibility.Scope == lore.LoreScopeBook {
+			runCtx = lore.ContextWithSpanVisibility(runCtx, operation.request.LoreVisibility)
+		}
 		operation.mu.Lock()
 		operation.runContext = runCtx
 		operation.mu.Unlock()

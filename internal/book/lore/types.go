@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-const loreItemsVersion = 3
+const loreItemsVersion = 4
 
 const (
 	LoadModeResident = "resident"
@@ -45,14 +45,17 @@ type Item struct {
 	LoadMode         string            `json:"load_mode"`
 	IndexMemberships []IndexMembership `json:"index_memberships,omitempty"`
 	Content          string            `json:"content"`
+	// Content is canon that is valid throughout the book. Spans hold
+	// chapter-scoped canon and are filtered before model-context assembly.
+	Spans []Span `json:"spans,omitempty"`
 	// DetailFields records the number of non-empty detail fields carried by the
 	// importing source (e.g. a tavern character card). It is optional and only
 	// used by detail-aware duplicate resolution; zero means unknown.
-	DetailFields     int               `json:"detail_fields,omitempty"`
-	CreatedAt        string            `json:"created_at"`
-	UpdatedAt        string            `json:"updated_at"`
-	Image            *Image            `json:"image,omitempty"`
-	Materials        *Materials        `json:"materials,omitempty"`
+	DetailFields int        `json:"detail_fields,omitempty"`
+	CreatedAt    string     `json:"created_at"`
+	UpdatedAt    string     `json:"updated_at"`
+	Image        *Image     `json:"image,omitempty"`
+	Materials    *Materials `json:"materials,omitempty"`
 	// ResolvedMaterials is a read projection, never persisted by Store.
 	ResolvedMaterials []Material  `json:"resolved_materials,omitempty"`
 	Provenance        *Provenance `json:"provenance,omitempty"`
@@ -72,10 +75,22 @@ type ItemInput struct {
 	// Omission preserves memberships on update; an explicit empty array clears them.
 	IndexMemberships []IndexMembership `json:"index_memberships"`
 	Content          string            `json:"content"`
-	DetailFields     int               `json:"detail_fields,omitempty"`
-	Image            *Image            `json:"image,omitempty"`
-	Provenance       *Provenance       `json:"provenance,omitempty"`
-	BaseRevision     string            `json:"base_revision,omitempty"`
+	// Omission preserves spans on update; an explicit empty array clears them.
+	Spans        []Span      `json:"spans"`
+	DetailFields int         `json:"detail_fields,omitempty"`
+	Image        *Image      `json:"image,omitempty"`
+	Provenance   *Provenance `json:"provenance,omitempty"`
+	BaseRevision string      `json:"base_revision,omitempty"`
+}
+
+// Span is one chapter-scoped piece of lore. From is inclusive and Until is
+// exclusive. At least one boundary is required so always-valid canon remains
+// in Item.Content.
+type Span struct {
+	ID      string `json:"id"`
+	From    string `json:"from,omitempty"`
+	Until   string `json:"until,omitempty"`
+	Content string `json:"content"`
 }
 
 // ReadResult preserves the caller's lookup order while reporting entries
@@ -84,6 +99,14 @@ type ItemInput struct {
 type ReadResult struct {
 	Items   []Item
 	Missing []string
+}
+
+// NotVisibleLore identifies an enabled item that exists in the library but is
+// outside the request's chapter cursor. It intentionally carries only the
+// stable ID so callers can update or delete it without leaking future canon.
+type NotVisibleLore struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
 }
 
 // Provenance records an item's external origin without exposing it in
@@ -163,6 +186,10 @@ type IndexOptions struct {
 	MaxBytes        int
 	ExcludeResident bool
 	OmitTitle       bool
+	// Cursor and Scope are request-scoped visibility controls. They are not
+	// persisted in the Lore collection or included in cache-stable index data.
+	Cursor string
+	Scope  string
 }
 
 var ErrRevisionConflict = errors.New("资料已被其他操作更新，请重新加载后再保存")

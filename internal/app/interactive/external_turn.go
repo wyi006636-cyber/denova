@@ -18,6 +18,7 @@ import (
 	"denova/internal/agents/runtime/external"
 	"denova/internal/agents/session"
 	"denova/internal/book"
+	"denova/internal/book/lore"
 	"denova/internal/i18n"
 	"denova/internal/interactive"
 	"denova/internal/observability"
@@ -75,6 +76,9 @@ func StartExternalTurn(ctx context.Context, cfg ExternalTurnConfig) (*ExternalTu
 	if c == nil || (cfg.Adapter == nil && cfg.Runtime == nil) || cfg.Config.ActiveAgentRuntime == nil {
 		return nil, errors.New("external Game turn requires a conversation and engine")
 	}
+	// Game lore is anchored by StoryMeta; an editor focus must not change the
+	// story's historical cutoff between prompt assembly and tool calls.
+	ctx = lore.ContextWithSpanVisibility(ctx, lore.ResolveSpanVisibility("", cfg.Request.LoreAsOf, cfg.Request.LoreScope))
 	sum := sha256.Sum256([]byte(cfg.Request.CommandID))
 	turn := &ExternalTurn{config: cfg, identity: agentrun.CycleIdentity{CommandID: agentrun.CommandID(cfg.Request.CommandID), OperationID: agentrun.OperationID(externalGameOperationPrefix + hex.EncodeToString(sum[:16])), Cycle: 1}, calls: map[string]externalGameCall{}}
 	// Replacement identity must survive process loss as part of the accepted
@@ -174,6 +178,8 @@ func (turn *ExternalTurn) Wait(ctx context.Context) agentrun.Outcome {
 		if turn.config.Release != nil {
 			defer turn.config.Release()
 		}
+		// Keep resumed turns on the same story cursor used at admission.
+		ctx = lore.ContextWithSpanVisibility(ctx, lore.ResolveSpanVisibility("", turn.config.Request.LoreAsOf, turn.config.Request.LoreScope))
 		turn.outcome = turn.run(ctx)
 	})
 	return turn.outcome

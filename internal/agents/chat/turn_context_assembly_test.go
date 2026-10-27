@@ -12,6 +12,7 @@ import (
 	"denova/config"
 	agentcontext "denova/internal/agents/context"
 	agentconversation "denova/internal/agents/conversation"
+	"denova/internal/agents/prompts"
 	agentreview "denova/internal/agents/review"
 	agentrun "denova/internal/agents/run"
 	"denova/internal/agents/session"
@@ -126,6 +127,47 @@ func TestTurnInputProjectionProjectsEverySourceAsAuditableFragment(t *testing.T)
 		if !strings.Contains(modelMessage, content) {
 			t.Fatalf("assembled model input missing %q: %s", content, modelMessage)
 		}
+	}
+}
+
+func TestTurnLoreReferenceRespectsFocusedChapterCursor(t *testing.T) {
+	workspace := t.TempDir()
+	store := lore.NewStore(workspace)
+	if _, err := store.Create(lore.ItemInput{
+		ID: "secret", Type: "world", Name: "Secret", Content: "stable secret",
+		Spans: []lore.Span{{ID: "later", From: "ch00030", Content: "future secret"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	turn, assembled := assembleTurnForTest(t, ChatRequest{
+		Message:        "Read the lore",
+		LoreReferences: []string{"secret"},
+		IDEContext:     prompts.IDEContextRef{CurrentFile: "chapters/ch00020-opening.md"},
+	}, nil, book.NewService(workspace), agentcontext.DefaultBudget())
+	modelMessage := finalAssembledUserMessage(t, assembled)
+	if !strings.Contains(modelMessage, "stable secret") || strings.Contains(modelMessage, "future secret") {
+		t.Fatalf("focused chapter lore projection = %s", modelMessage)
+	}
+	if len(turn.Fragments) == 0 {
+		t.Fatal("expected a lore reference fragment")
+	}
+}
+
+func TestTurnLoreReferenceHidesFutureOnlyItemWithoutCursor(t *testing.T) {
+	workspace := t.TempDir()
+	store := lore.NewStore(workspace)
+	if _, err := store.Create(lore.ItemInput{
+		ID: "secret", Type: "world", Name: "Secret", Spans: []lore.Span{{ID: "later", From: "ch00030", Content: "future secret"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, assembled := assembleTurnForTest(t, ChatRequest{
+		Message:        "Read the lore",
+		LoreReferences: []string{"secret"},
+	}, nil, book.NewService(workspace), agentcontext.DefaultBudget())
+	modelMessage := finalAssembledUserMessage(t, assembled)
+	if strings.Contains(modelMessage, "future secret") || strings.Contains(modelMessage, "Secret (world") {
+		t.Fatalf("future-only lore leaked without cursor: %s", modelMessage)
 	}
 }
 

@@ -123,11 +123,12 @@ func (s *ChatAppService) prepareWritingCycle(
 		return agentexecution.Cycle{}, ideChatRuntime{}, err
 	}
 	systemPrompt := builtAgent.Composition
-	runtimeContexts := prompts.IDEWorkspaceRuntimeContextsForContext(runtime.state, resolved.IDEContext)
+	runtimeContexts := prompts.IDEWorkspaceRuntimeContextsForContextWithLore(runtime.state, resolved.IDEContext, resolved.LoreAsOf, resolved.LoreScope)
 	conversation := agentconversation.NewSessionConversationForAgentWithRuntimeContexts(
 		runtime.sess, &runtime.cfg, config.AgentKindIDE,
 		runtimeContexts.StableTitle, runtimeContexts.Stable,
 		runtimeContexts.DynamicTitle, runtimeContexts.Dynamic,
+		runtimeContexts.Lore,
 	).WithInputVisibility(resolved.InputVisibility).WithInputDisplayContent(resolved.DisplayMessage)
 	options := runtime.agentOptions(taskID)
 	options.IdleTimeout = appagentruntime.IdleTimeout(runtime.cfg)

@@ -27,6 +27,7 @@ type SessionConversation struct {
 	stableContext       string
 	dynamicContextTitle string
 	dynamicContext      string
+	loreContext         string
 	lastContextSummary  string
 	inputVisibility     agentrun.InputVisibility
 	inputDisplayContent string
@@ -111,13 +112,17 @@ func NewSessionConversationForAgentWithRuntimeContext(sess *session.Session, cfg
 	)
 }
 
-func NewSessionConversationForAgentWithRuntimeContexts(sess *session.Session, cfg *config.Config, agentKind, stableTitle, stableContent, dynamicTitle, dynamicContent string) *SessionConversation {
-	return NewSessionConversation(
+func NewSessionConversationForAgentWithRuntimeContexts(sess *session.Session, cfg *config.Config, agentKind, stableTitle, stableContent, dynamicTitle, dynamicContent string, loreContent ...string) *SessionConversation {
+	c := NewSessionConversation(
 		sess,
 		WithSessionContextConfig(cfg, agentKind),
 		WithSessionStableRuntimeContext(stableTitle, stableContent),
 		WithSessionRuntimeContext(dynamicTitle, dynamicContent),
 	)
+	if len(loreContent) > 0 {
+		c.loreContext = loreContent[0]
+	}
+	return c
 }
 
 type SessionConversationOption func(*SessionConversation)

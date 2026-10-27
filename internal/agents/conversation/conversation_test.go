@@ -193,6 +193,41 @@ func TestWorkspaceRuntimeContextUsesReplaceableStablePrefix(t *testing.T) {
 	}
 }
 
+func TestWorkspaceLoreContextIsAnIndependentFragment(t *testing.T) {
+	conversation := &SessionConversation{
+		dynamicContextTitle: "Dynamic Workspace",
+		dynamicContext:      `Focused file: chapters/## Chapter-scoped Lore for This Turn.md`,
+		loreContext:         "Chapter-scoped lore body",
+	}
+	fragments := conversation.runtimeContextFragments()
+	if len(fragments) != 2 {
+		t.Fatalf("runtime fragments = %#v", fragments)
+	}
+	if fragments[0].Source != "workspace.runtime.dynamic" || !strings.Contains(fragments[0].Content, "## Chapter-scoped Lore for This Turn.md") {
+		t.Fatalf("dynamic path was split by a lore marker: %#v", fragments)
+	}
+	if fragments[1].Source != "workspace.lore.as_of" || fragments[1].Content != "Chapter-scoped lore body" {
+		t.Fatalf("lore fragment = %#v", fragments[1])
+	}
+}
+
+func TestWorkspaceLoreContextOverflowFailsBeforeModelInput(t *testing.T) {
+	store, err := session.NewStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sess, err := store.GetOrCreate("default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	conversation := NewSessionConversation(sess, WithSessionContextConfig(&config.Config{}, config.AgentKindIDE))
+	conversation.loreContext = strings.Repeat("sentinel ", agentcontext.DefaultMaxFragmentBytes/len("sentinel ")+100)
+	_, err = assembleAndCommitModelContextForTest(conversation, "继续写", "继续写")
+	if err == nil || !strings.Contains(err.Error(), "chapter-scoped lore exceeds") {
+		t.Fatalf("oversized lore should fail before model input, got %v", err)
+	}
+}
+
 func TestSessionConversationKeepsStableContextBeforeAgentTranscript(t *testing.T) {
 	store, err := session.NewStore(t.TempDir())
 	if err != nil {

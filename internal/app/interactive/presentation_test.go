@@ -152,11 +152,11 @@ func TestPresentationCatalogAndResolverUseEnabledAssociatedImages(t *testing.T) 
 	if receipt.Applied != 1 || stage.Characters[0].Path != material.Path {
 		t.Fatalf("resolve=%#v %#v", stage, receipt)
 	}
-	source := buildPresentationContext(workspace, nil, stage, nil, "hero")
+	source := buildPresentationContext(workspace, nil, stage, nil, "hero", lore.SpanVisibility{})
 	if !strings.Contains(source.Content, material.ID) || !strings.Contains(source.Content, "An investigator") || strings.Contains(source.Content, "Full lore body") || source.Limit != 64*1024 {
 		t.Fatalf("catalog=%s", source.Content)
 	}
-	if again := buildPresentationContext(workspace, nil, stage, nil, "hero"); again.Content != source.Content {
+	if again := buildPresentationContext(workspace, nil, stage, nil, "hero", lore.SpanVisibility{}); again.Content != source.Content {
 		t.Fatal("catalog order is unstable")
 	}
 	// Removing an association makes new selections invalid without changing a
@@ -171,7 +171,7 @@ func TestPresentationCatalogAndResolverUseEnabledAssociatedImages(t *testing.T) 
 	if err := os.Remove(filepath.Join(workspace, filepath.FromSlash(material.Path))); err != nil {
 		t.Fatal(err)
 	}
-	disabled := buildPresentationContext(workspace, &interactive.StoryPresentationSettings{}, stage, nil, "hero")
+	disabled := buildPresentationContext(workspace, &interactive.StoryPresentationSettings{}, stage, nil, "hero", lore.SpanVisibility{})
 	if strings.Contains(disabled.Content, "image catalog") || !strings.Contains(disabled.Content, "All layers are disabled") {
 		t.Fatal("disabled layers injected a catalog")
 	}
@@ -184,7 +184,7 @@ func TestPresentationCatalogSkipsOversizeCompleteItems(t *testing.T) {
 		t.Fatal(err)
 	}
 	presentationLoreFixture(t, workspace, "small")
-	source := buildPresentationContext(workspace, nil, nil, nil, "oversize")
+	source := buildPresentationContext(workspace, nil, nil, nil, "oversize", lore.SpanVisibility{})
 	if len(source.Content) > presentationContextMaxBytes || !source.Truncated || !strings.Contains(source.Content, `"item_id":"small"`) || strings.Contains(source.Content, `"item_id":"oversize"`) || !strings.Contains(source.Content, "1 items (1 materials) omitted") {
 		t.Fatalf("bounded catalog=%s", source.Content)
 	}
