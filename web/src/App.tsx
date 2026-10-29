@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from 'next-themes'
 import { getUpdateStatus, fetchProjectSettings, fetchSettings, refreshProjectSettings, refreshSettings } from '@/features/settings/api'
+import { SoftwareUpdateMonitor } from '@/features/updates/SoftwareUpdateMonitor'
 import { subscribeSettingsTarget } from '@/features/settings/query'
 import { applyFontSettings, fontSettingsFromEffective } from '@/features/settings/font-variables'
 import { UPDATE_CHECK_RESULT_EVENT } from '@/features/settings/update-events'
@@ -1065,6 +1066,7 @@ function App() {
         onImport={handleCharacterCardImport}
       />
       </WritingSelectionProvider>
+      <SoftwareUpdateMonitor onCheckResult={applyUpdateCheckResult} />
       <OnboardingGuide
         workspaceReady={workspaceLoaded && booksLoaded && analyticsReady}
         mode={mode}

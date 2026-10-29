@@ -48,6 +48,7 @@ import agentApproval from './zh-CN/agentApproval'
 import files from './zh-CN/files'
 import trajectory from './zh-CN/trajectory'
 import configGuard from './zh-CN/configGuard'
+import statistics from './zh-CN/statistics'
 
 const zhCN = {
   ...common,
@@ -100,6 +101,7 @@ const zhCN = {
   ...files,
   ...trajectory,
   ...configGuard,
+  ...statistics,
   'agents.tool.availability.runtimeCheck': '运行时检查',
 } as const
 
