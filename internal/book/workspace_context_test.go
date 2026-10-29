@@ -22,6 +22,7 @@ func TestWorkspaceContextIndexesFilesWithoutInjectingTheirBodies(t *testing.T) {
 		filepath.Join(state.SettingDir(), "outline.md"):                "OUTLINE_BODY_SHOULD_BE_LAZY",
 		filepath.Join(state.SettingDir(), "progress.md"):               "PROGRESS_BODY_SHOULD_BE_LAZY",
 		filepath.Join(state.SettingDir(), CharacterStatesFileName):     "CHARACTER_BODY_SHOULD_BE_LAZY",
+		filepath.Join(state.SettingDir(), "story-ledger.md"):           "LEDGER_BODY_SHOULD_BE_LAZY",
 		filepath.Join(state.ChapterGroupDir(), "group01-wasteland.md"): "GROUP_BODY_SHOULD_BE_LAZY",
 		filepath.Join(dir, "chapters", "ch00001-opening.md"):           "CHAPTER_BODY_SHOULD_BE_LAZY",
 	}
@@ -62,6 +63,7 @@ func TestWorkspaceContextIndexesFilesWithoutInjectingTheirBodies(t *testing.T) {
 		"## Current Writing Source Index",
 		`"setting/progress.md"`,
 		`"setting/character-states.md"`,
+		`"setting/story-ledger.md"`,
 		`"setting/chapter-groups/group01-wasteland.md"`,
 		`"chapters/ch00001-opening.md"`,
 	} {
@@ -74,6 +76,7 @@ func TestWorkspaceContextIndexesFilesWithoutInjectingTheirBodies(t *testing.T) {
 		"OUTLINE_BODY_SHOULD_BE_LAZY",
 		"PROGRESS_BODY_SHOULD_BE_LAZY",
 		"CHARACTER_BODY_SHOULD_BE_LAZY",
+		"LEDGER_BODY_SHOULD_BE_LAZY",
 		"GROUP_BODY_SHOULD_BE_LAZY",
 		"CHAPTER_BODY_SHOULD_BE_LAZY",
 		"ON_DEMAND_LORE_BODY_STAYS_LAZY",
@@ -103,6 +106,31 @@ func TestWorkspaceContextOmitsIdeasTemplateAndIndexesEditedIdeasByPath(t *testin
 	}
 	if strings.Contains(context.Stable, "A revenge story on a flooded planet.") {
 		t.Fatalf("ideas body must be loaded on demand:\n%s", context.Stable)
+	}
+}
+
+func TestWorkspaceContextIndexesStoryLedgerOnlyWhenNonEmpty(t *testing.T) {
+	dir := t.TempDir()
+	state := NewState(dir)
+	if err := state.InitWorkspace(); err != nil {
+		t.Fatalf("initialize workspace: %v", err)
+	}
+	ledger := filepath.Join(state.SettingDir(), "story-ledger.md")
+	if err := os.WriteFile(ledger, []byte{}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if context := state.WorkspaceContext(); strings.Contains(context.Dynamic, "story-ledger.md") {
+		t.Fatalf("empty story ledger should stay out of the dynamic index:\n%s", context.Dynamic)
+	}
+	if err := os.WriteFile(ledger, []byte("## t-old-seal\n- 一句话：旧印"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	context := state.WorkspaceContext()
+	if !strings.Contains(context.Dynamic, `"setting/story-ledger.md"`) {
+		t.Fatalf("non-empty story ledger path missing from dynamic index:\n%s", context.Dynamic)
+	}
+	if strings.Contains(context.Dynamic, "旧印") {
+		t.Fatalf("story ledger body must remain lazy:\n%s", context.Dynamic)
 	}
 }
 
@@ -163,5 +191,30 @@ func TestWorkspaceContextBoundsRecentChapterAndGroupPaths(t *testing.T) {
 		if !strings.Contains(dynamic, included) {
 			t.Fatalf("recent path %q missing from bounded index:\n%s", included, dynamic)
 		}
+	}
+}
+
+func TestWorkspaceContextCaseIndexAddsPathWithoutReadingSources(t *testing.T) {
+	dir := t.TempDir()
+	state := NewState(dir)
+	if err := state.InitWorkspace(); err != nil {
+		t.Fatal(err)
+	}
+	if context := state.WorkspaceContext().Dynamic; strings.Contains(context, "case-index.md") {
+		t.Fatalf("empty case index unexpectedly appeared: %q", context)
+	}
+	if err := os.WriteFile(filepath.Join(state.SettingDir(), "case-index.md"), []byte("# 写法案例\n\n## 已收藏\n\n- c-one | 开篇 | 先写异常\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "references", "sources"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	quote := "来源中的原文不应该进入上下文索引"
+	if err := os.WriteFile(filepath.Join(dir, "references", "sources", "source.txt"), []byte(quote), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	context := state.WorkspaceContext().Dynamic
+	if !strings.Contains(context, `"setting/case-index.md"`) || strings.Contains(context, quote) || strings.Contains(context, "references/sources") {
+		t.Fatalf("case context leaked content: %q", context)
 	}
 }

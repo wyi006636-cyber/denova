@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	agentrun "denova/internal/agents/run"
 	"denova/internal/agents/runtime/external"
@@ -68,10 +69,21 @@ func (s *streamOutput) feed(line []byte, host external.Host) error {
 		if s.initialized || frame.ConversationID == "" {
 			return errors.New("invalid Antigravity initialization")
 		}
+		// Verified on CLI 1.4.2: a scoped agent still receives the full native
+		// toolset in init (run_command, write_to_file, browser_*), because the
+		// frontmatter mounts components instead of filtering them. Provider tools
+		// are therefore an observation this adapter cannot refuse — --sandbox is
+		// what contains them — while product effects still reach the journal only
+		// through the host dispatcher. A scoped tool that is missing stays fatal:
+		// product tools would be unreachable.
+		var unscoped []string
 		for _, tool := range frame.Init.Tools {
 			if !s.allowed[tool] {
-				return fmt.Errorf("Antigravity exposed an unscoped tool %q", tool)
+				unscoped = append(unscoped, tool)
 			}
+		}
+		if len(unscoped) > 0 {
+			slog.Warn("Antigravity advertised tools outside the scoped catalog", "tools", unscoped)
 		}
 		for name := range s.allowed {
 			found := false
@@ -87,7 +99,15 @@ func (s *streamOutput) feed(line []byte, host external.Host) error {
 		if !s.initialized || frame.Step.ConversationID != s.result.SessionID {
 			return errors.New("Antigravity step lacks its initialized conversation identity")
 		}
-		if frame.Step.State != "ACTIVE" && frame.Step.State != "DONE" {
+		// ACTIVE and DONE carry agent_response deltas. The CLI also reports a
+		// step-level terminal state before the attempt verdict: a failed or
+		// canceled step is an observation, not the attempt result, so keep
+		// streaming and let the result status decide success or failure.
+		switch frame.Step.State {
+		case "ACTIVE", "DONE":
+		case "ERROR", "CANCELED", "INTERRUPTED":
+			return nil
+		default:
 			return fmt.Errorf("unknown Antigravity step state %q", frame.Step.State)
 		}
 		// Tool events are observations only: MCP is the sole tool execution path.

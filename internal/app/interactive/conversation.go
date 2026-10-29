@@ -314,6 +314,7 @@ func applyCycleStoryConfig(target *interactive.StoryMeta, source interactive.Sto
 	target.PlanningTemplateID = source.PlanningTemplateID
 	target.StoryDirectorID = source.StoryDirectorID
 	target.PlanningMode = source.PlanningMode
+	target.LoreAsOf = source.LoreAsOf
 	target.ModuleRefs = source.ModuleRefs
 	target.ReplyTargetChars = source.ReplyTargetChars
 	target.ChoiceCount = source.ChoiceCount
@@ -510,7 +511,8 @@ func (c *Conversation) AssembleModelContext(ctx context.Context, originalMessage
 		activeBranchPlan = storyCtx.Snapshot.BranchPlan
 		branchPlan = storyCtx.Snapshot.BranchPlan.Markdown
 	}
-	loreRuntime, err := buildInteractiveStoryLoreContext(c.workspace, activeBranchPlan, input.UserMessage)
+	loreVisibility := lore.ResolveSpanVisibility("", storyCtx.Meta.LoreAsOf, lore.LoreScopeAsOf)
+	loreRuntime, err := buildInteractiveStoryLoreContext(c.workspace, activeBranchPlan, input.UserMessage, loreVisibility)
 	if err != nil {
 		return agentcontext.ModelContextResult{}, err
 	}
@@ -573,6 +575,23 @@ func (c *Conversation) AssembleModelContext(ctx context.Context, originalMessage
 			Note:      "source=setting/lore/items.json index guide and enabled items; lifecycle=replaceable stable prefix; revision=" + strings.TrimSpace(loreRevision),
 		})
 	}
+	if loreItems, listErr := loreStore.List(); listErr == nil {
+		spanContext, spanErr := lore.VisibleSpansMarkdown(loreItems, loreVisibility.Cursor, loreVisibility.Scope, lore.VisibleSpanContextMaxBytes)
+		if spanErr != nil {
+			return agentcontext.ModelContextResult{}, spanErr
+		}
+		// An empty game cursor means no chapter-scoped canon is admitted. The
+		// writing path may retain an explanatory note, but game turns should not
+		// carry an interactive.lore.as_of fragment at all in that state.
+		if strings.TrimSpace(loreVisibility.Cursor) != "" && strings.TrimSpace(spanContext) != "" {
+			fragments = append(fragments, agentcontext.Fragment{
+				ID: "interactive_lore_as_of", Source: "interactive.lore.as_of", Title: "Chapter-scoped Lore for This Turn",
+				Purpose: "provide lore spans visible at the story's declared chapter cursor",
+				Content: spanContext, Placement: agentcontext.PlacementFinalUserPrefix, Limit: lore.VisibleSpanContextMaxBytes, Included: true,
+				Note: "source=setting/lore/items.json; scope=as_of; cursor=" + strings.TrimSpace(loreVisibility.Cursor),
+			})
+		}
+	}
 	if strings.TrimSpace(tellerTurnContextPrompt) != "" {
 		fragments = append(fragments, agentcontext.Fragment{
 			ID: "interactive_turn_rules", Source: "interactive.turn_rules", Title: "Storyteller Rules for This Turn",
@@ -601,7 +620,10 @@ func (c *Conversation) AssembleModelContext(ctx context.Context, originalMessage
 			Content: runtimeContext, Placement: agentcontext.PlacementFinalUserPrefix, Limit: StoryRuntimeContextMaxBytes, Included: true,
 		})
 	}
-	presentationSource := buildPresentationContext(c.workspace, storyCtx.Meta.PresentationSettings, snapshotPresentation(storyCtx.Snapshot, storyCtx.Meta.PresentationSettings), activeBranchPlan, input.UserMessage)
+	presentationSource := interactiveContextSource{Source: "StageSelection", Title: "Turn Presentation", Purpose: "explain host-owned media selection", Content: "Stage media are selected automatically from the completed prose after submission. Do not select stage media.", Limit: presentationContextMaxBytes}
+	if !c.PresentationSelectedByHost() {
+		presentationSource = buildPresentationContext(c.workspace, storyCtx.Meta.PresentationSettings, snapshotPresentation(storyCtx.Snapshot, storyCtx.Meta.PresentationSettings), activeBranchPlan, input.UserMessage, loreVisibility)
+	}
 	fragments = append(fragments, agentcontext.Fragment{
 		ID: "interactive_presentation", Source: presentationSource.Source, Title: presentationSource.Title,
 		Purpose: presentationSource.Purpose, Content: presentationSource.Content,
@@ -618,6 +640,17 @@ func (c *Conversation) AssembleModelContext(ctx context.Context, originalMessage
 	stableLeadingMessage := ""
 	residentVisible := residentLore
 	for _, fragment := range assembled.Fragments {
+		if fragment.Source == "interactive.lore.as_of" {
+			if fragment.Truncated {
+				locale := ""
+				if c.cfg != nil {
+					locale = c.cfg.Language
+				}
+				slog.ErrorContext(ctx, "[lore] game chapter-scoped context exceeds injection budget", "bytes", len([]byte(fragment.Content)), "limit", fragment.Limit)
+				return agentcontext.ModelContextResult{}, fmt.Errorf("%s", i18n.New(locale).T("interactive.contextTooLarge", "bytes", len([]byte(fragment.Content)), "limit", fragment.Limit))
+			}
+			continue
+		}
 		if fragment.Source == "interactive.resident_lore" {
 			if fragment.Truncated {
 				locale := ""
@@ -631,7 +664,7 @@ func (c *Conversation) AssembleModelContext(ctx context.Context, originalMessage
 			if fragment.Included && fragment.Content != "" {
 				stableLeadingMessage = agentcontext.StandaloneMessage(fragment.Title, fragment.Content, "")
 			}
-			break
+			continue
 		}
 	}
 	sourceParts := interactiveStoryContextSources(storyCtx.Meta.Title, storyCtx.Meta.Origin, protagonistContext, teller, checkpointSummary, branchPlan, residentVisible, loreRevision, loreRuntime, ruleSummary, actorStateRuntime, stateSchemaInitialization, turnHistory, input.UserMessage)

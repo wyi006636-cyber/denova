@@ -20,6 +20,9 @@ const (
 	TargetKindWorkspaceFile = "workspace_file"
 	TargetKindLoreItem      = "lore_item"
 	TargetFieldLoreContent  = "content"
+
+	CommentSourceAuthor = "author"
+	CommentSourceAgent  = "agent"
 )
 
 // Target identifies the editable text resource that owns a review comment.
@@ -52,11 +55,17 @@ type Anchor struct {
 // editable workspace resource. It remains visible until the author deletes it
 // or a durable chat message consumes it.
 type Comment struct {
-	ID                 string    `json:"id"`
-	ThreadID           string    `json:"thread_id"`
-	Target             Target    `json:"target"`
-	Body               string    `json:"body"`
-	Anchor             Anchor    `json:"anchor"`
+	ID       string `json:"id"`
+	ThreadID string `json:"thread_id"`
+	Target   Target `json:"target"`
+	Body     string `json:"body"`
+	Anchor   Anchor `json:"anchor"`
+	// Source distinguishes comments written by the author from review notes
+	// produced by the Writing Agent. Empty values in old ledgers are treated as
+	// author comments during replay.
+	Source             string    `json:"source,omitempty"`
+	AgentSessionID     string    `json:"agent_session_id,omitempty"`
+	AgentRunID         string    `json:"agent_run_id,omitempty"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
 	Deleted            bool      `json:"deleted,omitempty"`
@@ -101,6 +110,14 @@ type AddCommentRequest struct {
 	Anchor Anchor `json:"anchor"`
 }
 
+// AgentCommentMetadata records the conversation identity that produced an
+// Agent review comment. It is deliberately separate from the client request so
+// the author API cannot impersonate the Agent source.
+type AgentCommentMetadata struct {
+	SessionID string
+	RunID     string
+}
+
 type UpdateCommentRequest struct {
 	ID   string `json:"id"`
 	Body string `json:"body"`
@@ -122,6 +139,9 @@ func (c *Comment) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*c = Comment(raw.commentAlias)
+	if strings.TrimSpace(c.Source) == "" {
+		c.Source = CommentSourceAuthor
+	}
 	if strings.TrimSpace(c.Target.Kind) == "" && strings.TrimSpace(raw.Path) != "" {
 		c.Target = Target{Kind: TargetKindWorkspaceFile, ID: raw.Path}
 	}
@@ -167,4 +187,15 @@ func (e *Error) Error() string {
 
 func newError(code, message string, details map[string]any) error {
 	return &Error{Code: code, Message: message, Details: details}
+}
+
+func normalizeCommentSource(value string) (string, error) {
+	switch strings.TrimSpace(value) {
+	case "", CommentSourceAuthor:
+		return CommentSourceAuthor, nil
+	case CommentSourceAgent:
+		return CommentSourceAgent, nil
+	default:
+		return "", newError(ErrorCodeInvalid, "document comment source is invalid", map[string]any{"source": value})
+	}
 }

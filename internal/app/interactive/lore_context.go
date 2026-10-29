@@ -10,7 +10,7 @@ import (
 
 const ResolvedLoreContextMaxBytes = interactive.StoryContextMaxBytes
 
-func buildInteractiveStoryLoreContext(workspace string, plan *interactive.BranchPlan, userAction string) (string, error) {
+func buildInteractiveStoryLoreContext(workspace string, plan *interactive.BranchPlan, userAction string, visibility ...lore.SpanVisibility) (string, error) {
 	store := lore.NewStore(workspace)
 	items, err := store.List()
 	if err != nil {
@@ -20,6 +20,11 @@ func buildInteractiveStoryLoreContext(workspace string, plan *interactive.Branch
 	if err != nil {
 		return "", fmt.Errorf("read interactive-story lore guide: %w", err)
 	}
+	currentVisibility := lore.SpanVisibility{}
+	if len(visibility) > 0 {
+		currentVisibility = visibility[0]
+	}
+	items = lore.VisibleItems(items, currentVisibility.Cursor, currentVisibility.Scope)
 	byName := loreItemsByName(items)
 
 	planMarkdown := ""

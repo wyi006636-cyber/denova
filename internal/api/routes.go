@@ -19,7 +19,10 @@ import (
 // registerRoutes 注册 HTTP API 和静态文件路由。
 func (s *Server) registerRoutes(h *hertzserver.Hertz) {
 	apiHandlers := handlers.New(s.app)
-	h.Any("/api/platform/manage/*path", localHostEffectMiddleware, apiHandlers.HandlePlatformManagement)
+	// Management reads back the workbench UI for authenticated LAN browsers.
+	// Only actions that depend on this host stay loopback-only; see
+	// platformManagementLocalHostMiddleware.
+	h.Any("/api/platform/manage/*path", platformManagementLocalHostMiddleware, apiHandlers.HandlePlatformManagement)
 	api := h.Group("/api")
 	{
 		api.POST("/autosave-conflicts", apiHandlers.HandleAutosaveConflictCreate)
@@ -65,6 +68,13 @@ func (s *Server) registerRoutes(h *hertzserver.Hertz) {
 		projects.PATCH("/book/chapter-status", apiHandlers.HandleProjectBookChapterStatus)
 		projects.POST("/book/import-character-card", apiHandlers.HandleProjectCharacterCardImport)
 		projects.GET("/book/lore/items", apiHandlers.HandleProjectLoreItems)
+		projects.GET("/book/lore/health", apiHandlers.HandleProjectLoreHealth)
+		projects.GET("/book/cases", apiHandlers.HandleProjectCasebook)
+		projects.POST("/book/cases/:action", apiHandlers.HandleProjectCasebookToggle)
+		projects.GET("/interactive/stories", apiHandlers.HandleProjectStories)
+		projects.GET("/interactive/stories/:id/branches", apiHandlers.HandleProjectStoryBranches)
+		projects.GET("/interactive/stories/:id/mentions", apiHandlers.HandleProjectStoryMentions)
+		projects.GET("/interactive/stories/:id/narrative", apiHandlers.HandleProjectStoryNarrative)
 		projects.GET("/book/lore/categories", apiHandlers.HandleLoreCategories)
 		projects.GET("/book/lore/index", apiHandlers.HandleLoreIndex)
 		projects.PUT("/book/lore/index", apiHandlers.HandleLoreIndexUpdate)
@@ -83,6 +93,7 @@ func (s *Server) registerRoutes(h *hertzserver.Hertz) {
 		projects.GET("/book/document-review", apiHandlers.HandleProjectDocumentReview)
 		projects.POST("/book/document-comments", apiHandlers.HandleProjectDocumentCommentCreate)
 		projects.PATCH("/book/document-comments/:id", apiHandlers.HandleProjectDocumentCommentUpdate)
+		projects.POST("/book/document-comments/:id/promote", apiHandlers.HandleProjectDocumentCommentPromote)
 		projects.DELETE("/book/document-comments/:id", apiHandlers.HandleProjectDocumentCommentDelete)
 		projects.GET("/changes/groups", apiHandlers.HandleWorkspaceChangeGroups)
 		projects.GET("/changes/groups/:id", apiHandlers.HandleWorkspaceChangeGroup)

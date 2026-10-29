@@ -107,6 +107,7 @@ func buildExternalAssembly(ctx context.Context, cfg *config.Config, state *book.
 	if err != nil {
 		return ExternalAssembly{}, err
 	}
+	definitions = filterExternalRuntimeTools(cfg, definitions)
 	if err := producttools.Validate(ctx, definitions); err != nil {
 		return ExternalAssembly{}, err
 	}
@@ -119,6 +120,25 @@ func buildExternalAssembly(ctx context.Context, cfg *config.Config, state *book.
 		return ExternalAssembly{}, fmt.Errorf("compose external product context: %w", err)
 	}
 	return ExternalAssembly{Composition: assembly.SystemPrompt, Tools: definitions, Context: source, ToolSettings: settings, pluginTools: host.PluginTools}, nil
+}
+
+// filterExternalRuntimeTools keeps provider-visible tools consistent with the
+// selected engine sandbox. A Codex read-only process cannot commit the review
+// ledger, so hiding the capability avoids a model call that would only fail at
+// the host permission boundary.
+func filterExternalRuntimeTools(cfg *config.Config, definitions []agenttool.ToolDefinition) []agenttool.ToolDefinition {
+	if cfg == nil || cfg.ActiveAgentRuntime == nil || cfg.ActiveAgentRuntime.Kind != config.RuntimeCodex ||
+		cfg.ActiveAgentRuntime.Codex == nil || cfg.ActiveAgentRuntime.Codex.EffectiveSandbox() != config.CodexReadOnly {
+		return definitions
+	}
+	filtered := make([]agenttool.ToolDefinition, 0, len(definitions))
+	for _, definition := range definitions {
+		if definition.Descriptor.Capability == config.AgentToolDocumentReview {
+			continue
+		}
+		filtered = append(filtered, definition)
+	}
+	return filtered
 }
 
 // ExternalConversationToolSettings is shared by execution and the read-only

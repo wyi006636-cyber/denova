@@ -75,6 +75,11 @@ func (s *Store) save(collection Collection) error {
 	if err := validateLoreItemIdentities(collection.Items); err != nil {
 		return fmt.Errorf("拒绝保存无效 Lore collection: %w", err)
 	}
+	for _, item := range collection.Items {
+		if err := validateLoreSpans(item); err != nil {
+			return fmt.Errorf("refuse to save invalid lore spans: %w", err)
+		}
+	}
 	if err := validateMaterials(collection); err != nil {
 		return err
 	}

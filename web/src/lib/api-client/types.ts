@@ -604,6 +604,8 @@ export interface CharacterCardImportResult {
   classification_mode: LoreClassificationMode
   classification_counts: Partial<Record<LoreItem['type'], number>>
   uncertain_type_count: number
+  overridden?: string[]
+  skipped?: string[]
 }
 
 export interface CharacterCardPreview {
@@ -788,6 +790,13 @@ export interface LoreCategory {
   name?: string
 }
 
+export interface LoreSpan {
+  id: string
+  from?: string
+  until?: string
+  content: string
+}
+
 export interface LoreItem {
   id: string
   enabled: boolean
@@ -801,6 +810,7 @@ export interface LoreItem {
   brief_description: string
   keywords: string[]
   content: string
+  spans?: LoreSpan[]
   created_at: string
   updated_at: string
   image?: LoreItemImage

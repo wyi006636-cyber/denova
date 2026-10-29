@@ -54,6 +54,7 @@ export interface ModeRouterProps {
   selectedFile: string | null
   fileDocument: ProjectFileDocument | null
   fileDocuments?: ReadonlyMap<string, ProjectFileDocument>
+  onReadFile?: (path: string) => Promise<string>
   openTabs: Tab[]
   activeTabKey: string | null
   sidebarView: 'outline' | 'files' | 'search'

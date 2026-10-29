@@ -15,6 +15,7 @@ const narrative = '石门缓缓开启，暖色灯光照亮了前方的旧车站�
 const gameOpeningMarker = '[Source: story opening configuration; purpose: generate the first playable turn]'
 const gameOpeningNarrative = '暮色落在旧车站外，石门后的轨道传来遥远的回声。'
 const agentEditMarker = 'E2E_EDIT_CHAPTER'
+const agentReviewCommentsMarker = 'E2E_AGENT_REVIEW_COMMENTS'
 const delayedReplyMarker = 'E2E_DELAYED_AGENT_REPLY'
 const sessionADelayMarker = 'E2E_SESSION_A_DELAY'
 const sessionBDelayMarker = 'E2E_SESSION_B_DELAY'
@@ -42,6 +43,7 @@ const externalReadFullMarker = 'E2E_EXTERNAL_READ_FULL_ACCESS'
 const legacyWritingContinuationMarker = 'E2E_V033_WRITING_CONTINUE'
 const legacyWritingHistoryMarker = '第一章保留了 v0.3.3 的正文。'
 const writingPromptContextMarker = 'E2E_WRITING_PROMPT_CONTEXT_PARITY'
+const longWritingReplyMarker = 'E2E_LONG_WRITING_REPLY'
 const gamePromptContextMarker = 'E2E_GAME_PROMPT_CONTEXT_PARITY'
 const capturedRequestMarkers = [writingPromptContextMarker, gamePromptContextMarker]
 const writingAttachmentName = 'writing-e2e.png'
@@ -56,6 +58,12 @@ const externalSecretPath = path.join(runtimeRoot, 'e2e-external-secret.txt')
 const agentEditArguments = JSON.stringify({
   path: 'chapters/e2e-agent-chapter.md',
   edits: [{ old_string: 'Agent 修改前。', new_string: 'Agent 已通过工具完成修改。' }],
+})
+const agentReviewCommentsArguments = JSON.stringify({
+  items: [
+    { path: 'chapters/agent-review-comments.md', quote: '第一段原文。', body: 'AI 建议：补充这一段的具体动机。' },
+    { path: 'chapters/agent-review-comments.md', quote: '他说', prefix: '他说：“第一个。”\n', body: 'AI 建议：让这一处转折更明确。' },
+  ],
 })
 const branchPlanUpdate = {
   mode: 'replace_document',
@@ -484,7 +492,10 @@ const server = createServer(async (request, response) => {
     return
   }
   if (latestUserMessageIncludesMarker(body, gameOpeningMarker) && requestIncludesTool(body, 'submit_interactive_turn')) {
-    writeChatCompletion(response, chatCompletionFrames(gameOpeningNarrative, openingTurnSubmission))
+    const opening = requestIncludesMarker(body, 'E2E_LORE_MENTIONS_OPENING')
+      ? `${'远处灯火，长夜未尽。'.repeat(200)}\n林川😀在共同历史中出现。\n林川😀再次出现。`
+      : gameOpeningNarrative
+    writeChatCompletion(response, chatCompletionFrames(opening, openingTurnSubmission))
     return
   }
   if (requestIncludesMarker(body, gameAttachmentMarker) && requestIncludesTool(body, 'submit_interactive_turn')) {
@@ -665,6 +676,20 @@ const server = createServer(async (request, response) => {
     writeChatCompletion(response, frames)
     return
   }
+  if (requestIncludesMarker(body, agentReviewCommentsMarker)) {
+    recordRequest(agentReviewCommentsMarker)
+    if (!requestIncludesTool(body, 'add_review_comments')) {
+      writeChatCompletion(response, textCompletionFrames('The review tool is unavailable; quote each issue in chat.'))
+      return
+    }
+    const hasResult = toolResultMessages(body, 'add_review_comments').length > 0
+    if (!hasResult) {
+      writeChatCompletion(response, toolCompletionFrames('add_review_comments', agentReviewCommentsArguments, 'call-add-review-comments'))
+      return
+    }
+    writeChatCompletion(response, textCompletionFrames('Review comments created.'))
+    return
+  }
   for (const [marker, label] of [
     [externalReadAskMarker, 'Ask'],
     [externalReadWriteMarker, 'Write'],
@@ -701,6 +726,17 @@ const server = createServer(async (request, response) => {
     const content = requestIncludesMarker(body, legacyWritingHistoryMarker)
       ? 'v0.3.3 写作历史续聊成功。'
       : 'v0.3.3 写作历史未传入模型。'
+    writeChatCompletion(response, textCompletionFrames(content))
+    return
+  }
+  if (requestIncludesMarker(body, longWritingReplyMarker)) {
+    const content = [
+      '这是一段用于采纳预览的长候选正文。',
+      '它包含多个连续段落和较长句子，帮助确认预览框在几百字内容下仍然可以滚动查看，并且不会把说明文字混入正文。',
+      '夜色沿着旧车站的玻璃穹顶缓慢下沉，站台边缘的积水映出一盏盏尚未熄灭的灯。她把手里的纸页重新折好，抬头看见远处的信号灯从红色变成了微弱的绿色。',
+      '没有人催促她做决定，只有铁轨深处传来一阵又一阵低沉的回响，像某种正在靠近却还没有现身的回答。她向前走了几步，鞋底碾过碎石，声音在空旷的站厅里被放大，又很快消失在风里。',
+      '她终于明白，所谓离开并不是把旧故事留在身后，而是带着已经发生过的一切，走向一个仍然允许自己重新开始的地方。',
+    ].join('\n\n')
     writeChatCompletion(response, textCompletionFrames(content))
     return
   }

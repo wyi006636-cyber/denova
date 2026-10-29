@@ -45,6 +45,15 @@ export async function deleteDocumentComment(projectId: string, id: string): Prom
   return normalizeMutation(projectId, data)
 }
 
+export async function promoteDocumentComment(projectId: string, id: string): Promise<DocumentReviewMutationResult> {
+  const data = await requestJSON<ReviewEnvelope>(`${projectReviewURL(projectId)}/document-comments/${encodeURIComponent(id)}/promote`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: '{}',
+  })
+  return normalizeMutation(projectId, data)
+}
+
 function normalizeMutation(projectId: string, data: ReviewEnvelope): DocumentReviewMutationResult {
   assertProjectScope(projectId, data.project_id, 'Document review')
   if (!data.comment?.id) throw new Error('Invalid document review comment response')

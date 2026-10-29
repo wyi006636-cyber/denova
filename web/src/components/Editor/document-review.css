@@ -13,6 +13,10 @@
   text-decoration-thickness: 2px;
 }
 
+:is(.editor-content, .nova-rich-markdown) .tiptap .nova-document-review-highlight.is-agent {
+  text-decoration-style: dashed;
+}
+
 :is(.editor-content, .nova-rich-markdown) .tiptap .nova-document-review-highlight:focus-visible {
   border-radius: 0.2rem;
   outline: 2px solid var(--nova-warning);
@@ -29,10 +33,6 @@
 :is(.editor-content, .nova-rich-markdown) .tiptap .nova-document-review-thread-anchor {
   width: min(32rem, calc(100% - var(--nova-document-review-anchor-offset, 0px)));
   margin-left: var(--nova-document-review-anchor-offset, 0px);
-}
-
-:is(.editor-content, .nova-rich-markdown) .tiptap .nova-document-review-widget.is-outdated {
-  opacity: 0.78;
 }
 
 :is(.editor-content, .nova-rich-markdown) .tiptap .nova-document-review-widget .nova-review-comment-thread {

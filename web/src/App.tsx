@@ -57,9 +57,11 @@ import {
   AUTOSAVE_CONFLICT_PRESERVED_EVENT,
   type AutosaveConflictPreservedDetail,
 } from '@/lib/autosave/rebase-with-recovery'
+import { WritingSelectionProvider } from '@/features/writing/WritingSelectionContext'
 import { useWorkbenchNotice } from '@/features/notices/use-workbench-notice'
 import { LORE_UPDATED_EVENT, notifyLoreUpdated, type LoreUpdatedDetail } from '@/features/lore/events'
 import type { AgentChatConversationState } from '@/features/agent-chat/AgentChatConversationTab'
+import { notifyDocumentReviewUpdated } from '@/features/document-review/use-document-review'
 
 const PROJECT_VISIBLE_KEY = 'nova.layout.projectVisible'
 const ACTIVITY_BAR_EXPANDED_KEY = 'nova.layout.activityBarExpanded'
@@ -143,7 +145,7 @@ function App() {
   const retainedFilePaths = useMemo(() => openTabs.flatMap(tab => tab.kind === 'file' ? [tab.path] : []), [openTabs])
   const {
     tree, loading, selectedFile, fileDocument, fileDocuments, workspace, projectId, workspaceLoaded, summary, books, booksLoaded, bookSortMode,
-    selectFile, clearSelectedFile, saveFileDraft, createItem, deleteItem, renameItem, copyItem, moveItem,
+    selectFile, clearSelectedFile, saveFileDraft, readFile, createItem, deleteItem, renameItem, copyItem, moveItem,
     refresh, refreshSummary, refreshAfterAgentFileChange, refreshAll, refreshBooks,
   } = useWorkspace({ retainedFilePaths })
   useAnalyticsActivity(settingsOpen || !analyticsReady, Boolean(selectedFile))
@@ -190,6 +192,10 @@ function App() {
       // Lore tools persist outside the workspace file tree, so Agent completion
       // invalidates Lore projections explicitly as well as file summaries.
       notifyLoreUpdated({ projectId, source: 'writing-agent' })
+      // Review tools persist Project Store metadata rather than workspace files.
+      // Refresh the document-review projection when an Agent turn settles so
+      // newly created AI annotations appear without a page reload.
+      notifyDocumentReviewUpdated(projectId, 'refresh')
       notifyVersionChange()
       if (impact === 'structure') notifyProjectStructureChange()
     }
@@ -677,6 +683,12 @@ function App() {
         loreClassification: characterCardSemanticClassification ? 'semantic' : 'heuristic',
       })
       toast.success(result.message || t('importCard.importSuccess', { name: result.name }))
+      if (result.overridden?.length) {
+        toast.success(t('importCard.overriddenList', { names: result.overridden.join('、') }))
+      }
+      if (result.skipped?.length) {
+        toast.info(t('importCard.skippedList', { names: result.skipped.join('、') }))
+      }
       if (characterCardTargetMode === 'new_book') {
         await refreshAll()
       } else {
@@ -892,6 +904,7 @@ function App() {
   return (
     <NovaMotionProvider intensity={motionIntensity}>
       <AnalyticsNotice onReadyChange={setAnalyticsReady} />
+      <WritingSelectionProvider projectId={projectId} fileName={selectedFile} enabled={mode === 'ide'}>
       <ModeRouter
         mode={mode}
         lastCreationRoute={lastCreationRoute}
@@ -921,6 +934,7 @@ function App() {
         selectedFile={selectedFile}
         fileDocument={fileDocument}
         fileDocuments={fileDocuments}
+        onReadFile={readFile}
         openTabs={openTabs}
         activeTabKey={activeTabKey}
         sidebarView={sidebarView}
@@ -1050,6 +1064,7 @@ function App() {
         onSemanticClassificationChange={setCharacterCardSemanticClassification}
         onImport={handleCharacterCardImport}
       />
+      </WritingSelectionProvider>
       <OnboardingGuide
         workspaceReady={workspaceLoaded && booksLoaded && analyticsReady}
         mode={mode}

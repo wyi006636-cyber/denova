@@ -33,6 +33,7 @@ import { WritingSidebar } from './WritingSidebar'
 import { IdeWritingInfoActions, WritingMainRoute } from './WritingMainRoute'
 import { useWritingAgentPanel } from './use-writing-agent-panel'
 import type { ModeRouterProps } from './ModeRouter.types'
+import { useChapterGoals } from './useChapterGoals'
 import { SharedWorkbenchRoutes } from './SharedWorkbenchRoutes'
 import { AgentChatWorkbenchRoute } from './AgentChatWorkbenchRoute'
 import { ToolNavigationProvider, type ToolNavigationIntent, type ToolNavigationTarget } from '@/components/Chat/tool-navigation'
@@ -91,6 +92,7 @@ export function ModeRouter(props: ModeRouterProps) {
     selectedFile,
     fileDocument,
     fileDocuments,
+    onReadFile,
     openTabs,
     activeTabKey,
     sidebarView,
@@ -177,6 +179,11 @@ export function ModeRouter(props: ModeRouterProps) {
     onExitChatPlanMode,
     onDismissNotice,
   } = props
+  const { chapterGoals } = useChapterGoals({
+    projectId,
+    chapterPlans: summary?.chapter_plans,
+    readFile: onReadFile,
+  })
   const { categories: loreCategories } = useLoreCategories(projectId)
   const resourceTarget = useMemo(
     () => projectId.trim() ? projectResourceTarget(projectId) : GLOBAL_RESOURCE_TARGET,
@@ -344,7 +351,11 @@ export function ModeRouter(props: ModeRouterProps) {
   const openToolNavigationTarget = useCallback((target: ToolNavigationTarget) => {
     if (target.kind === 'workspace_file') {
       onSetMode('ide')
-      void selectWorkspacePath(target.path)
+      if (target.search) {
+        void selectWorkspaceSearchResult({ path: target.path, line: target.search.line, column: 1, preview: '', match_text: target.search.query }, target.search.query)
+      } else {
+        void selectWorkspacePath(target.path)
+      }
       return
     }
 
@@ -376,7 +387,7 @@ export function ModeRouter(props: ModeRouterProps) {
         onSetMode('presets')
         return
     }
-  }, [onSetMode, projectId, selectWorkspacePath, workspace])
+  }, [onSetMode, projectId, selectWorkspacePath, selectWorkspaceSearchResult, workspace])
   const toolNavigation = useMemo(() => ({ workspace, open: openToolNavigationTarget }), [openToolNavigationTarget, workspace])
   const openTrajectory = useCallback((target: TrajectoryNavigationTarget) => {
     if (!developerMode) return
@@ -490,7 +501,8 @@ export function ModeRouter(props: ModeRouterProps) {
     onCreate: documentReview.addComment,
     onUpdate: documentReview.editComment,
     onDelete: documentReview.removeComment,
-  }), [documentReview.addComment, documentReview.editComment, documentReview.removeComment, documentReview.visibleComments])
+    onPromote: documentReview.promoteComment,
+  }), [documentReview.addComment, documentReview.editComment, documentReview.promoteComment, documentReview.removeComment, documentReview.visibleComments])
   const removeActiveReviewFeedback = useCallback((selection: ReviewFeedbackSelection, commentID: string) => {
     if (selection.source === 'document') documentReview.removeFeedback(commentID)
     else removeReviewFeedback(commentID)
@@ -607,6 +619,7 @@ export function ModeRouter(props: ModeRouterProps) {
     isLoadingEarlierHistory,
     fileSuggestions,
     onCreateSession: onCreateChatSession,
+    onBeforeSend: onBeforeWorkspaceSwitch,
     onSwitchSession: onSwitchChatSession,
     onRenameSession: onRenameChatSession,
     onDeleteSession: onDeleteChatSession,
@@ -664,6 +677,7 @@ export function ModeRouter(props: ModeRouterProps) {
       ideas={summary?.ideas}
       outline={summary?.outline}
       chapterPlans={summary?.chapter_plans ?? EMPTY_CHAPTER_PLANS}
+      chapterGoals={chapterGoals}
       selectedFile={selectedFile}
       loreTabActive={activeTab?.kind === 'lore'}
       revealRequest={outlineRevealRequest}
@@ -709,6 +723,7 @@ export function ModeRouter(props: ModeRouterProps) {
         activeTab={activeTab}
         subAgentConversation={writingAgentConversation}
         summary={summary}
+        chapterGoals={chapterGoals}
         tabActions={writingInfoActions}
         saveSignal={saveSignal}
         editorAutoSaveEnabled={editorAutoSaveEnabled}
@@ -732,11 +747,12 @@ export function ModeRouter(props: ModeRouterProps) {
         onToggleTabPin={onToggleTabPin}
         onMoveTab={onMoveTab}
         onEditorFlushHandlerChange={onEditorFlushHandlerChange}
+        onBeforeLedgerList={flushBeforeWorkspaceSwitch}
         onOpenLoreLibrary={openLoreLibrary}
         onReferenceLoreItem={referenceLoreFromWorkspace}
         onSelectFile={selectWorkspacePath}
         onSaveCurrentFile={onSaveCurrentFile}
-        onQuoteSelection={onQuoteSelection}
+        onQuoteSelection={(selection) => { onSetRightPanel('ai'); onQuoteSelection(selection) }}
         onRevealChapter={revealCurrentChapterInOutline}
         onGenerateIllustration={requestChapterIllustration}
         emptyText={t('router.chooseFile')}

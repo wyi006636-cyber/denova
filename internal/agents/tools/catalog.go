@@ -208,6 +208,13 @@ func ideToolsFactory(cfg *config.Config) Factory {
 			}
 			definitions = append(definitions, enabledDefinitions(settings, images)...)
 		}
+		if settings.Allows(config.AgentToolDocumentReview) {
+			reviews, err := newDocumentReviewTools(cfg.Workspace, cfg.ProjectStoreDir)
+			if err != nil {
+				return nil, err
+			}
+			definitions = append(definitions, enabledDefinitions(settings, reviews)...)
+		}
 		configured, err := configurationToolsFactory(cfg)(settings)
 		if err != nil {
 			return nil, err

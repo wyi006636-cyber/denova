@@ -12,6 +12,7 @@ import { Virtuoso, type Components, type VirtuosoHandle } from 'react-virtuoso'
 import type { ChapterSummary } from '@/lib/api'
 import { ChapterOutlineItem } from './ChapterOutlineItem'
 import { OutlineFileActions, type OutlineFileMenuOperations } from './OutlineFileActions'
+import { extractChapterPrefix, type ChapterGoal } from '../story-ledger-parser'
 
 export interface ChapterOutlineVolume {
   key: string
@@ -30,6 +31,8 @@ interface ChapterOutlineListProps {
   volumes: ChapterOutlineVolume[]
   collapsedVolumes: ReadonlySet<string>
   selectedFile: string | null
+  chapterGoals: ReadonlyMap<string, ChapterGoal>
+  chapterPlanPath?: string
   chapterCountLabel: (count: number) => string
   onToggleVolume: (key: string) => void
   onScrollTopChange: (scrollTop: number) => void
@@ -61,6 +64,8 @@ type ChapterOutlineRow = VolumeRow | ChapterRow
 interface ChapterOutlineListContext {
   header: ReactNode
   selectedFile: string | null
+  chapterGoals: ReadonlyMap<string, ChapterGoal>
+  chapterPlanPath?: string
   chapterCountLabel: (count: number) => string
   onToggleVolume: (key: string) => void
   onSelectFile: (path: string) => void
@@ -88,6 +93,8 @@ export const ChapterOutlineList = forwardRef<ChapterOutlineListHandle, ChapterOu
   volumes,
   collapsedVolumes,
   selectedFile,
+  chapterGoals,
+  chapterPlanPath,
   chapterCountLabel,
   onToggleVolume,
   onScrollTopChange,
@@ -135,6 +142,8 @@ export const ChapterOutlineList = forwardRef<ChapterOutlineListHandle, ChapterOu
   const context = useMemo<ChapterOutlineListContext>(() => ({
     header,
     selectedFile,
+    chapterGoals,
+    chapterPlanPath,
     chapterCountLabel,
     onToggleVolume,
     onSelectFile,
@@ -145,7 +154,7 @@ export const ChapterOutlineList = forwardRef<ChapterOutlineListHandle, ChapterOu
     onDeleteItem,
     onCreateChapterInVolume,
     fileOperations,
-  }), [chapterCountLabel, fileOperations, header, onCreateChapterInVolume, onDeleteItem, onReferenceFile, onRenameItem, onRevealFile, onSelectFile, onSetChapterConfirmed, onToggleVolume, selectedFile])
+  }), [chapterCountLabel, chapterGoals, chapterPlanPath, fileOperations, header, onCreateChapterInVolume, onDeleteItem, onReferenceFile, onRenameItem, onRevealFile, onSelectFile, onSetChapterConfirmed, onToggleVolume, selectedFile])
 
   const handleScrollerRef = useCallback((element: HTMLElement | Window | null) => {
     scrollerRef.current = element instanceof HTMLElement ? element : null
@@ -214,10 +223,14 @@ function renderChapterOutlineRow(_index: number, row: ChapterOutlineRow, context
   }
 
   const { chapter } = row
+  const chapterGoal = context.chapterGoals.get((extractChapterPrefix(chapter.path) || '').toLowerCase()) ?? null
+  const chapterPlanPath = chapterGoal?.sourcePath ?? context.chapterPlanPath
   return (
     <div className="pb-1 pl-6 pr-2">
       <ChapterOutlineItem
         chapter={chapter}
+        chapterGoal={chapterGoal}
+        onOpenChapterPlan={chapterPlanPath ? () => { void context.onSelectFile(chapterPlanPath) } : undefined}
         active={context.selectedFile === chapter.path}
         onSelectFile={context.onSelectFile}
         onSetChapterConfirmed={context.onSetChapterConfirmed}

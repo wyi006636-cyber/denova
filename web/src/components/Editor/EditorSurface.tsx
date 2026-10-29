@@ -4,6 +4,7 @@ import { EditorContent } from '@tiptap/react'
 
 import { EditorSearchBar } from './EditorSearchBar'
 import type { EditorSettings } from './EditorSettingsPanel'
+import type { WritingSelectionAction } from '@/features/writing/selection-actions'
 import { SelectionToolbar } from './SelectionToolbar'
 
 interface EditorSurfaceProps {
@@ -38,6 +39,8 @@ interface EditorSurfaceProps {
   showSelectionToolbar: boolean
   selectionToolbarMode?: 'quote' | 'comment'
   onSelectionAction: () => void
+  onQuoteSelection?: () => void
+  onWritingAction?: (action: WritingSelectionAction) => void
   reviewAnnotations?: ReactNode
 }
 
@@ -52,6 +55,8 @@ export function EditorSurface({
   showSelectionToolbar,
   selectionToolbarMode = 'quote',
   onSelectionAction,
+  onQuoteSelection,
+  onWritingAction,
   reviewAnnotations,
 }: EditorSurfaceProps) {
   return (
@@ -92,7 +97,7 @@ export function EditorSurface({
       />
       {reviewAnnotations}
       {editor && showSelectionToolbar && (
-        <SelectionToolbar editor={editor} mode={selectionToolbarMode} onAction={onSelectionAction} />
+        <SelectionToolbar editor={editor} mode={selectionToolbarMode} onAction={onSelectionAction} onQuote={onQuoteSelection} onWritingAction={onWritingAction} />
       )}
     </div>
   )

@@ -17,6 +17,7 @@ import {
   type ManuscriptCreateRequest,
 } from './ManuscriptCreateDialog'
 import { OutlineFileActions, type OutlineFileMenuOperations } from './OutlineFileActions'
+import type { ChapterGoal } from '../story-ledger-parser'
 
 export interface OutlineRevealRequest {
   path: string
@@ -31,6 +32,7 @@ interface ChapterOutlineProps {
   ideas?: DocumentPreview
   outline?: DocumentPreview
   chapterPlans: DocumentPreview[]
+  chapterGoals: ReadonlyMap<string, ChapterGoal>
   selectedFile: string | null
   loreTabActive?: boolean
   revealRequest?: OutlineRevealRequest | null
@@ -63,6 +65,7 @@ export function ChapterOutline({
   ideas,
   outline,
   chapterPlans,
+  chapterGoals,
   selectedFile,
   loreTabActive,
   revealRequest,
@@ -86,7 +89,6 @@ export function ChapterOutline({
   const latestChapterPlan = chapterPlans[chapterPlans.length - 1]
   const historicalChapterPlans = useMemo(() => chapterPlans.slice(0, -1), [chapterPlans])
   const latestChapter = chapters[chapters.length - 1]
-
   useEffect(() => {
     try {
       window.localStorage.setItem(BOOK_SETTINGS_HEADER_PINNED_KEY, String(headerPinned))
@@ -411,6 +413,8 @@ export function ChapterOutline({
         volumes={volumes}
         collapsedVolumes={collapsedVolumes}
         selectedFile={selectedFile}
+        chapterGoals={chapterGoals}
+        chapterPlanPath={latestChapterPlan?.path}
         chapterCountLabel={chapterCountLabel}
         onToggleVolume={toggleVolume}
         onScrollTopChange={handleScrollTopChange}

@@ -115,6 +115,9 @@ func prepareWriting(ctx context.Context, runtime Runtime, request agentchat.Chat
 	if _, err := booklore.NewStore(runtime.Workspace).ProgressiveContextMarkdown(); err != nil {
 		return Runtime{}, request, fmt.Errorf("prepare lore index context: %w", err)
 	}
+	if err := prompts.ValidateLoreSpanContext(runtime.State, request.IDEContext, request.LoreAsOf, request.LoreScope); err != nil {
+		return Runtime{}, request, fmt.Errorf("prepare chapter-scoped lore context: %w", err)
+	}
 	if _, err := agentconversation.ApplySession(runtime.Session, &runtime.Config, runtime.AgentKind); err != nil {
 		return Runtime{}, request, err
 	}
@@ -127,11 +130,12 @@ func ProjectConversation(runtime Runtime, request agentchat.ChatRequest) *agentc
 			WithInputVisibility(request.InputVisibility).
 			WithInputDisplayContent(request.DisplayMessage)
 	}
-	runtimeContexts := prompts.IDEWorkspaceRuntimeContextsForContext(runtime.State, request.IDEContext)
+	runtimeContexts := prompts.IDEWorkspaceRuntimeContextsForContextWithLore(runtime.State, request.IDEContext, request.LoreAsOf, request.LoreScope)
 	return agentconversation.NewSessionConversationForAgentWithRuntimeContexts(
 		runtime.Session, &runtime.Config, config.AgentKindIDE,
 		runtimeContexts.StableTitle, runtimeContexts.Stable,
 		runtimeContexts.DynamicTitle, runtimeContexts.Dynamic,
+		runtimeContexts.Lore,
 	).WithInputVisibility(request.InputVisibility).WithInputDisplayContent(request.DisplayMessage)
 }
 

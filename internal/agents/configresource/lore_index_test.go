@@ -141,3 +141,20 @@ func TestLoreIndexConfigurationRoundTrip(t *testing.T) {
 		t.Fatalf("clearing associations did not restore the automatic brief: %#v, %v", preview, err)
 	}
 }
+
+func TestLoreIndexMembershipCatalogHidesCursorInvisibleNames(t *testing.T) {
+	cfg := &config.Config{NovaDir: t.TempDir(), Workspace: t.TempDir()}
+	store := lore.NewStore(cfg.Workspace)
+	if _, err := store.Create(lore.ItemInput{ID: "future", Name: "Future Membership", Type: "world", Spans: []lore.Span{{ID: "later", From: "ch00030", Content: "future"}}}); err != nil {
+		t.Fatal(err)
+	}
+	read := configManagerToolByName(t, cfg, "config_read")
+	ctx := lore.ContextWithSpanVisibility(context.Background(), lore.SpanVisibility{Cursor: "ch00020", Scope: lore.LoreScopeAsOf})
+	output, err := runToolForTest(ctx, read, `{"operation":"list","resource":"lore_index_membership","scope":"workspace"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(output, "Future Membership") || strings.Contains(output, "future") {
+		t.Fatalf("cursor-invisible lore name leaked into config_read catalog: %s", output)
+	}
+}

@@ -71,6 +71,15 @@ func (s *Store) Revision() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	for index := range items {
+		// Chapter-scoped spans live in a turn-scoped fragment and must not rotate
+		// the cache-stable Lore Index revision.
+		items[index].Spans = nil
+		// UpdatedAt changes for every successful mutation, including a spans-only
+		// edit. It is persistence metadata rather than stable index content, so
+		// omit it from this revision as well.
+		items[index].UpdatedAt = ""
+	}
 	data, err := json.Marshal(struct {
 		Items      []Item
 		Categories []Category
@@ -132,6 +141,8 @@ func (s *Store) Create(input ItemInput) (Item, error) {
 		LoadMode:         input.LoadMode,
 		IndexMemberships: input.IndexMemberships,
 		Content:          input.Content,
+		Spans:            input.Spans,
+		DetailFields:     input.DetailFields,
 		CreatedAt:        now,
 		UpdatedAt:        now,
 		Image:            input.Image,
@@ -199,6 +210,8 @@ func (s *Store) Update(id string, input ItemInput) (Item, error) {
 			LoadMode:         input.LoadMode,
 			IndexMemberships: previous.IndexMemberships,
 			Content:          input.Content,
+			Spans:            previous.Spans,
+			DetailFields:     previous.DetailFields,
 			CreatedAt:        collection.Items[i].CreatedAt,
 			UpdatedAt:        time.Now().UTC().Format(time.RFC3339Nano),
 			Image:            previous.Image,
@@ -207,6 +220,9 @@ func (s *Store) Update(id string, input ItemInput) (Item, error) {
 		})
 		if input.IndexMemberships != nil {
 			updated.IndexMemberships = input.IndexMemberships
+		}
+		if input.Spans != nil {
+			updated.Spans = input.Spans
 		}
 		if updated.Name == "" {
 			return Item{}, errors.New("资料名称不能为空")
@@ -285,6 +301,8 @@ func (s *Store) ApplyOperations(message string, ops []Operation) (ApplyResult, e
 				LoadMode:         op.Item.LoadMode,
 				IndexMemberships: op.Item.IndexMemberships,
 				Content:          op.Item.Content,
+				Spans:            op.Item.Spans,
+				DetailFields:     op.Item.DetailFields,
 				CreatedAt:        now,
 				UpdatedAt:        time.Now().UTC().Format(time.RFC3339Nano),
 				Image:            op.Item.Image,
@@ -340,6 +358,8 @@ func (s *Store) ApplyOperations(message string, ops []Operation) (ApplyResult, e
 				LoadMode:         firstNonEmptyLoreValue(op.Item.LoadMode, next[idx].LoadMode),
 				IndexMemberships: next[idx].IndexMemberships,
 				Content:          firstNonEmptyLoreValue(op.Item.Content, next[idx].Content),
+				Spans:            next[idx].Spans,
+				DetailFields:     next[idx].DetailFields,
 				CreatedAt:        next[idx].CreatedAt,
 				UpdatedAt:        time.Now().UTC().Format(time.RFC3339Nano),
 				Image:            next[idx].Image,
@@ -348,6 +368,9 @@ func (s *Store) ApplyOperations(message string, ops []Operation) (ApplyResult, e
 			})
 			if op.Item.IndexMemberships != nil {
 				updated.IndexMemberships = op.Item.IndexMemberships
+			}
+			if op.Item.Spans != nil {
+				updated.Spans = op.Item.Spans
 			}
 			if op.Item.Tags == nil {
 				updated.Tags = append([]string(nil), next[idx].Tags...)

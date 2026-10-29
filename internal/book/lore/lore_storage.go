@@ -53,6 +53,15 @@ func DecodeCollection(data []byte) (Collection, error) {
 		return Collection{}, err
 	}
 	collection := Collection{Version: loreItemsVersion, Items: normalizeLoreItems(items)}
+	// Versions 1 through 3 predate chapter-scoped canon. Ignore a coincidental
+	// spans field in hand-edited legacy files so the migration remains an
+	// explicit, one-way schema upgrade rather than silently adopting data whose
+	// validity contract did not exist in that release.
+	if version < 4 {
+		for index := range collection.Items {
+			collection.Items[index].Spans = nil
+		}
+	}
 	if version < 3 {
 		collection.Categories = DefaultCategories()
 		for i := range collection.Items {

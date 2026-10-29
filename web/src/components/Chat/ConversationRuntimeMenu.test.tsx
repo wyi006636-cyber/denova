@@ -1,13 +1,14 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DropdownMenu, DropdownMenuContent } from '@/components/ui/dropdown-menu'
 import type { ConversationConfigController } from '@/features/conversation-config/types'
 import { ConversationRuntimeMenu } from './ConversationRuntimeMenu'
 
-const mocks = vi.hoisted(() => ({ fetchProjectSettings: vi.fn(), fetchSettings: vi.fn(), fetchModelCatalog: vi.fn(), fetchAgentEngines: vi.fn(), fetchEngineModels: vi.fn(), checkAgentEngine: vi.fn() }))
+const mocks = vi.hoisted(() => ({ fetchProjectSettings: vi.fn(), fetchSettings: vi.fn(), fetchModelCatalog: vi.fn(), fetchAgentEngines: vi.fn(), fetchEngineModels: vi.fn(), checkAgentEngine: vi.fn(), subscribeSettingsTarget: vi.fn() }))
 vi.mock('@/features/settings/api', () => mocks)
 vi.mock('@/features/agent-runtime/api', () => mocks)
+vi.mock('@/features/settings/query', async importOriginal => ({ ...await importOriginal<typeof import('@/features/settings/query')>(), subscribeSettingsTarget: mocks.subscribeSettingsTarget }))
 
 let user: ReturnType<typeof userEvent.setup>
 
@@ -25,11 +26,13 @@ function menu(config: ConversationConfigController, runActive = false) {
 }
 async function openRuntime() {
   await user.click(screen.getByRole('menuitem', { name: '运行时：Native' }))
-  await waitFor(() => expect(screen.queryByText('正在检查可用性…')).not.toBeInTheDocument())
+  // Native is always offered, so its row marks the resolved list.
+  await screen.findByRole('menuitem', { name: 'Native' })
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.subscribeSettingsTarget.mockReturnValue(() => {})
   // jsdom has no submenu geometry for Radix's pointer-grace handling. Exercise
   // clicks here; the browser suite covers pointer travel, hover, and placement.
   user = userEvent.setup({ skipHover: true })
@@ -82,18 +85,20 @@ describe('ConversationRuntimeMenu', () => {
     expect(screen.getAllByRole('menuitem', { name: '配置' }).every(item => item.getAttribute('aria-disabled') !== 'true')).toBe(true)
     expect(config.patch).not.toHaveBeenCalled()
   })
-  it('checks an unknown runtime without automatically switching', async () => {
+  it('probes an unknown runtime only when the user selects it', async () => {
     mocks.fetchAgentEngines.mockResolvedValueOnce({ items: [{ id: 'codex', status: 'unchecked' }] })
     mocks.checkAgentEngine.mockResolvedValue({ id: 'codex', status: 'ready' })
     const config = controller()
     render(menu(config))
     await openRuntime()
-    await user.click(screen.getByRole('menuitem', { name: 'Codex' }))
+    // Opening the list reads cached state; a probe would spawn a CLI process.
+    expect(mocks.checkAgentEngine).not.toHaveBeenCalled()
+    const option = screen.getByRole('menuitem', { name: 'Codex' })
+    expect(option).not.toHaveAttribute('aria-disabled', 'true')
+    await user.click(option)
     await waitFor(() => expect(mocks.checkAgentEngine).toHaveBeenCalledWith('codex'))
-    await waitFor(() => expect(screen.queryByText('正在检查可用性…')).not.toBeInTheDocument())
+    // Checking an unknown engine never switches the bound conversation.
     expect(config.patch).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('menuitem', { name: 'Codex' }))
-    await waitFor(() => expect(config.patch).toHaveBeenCalledOnce())
   })
   it('accepts a compatible API profile without CLI authentication', async () => {
     mocks.fetchProjectSettings.mockResolvedValue({ effective: {
@@ -159,4 +164,22 @@ describe('ConversationRuntimeMenu', () => {
       expect(config.snapshot?.runtime).toBeUndefined()
     })
   }
+  it('never probes engines when the submenu opens or reopens', async () => {
+    mocks.fetchAgentEngines.mockResolvedValue({ items: [{ id: 'codex', status: 'unchecked' }] })
+    render(menu(controller()))
+    await openRuntime()
+    await user.keyboard('{ArrowLeft}')
+    await openRuntime()
+    expect(mocks.checkAgentEngine).not.toHaveBeenCalled()
+  })
+
+  it('refreshes choices when remembered settings change', async () => {
+    render(menu(controller()))
+    await openRuntime()
+    const reads = mocks.fetchAgentEngines.mock.calls.length
+    const notify = mocks.subscribeSettingsTarget.mock.calls[0][1]
+    act(() => notify({ effective: { openai_model: 'changed-model' } }))
+    await waitFor(() => expect(mocks.fetchAgentEngines.mock.calls.length).toBeGreaterThan(reads))
+  })
+
 })

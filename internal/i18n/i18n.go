@@ -77,6 +77,11 @@ func stringify(v any) string {
 }
 
 var catalogZH = map[string]string{
+	"decision.classification.reason": "决策模型根据名称和资料内容匹配已有分类。",
+	"decision.trigger.title":         "语义条件已满足",
+	"decision.trigger.matched":       "当前证据满足已配置的语义条件。",
+	"decision.trigger.notMatched":    "当前证据表明条件尚未满足。",
+
 	"settings.webAccess.error.configuration":    "请填写所选搜索服务的 API 密钥或实例地址，并检查搜索模式。",
 	"settings.webAccess.error.invalid_request":  "搜索请求无效，请调整关键词或搜索选项。",
 	"settings.webAccess.error.query_too_long":   "DeepSeek 查询最多 128 个字符，包含时间筛选（占用 17 个字符），请缩短关键词。",
@@ -313,6 +318,17 @@ var catalogZH = map[string]string{
 	"api.projectBook.loreFieldsRequired":             "资料条目更新缺少完整字段: {{fields}}",
 	"api.projectBook.loreIDMismatch":                 "资料条目正文 ID 与资源路径不一致",
 	"api.projectBook.reviewFailed":                   "文本审阅操作失败: {{detail}}",
+	"api.casebook.invalidRequest":                    "案例请求无效",
+	"api.casebook.invalid":                           "案例内容或路径无效",
+	"api.casebook.notFound":                          "案例文件不存在",
+	"api.casebook.indexMissing":                      "案例目录不存在",
+	"api.casebook.revisionConflict":                  "案例已被其他修改更新，请刷新后再试",
+	"api.casebook.quoteMissing":                      "原文摘录在来源中找不到",
+	"api.casebook.quoteAmbiguous":                    "原文摘录在来源中出现多次，请补充前后文",
+	"api.casebook.quoteTooLong":                      "原文摘录不能超过 120 个字符",
+	"api.casebook.quoteEmpty":                        "原文摘录不能为空",
+	"api.casebook.sourceMissing":                     "案例来源文件不存在或不是文本",
+	"api.casebook.sourceOutsideBook":                 "案例来源必须位于本书 references/sources/ 下",
 	"api.terminal.disabled":                          "终端功能已在设置中关闭",
 	"api.terminal.notFound":                          "终端会话不存在或已结束",
 	"api.terminal.tooMany":                           "并发终端会话数已达上限，请先关闭部分终端",
@@ -333,6 +349,11 @@ var catalogZH = map[string]string{
 }
 
 var catalogEN = map[string]string{
+	"decision.classification.reason": "Decision model matched an existing category using the name and content.",
+	"decision.trigger.title":         "Semantic condition satisfied",
+	"decision.trigger.matched":       "Current evidence satisfies the configured semantic condition.",
+	"decision.trigger.notMatched":    "Current evidence does not satisfy the condition.",
+
 	"settings.webAccess.error.configuration":    "Enter the selected search service's API key or instance URL and check its search mode.",
 	"settings.webAccess.error.invalid_request":  "Invalid search request. Adjust the query or search options.",
 	"settings.webAccess.error.query_too_long":   "DeepSeek queries allow up to 128 characters, including time filters (17 characters). Shorten the query.",
@@ -569,6 +590,17 @@ var catalogEN = map[string]string{
 	"api.projectBook.loreFieldsRequired":             "Lore update is missing required fields: {{fields}}",
 	"api.projectBook.loreIDMismatch":                 "The Lore body ID does not match the resource path.",
 	"api.projectBook.reviewFailed":                   "Document review operation failed: {{detail}}",
+	"api.casebook.invalidRequest":                    "The casebook request is invalid.",
+	"api.casebook.invalid":                           "The case content or path is invalid.",
+	"api.casebook.notFound":                          "The case file does not exist.",
+	"api.casebook.indexMissing":                      "The case index does not exist.",
+	"api.casebook.revisionConflict":                  "The case changed elsewhere. Refresh and try again.",
+	"api.casebook.quoteMissing":                      "The excerpt was not found in its source.",
+	"api.casebook.quoteAmbiguous":                    "The excerpt occurs more than once. Add surrounding context.",
+	"api.casebook.quoteTooLong":                      "The excerpt must be at most 120 characters.",
+	"api.casebook.quoteEmpty":                        "The excerpt cannot be empty.",
+	"api.casebook.sourceMissing":                     "The case source file is missing or is not text.",
+	"api.casebook.sourceOutsideBook":                 "The case source must be under references/sources/ in this book.",
 	"api.terminal.disabled":                          "Terminal is turned off in Settings.",
 	"api.terminal.notFound":                          "Terminal session not found or already ended.",
 	"api.terminal.tooMany":                           "Too many terminal sessions are open. Close one and try again.",

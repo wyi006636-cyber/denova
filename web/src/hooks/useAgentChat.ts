@@ -70,7 +70,7 @@ export interface ChatSendOptions {
     }>
   }
   loreReferenceLabels?: Record<string, string>
-  onSubmissionStart?: () => void
+  onSubmissionStart?: (commandId?: string) => void
   /** The server has durably accepted the command, before the model finishes its turn. */
   onSubmissionAccepted?: () => void
   onSubmissionError?: () => void
@@ -518,7 +518,7 @@ export function useAgentChat(options: ChatOptions = {}) {
           setLoreReferences((current) => current.filter((item) => !prepared.composerLoreReferences.includes(item)))
           setStyleScenes((current) => current.filter((item) => !prepared.composerStyleScenes.includes(item)))
           setTextSelections((current) => current.filter((item) => !prepared.composerTextSelections.includes(item)))
-          sendOptions.onSubmissionStart?.()
+          sendOptions.onSubmissionStart?.(commandID)
           sendOptions.onSubmissionAccepted?.()
           return true
         } catch (error) {
@@ -554,7 +554,7 @@ export function useAgentChat(options: ChatOptions = {}) {
         setStyleScenes((current) => current.filter((item) => !prepared.composerStyleScenes.includes(item)))
         setTextSelections((current) => current.filter((item) => !prepared.composerTextSelections.includes(item)))
         submissionStarted = true
-        sendOptions.onSubmissionStart?.()
+        sendOptions.onSubmissionStart?.(initialCommandID)
         await pendingRequest
         const acceptance = transport.takeInitialSubmissionOutcome(initialCommandID, 'accepted')
         if (acceptance === 'accepted') {

@@ -18,10 +18,11 @@ import (
 const defaultToolResultMaxBytes = config.DefaultAgentToolResultLimitKB * 1024
 
 const (
-	ToolSourceLore    = agenttool.ToolSourceLore
-	ToolSourceHistory = sdktool.ToolSourceHistory
-	ToolSourceWeb     = sdktool.ToolSourceWeb
-	ToolSourceImage   = sdktool.ToolSourceImage
+	ToolSourceLore           = agenttool.ToolSourceLore
+	ToolSourceHistory        = sdktool.ToolSourceHistory
+	ToolSourceWeb            = sdktool.ToolSourceWeb
+	ToolSourceImage          = sdktool.ToolSourceImage
+	ToolSourceDocumentReview = sdktool.ToolSource("denova.document_review")
 )
 
 // validateToolDescriptors makes the descriptor catalog part of Agent
@@ -296,6 +297,21 @@ func workspaceWriteDescriptor(source sdktool.ToolSource, capability string, reco
 		descriptor.Presentation = sdktool.UniformToolPresentation(sdktool.ToolPresentationFile)
 	}
 	return descriptor
+}
+
+// documentReviewDescriptor describes a review-ledger mutation. Review notes
+// are durable Project Store metadata and do not edit workspace files, so the
+// execution remains exclusive while its mutation and presentation stay out
+// of the workspace-file change UI.
+func documentReviewDescriptor(capability string, recovery sdktool.ToolRecoveryClass) sdktool.ToolDescriptor {
+	return sdktool.ToolDescriptor{
+		Source: ToolSourceDocumentReview, Capability: capability,
+		Execution: sdktool.ToolExecutionWorkspaceExclusive, MutationScope: sdktool.ToolMutationExternal,
+		PostCheck: sdktool.ToolPostCheckExternalReceipt, Recovery: recovery,
+		ResultProjection: agentschema.ToolResultBoundedModelContext, ResultRetention: agentschema.ToolResultProtected,
+		Steering: sdktool.SteeringFinishCurrent, MaxResultBytes: defaultToolResultMaxBytes,
+		Presentation: sdktool.UniformToolPresentation(sdktool.ToolPresentationGeneric),
+	}
 }
 
 // interactiveStoryWorkflowDescriptor classifies the game-owned turn and state

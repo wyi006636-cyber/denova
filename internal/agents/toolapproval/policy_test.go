@@ -47,6 +47,11 @@ func TestEvaluateStructuredTools(t *testing.T) {
 			descriptor: agenttool.ToolDescriptor{Source: agenttool.ToolSourceOther, MutationScope: agenttool.ToolMutationExternal},
 			want:       ActionAllow,
 		},
+		{
+			name: "document review ledger is automatic in ask", mode: config.AgentApprovalAsk,
+			descriptor: agenttool.ToolDescriptor{Capability: config.AgentToolDocumentReview, Source: agenttool.ToolSource("denova.document_review"), MutationScope: agenttool.ToolMutationExternal},
+			want:       ActionAllow,
+		},
 	}
 	for _, test := range tests {
 		test := test

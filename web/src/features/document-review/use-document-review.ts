@@ -4,7 +4,7 @@ import { toast } from '@/lib/toast'
 import type { ReviewFeedbackSelection } from '@/features/changes/agent/ReviewFeedbackTray'
 import { isProjectChangeForProject, type WorkspaceChangeEvent } from '@/features/changes/types'
 import { withErrorLogID } from '@/lib/api-client'
-import { createDocumentComment, deleteDocumentComment, getDocumentReview, updateDocumentComment } from './api'
+import { createDocumentComment, deleteDocumentComment, getDocumentReview, promoteDocumentComment, updateDocumentComment } from './api'
 import type { CreateDocumentCommentRequest, DocumentReviewComment, DocumentReviewThread } from './types'
 
 interface UseDocumentReviewOptions {
@@ -14,14 +14,19 @@ interface UseDocumentReviewOptions {
 }
 
 const EMPTY_THREAD: DocumentReviewThread = { id: '', comments: [] }
-const DOCUMENT_REVIEW_UPDATED_EVENT = 'nova:document-review-updated'
+export const DOCUMENT_REVIEW_UPDATED_EVENT = 'nova:document-review-updated'
 let documentReviewSourceSequence = 0
 const projectHiddenCommentIDs = new Map<string, ReadonlySet<string>>()
 
-interface DocumentReviewUpdatedDetail {
+export interface DocumentReviewUpdatedDetail {
   projectId: string
-  source: number
+  source?: number
   action: 'refresh' | 'submit' | 'restore'
+  commentIDs?: string[]
+}
+
+export interface NotifyDocumentReviewUpdatedOptions {
+  source?: number
   commentIDs?: string[]
 }
 
@@ -103,6 +108,7 @@ export function useDocumentReview({ projectId, agentVisible, onShowAgent }: UseD
 
   const addComment = useCallback(async (request: CreateDocumentCommentRequest) => {
     const result = await createDocumentComment(projectId, request)
+    requestEpochRef.current += 1
     setThread(result.reviewThread)
     updateHiddenCommentIDs((current) => {
       const next = new Set(current)
@@ -110,28 +116,38 @@ export function useDocumentReview({ projectId, agentVisible, onShowAgent }: UseD
       return next
     })
     if (!agentVisible) onShowAgent()
-    notifyDocumentReviewUpdated(projectId, source, 'refresh')
+    notifyDocumentReviewUpdated(projectId, 'refresh', { source })
     return result.comment
   }, [agentVisible, onShowAgent, projectId, source, updateHiddenCommentIDs])
 
   const editComment = useCallback(async (comment: DocumentReviewComment, body: string) => {
     const result = await updateDocumentComment(projectId, comment.id, body)
+    requestEpochRef.current += 1
     setThread(result.reviewThread)
-    notifyDocumentReviewUpdated(projectId, source, 'refresh')
+    notifyDocumentReviewUpdated(projectId, 'refresh', { source })
     return result.comment
   }, [projectId, source])
 
   const removeComment = useCallback(async (comment: DocumentReviewComment) => {
     const result = await deleteDocumentComment(projectId, comment.id)
+    requestEpochRef.current += 1
     setThread(result.reviewThread)
     updateHiddenCommentIDs((current) => {
       const next = new Set(current)
       next.delete(comment.id)
       return next
     })
-    notifyDocumentReviewUpdated(projectId, source, 'refresh')
+    notifyDocumentReviewUpdated(projectId, 'refresh', { source })
     return result.comment
   }, [projectId, source, updateHiddenCommentIDs])
+
+  const promoteComment = useCallback(async (comment: DocumentReviewComment) => {
+    const result = await promoteDocumentComment(projectId, comment.id)
+    requestEpochRef.current += 1
+    setThread(result.reviewThread)
+    notifyDocumentReviewUpdated(projectId, 'refresh', { source })
+    return result.comment
+  }, [projectId, source])
 
   const removeFeedback = useCallback((commentID: string) => {
     const comment = thread.comments.find((item) => item.id === commentID)
@@ -148,7 +164,7 @@ export function useDocumentReview({ projectId, agentVisible, onShowAgent }: UseD
 
   const feedback = useMemo<ReviewFeedbackSelection | null>(() => {
     if (!thread.id) return null
-    const comments = thread.comments.filter((comment) => !hiddenCommentIDs.has(comment.id))
+    const comments = thread.comments.filter((comment) => (comment.source || 'author') === 'author' && !hiddenCommentIDs.has(comment.id))
     return comments.length ? { source: 'document', reviewThreadId: thread.id, comments } : null
   }, [hiddenCommentIDs, thread])
 
@@ -161,14 +177,14 @@ export function useDocumentReview({ projectId, agentVisible, onShowAgent }: UseD
     if (selection.source !== 'document') return
     const commentIDs = selection.comments.map((comment) => comment.id)
     updateHiddenCommentIDs((current) => new Set([...current, ...commentIDs]))
-    notifyDocumentReviewUpdated(projectId, source, 'submit', commentIDs)
+    notifyDocumentReviewUpdated(projectId, 'submit', { source, commentIDs })
   }, [projectId, source, updateHiddenCommentIDs])
 
   const restoreFeedback = useCallback((selection: ReviewFeedbackSelection) => {
     if (selection.source !== 'document') return
     const restored = new Set(selection.comments.map((comment) => comment.id))
     updateHiddenCommentIDs((current) => new Set([...current].filter((id) => !restored.has(id))))
-    notifyDocumentReviewUpdated(projectId, source, 'restore', [...restored])
+    notifyDocumentReviewUpdated(projectId, 'restore', { source, commentIDs: [...restored] })
   }, [projectId, source, updateHiddenCommentIDs])
 
   return {
@@ -179,20 +195,20 @@ export function useDocumentReview({ projectId, agentVisible, onShowAgent }: UseD
     addComment,
     editComment,
     removeComment,
+    promoteComment,
     removeFeedback,
     submitFeedback,
     restoreFeedback,
   }
 }
 
-function notifyDocumentReviewUpdated(
+export function notifyDocumentReviewUpdated(
   projectId: string,
-  source: number,
   action: DocumentReviewUpdatedDetail['action'],
-  commentIDs?: string[],
+  options: NotifyDocumentReviewUpdatedOptions = {},
 ) {
   if (!projectId) return
   window.dispatchEvent(new CustomEvent<DocumentReviewUpdatedDetail>(DOCUMENT_REVIEW_UPDATED_EVENT, {
-    detail: { projectId, source, action, commentIDs },
+    detail: { projectId, action, ...options },
   }))
 }

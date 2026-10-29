@@ -9,7 +9,7 @@ import (
 func TestCollectionCacheIsolatedFromCallersAndExternalReplacements(t *testing.T) {
 	workspace := t.TempDir()
 	store := NewStore(workspace)
-	item, err := store.Create(ItemInput{ID: "cached", Type: "character", Name: "Original", Content: "first body", Tags: []string{"saved"}})
+	item, err := store.Create(ItemInput{ID: "cached", Type: "character", Name: "Original", Content: "first body", Tags: []string{"saved"}, Spans: []Span{{ID: "later", From: "ch00020", Content: "saved span"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -18,6 +18,7 @@ func TestCollectionCacheIsolatedFromCallersAndExternalReplacements(t *testing.T)
 		t.Fatal(err)
 	}
 	read.Tags[0] = "mutated"
+	read.Spans[0].Content = "mutated span"
 	categories, err := store.Categories()
 	if err != nil {
 		t.Fatal(err)
@@ -25,7 +26,7 @@ func TestCollectionCacheIsolatedFromCallersAndExternalReplacements(t *testing.T)
 	categories[0].Name = "mutated"
 	other := NewStore(workspace)
 	read, err = other.Get(item.ID)
-	if err != nil || read.Tags[0] != "saved" {
+	if err != nil || read.Tags[0] != "saved" || read.Spans[0].Content != "saved span" {
 		t.Fatalf("cached item escaped: %#v err=%v", read, err)
 	}
 	categories, err = other.Categories()

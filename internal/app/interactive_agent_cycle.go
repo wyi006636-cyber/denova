@@ -154,6 +154,7 @@ func (s *InteractiveAppService) prepareInteractiveAgentCycle(ctx context.Context
 	ruleChecksEnabled := !storyRuntime.ModuleRefs.RuleSystemDisabled && len(storyRuntime.TRPGSystem.RuleTemplates) > 0
 	cycle.request = agentchat.ChatRequest{
 		CommandID: request.CommandID, Message: strings.TrimSpace(request.Message), ResumeInterruptionID: strings.TrimSpace(request.ResumeInterruptionID),
+		LoreAsOf:      storyContext.Meta.LoreAsOf,
 		StyleScenes:   append([]string(nil), request.StyleScenes...),
 		AttachmentIDs: append([]string(nil), request.AttachmentIDs...),
 		AttachedFiles: append([]agentschema.Attachment(nil), request.AttachedFiles...),
@@ -187,15 +188,16 @@ func (s *InteractiveAppService) prepareInteractiveAgentCycle(ctx context.Context
 		return nil, err
 	}
 	toolContext := agentinteractive.InteractiveStoryToolContext{
-		Store:                  cycle.store,
-		StoryID:                cycle.storyID,
-		BranchID:               cycle.branchID,
-		SubmitStateSchemaBatch: submitOpeningStateSchema,
-		PrepareTurn:            prepareTurn,
-		SelectProtagonist:      selectProtagonist,
-		SubmitTurnResult:       cycle.conversation.SubmitTurnResult,
-		TurnResultReady:        cycle.conversation.InteractiveNarrativeReady,
-		LoadNarrativeCandidate: cycle.conversation.LoadAgentNarrativeCandidate,
+		Store:                      cycle.store,
+		PresentationSelectedByHost: cycle.conversation.PresentationSelectedByHost(),
+		StoryID:                    cycle.storyID,
+		BranchID:                   cycle.branchID,
+		SubmitStateSchemaBatch:     submitOpeningStateSchema,
+		PrepareTurn:                prepareTurn,
+		SelectProtagonist:          selectProtagonist,
+		SubmitTurnResult:           cycle.conversation.SubmitTurnResult,
+		TurnResultReady:            cycle.conversation.InteractiveNarrativeReady,
+		LoadNarrativeCandidate:     cycle.conversation.LoadAgentNarrativeCandidate,
 	}
 	if cycle.runtimeCfg.ActiveAgentRuntime != nil && cycle.runtimeCfg.ActiveAgentRuntime.Kind != config.RuntimeNative {
 		assembly, err := agents.BuildExternalGameAssembly(ctx, &cycle.runtimeCfg, cycle.state, cycle.tellerInput, agentHost, toolContext)

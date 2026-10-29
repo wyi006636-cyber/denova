@@ -1,4 +1,5 @@
-import { Code2, Crosshair, Ellipsis, ImagePlus, PanelLeft, Save, Settings, WrapText } from 'lucide-react'
+import { useState } from 'react'
+import { Code2, Crosshair, Ellipsis, ImagePlus, PanelLeft, Save, ScanSearch, Settings, Target, WrapText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -7,11 +8,13 @@ import { formatLocaleNumber } from '@/i18n'
 import { EditorSettingsPanel } from './EditorSettingsPanel'
 import { EditorSaveStatus } from './EditorSaveStatus'
 import type { EditorToolbarProps } from './EditorToolbar'
+import { ChapterGoalCard } from '@/components/workbench/ChapterGoalCard'
 
 /** Document context belongs to the tab strip; this row owns editing status and commands. */
 export function MobileEditorToolbar(props: EditorToolbarProps) {
   const { t } = useTranslation()
-  const { chapterPath, chapterWords, saveStatus, editorMode, onOpenOutline, onGenerateIllustration, onRevealChapter } = props
+  const { chapterPath, chapterWords, saveStatus, editorMode, onOpenOutline, onGenerateIllustration, onRevealChapter, chapterGoal, onOpenChapterPlan } = props
+  const [goalOpen, setGoalOpen] = useState(false)
   return (
     <div className="nova-mobile-editor-toolbar flex h-11 shrink-0 items-center justify-between gap-2 border-b px-3">
       <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
@@ -26,6 +29,15 @@ export function MobileEditorToolbar(props: EditorToolbarProps) {
             <div className="min-h-0 overflow-y-auto"><EditorSettingsPanel settings={props.settings} onChange={props.onSettingsChange} onClose={() => props.onSettingsOpenChange(false)} readingTypography={props.readingTypography} /></div>
           </SheetContent>
         </Sheet>}
+        {chapterPath ? <Sheet open={goalOpen} onOpenChange={setGoalOpen}>
+          <SheetTrigger asChild><Button variant="ghost" size="icon" aria-label={t('planning.chapterGoal.open')}><Target /></Button></SheetTrigger>
+          <SheetContent side="right" className="nova-mobile-sheet gap-0 p-0">
+            <header data-mobile-drawer-header className="nova-topbar flex min-h-12 shrink-0 items-center border-b px-3 pr-14">
+              <SheetTitle className="min-w-0 truncate text-sm">{t('planning.chapterGoal.title')}</SheetTitle>
+            </header>
+            <div className="min-h-0 flex-1 overflow-y-auto p-3"><ChapterGoalCard goal={chapterGoal} chapterPath={chapterPath} hasRecentPlans={Boolean(onOpenChapterPlan)} onOpenPlan={onOpenChapterPlan} /></div>
+          </SheetContent>
+        </Sheet> : null}
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" aria-label={t('editor.tools')}><Ellipsis />{t('editor.tools')}</Button></DropdownMenuTrigger>
@@ -37,6 +49,7 @@ export function MobileEditorToolbar(props: EditorToolbarProps) {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               {onOpenOutline && <DropdownMenuItem onSelect={onOpenOutline}><PanelLeft />{t('planning.outlineNavigation')}</DropdownMenuItem>}
+              {props.onCheckChapter && <DropdownMenuItem onSelect={props.onCheckChapter}><ScanSearch />{t('editor.lint.open')}</DropdownMenuItem>}
               {chapterPath && onRevealChapter && <DropdownMenuItem onSelect={() => onRevealChapter(chapterPath)}><Crosshair />{t('editor.revealChapterInOutlineTooltip')}</DropdownMenuItem>}
               {onGenerateIllustration && <DropdownMenuItem disabled={props.generateIllustrationDisabled || !chapterPath} onSelect={() => { if (chapterPath) onGenerateIllustration(chapterPath) }}><ImagePlus />{t('editor.generateIllustration')}</DropdownMenuItem>}
               <DropdownMenuItem onSelect={() => void props.onSave()}><Save />{t('editor.save')}</DropdownMenuItem>

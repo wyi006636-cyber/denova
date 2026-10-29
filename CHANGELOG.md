@@ -12,22 +12,70 @@ Denova records major user-visible features, important compatibility or data chan
 
 ## [Unreleased]
 
+### Brief / 简要说明
+
+#### 中文
+
+- 新增内置互动游戏创作 Skill，并支持按「游戏」分类管理 Skills。
+- 创作、通用对话与游戏 Agent 新增 Grok Build 与 Antigravity CLI 执行引擎。
+
+#### English
+
+- Adds a built-in interactive-game design Skill and a Game category for Skills.
+- Writing, General Chat, and Game Agents add Grok Build and Antigravity CLI execution engines.
+
+### Added / 新增
+
+- 内置互动游戏创作 Skill，支持游戏构思与核心循环、世界与角色资料库、状态系统、规则判定、游戏规划、开局回合和跑团诊断。
+- A built-in interactive-game design Skill covers game premises and loops, world and character Lore, state systems, rules and checks, planning, openings and turns, and play diagnostics.
+- 互动游戏创作 Skill 补充经典网文向的成长体系、爽点结构、资源与社会资本、世界阶梯、副本/规则恐怖/都市隐杀和外观沉浸感设计。
+- The interactive-game design Skill now covers classic web-novel progression, payoff structure, resources and social capital, world tiers, instance/rule-horror/urban-undercover patterns, and sensory immersion.
+- Skills 库新增「游戏」分类，可在创建、配置和筛选中使用。
+- The Skills library adds a Game category for creation, configuration, and filtering.
+- 创作、通用对话与游戏 Agent 新增 Grok Build 和 Antigravity CLI 执行引擎，支持本机 CLI 模型发现、独立引擎设置与切换会话模型。
+- Writing, General Chat, and Game Agents add Grok Build and Antigravity CLI execution engines with local CLI model discovery, independent engine settings, and per-conversation model selection.
+
+### Fixed / 修复
+
+- 修复 Grok Build 与 Antigravity CLI 的运行时问题：Antigravity CLI 因内置工具集整轮失败、Grok Build 偶发响应不匹配、流式中断重试失效、推理强度参数错误、模型配置保存失败。
+- Fixed Grok Build and Antigravity CLI runtime issues: Antigravity CLI turns aborting on its built-in toolset, sporadic Grok Build response mismatches, broken in-stream retries, invalid reasoning-effort parameters, and failed model-settings saves.
+- 修复运行时引擎与游戏恢复问题：引擎菜单反复探测、检查后仍报连接失败、游戏断连后回合卡死、会话冷启动校验过严、局域网管理请求 403。
+- Fixed engine availability and game recovery: repeated engine probing, "connection failed" right after a check, stuck Game turns after disconnect, over-strict cold-start checkpoints, and 403 responses for LAN management.
+
+### Compatibility / 兼容性
+
+- 放弃游戏回合会在故事日志中写入新的 `turn_abandoned` 审计事件；旧版 Denova 可能无法解析已产生此事件的故事文件。降级前请备份工作区。
+- Discarding a Game turn adds a `turn_abandoned` audit record; older Denova versions may not parse story journals containing this event. Back up the workspace before downgrading.
+
 ## [v0.6.3] - 2026-10-20
 
 ### Brief / 简要说明
 
 #### 中文
 
-- 创作、通用对话与游戏 Agent 新增 Grok Build 和 Antigravity CLI 执行引擎，可选择本机 CLI 模型、保存独立引擎设置并切换会话模型。
+- 新增可选决策模型、资料正文提及检索与内置网文创作 Skill。
+- 修复原文修改后批注阻断发送，以及 Windows 文件定位误报失败的问题。
 
 #### English
 
-- Writing, General Chat, and Game Agents add Grok Build and Antigravity CLI execution engines with local CLI model discovery, independent engine settings, and per-conversation model selection.
+- Adds optional decision models, Lore text-mention search, and a built-in novel-writing Skill.
+- Fixes comments blocking messages after source edits and false failures when revealing files on Windows.
 
 ### Added / 新增
 
-- 创作、通用对话与游戏 Agent 新增 Grok Build 和 Antigravity CLI 执行引擎，支持读取本机 CLI 模型、保存独立引擎设置和切换会话模型。
-- Writing, General Chat, and Game Agents add Grok Build and Antigravity CLI execution engines, with local CLI model discovery, independent engine settings, and per-conversation model selection.
+- 可选决策模型支持游戏舞台素材选择、资料库语义分类和自动化语义触发，不确定或服务不可用时由语言模型兜底。
+- Optional decision models handle Game stage media, Lore semantic classification, and automation semantic triggers, with language-model fallback for uncertain results or service failures.
+- 资料详情新增「作品提及」：查找作品文件与指定故事分支的正文提及，定位文件或只读查看历史回合。
+- Lore details now find text mentions in project files and a selected story branch, with file navigation and read-only historical narrative.
+- 内置网文创作 Skill，支持构思、大纲、人物与规则设计、章节场景、长篇续航和改稿诊断。
+- A built-in novel-writing Skill supports premises, outlines, characters and rules, scenes, long-form continuity, and revision.
+
+### Fixed / 修复
+
+- 修复编辑原文后批注阻断消息发送的问题；保留原文引用，并让 Agent 结合当前内容处理。
+- Fixed document comments blocking messages after source edits; original quotes remain available for the Agent to reconcile with current content.
+- 修复 Windows 文件定位已成功打开资源管理器却误报失败的问题。
+- Fixed false failure reports after successfully revealing files in Windows Explorer.
 
 ## [v0.6.2] - 2026-10-19
 

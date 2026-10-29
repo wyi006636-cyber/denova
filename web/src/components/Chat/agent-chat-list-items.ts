@@ -4,8 +4,9 @@ import { buildAgentRunPresentation } from './agent-run-presentation'
 import { buildToolCallTree, type AgentProcessNode } from './tool-call-tree'
 import { chatListItemRunID, type AgentChatListItem } from './AgentChatListRow'
 import type { AgentTimelineAttachment } from './AgentMessageList'
+import { buildContextReceipt } from './context-receipt'
 
-export function buildAgentChatListItems({ views, isStreaming, activeRunId, isExecutionActive, visibleActivityContent, collapseTraceGroups, groupSubAgentTimeline, timelineAttachments, disclosures = {}, activeTraceDisplay = 'expanded' }: { views: AgentMessageView[]; isStreaming: boolean; activeRunId?: string; isExecutionActive: boolean; visibleActivityContent: string; collapseTraceGroups: boolean; groupSubAgentTimeline: boolean; timelineAttachments: AgentTimelineAttachment[]; disclosures?: Record<string, { running: boolean; expanded: boolean }>; activeTraceDisplay?: 'expanded' | 'collapsed' }): AgentChatListItem[] {
+export function buildAgentChatListItems({ views, isStreaming, activeRunId, isExecutionActive, visibleActivityContent, collapseTraceGroups, groupSubAgentTimeline, timelineAttachments, disclosures = {}, activeTraceDisplay = 'expanded', showContextReceipt = false }: { views: AgentMessageView[]; isStreaming: boolean; activeRunId?: string; isExecutionActive: boolean; visibleActivityContent: string; collapseTraceGroups: boolean; groupSubAgentTimeline: boolean; timelineAttachments: AgentTimelineAttachment[]; disclosures?: Record<string, { running: boolean; expanded: boolean }>; activeTraceDisplay?: 'expanded' | 'collapsed'; showContextReceipt?: boolean }): AgentChatListItem[] {
   const items: AgentChatListItem[] = []
   if (!isStreaming && views.every(isAgentRunMetadataView)) {
     items.push({ kind: 'empty', key: 'empty' })
@@ -78,9 +79,18 @@ export function buildAgentChatListItems({ views, isStreaming, activeRunId, isExe
       if (run) {
         const owner = { runId: run.runID, navigationAnchor: run.sections.flatMap(section => section.kind === 'process' ? section.views : [section.view]).map(agentViewNavigationAnchor).findLast(Boolean) || '' }
         const timedKey = (run.sections.find(section => section.kind === 'process' && section.active) || run.sections.find(section => section.kind === 'process'))?.key
+        const authorView = findAuthorView(views, index)
+        const receipt = buildContextReceipt({ runViews: run.views, authorView })
         for (const section of run.sections) {
-          if (section.kind === 'message') items.push({ kind: 'message', key: section.key, view: section.view, sourceIndex: index })
-          else appendProcess(section.key, section.views, section.active, index, section.key === timedKey, owner)
+          if (section.kind === 'message') {
+            items.push({ kind: 'message', key: section.key, view: section.view, sourceIndex: index })
+            // The receipt belongs to the settled root reply. Active and child
+            // assistant rows remain inside the execution disclosure.
+            if (showContextReceipt && section.view.kind === 'assistant' && !section.view.streaming && !section.view.metadata.subagent
+              && !run.sections.some(candidate => candidate.kind === 'process' && candidate.active)) {
+              items.push({ kind: 'context-receipt', key: `${run.key}-context-receipt`, receipt, sourceIndex: index, ownerRunId: run.runID, navigationAnchor: owner.navigationAnchor })
+            }
+          } else appendProcess(section.key, section.views, section.active, index, section.key === timedKey, owner)
         }
         const next = views[run.nextIndex]
         if (!isStreaming && !run.sections.some(section => section.kind === 'process' && section.active)
@@ -144,6 +154,15 @@ export function buildAgentChatListItems({ views, isStreaming, activeRunId, isExe
   }
 
   return items
+}
+
+function findAuthorView(views: AgentMessageView[], runStartIndex: number) {
+  for (let index = runStartIndex - 1; index >= 0; index -= 1) {
+    const view = views[index]
+    if (view.kind === 'clear') break
+    if (view.kind === 'user') return view
+  }
+  return undefined
 }
 
 function agentMessageItemKey(view: AgentMessageView, index: number) {

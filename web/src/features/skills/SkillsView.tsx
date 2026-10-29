@@ -4,6 +4,7 @@ import { Bot, RefreshCw, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ConfigManagerChat } from '@/components/Chat/ConfigManagerChat'
 import { ConfigManagerToggle } from '@/components/Chat/ConfigManagerToggle'
+import { useExecutableDraftEntry } from '@/features/config-guard/executable-draft-guard'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { EmptyState } from '@/components/common/EmptyState'
 import { LoadingState } from '@/components/common/LoadingState'
@@ -104,9 +105,11 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
   const [agentOpen, setAgentOpen] = useResponsiveAgentOpen()
   const [sidebarVisible, setSidebarVisible] = useState(true)
   const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null)
+  const [configDirty, setConfigDirty] = useState(false)
   const [documentReloadVersion, setDocumentReloadVersion] = useState(0)
   const [eventSource] = useState(() => `skills-view-${nextSkillsViewSourceID++}`)
   const configPanelRef = useRef<SkillConfigPanelHandle | null>(null)
+  const lastFlushErrorRef = useRef<unknown>(null)
   const fileTreePreferences = useRef(new Map<string, boolean>())
   const toolNavigationNonceRef = useRef(0)
   const notifySkillsUpdated = useCallback(() => {
@@ -231,6 +234,7 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
   }, [baselineDraft, contentAutosave.resetBaseline])
 
   const flushContentAutosave = useCallback(async (force = false) => {
+    lastFlushErrorRef.current = null
     try {
       const pending = contentAutosave.flushPending()
       if (pending) {
@@ -240,6 +244,7 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
       }
       return true
     } catch (saveError) {
+      lastFlushErrorRef.current = saveError
       setError(saveError instanceof Error ? saveError.message : String(saveError))
       return false
     }
@@ -249,6 +254,51 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
     if (mode === 'config') return configPanelRef.current?.flush() ?? true
     return flushContentAutosave(force)
   }, [flushContentAutosave, mode])
+
+  const flushSkillDraft = useCallback(async () => {
+    const hadConfigDraft = mode === 'config' && Boolean(configPanelRef.current?.hasPending())
+    if (!await flushActiveAutosave()) {
+      return {
+        ok: false as const,
+        error: configPanelRef.current?.getError() || lastFlushErrorRef.current,
+      }
+    }
+    // Identity edits are explicit (rename/move) and cannot be persisted by the
+    // metadata autosave lane. Keep them behind the leave dialog.
+    if (hadConfigDraft && configPanelRef.current?.hasPending()) {
+      return { ok: false as const, error: configPanelRef.current?.getError() }
+    }
+    return true
+  }, [flushActiveAutosave, mode])
+
+  const discardSkillDraft = useCallback(async () => {
+    contentAutosave.cancelPending()
+    configPanelRef.current?.discard()
+    if (document) setDraft(document.content)
+    if (fileDocument) setFileDraft(fileDocument.content)
+    setConfigDirty(false)
+  }, [contentAutosave.cancelPending, document, fileDocument])
+
+  useExecutableDraftEntry(
+    'skills',
+    {
+      flush: flushSkillDraft,
+      isDirty: () => configDirty
+        || Boolean(configPanelRef.current?.hasPending())
+        || contentAutosave.status === 'pending'
+        || contentAutosave.status === 'saving'
+        || contentAutosave.status === 'error',
+      isSaving: () => Boolean(configPanelRef.current?.isSaving()) || contentAutosave.status === 'saving',
+      getError: () => error || configPanelRef.current?.getError() || lastFlushErrorRef.current || contentAutosave.error,
+      shouldPromptBeforeUnload: () => {
+        if (mode === 'config' && configPanelRef.current?.hasPending()) {
+          return !configPanelRef.current.isSaving() && !configPanelRef.current.isAutosavePending()
+        }
+        return contentAutosave.status === 'error'
+      },
+      discard: discardSkillDraft,
+    },
+  )
 
   const load = useCallback(async (): Promise<SkillSnapshot | null> => {
     setLoading(true)
@@ -721,6 +771,7 @@ export function SkillsView({ target, toolNavigationIntent }: SkillsViewProps) {
                 onIdentityChanged={onConfigIdentityChanged}
                 onCancel={() => setMode('editor')}
                 onDelete={() => void requestDelete()}
+                onDirtyChange={setConfigDirty}
               />
             ) : document ? (
               <SkillEditor

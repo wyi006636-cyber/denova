@@ -23,6 +23,7 @@ import (
 	appagentruntime "denova/internal/app/agentruntime"
 	automationapp "denova/internal/app/automation"
 	bookapp "denova/internal/app/book"
+	casebookapp "denova/internal/app/casebook"
 	imageapp "denova/internal/app/image"
 	loreapp "denova/internal/app/lore"
 	modelsapp "denova/internal/app/models"
@@ -104,6 +105,7 @@ type App struct {
 	automationApp      *automationapp.Service
 	activityApp        *activityapp.Service
 	bookApp            *bookapp.Service
+	casebookApp        *casebookapp.Service
 	resourceCatalog    *resourcecatalogapp.Service
 	resourceMarket     *resourceexchange.Market
 	resourceExchange   *resourceexchange.Service
@@ -357,6 +359,7 @@ func (a *App) ensureServices() {
 		}
 		a.activityApp = activityapp.NewService(dataDir, a.automationApp)
 		a.bookApp = bookapp.NewService(dataDir, a.projectRegistry, a.bookMetaStore)
+		a.casebookApp = casebookapp.NewService(a)
 		a.resourceCatalog = resourcecatalogapp.NewService(dataDir, resourceCatalogHost{app: a})
 		a.resourceMarket = resourceexchange.NewMarket(dataDir)
 		a.resourceExchange = resourceexchange.New(dataDir, a.projectRegistry, a.resourceCatalog, a.platform)
@@ -399,6 +402,23 @@ func (a *App) AgentEngines() *agentruntime.Engines {
 	return a.agentEngines
 }
 
+// WarmUpAgentRuntimes resolves every external engine once after startup so the
+// model menu opens with a real status instead of "not checked". Probes are
+// serialized per engine and cached, so this is the only boot cost: a missing or
+// signed-out CLI is remembered with a backoff instead of being retried by every
+// later menu read. Native takes no part; it has no host process to probe.
+func (a *App) WarmUpAgentRuntimes(ctx context.Context) {
+	engines := a.AgentEngines()
+	for _, id := range []config.RuntimeID{config.RuntimeCodex, config.RuntimeClaude, config.RuntimeGrok, config.RuntimeAntigravity} {
+		if ctx.Err() != nil {
+			return
+		}
+		if _, err := engines.Models(ctx, id); err != nil {
+			slog.InfoContext(ctx, "[agent-runtime] startup probe incomplete", "runtime", id, "error", err)
+		}
+	}
+}
+
 // ProjectBook exposes Book resources through stable Project identity without
 // changing the foreground Writing workspace.
 func (a *App) ProjectBook() *projectbookapp.Service {
@@ -411,6 +431,13 @@ func (a *App) ProjectBook() *projectbookapp.Service {
 func (a *App) ProjectFiles() *projectfilesapp.Service {
 	a.ensureServices()
 	return a.projectFiles
+}
+
+// Casebook exposes explicit author actions for the file-backed writing case
+// library. It remains Project-scoped and never becomes an Agent tool.
+func (a *App) Casebook() *casebookapp.Service {
+	a.ensureServices()
+	return a.casebookApp
 }
 
 func (a *App) interactiveService() *InteractiveAppService {

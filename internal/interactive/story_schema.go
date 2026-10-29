@@ -8,6 +8,7 @@ import (
 
 	"denova/config"
 	"denova/internal/agents/conversationconfig"
+	"denova/internal/book/lore"
 )
 
 const (
@@ -15,6 +16,7 @@ const (
 	StoryEventTypePlayerInput                      = "player_input_accepted"
 	StoryEventTypeTurnDraft                        = "turn_draft"
 	StoryEventTypeTurnInterrupted                  = "turn_interrupted"
+	StoryEventTypeTurnAbandoned                    = "turn_abandoned"
 	StoryEventTypeModelContextBatch                = "model_context_batch"
 	StoryEventTypeModelContextProviderContinuation = "model_context_provider_continuation"
 	StoryEventTypeProviderContinuation             = "turn_provider_continuation"
@@ -46,6 +48,7 @@ var persistedStoryEventModelContextChanges = map[string]bool{
 	StoryEventTypePlayerInput:       true,
 	StoryEventTypeTurnDraft:         false,
 	StoryEventTypeTurnInterrupted:   true,
+	StoryEventTypeTurnAbandoned:     true,
 	StoryEventTypeModelContextBatch: true,
 	// The owning Turn or model-context batch already changes model context.
 	StoryEventTypeModelContextProviderContinuation: false,
@@ -225,6 +228,15 @@ func mapToStoryEventRecord(raw map[string]any) (StoryEventRecord, error) {
 			return StoryEventRecord{}, err
 		}
 	}
+	if envelope.Type == StoryEventTypeTurnAbandoned {
+		var abandoned TurnAbandonedEvent
+		if err := mapToStruct(raw, &abandoned); err != nil {
+			return StoryEventRecord{}, err
+		}
+		if err := validateTurnAbandonedEvent(abandoned); err != nil {
+			return StoryEventRecord{}, err
+		}
+	}
 	if envelope.Type == StoryEventTypeBranchPlanUpdated || envelope.Type == StoryEventTypeBranchPlanRevised {
 		var event BranchPlanUpdatedEvent
 		if err := mapToStruct(raw, &event); err != nil {
@@ -309,6 +321,11 @@ func validateStoryMeta(meta StoryMeta) error {
 	}
 	if len(meta.Branches) == 0 {
 		return fmt.Errorf("故事元信息缺少 branches")
+	}
+	if strings.TrimSpace(meta.LoreAsOf) != "" {
+		if _, ok := lore.NormalizeChapterPrefix(meta.LoreAsOf); !ok {
+			return fmt.Errorf("story lore_as_of must be a ch##### chapter prefix")
+		}
 	}
 	for branchID, branch := range meta.Branches {
 		if branch.RuntimeConfig == nil {

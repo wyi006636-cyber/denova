@@ -43,6 +43,32 @@ describe('useLoreItemAutosave', () => {
     vi.useRealTimers()
   })
 
+  it('keeps loaded chapter spans when autosaving a content-only edit', async () => {
+    const spans = [{ id: 'later', from: 'ch00030', content: 'Later canon' }]
+    const baseline = loreItem({ content: 'Old body', spans, updated_at: 'r1' })
+    const draft = loreItem({ content: 'Updated body', spans, updated_at: 'r1' })
+    vi.mocked(updateProjectLoreItem).mockResolvedValue(loreItem({ ...draft, updated_at: 'r2' }))
+
+    render(
+      <Harness
+        draft={draft}
+        baseline={{ ...baseline, tag_draft: '' }}
+        onSaved={vi.fn()}
+      />,
+    )
+
+    await act(async () => {
+      await controls?.saveNow('manual')
+    })
+
+    expect(updateProjectLoreItem).toHaveBeenCalledWith(
+      'book-demo',
+      'lore-1',
+      expect.objectContaining({ content: 'Updated body', spans }),
+      'r1',
+    )
+  })
+
   it('reloads, rebases, and retries a Lore revision conflict', async () => {
     const baseline = loreItem({
       name: 'Original',
@@ -205,6 +231,7 @@ function loreItem(overrides: Partial<LoreItem> = {}): LoreItem {
     brief_description: '',
     keywords: [],
     content: 'Old body',
+    spans: [],
     created_at: 'created',
     updated_at: 'r1',
     ...overrides,

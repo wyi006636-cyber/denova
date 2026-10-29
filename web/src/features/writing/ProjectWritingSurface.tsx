@@ -32,6 +32,8 @@ import {
 } from '@/lib/api'
 import { applyProjectFileOperations, type ProjectFileDocument } from '@/lib/api-client/project-files'
 import { WorkspaceFileRevisionConflictError } from '@/lib/autosave/workspace-file-revision-conflict'
+import { extractChapterPrefix } from '@/components/workbench/story-ledger-parser'
+import { useChapterGoals } from '@/components/workbench/useChapterGoals'
 
 interface ProjectWritingSurfaceProps {
   projectId: string
@@ -91,6 +93,15 @@ export function ProjectWritingSurface({
     [summary?.chapters],
   )
   const projectFileTree = useMemo(() => buildProjectFileTreeFromNodes(tree), [tree])
+  const readChapterPlan = useCallback(async (path: string) => {
+    const file = await readProjectFile(projectId, path)
+    return file.content ?? ''
+  }, [projectId])
+  const { chapterGoals } = useChapterGoals({
+    projectId,
+    chapterPlans: summary?.chapter_plans,
+    readFile: readChapterPlan,
+  })
 
   const loadSnapshot = useCallback(async () => {
     const request = ++snapshotRequestRef.current
@@ -279,6 +290,10 @@ export function ProjectWritingSurface({
   }, [loadDocument, loadSnapshot, onWorkspaceChanged, selectedPath])
 
   const displayedChapter = chapters.find((chapter) => chapter.path === document?.path)
+  const displayedChapterGoal = displayedChapter
+    ? chapterGoals.get((extractChapterPrefix(displayedChapter.path) || '').toLowerCase()) ?? null
+    : null
+  const displayedChapterPlanPath = displayedChapterGoal?.sourcePath ?? summary?.chapter_plans?.at(-1)?.path
   const directory = (
     <div className="nova-sidebar flex h-full min-h-0 flex-col bg-[var(--nova-surface-2)]">
       <div className="grid shrink-0 grid-cols-2 gap-1 border-b border-[var(--nova-border)] p-2">
@@ -311,6 +326,7 @@ export function ProjectWritingSurface({
             ideas={summary?.ideas}
             outline={summary?.outline}
             chapterPlans={summary?.chapter_plans || []}
+            chapterGoals={chapterGoals}
             selectedFile={selectedPath || null}
             onSelectFile={selectOutlineFile}
             onOpenLoreTab={onOpenLoreTab}
@@ -362,6 +378,8 @@ export function ProjectWritingSurface({
                     content={document.content ?? ''}
                     revision={document.revision}
                     chapterSummary={displayedChapter}
+                    chapterGoal={displayedChapterGoal}
+                    onOpenChapterPlan={displayedChapterPlanPath ? () => { void selectFile(displayedChapterPlanPath) } : undefined}
                     searchIntent={searchIntent?.path === document.path ? searchIntent : null}
                     autoSaveEnabled={autoSaveEnabled}
                     autoSaveDelayMs={autoSaveDelayMs}
@@ -424,3 +442,4 @@ function projectTreeContainsPath(tree: ProjectBookFileNode[], path: string): boo
   }
   return false
 }
+

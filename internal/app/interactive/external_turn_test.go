@@ -18,6 +18,7 @@ import (
 	"denova/internal/agents/prompts"
 	agentrun "denova/internal/agents/run"
 	"denova/internal/agents/runtime/external"
+	"denova/internal/book/lore"
 	"denova/internal/interactive"
 
 	"github.com/alfredxw/denova/agent"
@@ -66,7 +67,7 @@ func externalGameForTest(t *testing.T, store *interactive.Store, story string, c
 }
 
 const gameStateArgs = `{"state_changes":[{"op":"replace","actor_id":"story","field_id":"当前事件","value":"The gate opens"},{"op":"replace","actor_id":"story","field_id":"当前详细地点","value":"By the gate"}]}`
-const gameCompleteArgs = `{"state_changes":[{"op":"replace","actor_id":"story","field_id":"当前事件","value":"The gate opens"}],"choices":["Enter","Observe","Listen","Inspect","Wait"]}`
+const gameCompleteArgs = `{"state_changes":[{"op":"replace","actor_id":"story","field_id":"当前事件","value":"The gate opens"},{"op":"replace","actor_id":"story","field_id":"当前详细地点","value":"By the gate"}],"choices":["Enter","Observe","Listen","Inspect","Wait"]}`
 
 func gameHostCall(t *testing.T, ctx context.Context, host external.Host, id, name, arguments string) external.ToolResult {
 	t.Helper()
@@ -75,6 +76,31 @@ func gameHostCall(t *testing.T, ctx context.Context, host external.Host, id, nam
 		t.Fatalf("%s: result=%+v err=%v", name, result, err)
 	}
 	return result
+}
+
+func TestExternalGameToolUsesStoryLoreCursor(t *testing.T) {
+	store, story, cfg := externalGameFixture(t)
+	if _, err := lore.NewStore(cfg.Workspace).Create(lore.ItemInput{
+		ID: "cursor-secret", Name: "Cursor Secret", Type: "world",
+		Spans: []lore.Span{{ID: "current", From: "ch00025", Content: "visible game canon"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cfg.ActiveAgentRuntime = &config.RuntimeSelection{Kind: config.RuntimeClaude, Claude: &config.ClaudeRuntimeSettings{Model: "test"}}
+	turn := externalGameForTest(t, store, story, cfg, agentchat.ChatRequest{CommandID: "game-lore-cursor", Message: "Continue", LoreAsOf: "ch00030", IDEContext: prompts.IDEContextRef{CurrentFile: "chapters/ch00020-opening.md"}}, gameAdapterFunc(func(ctx context.Context, _ external.Input, host external.Host) (external.Result, error) {
+		result := gameHostCall(t, ctx, host, "query", "query_lore_items", `{"names":["Cursor Secret"],"detail":"full"}`)
+		if !strings.Contains(result.Text, "visible game canon") {
+			t.Fatalf("game tool did not receive the story cursor: %s", result.Text)
+		}
+		if err := host.Emit(agentrun.Event{Type: "chunk", Data: map[string]any{"content": "The cursor is honored."}}); err != nil {
+			t.Fatal(err)
+		}
+		gameHostCall(t, ctx, host, "submit", "submit_interactive_turn", gameCompleteArgs)
+		return external.Result{}, ctx.Err()
+	}))
+	if outcome := turn.Wait(t.Context()); outcome.Status != agentrun.OutcomeCompleted {
+		t.Fatalf("external game cursor turn failed: %+v", outcome)
+	}
 }
 
 func TestGameSwitchesNativeCodexClaudeNativeWithoutRewritingHistory(t *testing.T) {
@@ -306,5 +332,53 @@ func TestExternalGameRegenerationResumesItsOriginalTarget(t *testing.T) {
 	after, err := store.Snapshot(story, "main")
 	if err != nil || after.TurnCount != 1 || after.CurrentTurn.Narrative != "Replacement narrative." {
 		t.Fatalf("regeneration appended another turn: %+v %v", after.CurrentTurn, err)
+	}
+}
+
+func TestExternalGameResumesAcrossCLIEnginesWithoutRerolling(t *testing.T) {
+	store, story, cfg := externalGameFixture(t)
+	cfg.ActiveAgentRuntime = &config.RuntimeSelection{Kind: config.RuntimeClaude, Claude: &config.ClaudeRuntimeSettings{Model: "test"}}
+	ruleArgs := `{"action":"Open the gate","intent":"Reach the path","challenge":"The gate is stuck","cost":"Making noise","state":"Standing by the gate","difficulty":"normal","outcomes":{"critical_success":{"result":"The gate opens"},"success":{"result":"The gate opens"},"failure":{"result":"The gate opens with noise"},"critical_failure":{"result":"The gate opens with loud noise"}}}`
+	first := externalGameForTest(t, store, story, cfg, agentchat.ChatRequest{CommandID: "interrupted", Message: "Open the gate"}, gameAdapterFunc(func(ctx context.Context, input external.Input, host external.Host) (external.Result, error) {
+		rule := gameHostCall(t, ctx, host, "rule", "prepare_interactive_turn", ruleArgs)
+		if again := gameHostCall(t, ctx, host, "rule", "prepare_interactive_turn", ruleArgs); again.Text != rule.Text {
+			t.Fatal("duplicate call rerolled dice")
+		}
+		if err := host.Emit(agentrun.Event{Type: "chunk", Data: map[string]any{"content": "The first narrative."}}); err != nil {
+			t.Fatal(err)
+		}
+		gameHostCall(t, ctx, host, "partial", "submit_interactive_turn", gameStateArgs)
+		return external.Result{}, errors.New("connection lost")
+	}))
+	if outcome := first.Wait(t.Context()); outcome.Status != agentrun.OutcomeFailed {
+		t.Fatalf("expected interruption: %+v", outcome)
+	}
+	identity := interactive.DomainCommitIdentity{CommandID: "interrupted", OperationID: string(first.OperationID()), Cycle: 1}
+	draft, found, err := store.LoadTurnDraft(story, "main", identity)
+	if err != nil || !found || draft.RuleResolution == nil || draft.Narrative != "The first narrative." {
+		t.Fatalf("draft: %+v err=%v", draft, err)
+	}
+	interruption, err := ExternalTurnInterruption(store, story, "main")
+	if err != nil || interruption == nil {
+		t.Fatalf("interruption: %v", err)
+	}
+	// A new CLI engine must reconstruct its own provider session from
+	// canonical history while using the same original Game cycle identity.
+	cfg.ActiveAgentRuntime = &config.RuntimeSelection{Kind: config.RuntimeCodex, Codex: &config.CodexRuntimeSettings{Model: "new-engine", Sandbox: config.CodexWorkspaceWrite}}
+	resumed := externalGameForTest(t, store, story, cfg, agentchat.ChatRequest{CommandID: "resume-on-codex", ResumeInterruptionID: interruption.ID}, gameAdapterFunc(func(ctx context.Context, input external.Input, host external.Host) (external.Result, error) {
+		if !strings.Contains(input.Text, "The first narrative.") {
+			t.Fatal("resume lost locked prose")
+		}
+		gameHostCall(t, ctx, host, "rule-again", "prepare_interactive_turn", ruleArgs)
+		_ = host.Emit(agentrun.Event{Type: "chunk", Data: map[string]any{"content": "Unwanted replacement."}})
+		gameHostCall(t, ctx, host, "finish", "submit_interactive_turn", `{"choices":["Enter","Observe","Listen","Inspect","Wait"]}`)
+		return external.Result{}, ctx.Err()
+	}))
+	if outcome := resumed.Wait(t.Context()); outcome.Status != agentrun.OutcomeCompleted || outcome.Content != draft.Narrative {
+		t.Fatalf("resume: %+v", outcome)
+	}
+	snapshot, err := store.Snapshot(story, "main")
+	if err != nil || snapshot.TurnCount != 1 || snapshot.CurrentTurn.RuleResolution.ID != draft.RuleResolution.ID || snapshot.CurrentTurn.Narrative != draft.Narrative {
+		t.Fatalf("resume changed dice or turn count: %+v err=%v", snapshot.CurrentTurn, err)
 	}
 }

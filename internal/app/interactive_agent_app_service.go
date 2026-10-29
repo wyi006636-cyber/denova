@@ -15,6 +15,7 @@ import (
 	agentrun "denova/internal/agents/run"
 	agentruntime "denova/internal/agents/runtime"
 	interactiveapp "denova/internal/app/interactive"
+	"denova/internal/book/lore"
 	"denova/internal/interactive"
 )
 
@@ -163,11 +164,7 @@ func (s *InteractiveAppService) startInteractiveTask(ctx context.Context, reques
 	if cycle.workspace != identity.workspace || cycle.storyID != identity.request.StoryID || cycle.branchID != identity.request.BranchID {
 		return nil, ErrAgentContextChanged
 	}
-	// Preserve the caller snapshot captured before mutable style/default
-	// resolution, while retaining the first accepted cycle's server-owned rules.
-	resolvedRequest := cycle.request
-	cycle.request = identity.chatRequest
-	cycle.request.StyleRules = resolvedRequest.StyleRules
+	cycle.request = acceptedInteractiveRequest(identity.chatRequest, cycle.request)
 	var accepted interface {
 		Wait(context.Context) agentrun.Outcome
 	}
@@ -204,6 +201,13 @@ func (s *InteractiveAppService) startInteractiveTask(ctx context.Context, reques
 	options := cycle.options(task.ID())
 	options.TurnID = identity.request.RegenerateFromTurnID
 	acceptCtx, releaseAcceptance := apptask.AcceptanceContext(ctx, task)
+	// Carry the story's declared lore cursor through the complete run context,
+	// including native child tools and external MCP bridges. This is request
+	// scoped and never persisted as runtime state.
+	acceptCtx = lore.ContextWithSpanVisibility(acceptCtx, lore.SpanVisibility{
+		Cursor: cycle.storyContext.Meta.LoreAsOf,
+		Scope:  lore.LoreScopeAsOf,
+	})
 	if cycle.externalAssembly != nil {
 		state, stateErr := agentruntime.GameState(options, cycle.store)
 		if stateErr == nil {
@@ -300,4 +304,16 @@ func emitInteractiveTurnPersistedResult(store *interactive.Store, storyID string
 	emit(agentrun.Event{Type: "interactive_turn_persisted", Data: event})
 	slog.InfoContext(context.Background(), fmt.Sprintf("[interactive-agent-task] emitted persisted turn story_id=%s branch_id=%s turn_id=%s", storyID, snapshot.BranchID, persistedTurn.ID))
 	return &snapshot, nil
+}
+
+// acceptedInteractiveRequest keeps the caller snapshot captured before mutable
+// style/default resolution, and restores the server-owned fields the snapshot
+// never carries: the first accepted cycle's style rules and the story's lore
+// cursor, so prompt and tool lore visibility use the same chapter.
+func acceptedInteractiveRequest(caller, resolved agentchat.ChatRequest) agentchat.ChatRequest {
+	request := caller
+	request.StyleRules = resolved.StyleRules
+	request.LoreAsOf = resolved.LoreAsOf
+	request.LoreScope = resolved.LoreScope
+	return request
 }

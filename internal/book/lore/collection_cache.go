@@ -61,6 +61,7 @@ func cloneCollection(value Collection) Collection {
 		item := &value.Items[i]
 		item.Tags = slices.Clone(item.Tags)
 		item.Keywords = slices.Clone(item.Keywords)
+		item.Spans = slices.Clone(item.Spans)
 		item.IndexMemberships = slices.Clone(item.IndexMemberships)
 		item.ResolvedMaterials = slices.Clone(item.ResolvedMaterials)
 		if item.Image != nil {

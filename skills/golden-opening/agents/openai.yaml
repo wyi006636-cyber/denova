@@ -1,0 +1,4 @@
+interface:
+  display_name: "Golden Opening / 黄金开篇"
+  short_description: "Design and improve the first three chapters"
+  default_prompt: "Use $golden-opening to design, draft, or diagnose the first three chapters of this novel."

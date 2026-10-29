@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"denova/internal/book/lore"
 	imagepreset "denova/internal/image/preset"
 )
 
@@ -92,6 +93,10 @@ func normalizeStoryMeta(meta StoryMeta) StoryMeta {
 	meta.PresentationSettings = NormalizeStoryPresentationSettings(meta.PresentationSettings)
 	meta.SpeechSettings = normalizeStorySpeechSettings(meta.SpeechSettings)
 	meta.CheckSettings = normalizeStoryCheckSettings(meta.CheckSettings)
+	meta.LoreAsOf = strings.TrimSpace(meta.LoreAsOf)
+	if normalized, ok := lore.NormalizeChapterPrefix(meta.LoreAsOf); ok {
+		meta.LoreAsOf = normalized
+	}
 	meta.ActorStateSchema = normalizeActorStateSchemaSnapshot(meta.ActorStateSchema)
 	meta.ModuleRefs = cloneStoryDirectorModuleRefs(meta.ModuleRefs)
 	if legacyFixedSchema {

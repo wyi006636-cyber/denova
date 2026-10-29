@@ -38,6 +38,9 @@ import {
 import { useSkillCommands } from '@/hooks/useSkillCommands'
 import { DEFAULT_WRITING_SKILL, resolveWritingSkillSelection, useWritingSkillOptions } from '@/hooks/useWritingSkillOptions'
 import type { PersistedUserSettingsController } from '@/hooks/usePersistedUserSettings'
+import { WritingReplyContext } from '@/features/writing/WritingSelectionContext'
+import { useWritingSelection } from '@/features/writing/WritingSelectionContext'
+import { replySelectionTargets, selectionActionOrigin, type WritingSelectionTarget } from '@/features/writing/selection-actions'
 import { AgentChatPane } from './AgentChatPane'
 import { LoadingState } from '@/components/common/LoadingState'
 import { SessionHistoryPopover } from './SessionHistoryPopover'
@@ -155,6 +158,8 @@ export interface AgentPanelProps {
   onCancelAsk?: (sessionId: string, askId: string, reason?: string) => Promise<AgentAskResolution>
   onRemoveContextCompaction?: (() => Promise<boolean>) | null
   onSend: (message: string, options?: ChatSendOptions) => boolean | Promise<boolean>
+  /** Flushes the current writing editor before a turn reads workspace content. */
+  onBeforeSend?: (message: string) => boolean | Promise<boolean>
   onAnalyzeContext: (
     message: string,
     options?: {
@@ -253,6 +258,7 @@ function AgentPanelComponent({
   onCancelAsk = cancelSessionAsk,
   onRemoveContextCompaction = removeChatContextCompaction,
   onSend,
+  onBeforeSend,
   onAnalyzeContext,
   onStop,
   onSuspend,
@@ -310,6 +316,9 @@ function AgentPanelComponent({
   const recoveryAbortAvailable = Boolean(runtimeProjection?.recovery_actions?.some((action) => action.kind === 'abort'))
   const activeControlsDisabled =
     isStreaming && (!runtimeProjection?.active_operation_id?.trim() || Boolean(runtimeProjection?.runtime_recoverable && !runtimeProjection.stream_attached))
+  const [selectionCommands, setSelectionCommands] = useState<ReadonlyMap<string, WritingSelectionTarget>>(new Map())
+  const writingSelection = useWritingSelection()
+  const replyTargets = useMemo(() => replySelectionTargets(messages, selectionCommands), [messages, selectionCommands])
   const sessionControlsDisabled = sessionActionsDisabled ?? (isStreaming || sessionTransitionPending)
   const [chatPaneHost] = useState(() => createStablePortalHost('relative flex h-full min-h-0 w-full min-w-0 flex-col'))
   const ideTellerId = persistedSettings.values.ide_story_teller_id
@@ -512,6 +521,7 @@ function AgentPanelComponent({
       await onCreateSession()
       return true
     }
+    if (onBeforeSend && isReviewPrompt(message) && !(await onBeforeSend(message))) return false
     if (persistedSettings.loading) return false
     const feedbackSelection = reviewFeedback?.filter((selection) => selection.comments.length) ?? []
     const feedback = feedbackSelection.length
@@ -537,12 +547,24 @@ function AgentPanelComponent({
     }
     let submissionStarted = false
     let submissionRestored = false
-    const handleSubmissionStart = () => {
+    const selectionOrigin = selectionActionOrigin(textSelections, writingSelection?.latestActionTarget)
+    // A target is pending only while its exact attachment remains in the
+    // composer. Removing the attachment turns the next send into an ordinary
+    // writing request, so discard the Context target before submitting it.
+    if (!selectionOrigin) writingSelection?.setLatestActionTarget(null)
+    const handleSubmissionStart = (commandId?: string) => {
+      if (selectionOrigin && commandId) {
+        setSelectionCommands(current => new Map(current).set(commandId, selectionOrigin))
+      }
+      writingSelection?.setLatestActionTarget(null)
       if (!feedbackSelection.length || submissionStarted) return
       submissionStarted = true
       onReviewFeedbackSubmitted?.(feedbackSelection)
     }
     const handleSubmissionError = () => {
+      // Keep the one-shot target until the transcript proves whether the
+      // command was accepted; stream transport can report an uncertain result
+      // after the backend has already persisted the turn.
       if (!feedbackSelection.length || !submissionStarted || submissionRestored) return
       submissionRestored = true
       onReviewFeedbackSubmissionFailed?.(feedbackSelection)
@@ -650,6 +672,7 @@ function AgentPanelComponent({
     bottomPaddingPx: messageListBottomPadding,
     collapseTraceGroups: true,
     activeTraceDisplay: 'expanded' as const,
+    showContextReceipt: true,
     hasEarlierMessages,
     isLoadingEarlierMessages: isLoadingEarlierHistory,
     onLoadEarlierMessages: onLoadEarlierHistory,
@@ -772,6 +795,7 @@ function AgentPanelComponent({
   const chatPane = initializing ? (
     <LoadingState label={t('router.loading')} layout="conversation" className="h-full min-h-0" />
   ) : (
+    <WritingReplyContext.Provider value={!generalAgent && !page && (!configuredQuickPromptScope || configuredQuickPromptScope === 'writing') ? replyTargets : null}>
     <AgentChatPane
       className="min-w-0 flex-1"
       contentClassName={dockedChrome ? undefined : 'mx-auto w-full max-w-[56rem]'}
@@ -780,6 +804,7 @@ function AgentPanelComponent({
       messageListProps={messageListProps}
       inputAreaProps={inputAreaProps}
     />
+    </WritingReplyContext.Provider>
   )
   const chatPanePortal = view === 'chat' && chatPaneHost ? createPortal(chatPane, chatPaneHost, 'agent-chat-pane') : null
   return (
@@ -899,6 +924,10 @@ function AgentPanelComponent({
       {quickPrompts.dialog}
     </aside>
   )
+}
+
+function isReviewPrompt(message: string): boolean {
+  return /(?:review|审阅).*(?:chapter|章节)/i.test(message)
 }
 
 export const AgentPanel = memo(AgentPanelComponent)

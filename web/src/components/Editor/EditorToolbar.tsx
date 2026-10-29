@@ -1,6 +1,6 @@
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MobileEditorToolbar } from './MobileEditorToolbar'
-import { BookOpen, Code2, Crosshair, FileText, ImagePlus, PanelLeft, Save, Settings, WrapText } from 'lucide-react'
+import { BookOpen, Code2, Crosshair, FileText, ImagePlus, PanelLeft, Save, ScanSearch, Settings, Target, WrapText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { TooltipIconButton } from '@/components/common/tooltip-icon-button'
@@ -12,6 +12,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { EditorSettingsPanel } from './EditorSettingsPanel'
 import type { EditorSettings, ReadingTypographySettings } from './EditorSettingsPanel'
 import { EditorSaveStatus, type SaveStatus } from './EditorSaveStatus'
+import { ChapterGoalCard } from '@/components/workbench/ChapterGoalCard'
+import type { ChapterGoal } from '@/components/workbench/story-ledger-parser'
 
 export type { SaveStatus } from './EditorSaveStatus'
 export type WritingEditorMode = 'document' | 'source'
@@ -20,6 +22,8 @@ export interface EditorToolbarProps {
   fileName: string
   displayTitle?: string
   chapterPath?: string
+  chapterGoal?: ChapterGoal | null
+  onOpenChapterPlan?: () => void
   chapterWords?: number
   currentLine?: number
   saveStatus: SaveStatus | null
@@ -36,6 +40,9 @@ export interface EditorToolbarProps {
   onOpenOutline?: () => void
   onGenerateIllustration?: (chapterPath: string) => void
   onRevealChapter?: (chapterPath: string) => void
+  onCheckChapter?: () => void
+  onEditBannedWords?: () => void
+  chapterLintOpen?: boolean
   generateIllustrationDisabled: boolean
 }
 
@@ -45,6 +52,8 @@ export function EditorToolbar(props: EditorToolbarProps) {
     fileName,
     displayTitle,
     chapterPath,
+    chapterGoal,
+    onOpenChapterPlan,
     chapterWords,
     currentLine,
     saveStatus,
@@ -61,6 +70,8 @@ export function EditorToolbar(props: EditorToolbarProps) {
     onOpenOutline,
     onGenerateIllustration,
     onRevealChapter,
+    onCheckChapter,
+    chapterLintOpen,
     generateIllustrationDisabled,
   } = props
   const { t } = useTranslation()
@@ -81,6 +92,25 @@ export function EditorToolbar(props: EditorToolbarProps) {
           >
             <PanelLeft className="h-3.5 w-3.5" />
           </TooltipIconButton>
+        ) : null}
+        {chapterPath ? (
+          <Popover>
+            <PopoverTrigger asChild>
+              <TooltipIconButton
+                label={t('planning.chapterGoal.open')}
+                size="icon-xs"
+                showTooltip={false}
+                tooltipSide="bottom"
+                className="text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]"
+              >
+                <Target className="h-3.5 w-3.5" />
+              </TooltipIconButton>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[min(360px,calc(100vw-24px))] border-[var(--nova-border)] bg-[var(--nova-menu-bg)] p-2">
+              <div className="mb-1 px-1 text-[11px] font-medium text-[var(--nova-text-faint)]">{t('planning.chapterGoal.title')}</div>
+              <ChapterGoalCard goal={chapterGoal} chapterPath={chapterPath} hasRecentPlans={Boolean(onOpenChapterPlan)} onOpenPlan={onOpenChapterPlan} />
+            </PopoverContent>
+          </Popover>
         ) : null}
         <BookOpen className="h-3.5 w-3.5 shrink-0 text-[var(--nova-text-muted)]" />
         <span className="min-w-0 truncate font-medium text-[var(--nova-text)]">{displayTitle || fileName}</span>
@@ -166,6 +196,19 @@ export function EditorToolbar(props: EditorToolbarProps) {
               className="text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]"
             >
               <Crosshair className="h-3.5 w-3.5" />
+            </TooltipIconButton>
+          ) : null}
+          {onCheckChapter ? (
+            <TooltipIconButton
+              label={t('editor.lint.open')}
+              onClick={onCheckChapter}
+              size="icon-xs"
+              tooltipSide="bottom"
+              useTooltipProvider={false}
+              aria-pressed={chapterLintOpen}
+              className={chapterLintOpen ? 'bg-[var(--nova-active)] text-[var(--nova-text)]' : 'text-[var(--nova-text-muted)] hover:bg-[var(--nova-hover)] hover:text-[var(--nova-text)]'}
+            >
+              <ScanSearch className="h-3.5 w-3.5" />
             </TooltipIconButton>
           ) : null}
           <TooltipIconButton

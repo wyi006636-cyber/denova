@@ -1,0 +1,4 @@
+interface:
+  display_name: "Novel Market Research / 小说市场研究"
+  short_description: "Research live fiction markets and opening craft"
+  default_prompt: "Use $novel-market-research to research a current fiction track and turn the evidence into an actionable writing decision card."

@@ -4,6 +4,7 @@ import { Bot, Brain, Cpu, FolderOpen, ScrollText, Wrench } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ConfigManagerChat } from '@/components/Chat/ConfigManagerChat'
 import { ConfigManagerToggle } from '@/components/Chat/ConfigManagerToggle'
+import { useExecutableDraftEntry } from '@/features/config-guard/executable-draft-guard'
 import { AutosaveStatusIndicator } from '@/components/forms/autosave-status'
 import { ResourceWorkspace, useResponsiveAgentOpen } from '@/components/layout/resource-workspace'
 import { FeaturePageShell } from '@/components/layout/feature-page-shell'
@@ -59,6 +60,30 @@ export function AgentsView({ target, toolNavigationIntent }: { target: ResourceT
     layer: activeLayer,
     sourcePrefix: 'agents-view',
   })
+
+  const discardAgentDraft = useCallback(async () => {
+    const restored = await reload(true)
+    if (!restored) throw new Error('Failed to restore agent settings before discarding the draft')
+  }, [reload])
+  const flushAgentDraft = useCallback(async () => {
+    try {
+      await saveNow()
+      return true
+    } catch (saveError) {
+      return { ok: false as const, error: saveError }
+    }
+  }, [saveNow])
+  useExecutableDraftEntry(
+    'agents',
+    {
+      flush: flushAgentDraft,
+      isDirty: () => autosaveStatus === 'pending' || autosaveStatus === 'saving' || autosaveStatus === 'error' || Boolean(autosaveError),
+      isSaving: () => autosaveStatus === 'saving',
+      getError: () => autosaveError || error,
+      shouldPromptBeforeUnload: () => autosaveStatus === 'error' || Boolean(autosaveError),
+      discard: discardAgentDraft,
+    },
+  )
   const [createOpen, setCreateOpen] = useState(false)
   const [createRuntimeKind, setCreateRuntimeKind] = useState<AgentRuntimeKind>('ide')
   const [skills, setSkills] = useState<SkillSummary[]>([])

@@ -243,6 +243,7 @@ export function MarkdownContentEditor({
           onCreate={review.controller.onCreate}
           onUpdate={review.controller.onUpdate}
           onDelete={review.controller.onDelete}
+          onPromote={review.controller.onPromote}
         />
       ) : null}
       {editor && review ? (

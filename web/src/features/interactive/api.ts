@@ -16,7 +16,7 @@ export function getInteractiveStories(): Promise<StoryIndex> {
   return requestJSON('/api/interactive/stories')
 }
 
-export function createInteractiveStory(input: { title: string; custom_agent_id?: string; profile_id?: string; thinking_level?: ThinkingLevel; origin?: string; protagonist?: StoryProtagonist; story_teller_id: string; planning_template_id?: string; planning_mode?: StoryPlanningMode; module_refs?: StoryDirectorModuleRefs; reply_target_chars?: number; choice_count?: number; presentation_settings?: StoryPresentationSettings; image_settings?: StoryImageSettings; check_settings?: StoryCheckSettings; opening?: StoryOpeningConfig; initial_trait_rolls?: InitialActorTraitRoll[]; state_schema_policy?: StoryStateSchemaPolicy }): Promise<StorySummary> {
+export function createInteractiveStory(input: { title: string; custom_agent_id?: string; profile_id?: string; thinking_level?: ThinkingLevel; origin?: string; protagonist?: StoryProtagonist; story_teller_id: string; planning_template_id?: string; planning_mode?: StoryPlanningMode; lore_as_of?: string; module_refs?: StoryDirectorModuleRefs; reply_target_chars?: number; choice_count?: number; presentation_settings?: StoryPresentationSettings; image_settings?: StoryImageSettings; check_settings?: StoryCheckSettings; opening?: StoryOpeningConfig; initial_trait_rolls?: InitialActorTraitRoll[]; state_schema_policy?: StoryStateSchemaPolicy }): Promise<StorySummary> {
   return requestJSON('/api/interactive/stories', {
     method: 'POST',
     headers: jsonHeaders,
@@ -441,6 +441,20 @@ export function submitInteractiveAgentCommand(command: InteractiveAgentCommand):
       ...(targetCommandId ? { target_command_id: targetCommandId } : {}),
       ...(input ? { input } : {}),
       ...(reason ? { reason } : {}),
+    }),
+  })
+}
+
+/** Discard only the matching suspended Game input after its CLI is idle. */
+export function abandonInteractivePendingTurn(storyId: string, branchId: string, interruptionID: string): Promise<{ ok: boolean }> {
+  return requestJSON('/api/interactive/chat/commands', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({
+      type: 'abandon_pending',
+      story_id: storyId,
+      branch_id: branchId,
+      resume_interruption_id: interruptionID,
     }),
   })
 }

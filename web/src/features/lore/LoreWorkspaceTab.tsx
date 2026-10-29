@@ -44,6 +44,7 @@ interface LoreWorkspaceTabProps {
   refreshSignal?: number
   onEditorFlushHandlerChange: (handler: EditorFlushHandler | null) => void
   onOpenLibrary?: () => void
+  onOpenFile?: (path: string) => void
   onReferenceItem?: (id: string) => void
   /** Hosts track the visible resource without copying editor drafts into Agent context. */
   onActiveItemChange?: (id: string | null) => void
@@ -59,6 +60,7 @@ export function LoreWorkspaceTab({
   refreshSignal = 0,
   onEditorFlushHandlerChange,
   onOpenLibrary,
+  onOpenFile,
   onReferenceItem,
   onActiveItemChange,
 }: LoreWorkspaceTabProps) {
@@ -232,7 +234,7 @@ export function LoreWorkspaceTab({
             filters={filters} onFiltersChange={setFilters} query={searchQuery} onQueryChange={setSearchQuery}
             onSelect={id => void selectDestination(id)} onCreate={section => void startCreating(section)}
             onReload={() => lore.reload(lore.activeId)} onFlush={flush} onIndexFlushHandlerChange={handleIndexFlush}
-            onOpenDirectory={isMobile ? openLeft : undefined} onOpenLibrary={onOpenLibrary} />
+            onOpenDirectory={isMobile ? openLeft : undefined} onOpenLibrary={onOpenLibrary} onOpenFile={onOpenFile} />
           {creating ? (
             <LoreCreateEditor
               key={`${projectId}:${creating.id}`}

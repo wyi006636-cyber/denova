@@ -64,7 +64,7 @@ paths = ["plugin-path"]
 	if model.Model != "custom-id" || model.BaseURL != "http://127.0.0.1:1234/v1" || model.EnvKey != "TEST_MODEL_KEY" || model.Headers["X-Test"] != "header" || actual.Models.Default != "custom" {
 		t.Fatalf("routing changed: %+v", actual)
 	}
-	env := isolatedEnvironment([]string{"GROK_HOME=" + home, "GROK_AUTH_PATH=" + filepath.Join(home, "custom-auth.json"), "GROK_CONFIG=unscoped"}, "private-home")
+	env := isolatedEnv([]string{"GROK_HOME=" + home, "GROK_AUTH_PATH=" + filepath.Join(home, "custom-auth.json"), "GROK_CONFIG=unscoped"}, "private-home", "")
 	if environmentValue(env, "GROK_HOME") != "private-home" || environmentValue(env, "GROK_AUTH_PATH") != filepath.Join(home, "custom-auth.json") || environmentValue(env, "GROK_CONFIG") != "" {
 		t.Fatalf("private environment lost credential location or isolation: %v", env)
 	}
@@ -81,5 +81,43 @@ func TestNativeModelDisplayOverrideDoesNotImplyAuthentication(t *testing.T) {
 	}
 	if custom {
 		t.Fatal("display override was treated as configured API credentials")
+	}
+}
+
+func TestExplicitConfigurationPathPreservesModelRestrictions(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(t.TempDir(), "models.toml")
+	if err := os.WriteFile(filepath.Join(home, "config.toml"), []byte("[models]\ndefault = \"wrong\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	body := "[models]\ndefault = \"chosen\"\nallowed_models = [\"chosen\"]\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	env := []string{"GROK_HOME=" + home, "GROK_CONFIG_PATH=" + path}
+	encoded, _, err := modelConfiguration(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var actual struct {
+		Models struct {
+			Default string
+			Allowed []string `toml:"allowed_models"`
+		}
+	}
+	if err := toml.Unmarshal(encoded, &actual); err != nil {
+		t.Fatal(err)
+	}
+	if actual.Models.Default != "chosen" || len(actual.Models.Allowed) != 1 || actual.Models.Allowed[0] != "chosen" {
+		t.Fatalf("explicit configuration changed: %+v", actual)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := modelConfiguration(env); err == nil {
+		t.Fatal("missing explicit configuration silently used defaults")
+	}
+	if _, _, err := modelConfiguration([]string{"GROK_HOME=" + t.TempDir()}); err != nil {
+		t.Fatalf("missing optional default configuration: %v", err)
 	}
 }
