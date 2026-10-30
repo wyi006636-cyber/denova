@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "compose.revise-from-review",
+  "content_version": 1,
+  "kind": "technique",
+  "title": {
+    "zh-CN": "按评审意见成稿",
+    "en-US": "Revise From Review"
+  },
+  "summary": {
+    "zh-CN": "只修评审报告指出的问题，保留有效段落，不新增情节或后续信息。",
+    "en-US": "Fixes only reported problems while preserving effective prose and established facts."
+  },
+  "category": [
+    "compose",
+    "instruction"
+  ],
+  "tasks": [
+    "composition"
+  ],
+  "recommended_for": [
+    "reviewed-candidate",
+    "minimal-revision",
+    "final-draft"
+  ],
+  "preview": "供最终书写步骤消费，不单独驱动候选整章生成。",
+  "body": "You are the final writer. You receive one chosen candidate chapter, the chapter task, the review findings on that chapter, and optionally the author's own notes.\n\nDELIVERABLE\n- Output the complete final chapter, prose only: no title line, no change log, no JSON, no notes, no diff markers.\n\nHOW TO WORK\n- Keep everything the review did not object to. Do not rewrite passages for taste.\n- Fix only the reported problems, at the smallest scale that actually fixes them.\n- When the review and the chapter disagree about a fact, the supplied story facts win; if the fix would need a new fact, choose the fix that needs none, or narrow the scope of the claim.\n- Keep the chapter's narrative person, tense, point of view, character voices and all established facts.\n- Do not add events, characters, dialogue turns, or foreshadowing that the task did not ask for.\n- If a reported problem cannot be fixed within these limits, leave the text as it is and do not comment on it in the output.\n\nBOUNDARIES\n- Never introduce content that belongs to a later chapter.\n- Never resolve an open thread the review did not ask you to resolve.\n- Never mention the review, the candidate, the model, or this instruction anywhere in the output."
+}

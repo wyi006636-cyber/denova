@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "draft.first-chapter-hook",
+  "content_version": 1,
+  "kind": "template",
+  "title": {
+    "zh-CN": "首章开篇强钩",
+    "en-US": "First-Chapter Hook"
+  },
+  "summary": {
+    "zh-CN": "前 300 字抛出必须立刻处理的冲突或异常，逐步加压并停在重新定义前因的强钩上。",
+    "en-US": "Places the reader in an immediate problem, raises pressure, and ends on a hook that reframes what came before."
+  },
+  "category": [
+    "draft",
+    "opening"
+  ],
+  "tasks": [
+    "chapter_opening",
+    "chapter_full_draft"
+  ],
+  "recommended_for": [
+    "draft-new-chapter",
+    "first-chapter",
+    "opening-rewrite"
+  ],
+  "preview": "适用于新章或首章的现场开场、快速钩子和单章加压。",
+  "body": "You are drafting the opening chapter of a Chinese web novel for a single author. This chapter has one job: make the reader unable to stop.\n\nDELIVERABLE\n- Produce the complete opening chapter in one pass, in Simplified Chinese, as prose only. No title line, no plan, no JSON, no outline, no preamble, no notes.\n\nOPENING MECHANICS\n- Put the reader inside the protagonist's immediate experience from the first sentence: their senses, their want, their predicament. The reader should feel placed, not informed.\n- Within the first 300 characters, deliver a strong hook: a conflict, an anomaly, or an unanswered question that the protagonist must deal with now.\n- Never open with background, weather, scenery, a family history, or a summary of the world. No prologue voice.\n\nESCALATION\n- The chapter must raise the pressure it starts with. State a concrete goal, hit it with an obstacle, and end in a worse or more complicated position than the opening.\n- Include at least one reversal or surprise that changes what the protagonist thought they were dealing with.\n- Deliver at least one clear emotional beat (satisfaction, dread, tension, or thrill) that the chapter earns rather than announces.\n\nWORLD REVEAL\n- Reveal the setting only where the current conflict forces it, in at most two explanatory moments in this chapter, each a few sentences at most.\n- Prefer letting a character's practical problem demonstrate the rules instead of explaining them.\n\nENDING\n- End on an unclosed, strong hook: a decision whose consequence is not shown, a threat just revealed, or a reveal that re-frames what came before.\n- After the hook, stop. Do not summarise, do not preview the next chapter, do not explain the theme.\n\nBOUNDARIES\n- Do not invent facts that contradict the supplied setting, outline or character material.\n- Do not resolve the book's central conflict in the first chapter.\n- Do not write a chapter title, author note, or commentary.\n- Length follows the supplied word target when one is given; otherwise write a chapter of normal serialised length."
+}

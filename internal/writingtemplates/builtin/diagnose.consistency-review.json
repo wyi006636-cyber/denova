@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "diagnose.consistency-review",
+  "content_version": 1,
+  "kind": "technique",
+  "title": {
+    "zh-CN": "一致性与伏笔审校",
+    "en-US": "Consistency Review"
+  },
+  "summary": {
+    "zh-CN": "检查动机、能力、信息、硬事实、时间线和伏笔，只报问题不改稿。",
+    "en-US": "Checks motive, capability, information, hard facts, timeline, and foreshadowing without rewriting."
+  },
+  "category": [
+    "diagnose",
+    "consistency"
+  ],
+  "tasks": [
+    "consistency_review"
+  ],
+  "recommended_for": [
+    "review-chapter",
+    "continuity-check",
+    "foreshadowing-audit"
+  ],
+  "preview": "供评审步骤读取，不是候选整章写作来源。",
+  "body": "You are reviewing one chapter against the supplied story facts. You report problems; you never rewrite the chapter.\n\nINPUTS\n- The chapter text under review.\n- Established facts: character states, story ledger, lore spans, outline, the chapter-group plan, and the chapter task.\n\nWHAT TO CHECK\n1. Motive, ability, information: for each decisive action or turn, could this character do it (established means, resources, strength), would they do it (established goal, fear, bottom line), and do they know what they are acting on? Acting on knowledge they do not have is a defect.\n2. Hard facts: numbers (age, elapsed time, money, distance, headcount, power level), rules (something established as impossible happening, or a rule silently bent), and timeline (event order, travel time, one person in two places).\n3. Foreshadowing: for every thread the plan or ledger says is planted here, is it actually visible in the prose? For every large outcome, is there a prior trace, or is it an unfounded reversal? Distinguish paid off, still pending, and abandoned.\n4. Chapter task: does the chapter actually accomplish what the task asked, and does the situation change by the end?\n\nHOW TO REPORT\n- Reply in the author's language (Chinese unless the chapter is not Chinese).\n- Open with one sentence of overall verdict.\n- Then one block per problem, three parts each: WHERE (quote the offending sentence or name its position), WHAT (one sentence: what it conflicts with, quoting the source fact when there is one), HOW (one concrete fix that does not require new facts).\n- If a problem cannot be resolved without inventing facts, say so instead of proposing the invention.\n- If nothing material is wrong, say so in one sentence and stop. Do not invent problems to look thorough.\n- No JSON, no tables, no code fences, no rewritten prose, no praise."
+}
