@@ -317,7 +317,6 @@ type CandidateInput struct {
 }
 
 type CreateInput struct {
-	ID                   string           `json:"id,omitempty"`
 	TargetPath           string           `json:"target_path"`
 	ChapterTask          ChapterTask      `json:"chapter_task"`
 	Candidates           []CandidateInput `json:"candidates"`
@@ -452,7 +451,7 @@ func (resolver *skillSourceResolver) ResolveCandidateSource(ctx context.Context,
 			lastErr = err
 			continue
 		}
-		if strings.TrimSpace(document.Content) == "" {
+		if !usableSkillContent(document.Content) {
 			return WritingSourceSnapshot{}, domainError("skill_not_usable", "Skill content is empty", lastErr, nil)
 		}
 		if wanted := strings.TrimSpace(ref.Version); wanted != "" && wanted != document.Revision {
@@ -464,6 +463,19 @@ func (resolver *skillSourceResolver) ResolveCandidateSource(ctx context.Context,
 		}, nil
 	}
 	return WritingSourceSnapshot{}, domainError("skill_missing", "Skill was not found", lastErr, map[string]any{"name": name})
+}
+
+func usableSkillContent(content string) bool {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return false
+	}
+	if strings.HasPrefix(content, "---") {
+		if end := strings.Index(content[3:], "\n---"); end >= 0 {
+			content = content[3+end+len("\n---"):]
+		}
+	}
+	return strings.TrimSpace(content) != ""
 }
 
 func sha256Text(value string) string {

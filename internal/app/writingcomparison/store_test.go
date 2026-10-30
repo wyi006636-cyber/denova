@@ -1,6 +1,7 @@
 package writingcomparison
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -41,6 +42,13 @@ func TestStoreAppendOrderCASAndIndependentHandles(t *testing.T) {
 	}
 	if created.Revision != 1 {
 		t.Fatalf("created revision = %d, want 1", created.Revision)
+	}
+	journal, err := os.ReadFile(filepath.Join(layout.ComparisonsDir(), created.ID, journalFilename))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(journal, []byte(`"revision":0`)) {
+		t.Fatal("task.created payload persisted derived revision")
 	}
 	h1, err := store.Open(ctx, created.ID)
 	if err != nil {
@@ -106,5 +114,50 @@ func TestStoreListProjection(t *testing.T) {
 	}
 	if len(items) != 2 || items[0].CandidateCount != 2 {
 		t.Fatalf("list projection = %+v", items)
+	}
+}
+
+func TestStoreRejectsDuplicateTaskCreatedBeforeAppending(t *testing.T) {
+	ctx := context.Background()
+	layout := testLayout(t)
+	store := NewStore(layout)
+	created, err := store.Create(ctx, testTask(layout))
+	if err != nil {
+		t.Fatal(err)
+	}
+	handle, err := store.Open(ctx, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	duplicate := testTask(layout)
+	duplicate.ID = created.ID
+	if _, err := handle.Append(ctx, created.Revision, Event{Kind: EventTaskCreated, Task: &duplicate}); !errors.Is(err, ErrStateConflict) {
+		t.Fatalf("duplicate task.created error=%v, want state conflict", err)
+	}
+	reopened, err := store.Get(ctx, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reopened.ID != created.ID || reopened.Revision != created.Revision {
+		t.Fatalf("duplicate append changed task: before=%+v after=%+v", created, reopened)
+	}
+}
+
+func TestImmutableAssetUsesHashReuseAndRejectsCorruption(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "candidate.md")
+	content := []byte("candidate body")
+	if err := WriteImmutableAsset(path, content); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteImmutableAsset(path, content); err != nil {
+		t.Fatalf("identical asset should be reused: %v", err)
+	}
+	if err := WriteImmutableAsset(path, []byte("different body")); !errors.Is(err, ErrAssetCorrupt) {
+		t.Fatalf("different asset error=%v, want asset corruption", err)
+	}
+	verified, err := ReadVerifiedAsset(path, AssetSHA256(content))
+	if err != nil || string(verified) != string(content) {
+		t.Fatalf("verified asset=%q err=%v", verified, err)
 	}
 }

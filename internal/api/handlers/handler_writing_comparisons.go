@@ -99,7 +99,9 @@ func writeWritingComparisonError(c *app.RequestContext, err error) {
 		status, key = consts.StatusBadRequest, "api.writingComparison.targetPathInvalid"
 	case code == writingcomparisonapp.CodeProfileUnavailable:
 		status, key = consts.StatusBadRequest, "api.writingComparison.profileUnavailable"
-	case code == writingcomparisonapp.CodeTemplateUnavailable || code == writingcomparisonapp.CodeTemplateCatalogUnavailable || code == writingcomparisonapp.CodeTemplateMissing || code == writingcomparisonapp.CodeTemplateNotUsable || code == writingcomparisonapp.CodeTemplateVersionChanged:
+	case code == writingcomparisonapp.CodeTemplateVersionRequired:
+		status, key = consts.StatusBadRequest, "api.writingComparison.templateVersionRequired"
+	case code == writingcomparisonapp.CodeTemplateCatalogUnavailable || code == writingcomparisonapp.CodeTemplateMissing || code == writingcomparisonapp.CodeTemplateNotUsable || code == writingcomparisonapp.CodeTemplateVersionChanged:
 		status, key = consts.StatusBadRequest, "api.writingComparison.templateUnavailable"
 	case code == writingcomparisonapp.CodeSkillMissing || code == writingcomparisonapp.CodeSkillNotUsable || code == writingcomparisonapp.CodeSkillVersionChanged:
 		status, key = consts.StatusBadRequest, "api.writingComparison.templateUnavailable"
@@ -112,5 +114,5 @@ func writeWritingComparisonError(c *app.RequestContext, err error) {
 	if typed != nil && typed.Details != nil {
 		details = typed.Details
 	}
-	writeJSON(c, status, map[string]any{"error": messageKey(c, key), "code": key, "reason": code, "details": details})
+	writeJSON(c, status, map[string]any{"error": messageKey(c, key), "code": code, "details": details})
 }

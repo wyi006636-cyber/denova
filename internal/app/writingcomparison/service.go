@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -30,13 +32,13 @@ type Host interface {
 
 type ServiceOption func(*Service)
 
-func WithSourceResolver(resolver WritingSourceResolver) ServiceOption {
-	return func(service *Service) { service.sourceResolver = resolver }
+func WithTemplateResolver(resolver WritingSourceResolver) ServiceOption {
+	return func(service *Service) { service.templateResolver = resolver }
 }
 
 type Service struct {
-	host           Host
-	sourceResolver WritingSourceResolver
+	host             Host
+	templateResolver WritingSourceResolver
 }
 
 func NewService(host Host, options ...ServiceOption) *Service {
@@ -130,13 +132,7 @@ func (service *Service) Create(ctx context.Context, layout projectdomain.Layout,
 		candidates = append(candidates, Candidate{ID: candidateID, Position: index + 1, Profile: profile.Snapshot, Source: source, Requirement: strings.TrimSpace(candidateInput.Requirement), Status: CandidatePending, Attempt: 1})
 	}
 	createdAt := time.Now().UTC()
-	taskID := strings.TrimSpace(input.ID)
-	if taskID == "" {
-		taskID = "comparison-" + uuid.NewString()
-	}
-	if err := projectdomain.ValidateID(taskID); err != nil {
-		return Task{}, domainError("invalid_request", "Task ID is invalid", err, nil)
-	}
+	taskID := "comparison-" + uuid.NewString()
 	expected := ExpectedCalls{Candidates: len(candidates), Reviews: 1, Syntheses: 1, FinalWrites: 1}
 	if input.ExpectedCalls != nil {
 		if input.ExpectedCalls.Candidates != 0 && input.ExpectedCalls.Candidates != len(candidates) {
@@ -163,21 +159,10 @@ func (service *Service) Get(ctx context.Context, layout projectdomain.Layout, id
 	return NewStore(layout).Get(ctx, id)
 }
 
-// CreateTask/ListTasks/GetTask are descriptive aliases used by callers that
-// prefer explicit domain verbs over the shorter CRUD names.
-func (service *Service) CreateTask(ctx context.Context, layout projectdomain.Layout, input CreateInput) (Task, error) {
-	return service.Create(ctx, layout, input)
-}
-
-func (service *Service) ListTasks(ctx context.Context, layout projectdomain.Layout, options ListOptions) ([]TaskSummary, error) {
-	return service.List(ctx, layout, options)
-}
-
-func (service *Service) GetTask(ctx context.Context, layout projectdomain.Layout, id string) (Task, error) {
-	return service.Get(ctx, layout, id)
-}
-
 func (service *Service) List(ctx context.Context, layout projectdomain.Layout, options ListOptions) ([]TaskSummary, error) {
+	if options.Phase != "" && !options.Phase.Valid() {
+		return nil, domainError(CodeInvalidRequest, "Comparison task phase is invalid", ErrInvalidRequest, map[string]any{"phase": options.Phase})
+	}
 	return NewStore(layout).List(ctx, options)
 }
 
@@ -193,17 +178,24 @@ func (service *Service) resolveSource(ctx context.Context, layout projectdomain.
 	if ref.Kind == "" {
 		ref.Kind = "skill"
 	}
-	if ref.identifier() == "" {
-		return WritingSourceSnapshot{}, domainError("skill_missing", "Writing Skill is required", ErrInvalidRequest, nil)
-	}
-	if service.sourceResolver != nil {
-		return service.sourceResolver.ResolveCandidateSource(ctx, ref)
-	}
 	if ref.Kind == "template" {
-		return WritingSourceSnapshot{}, domainError("template_catalog_unavailable", "Template catalog is unavailable", nil, nil)
+		if ref.identifier() == "" {
+			return WritingSourceSnapshot{}, domainError(CodeTemplateMissing, "Writing template is required", ErrInvalidRequest, nil)
+		}
+		version := strings.TrimSpace(ref.Version)
+		if version == "" || version == "0" {
+			return WritingSourceSnapshot{}, domainError(CodeTemplateVersionRequired, "Template content version is required", ErrInvalidRequest, nil)
+		}
+		if service.templateResolver == nil {
+			return WritingSourceSnapshot{}, domainError(CodeTemplateCatalogUnavailable, "Template catalog is unavailable", nil, nil)
+		}
+		return service.templateResolver.ResolveCandidateSource(ctx, ref)
 	}
 	if ref.Kind != "skill" {
-		return WritingSourceSnapshot{}, domainError("template_not_usable", "Writing source kind is not usable", nil, nil)
+		return WritingSourceSnapshot{}, domainError(CodeSkillNotUsable, "Writing source kind is not usable", ErrInvalidRequest, nil)
+	}
+	if ref.identifier() == "" {
+		return WritingSourceSnapshot{}, domainError(CodeSkillMissing, "Writing Skill is required", ErrInvalidRequest, nil)
 	}
 	dirs, err := service.host.SkillDirectories(ctx, layout)
 	if err != nil {
@@ -217,7 +209,8 @@ func profileInputs(cfg *config.Config) []config.ModelProfileSettings {
 		return nil
 	}
 	result := make([]config.ModelProfileSettings, 0, len(cfg.ModelProfiles)+1)
-	result = append(result, config.ModelProfileSettings{ID: "default", Name: "default", Model: cfg.OpenAIModel, Provider: "openai", Protocol: string(providers.ProtocolOpenAIChatCompletions), BaseURL: cfg.OpenAIBaseURL, APIKey: cfg.OpenAIAPIKey})
+	defaultProfile := legacyDefaultProfile(cfg)
+	result = append(result, defaultProfile)
 	seen := map[string]bool{"default": true}
 	for _, profile := range cfg.ModelProfiles {
 		id := strings.TrimSpace(profile.ID)
@@ -232,6 +225,60 @@ func profileInputs(cfg *config.Config) []config.ModelProfileSettings {
 		result = append(result, profile)
 	}
 	return result
+}
+
+func legacyDefaultProfile(cfg *config.Config) config.ModelProfileSettings {
+	profile := config.ModelProfileSettings{ID: "default", Name: "default", Model: cfg.OpenAIModel, Provider: "openai", Protocol: string(providers.ProtocolOpenAIChatCompletions), BaseURL: cfg.OpenAIBaseURL, APIKey: cfg.OpenAIAPIKey}
+	for _, stored := range cfg.ModelProfiles {
+		id := strings.TrimSpace(stored.ID)
+		if id == "" {
+			id = strings.TrimSpace(stored.Model)
+		}
+		if id != "default" {
+			continue
+		}
+		profile = mergeProfileFields(profile, stored)
+		profile.ID = "default"
+		break
+	}
+	return profile
+}
+
+func mergeProfileFields(base, overlay config.ModelProfileSettings) config.ModelProfileSettings {
+	if strings.TrimSpace(overlay.Name) != "" {
+		base.Name = overlay.Name
+	}
+	if overlay.Enabled != nil {
+		base.Enabled = overlay.Enabled
+	}
+	if strings.TrimSpace(overlay.EndpointID) != "" {
+		base.EndpointID = overlay.EndpointID
+	}
+	if strings.TrimSpace(overlay.Model) != "" {
+		base.Model = overlay.Model
+	}
+	if strings.TrimSpace(overlay.Provider) != "" {
+		base.Provider = overlay.Provider
+	}
+	if strings.TrimSpace(overlay.Protocol) != "" {
+		base.Protocol = overlay.Protocol
+	}
+	if strings.TrimSpace(overlay.APIKey) != "" {
+		base.APIKey = overlay.APIKey
+	}
+	if strings.TrimSpace(overlay.BaseURL) != "" {
+		base.BaseURL = overlay.BaseURL
+	}
+	if strings.TrimSpace(overlay.LegacyOpenAIAPIKey) != "" {
+		base.LegacyOpenAIAPIKey = overlay.LegacyOpenAIAPIKey
+	}
+	if strings.TrimSpace(overlay.LegacyOpenAIBaseURL) != "" {
+		base.LegacyOpenAIBaseURL = overlay.LegacyOpenAIBaseURL
+	}
+	if strings.TrimSpace(overlay.LegacyOpenAIModel) != "" {
+		base.LegacyOpenAIModel = overlay.LegacyOpenAIModel
+	}
+	return base
 }
 
 func checkProfileOrError(cfg *config.Config, id, field string) (ProfileCheckResult, error) {
@@ -253,7 +300,7 @@ func CheckCandidateProfile(cfg *config.Config, profileID string) ProfileCheckRes
 	}
 	var raw config.ModelProfileSettings
 	if id == "default" {
-		raw = config.ModelProfileSettings{ID: "default", Name: "default", Model: cfg.OpenAIModel, BaseURL: cfg.OpenAIBaseURL, APIKey: cfg.OpenAIAPIKey, Provider: "openai", Protocol: string(providers.ProtocolOpenAIChatCompletions)}
+		raw = legacyDefaultProfile(cfg)
 	} else {
 		found := false
 		for _, candidate := range cfg.ModelProfiles {
@@ -284,14 +331,6 @@ func CheckCandidateProfile(cfg *config.Config, profileID string) ProfileCheckRes
 		option.Reason = "protocol_unsupported"
 		return ProfileCheckResult{Option: option}
 	}
-	if cfg.ActiveAgentRuntime != nil && cfg.ActiveAgentRuntime.Kind.IsExternal() {
-		option.Reason = "runtime_unsupported"
-		return ProfileCheckResult{Option: option}
-	}
-	if cfg.AgentRuntimes.IDE != nil && cfg.AgentRuntimes.IDE.Selected.IsExternal() {
-		option.Reason = "runtime_unsupported"
-		return ProfileCheckResult{Option: option}
-	}
 	if raw.EndpointID != "" {
 		foundEndpoint := false
 		for _, endpoint := range cfg.ModelEndpoints {
@@ -314,7 +353,7 @@ func CheckCandidateProfile(cfg *config.Config, profileID string) ProfileCheckRes
 		option.Reason = "model_missing"
 		return ProfileCheckResult{Option: option}
 	}
-	if strings.TrimSpace(resolved.BaseURL) == "" || strings.TrimSpace(resolved.APIKey) == "" {
+	if strings.TrimSpace(resolved.BaseURL) == "" || (strings.TrimSpace(resolved.APIKey) == "" && endpointRequiresAPIKey(resolved.Provider, resolved.Protocol, resolved.BaseURL)) {
 		option.Reason = "endpoint_incomplete"
 		return ProfileCheckResult{Option: option}
 	}
@@ -334,6 +373,25 @@ func supportedProtocol(value string) bool {
 	default:
 		return false
 	}
+}
+
+func endpointRequiresAPIKey(provider, protocol, baseURL string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(baseURL))
+	if err == nil && parsed.Hostname() != "" && isLoopbackHost(parsed.Hostname()) {
+		return false
+	}
+	// All currently supported hosted protocols authenticate with an API key.
+	// A loopback endpoint is the explicit keyless exception for local model
+	// servers such as Ollama and LM Studio.
+	return strings.TrimSpace(provider) != "" || strings.TrimSpace(protocol) != ""
+}
+
+func isLoopbackHost(host string) bool {
+	host = strings.TrimSpace(strings.Trim(host, "[]"))
+	if strings.EqualFold(host, "localhost") || host == "::1" || host == "127.0.0.1" {
+		return true
+	}
+	return net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback()
 }
 
 func firstNonEmpty(values ...string) string {

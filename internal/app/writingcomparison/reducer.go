@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"denova/internal/agents/conversationjournal"
+	"denova/internal/portablepath"
 )
 
 type journalEnvelope struct {
@@ -87,7 +88,7 @@ func applyEvent(task *Task, kind EventKind, event Event) error {
 			return fmt.Errorf("task.created payload is missing task")
 		}
 		if task.ID != "" {
-			return fmt.Errorf("task.created cannot replace an existing task")
+			return stateConflict(task, "task.created cannot replace an existing task")
 		}
 		*task = cloneTask(*event.Task)
 		return validateTask(*task)
@@ -98,6 +99,9 @@ func applyEvent(task *Task, kind EventKind, event Event) error {
 		if task.ID == "" {
 			return fmt.Errorf("snapshot.frozen requires an existing task")
 		}
+		if task.Snapshot != nil {
+			return stateConflict(task, "snapshot is already frozen")
+		}
 		task.Snapshot = cloneSnapshot(event.Snapshot)
 		return nil
 	case EventPhaseChanged:
@@ -107,7 +111,7 @@ func applyEvent(task *Task, kind EventKind, event Event) error {
 		if !event.ToPhase.Valid() {
 			return stateConflict(task, "phase target is invalid")
 		}
-		if err := validatePhaseTransition(task.Phase, event.ToPhase); err != nil {
+		if err := validatePhaseTransitionForTask(task, event.ToPhase); err != nil {
 			return err
 		}
 		task.Phase = event.ToPhase
@@ -142,8 +146,17 @@ func applyEvent(task *Task, kind EventKind, event Event) error {
 		if candidate == nil {
 			return fmt.Errorf("candidate %q not found", event.CandidateID)
 		}
-		if event.Revision == nil {
-			return fmt.Errorf("candidate.completed revision is missing")
+		if task.Phase != PhaseGenerating {
+			return stateConflict(task, "candidate.completed requires generating phase")
+		}
+		if candidate.Status != CandidateRunning {
+			return stateConflict(task, "candidate.completed requires a running candidate")
+		}
+		if event.Revision == nil || event.Revision.Number < 1 || strings.TrimSpace(event.Revision.Path) == "" || strings.TrimSpace(event.Revision.SHA256) == "" {
+			return stateConflict(task, "candidate.completed revision is incomplete")
+		}
+		if err := portablepath.Validate(event.Revision.Path); err != nil {
+			return stateConflict(task, "candidate.completed revision path is invalid")
 		}
 		candidate.Status = CandidateCompleted
 		candidate.Revision = cloneCandidateRevision(event.Revision)
@@ -153,6 +166,12 @@ func applyEvent(task *Task, kind EventKind, event Event) error {
 		candidate := candidateByID(task, event.CandidateID)
 		if candidate == nil {
 			return fmt.Errorf("candidate %q not found", event.CandidateID)
+		}
+		if task.Phase != PhaseGenerating {
+			return stateConflict(task, "candidate.failed requires generating phase")
+		}
+		if candidate.Status != CandidateRunning {
+			return stateConflict(task, "candidate.failed requires a running candidate")
 		}
 		candidate.Status = CandidateFailed
 		candidate.Error = cloneTaskError(event.Error)
@@ -164,8 +183,12 @@ func applyEvent(task *Task, kind EventKind, event Event) error {
 		if task.Phase != PhaseGenerated && task.Phase != PhasePartial && task.Phase != PhasePendingApplication {
 			return stateConflict(task, "selection requires generated or partial phase")
 		}
-		if candidateByID(task, event.Composition.CandidateID) == nil {
+		candidate := candidateByID(task, event.Composition.CandidateID)
+		if candidate == nil {
 			return fmt.Errorf("selected candidate %q not found", event.Composition.CandidateID)
+		}
+		if candidate.Status != CandidateCompleted || candidate.Revision == nil {
+			return stateConflict(task, "selection requires a completed candidate")
 		}
 		task.Composition = cloneComposition(event.Composition)
 		if task.Phase != PhasePendingApplication {
@@ -204,10 +227,6 @@ func ValidateTransition(task Task, event Event) error {
 // ApplyTransition is the mutating form used by reducers and domain tests.
 func ApplyTransition(task *Task, event Event) error { return applyEvent(task, event.Kind, event) }
 
-// applyTransition keeps the state-machine seam easy to exercise from package
-// tests while ApplyTransition remains the public API for adjacent domains.
-func applyTransition(task *Task, event Event) error { return ApplyTransition(task, event) }
-
 func validatePhaseTransition(from, to Phase) error {
 	allowed := map[Phase]map[Phase]bool{
 		PhaseConfiguring:        {PhaseGenerating: true},
@@ -225,13 +244,35 @@ func validatePhaseTransition(from, to Phase) error {
 	return &StateConflictError{FromPhase: from, ToPhase: to, Reason: "phase transition is not allowed"}
 }
 
+func validatePhaseTransitionForTask(task *Task, to Phase) error {
+	if task == nil {
+		return fmt.Errorf("comparison task is nil")
+	}
+	if err := validatePhaseTransition(task.Phase, to); err != nil {
+		return err
+	}
+	if task.Phase == PhaseGenerating {
+		switch to {
+		case PhaseGenerated:
+			if !allCandidatesCompleted(*task) {
+				return stateConflict(task, "generated requires every candidate to be completed")
+			}
+		case PhasePartial:
+			if !hasCandidateFailure(*task) {
+				return stateConflict(task, "partial requires a failed candidate")
+			}
+		}
+	}
+	return nil
+}
+
 func validateExecutionTransition(phase Phase, from, to Execution) error {
 	allowed := map[Execution]map[Execution]bool{
 		ExecutionIdle:       {ExecutionQueued: true},
 		ExecutionQueued:     {ExecutionRunning: true, ExecutionIncomplete: true},
 		ExecutionRunning:    {ExecutionDone: true, ExecutionIncomplete: true},
 		ExecutionIncomplete: {ExecutionQueued: true},
-		ExecutionDone:       {},
+		ExecutionDone:       {ExecutionQueued: true},
 		ExecutionPaused:     {ExecutionQueued: true, ExecutionCancelled: true},
 		ExecutionCancelled:  {},
 	}
@@ -239,6 +280,9 @@ func validateExecutionTransition(phase Phase, from, to Execution) error {
 		return &StateConflictError{FromExecution: from, ToExecution: to, Reason: "execution changes only while generating"}
 	}
 	if allowed[from][to] {
+		if from == ExecutionDone && to == ExecutionQueued && phase != PhaseGenerating {
+			return &StateConflictError{FromExecution: from, ToExecution: to, Reason: "completed execution can be queued again only while generating"}
+		}
 		return nil
 	}
 	return &StateConflictError{FromExecution: from, ToExecution: to, Reason: "execution transition is not allowed"}

@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,11 +17,14 @@ import (
 	"time"
 
 	"denova/internal/agents/conversationjournal"
+	"denova/internal/localfs"
 	"denova/internal/portablepath"
 	projectdomain "denova/internal/project"
 )
 
 const journalFilename = "journal.jsonl"
+
+var immutableAssetMu sync.Mutex
 
 type Store struct {
 	layout projectdomain.Layout
@@ -98,7 +103,7 @@ func (store *Store) Create(ctx context.Context, task Task) (Task, error) {
 		_ = os.RemoveAll(dir)
 		return Task{}, err
 	}
-	if err := os.WriteFile(journalFile, append(seed, '\n'), 0o600); err != nil {
+	if err := writeSeedJournal(journalFile, append(seed, '\n')); err != nil {
 		_ = os.RemoveAll(dir)
 		return Task{}, err
 	}
@@ -108,7 +113,12 @@ func (store *Store) Create(ctx context.Context, task Task) (Task, error) {
 		return Task{}, err
 	}
 	defer handle.Close()
-	return handle.Current(), nil
+	created := handle.Current()
+	if created.ID != task.ID {
+		return Task{}, fmt.Errorf("comparison task projection identity mismatch")
+	}
+	slog.InfoContext(ctx, "writing comparison task created", "task_id", task.ID, "project_id", task.ProjectID)
+	return created, nil
 }
 
 // Handle is one independent journal view. Callers may keep two handles open
@@ -203,7 +213,10 @@ func (handle *Handle) appendLocked(ctx context.Context, expectedRevision uint64,
 	if uint64(handle.journal.Head().Cursor) != expectedRevision {
 		return Task{}, &RevisionConflictError{Expected: expectedRevision, Actual: uint64(handle.journal.Head().Cursor)}
 	}
-	if err := ValidateTransition(current, event); event.Kind != EventTaskCreated && err != nil {
+	if err := ValidateTransition(current, event); err != nil {
+		if errors.Is(err, ErrStateConflict) || errors.Is(err, ErrRevisionConflict) {
+			slog.WarnContext(ctx, "writing comparison state transition rejected", "task_id", handle.id, "candidate_id", event.CandidateID, "event", event.Kind, "error", err)
+		}
 		return Task{}, err
 	}
 	payload, err := marshalEvent(handle.id, event)
@@ -213,6 +226,7 @@ func (handle *Handle) appendLocked(ctx context.Context, expectedRevision uint64,
 	commit, err := handle.journal.Append(ctx, conversationjournal.Guard{Cursor: conversationjournal.Cursor(expectedRevision)}, payload)
 	if err != nil {
 		if errors.Is(err, conversationjournal.ErrConflict) {
+			slog.WarnContext(ctx, "writing comparison append CAS conflict", "task_id", handle.id, "candidate_id", event.CandidateID, "expected_revision", expectedRevision)
 			return Task{}, &RevisionConflictError{Expected: expectedRevision, Actual: uint64(handle.journal.Head().Cursor)}
 		}
 		return Task{}, err
@@ -334,7 +348,8 @@ func (store *Store) List(ctx context.Context, options ListOptions) ([]TaskSummar
 			continue
 		}
 		if err != nil {
-			return nil, err
+			slog.WarnContext(ctx, "writing comparison task skipped during list", "task_id", entry.Name(), "error", err)
+			continue
 		}
 		if options.Phase != "" && task.Phase != options.Phase {
 			continue
@@ -353,15 +368,11 @@ func (store *Store) List(ctx context.Context, options ListOptions) ([]TaskSummar
 	return result, nil
 }
 
-func (store *Store) AppendRaw(ctx context.Context, id string, expectedRevision uint64, event Event) (Task, error) {
-	return store.Append(ctx, id, expectedRevision, event)
-}
-
 func marshalEvent(taskID string, event Event) (json.RawMessage, error) {
 	if strings.TrimSpace(taskID) == "" || event.Kind == "" {
 		return nil, ErrInvalidRequest
 	}
-	payload, err := json.Marshal(event)
+	payload, err := marshalEventPayload(event)
 	if err != nil {
 		return nil, err
 	}
@@ -371,6 +382,32 @@ func marshalEvent(taskID string, event Event) (json.RawMessage, error) {
 		return nil, err
 	}
 	return raw, nil
+}
+
+// marshalEventPayload omits the derived journal cursor from task.created. The
+// cursor is assigned by the journal commit and must never become a second
+// source of truth inside an event payload.
+func marshalEventPayload(event Event) ([]byte, error) {
+	payload, err := json.Marshal(event)
+	if err != nil || event.Task == nil {
+		return payload, err
+	}
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &object); err != nil {
+		return nil, err
+	}
+	var task map[string]json.RawMessage
+	if raw := object["task"]; len(raw) > 0 {
+		if err := json.Unmarshal(raw, &task); err != nil {
+			return nil, err
+		}
+		delete(task, "revision")
+		object["task"], err = json.Marshal(task)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return json.Marshal(object)
 }
 
 type RevisionConflictError struct{ Expected, Actual uint64 }
@@ -400,23 +437,83 @@ func (store *Store) AssetPath(taskID, relative string) (string, error) {
 }
 
 func WriteImmutableAsset(path string, content []byte) error {
+	immutableAssetMu.Lock()
+	defer immutableAssetMu.Unlock()
 	if strings.TrimSpace(path) == "" {
 		return fmt.Errorf("asset path is required")
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	if _, err := os.Lstat(path); err == nil {
-		return fmt.Errorf("asset already exists")
+	if existing, err := os.ReadFile(path); err == nil {
+		if AssetSHA256(existing) == AssetSHA256(content) {
+			return nil
+		}
+		return ErrAssetCorrupt
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
 	}
+	file, err := os.CreateTemp(filepath.Dir(path), ".asset-*")
+	if err != nil {
+		return err
+	}
+	tempPath := file.Name()
+	cleanup := true
+	defer func() {
+		_ = file.Close()
+		if cleanup {
+			_ = os.Remove(tempPath)
+		}
+	}()
+	written, writeErr := file.Write(content)
+	if writeErr == nil && written != len(content) {
+		writeErr = io.ErrShortWrite
+	}
+	syncErr := file.Sync()
+	closeErr := file.Close()
+	if err := errors.Join(writeErr, syncErr, closeErr); err != nil {
+		return err
+	}
+	if err := os.Rename(tempPath, path); err != nil {
+		if existing, readErr := os.ReadFile(path); readErr == nil && AssetSHA256(existing) == AssetSHA256(content) {
+			return nil
+		}
+		return err
+	}
+	cleanup = false
+	return localfs.SyncDirectory(filepath.Dir(path))
+}
+
+func writeSeedJournal(path string, data []byte) error {
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
 	}
-	_, writeErr := file.Write(content)
-	syncErr := file.Sync()
-	closeErr := file.Close()
-	return errors.Join(writeErr, syncErr, closeErr)
+	keep := false
+	defer func() {
+		_ = file.Close()
+		if !keep {
+			_ = os.Remove(path)
+		}
+	}()
+	written, err := file.Write(data)
+	if err == nil && written != len(data) {
+		err = io.ErrShortWrite
+	}
+	if err == nil {
+		err = file.Sync()
+	}
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return err
+	}
+	if err := localfs.SyncDirectory(filepath.Dir(path)); err != nil {
+		return err
+	}
+	keep = true
+	return nil
 }
 
 func ReadVerifiedAsset(path, expectedSHA string) ([]byte, error) {
