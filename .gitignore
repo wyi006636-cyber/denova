@@ -37,6 +37,12 @@ docs/tests/*
 !docs/speech.md
 !docs/analytics.md
 !docs/creative-evaluation.md
+!docs/adr/
+!docs/adr/*.md
+!docs/agents/
+!docs/agents/*.md
+!docs/writing-comparison-plan.md
+!docs/writing-comparison-spec.md
 .worktrees/
 .pnpm-store/
 .DS_Store
