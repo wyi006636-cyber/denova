@@ -125,6 +125,10 @@ func (layout Layout) ReviewsDir() string     { return joinStore(layout.StoreRoot
 func (layout Layout) RunsDir() string        { return joinStore(layout.StoreRoot, "runs") }
 func (layout Layout) ArtifactsDir() string   { return joinStore(layout.StoreRoot, "artifacts") }
 func (layout Layout) AutomationsDir() string { return joinStore(layout.StoreRoot, "automations") }
+
+// ComparisonsDir is the lazily-created Project Store root for writing
+// comparison tasks. It is intentionally independent from ordinary sessions.
+func (layout Layout) ComparisonsDir() string { return joinStore(layout.StoreRoot, "comparisons") }
 func (layout Layout) VersionRepositoryDir() string {
 	return joinStore(layout.StoreRoot, "versions", "repository")
 }

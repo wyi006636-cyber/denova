@@ -34,6 +34,7 @@ import (
 	"denova/internal/app/resourceexchange"
 	settingsapp "denova/internal/app/settings"
 	apptask "denova/internal/app/task"
+	writingcomparisonapp "denova/internal/app/writingcomparison"
 	"denova/internal/book"
 	"denova/internal/concurrency"
 	"denova/internal/interactive"
@@ -114,6 +115,7 @@ type App struct {
 	imageApp           *imageapp.Service
 	projectBook        *projectbookapp.Service
 	projectFiles       *projectfilesapp.Service
+	writingComparison  *writingcomparisonapp.Service
 	servicesOnce       sync.Once
 	platform           *platform.Manager
 
@@ -376,7 +378,14 @@ func (a *App) ensureServices() {
 			projectFileOptions = append(projectFileOptions, projectfilesapp.WithTreeEntryLimit(a.cfg.ProjectFileTreeEntryLimit))
 		}
 		a.projectFiles = projectfilesapp.NewServiceWithVersioning(a.projectRegistry, a, projectFileOptions...)
+		a.writingComparison = writingcomparisonapp.NewService(writingComparisonHost{app: a})
 	})
+}
+
+// WritingComparison exposes the Project-scoped comparison-task domain.
+func (a *App) WritingComparison() *writingcomparisonapp.Service {
+	a.ensureServices()
+	return a.writingComparison
 }
 
 func (a *App) workspaceService() *workspaceService {
