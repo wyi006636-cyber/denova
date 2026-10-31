@@ -117,6 +117,8 @@ func writeWritingTemplateError(c *app.RequestContext, err error) {
 		code, key, args = "template_version_changed", "api.writingTemplates.versionChanged", nil
 	case errors.Is(err, writingtemplates.ErrNotUsableForCandidate):
 		code, key, args = "template_not_usable", "api.writingTemplates.notUsableForCandidate", nil
+	case errors.Is(err, writingtemplates.ErrInvalidTemplate):
+		code, key, args = "template_invalid", "api.writingTemplates.invalid", nil
 	case errors.Is(err, writingtemplates.ErrDataRootRequired):
 		status, code, key, args = consts.StatusInternalServerError, "catalog_unavailable", "api.writingTemplates.catalogUnavailable", nil
 	}

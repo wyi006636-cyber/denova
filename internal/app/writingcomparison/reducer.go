@@ -127,6 +127,13 @@ func applyEvent(task *Task, kind EventKind, event Event) error {
 			return err
 		}
 		task.Execution = event.ToExecution
+		if event.ToExecution == ExecutionIncomplete {
+			for index := range task.Candidates {
+				if task.Candidates[index].Status == CandidateRunning {
+					task.Candidates[index].Status = CandidateIncomplete
+				}
+			}
+		}
 		return nil
 	case EventCandidateStarted:
 		candidate := candidateByID(task, event.CandidateID)

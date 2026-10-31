@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"strings"
+
+	"denova/internal/agents/prompts"
 )
 
 const SchemaVersion = 1
@@ -30,6 +32,7 @@ var (
 	ErrVersionRequired       = errors.New("writing template content version is required")
 	ErrVersionChanged        = errors.New("writing template content version changed")
 	ErrRevisionConflict      = errors.New("writing template changed elsewhere; reload before saving")
+	ErrInvalidTemplate       = errors.New("writing template validation failed")
 	ErrDataRootRequired      = errors.New("writing template data root is required")
 )
 
@@ -123,12 +126,8 @@ type PreviewResponse struct {
 	Segments []PreviewSegment `json:"segments"`
 }
 
-// CandidateContractText and TargetHintText are temporary local copies of the
-// prompt fragments defined by comparison-design.md. T4 will make them share a
-// single prompts.ComposeCandidateDraftInstruction source.
-const CandidateContractText = `Produce one complete chapter as prose only. Do not output an explanation, title, outline, JSON, tool call, or author note. If the target chapter already exists, produce the complete replacement. Follow the chapter task and frozen context, and never invent story facts absent from that context.`
-
-const TargetHintText = `Target hint: use the supplied target path, chapter cursor, existing-text state, and word target when present. Keep the target chapter as the only unit of work.`
+const CandidateContractText = prompts.CandidateContractText
+const TargetHintText = prompts.TargetHintText
 
 // ResolveForCandidate freezes a complete-chapter template at one content
 // version. It is the only resolver intended for candidate execution.

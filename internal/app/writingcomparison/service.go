@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"denova/config"
@@ -37,18 +39,45 @@ func WithTemplateResolver(resolver WritingSourceResolver) ServiceOption {
 }
 
 type Service struct {
-	host             Host
-	templateResolver WritingSourceResolver
+	host              Host
+	templateResolver  WritingSourceResolver
+	activeMu          sync.Mutex
+	activeRuns        map[string]struct{}
+	recoveryMu        sync.Mutex
+	recoveredProjects map[string]struct{}
 }
 
 func NewService(host Host, options ...ServiceOption) *Service {
-	service := &Service{host: host}
+	service := &Service{host: host, activeRuns: make(map[string]struct{}), recoveredProjects: make(map[string]struct{})}
 	for _, option := range options {
 		if option != nil {
 			option(service)
 		}
 	}
 	return service
+}
+
+// RecoverProjectOnce performs the first-access scan exactly once for one
+// stable Project Store. Only comparison routes call it, so a failure is
+// reported there with CodeRecoveryFailed and never blocks unrelated Project
+// requests. A failed scan is not remembered and is retried on the next call.
+// Subsequent list/detail reads remain pure.
+func (service *Service) RecoverProjectOnce(ctx context.Context, layout projectdomain.Layout) error {
+	if service == nil {
+		return nil
+	}
+	key := layout.ProjectID + "\x00" + layout.StoreRoot
+	service.recoveryMu.Lock()
+	defer service.recoveryMu.Unlock()
+	if _, ok := service.recoveredProjects[key]; ok {
+		return nil
+	}
+	if err := service.Recover(ctx, layout); err != nil {
+		slog.WarnContext(ctx, "writing comparison project recovery failed", "project_id", layout.ProjectID, "error", err)
+		return domainError(CodeRecoveryFailed, "interrupted comparison runs could not be recovered", err, nil)
+	}
+	service.recoveredProjects[key] = struct{}{}
+	return nil
 }
 
 func (service *Service) CandidateOptions(ctx context.Context, layout projectdomain.Layout) (CandidateOptions, error) {
@@ -129,6 +158,7 @@ func (service *Service) Create(ctx context.Context, layout projectdomain.Layout,
 			return Task{}, err
 		}
 		candidateID := fmt.Sprintf("candidate-%d", index+1)
+		source.BodyAssetPath = fmt.Sprintf("sources/%s.md", candidateID)
 		candidates = append(candidates, Candidate{ID: candidateID, Position: index + 1, Profile: profile.Snapshot, Source: source, Requirement: strings.TrimSpace(candidateInput.Requirement), Status: CandidatePending, Attempt: 1})
 	}
 	createdAt := time.Now().UTC()
@@ -164,6 +194,85 @@ func (service *Service) List(ctx context.Context, layout projectdomain.Layout, o
 		return nil, domainError(CodeInvalidRequest, "Comparison task phase is invalid", ErrInvalidRequest, map[string]any{"phase": options.Phase})
 	}
 	return NewStore(layout).List(ctx, options)
+}
+
+func comparisonRunKey(layout projectdomain.Layout, id string) string {
+	return layout.ProjectID + "\x00" + strings.TrimSpace(id)
+}
+
+func (service *Service) markRunActive(layout projectdomain.Layout, id string) {
+	if service == nil {
+		return
+	}
+	service.activeMu.Lock()
+	service.activeRuns[comparisonRunKey(layout, id)] = struct{}{}
+	service.activeMu.Unlock()
+}
+
+func (service *Service) clearRunActive(layout projectdomain.Layout, id string) {
+	if service == nil {
+		return
+	}
+	service.activeMu.Lock()
+	delete(service.activeRuns, comparisonRunKey(layout, id))
+	service.activeMu.Unlock()
+}
+
+func (service *Service) isRunActive(layout projectdomain.Layout, id string) bool {
+	if service == nil {
+		return false
+	}
+	service.activeMu.Lock()
+	defer service.activeMu.Unlock()
+	_, ok := service.activeRuns[comparisonRunKey(layout, id)]
+	return ok
+}
+
+// recoverTask is the narrow recovery boundary used immediately before a new
+// run. Read paths stay side-effect free; startup may still call Recover for a
+// full project scan.
+func (service *Service) recoverTask(ctx context.Context, layout projectdomain.Layout, id string) error {
+	if strings.TrimSpace(id) == "" || service.isRunActive(layout, id) {
+		return nil
+	}
+	handle, err := NewStore(layout).Open(ctx, id)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		return err
+	}
+	defer handle.Close()
+	task := handle.Current()
+	if task.Execution != ExecutionQueued && task.Execution != ExecutionRunning {
+		return nil
+	}
+	_, err = handle.Append(ctx, task.Revision, Event{Kind: EventExecutionChanged, FromExecution: task.Execution, ToExecution: ExecutionIncomplete, Reason: "recovered before run"})
+	if err != nil {
+		slog.WarnContext(ctx, "writing comparison task recovery failed", "task_id", id, "error", err)
+	}
+	return err
+}
+
+// RegistrationFailed releases the service-side active marker when the App
+// cannot publish its detached task. The durable queued state is moved to
+// incomplete so the author can run the task again.
+func (service *Service) RegistrationFailed(ctx context.Context, layout projectdomain.Layout, id string) error {
+	defer service.clearRunActive(layout, id)
+	handle, err := NewStore(layout).Open(ctx, id)
+	if err != nil {
+		return err
+	}
+	defer handle.Close()
+	task := handle.Current()
+	if task.Execution != ExecutionQueued {
+		return nil
+	}
+	_, err = handle.Append(ctx, task.Revision, Event{Kind: EventExecutionChanged, FromExecution: ExecutionQueued, ToExecution: ExecutionIncomplete, Reason: "background task registration failed"})
+	if err != nil {
+		slog.WarnContext(ctx, "writing comparison task registration rollback failed", "task_id", id, "error", err)
+	}
+	return err
 }
 
 func (service *Service) config(ctx context.Context, layout projectdomain.Layout) (config.Config, error) {
@@ -377,7 +486,7 @@ func supportedProtocol(value string) bool {
 
 func endpointRequiresAPIKey(provider, protocol, baseURL string) bool {
 	parsed, err := url.Parse(strings.TrimSpace(baseURL))
-	if err == nil && parsed.Hostname() != "" && isLoopbackHost(parsed.Hostname()) {
+	if err == nil && parsed.Hostname() != "" && isLocalNetworkHost(parsed.Hostname()) {
 		return false
 	}
 	// All currently supported hosted protocols authenticate with an API key.
@@ -392,6 +501,20 @@ func isLoopbackHost(host string) bool {
 		return true
 	}
 	return net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback()
+}
+
+func isLocalNetworkHost(host string) bool {
+	if isLoopbackHost(host) || strings.HasSuffix(strings.ToLower(host), ".local") {
+		return true
+	}
+	ip := net.ParseIP(strings.Trim(host, "[]"))
+	if ip == nil {
+		return false
+	}
+	if ip.IsPrivate() {
+		return true
+	}
+	return ip.IsLinkLocalUnicast()
 }
 
 func firstNonEmpty(values ...string) string {

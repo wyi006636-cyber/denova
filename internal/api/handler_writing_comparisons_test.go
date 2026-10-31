@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -20,7 +21,7 @@ func TestWritingComparisonEndpointsSuccessAndErrors(t *testing.T) {
 	application := newTestApplication(t)
 	server := NewServer(application, "0")
 	projectID := application.ProjectID()
-	configureWritingComparisonFixture(t, application)
+	configureWritingComparisonFixture(t, application, "http://127.0.0.1:18080/v1")
 	prefix := "/api/projects/" + url.PathEscape(projectID) + "/writing-comparisons"
 
 	options := performJSONRequest(t, server, http.MethodGet, prefix+"/candidate-options", nil)
@@ -56,6 +57,9 @@ func TestWritingComparisonEndpointsSuccessAndErrors(t *testing.T) {
 	if createResponse.Task.ID == "" || createResponse.Task.Target.Path != "chapters/ch00001.md" {
 		t.Fatalf("created task = %#v", createResponse.Task)
 	}
+	if bytes.Contains(created.Body.Bytes(), []byte(`"body"`)) {
+		t.Fatalf("task projection leaked source body: %s", created.Body.String())
+	}
 
 	list := performJSONRequest(t, server, http.MethodGet, prefix, nil)
 	if list.Code != http.StatusOK {
@@ -80,6 +84,9 @@ func TestWritingComparisonEndpointsSuccessAndErrors(t *testing.T) {
 	if detailResponse.Task.ID != createResponse.Task.ID {
 		t.Fatalf("detail response = %#v", detailResponse.Task)
 	}
+	if bytes.Contains(detail.Body.Bytes(), []byte(`"body"`)) {
+		t.Fatalf("detail projection leaked source body: %s", detail.Body.String())
+	}
 
 	invalidCreate := performJSONRequest(t, server, http.MethodPost, prefix, map[string]any{
 		"target_path": "chapters/ch00001.md", "chapter_task": map[string]any{"text": "task"},
@@ -93,12 +100,20 @@ func TestWritingComparisonEndpointsSuccessAndErrors(t *testing.T) {
 
 	missing := performJSONRequest(t, server, http.MethodGet, prefix+"/missing-task", nil)
 	assertWritingComparisonError(t, missing, http.StatusNotFound, writingcomparisonapp.CodeNotFound)
+
+	// The three T4 endpoints each keep their own stable missing-task contract.
+	runMissing := performJSONRequest(t, server, http.MethodPost, prefix+"/missing-task/run", map[string]any{"expected_revision": 1})
+	assertWritingComparisonError(t, runMissing, http.StatusNotFound, writingcomparisonapp.CodeNotFound)
+	streamMissing := performJSONRequest(t, server, http.MethodGet, prefix+"/missing-task/stream", nil)
+	assertWritingComparisonError(t, streamMissing, http.StatusNotFound, writingcomparisonapp.CodeNotFound)
+	contentMissing := performJSONRequest(t, server, http.MethodGet, prefix+"/missing-task/candidates/candidate-1/content", nil)
+	assertWritingComparisonError(t, contentMissing, http.StatusNotFound, writingcomparisonapp.CodeNotFound)
 }
 
 func configureWritingComparisonFixture(t *testing.T, application interface {
 	ProjectID() string
 	Workspace() string
-}) {
+}, modelBaseURL string) projectdomain.Layout {
 	t.Helper()
 	skillPath := filepath.Join(application.Workspace(), "skills", "novel-lite", skills.SkillFileName)
 	if err := os.MkdirAll(filepath.Dir(skillPath), 0o755); err != nil {
@@ -117,17 +132,18 @@ func configureWritingComparisonFixture(t *testing.T, application interface {
 		t.Fatal(err)
 	}
 	if err := config.WriteSettingsFile(layout.ConfigPath(), config.Settings{
-		ModelEndpoints: []config.ModelEndpointSettings{{ID: "fixture", Provider: "openai-compatible", Protocol: "openai-chat-completions", BaseURL: "http://127.0.0.1:18080/v1", APIKey: "fixture-key"}},
+		ModelEndpoints: []config.ModelEndpointSettings{{ID: "fixture", Provider: "openai-compatible", Protocol: "openai-chat-completions", BaseURL: modelBaseURL, APIKey: "fixture-key"}},
 		ModelProfiles:  []config.ModelProfileSettings{{ID: "writer-a", Name: "Writer A", EndpointID: "fixture", Model: "fixture-a"}, {ID: "writer-b", Name: "Writer B", EndpointID: "fixture", Model: "fixture-b"}},
 	}); err != nil {
 		t.Fatalf("write comparison fixture config: %v", err)
 	}
 	if err := config.WriteSettingsFile(filepath.Join(application.Workspace(), "config.toml"), config.Settings{
-		ModelEndpoints: []config.ModelEndpointSettings{{ID: "fixture", Provider: "openai-compatible", Protocol: "openai-chat-completions", BaseURL: "http://127.0.0.1:18080/v1", APIKey: "fixture-key"}},
+		ModelEndpoints: []config.ModelEndpointSettings{{ID: "fixture", Provider: "openai-compatible", Protocol: "openai-chat-completions", BaseURL: modelBaseURL, APIKey: "fixture-key"}},
 		ModelProfiles:  []config.ModelProfileSettings{{ID: "writer-a", Name: "Writer A", EndpointID: "fixture", Model: "fixture-a"}, {ID: "writer-b", Name: "Writer B", EndpointID: "fixture", Model: "fixture-b"}},
 	}); err != nil {
 		t.Fatalf("write comparison global fixture config: %v", err)
 	}
+	return layout
 }
 
 func assertWritingComparisonError(t *testing.T, response *ut.ResponseRecorder, status int, code string) {

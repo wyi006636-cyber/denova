@@ -83,6 +83,7 @@ type App struct {
 	projectScopeSequence            uint64
 	projectTransitions              map[string]struct{}
 	projectTasks                    map[*apptask.Task]*projectTaskRegistration
+	writingComparisonTasks          map[string]*apptask.Task
 	workspaceGeneration             uint64
 	closed                          bool
 	closeOnce                       sync.Once
@@ -381,7 +382,7 @@ func (a *App) ensureServices() {
 			projectFileOptions = append(projectFileOptions, projectfilesapp.WithTreeEntryLimit(a.cfg.ProjectFileTreeEntryLimit))
 		}
 		a.projectFiles = projectfilesapp.NewServiceWithVersioning(a.projectRegistry, a, projectFileOptions...)
-		a.writingComparison = writingcomparisonapp.NewService(writingComparisonHost{app: a})
+		a.writingComparison = writingcomparisonapp.NewService(writingComparisonHost{app: a}, writingcomparisonapp.WithTemplateResolver(writingTemplateResolver{catalog: a.writingTemplates}))
 	})
 }
 

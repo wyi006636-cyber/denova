@@ -113,7 +113,7 @@ func hasString(values []string, target string) bool {
 
 func validateTemplateID(id string) error {
 	if !templateIDPattern.MatchString(id) {
-		return fmt.Errorf("invalid writing template ID %q", id)
+		return fmt.Errorf("%w: invalid writing template ID %q", ErrInvalidTemplate, id)
 	}
 	return nil
 }
@@ -122,6 +122,9 @@ func newTemplateID(title string) string {
 	slug := asciiSlug(title)
 	if slug == "" {
 		slug = "template"
+	}
+	if len(slug) > 48 {
+		slug = strings.Trim(slug[:48], "-")
 	}
 	const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
 	var suffix [6]byte

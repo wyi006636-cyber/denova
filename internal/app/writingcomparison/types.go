@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"denova/internal/agents/skills"
+	"denova/internal/writingtemplates"
 )
 
 const (
@@ -71,10 +72,14 @@ func (e Execution) Valid() bool {
 type CandidateStatus string
 
 const (
-	CandidatePending   CandidateStatus = "pending"
-	CandidateRunning   CandidateStatus = "running"
-	CandidateCompleted CandidateStatus = "completed"
-	CandidateFailed    CandidateStatus = "failed"
+	CandidatePending CandidateStatus = "pending"
+	CandidateRunning CandidateStatus = "running"
+	// CandidateIncomplete is durable recovery state. It means a candidate was
+	// running when the process stopped and must be resumed explicitly by a
+	// later run; it is never treated as a completed or failed candidate.
+	CandidateIncomplete CandidateStatus = "incomplete"
+	CandidateCompleted  CandidateStatus = "completed"
+	CandidateFailed     CandidateStatus = "failed"
 )
 
 type TargetRef struct {
@@ -158,12 +163,17 @@ func (ref WritingSourceRef) identifier() string {
 }
 
 type WritingSourceSnapshot struct {
-	Kind          string                  `json:"kind"`
-	ID            string                  `json:"id"`
-	Version       string                  `json:"version"`
-	Scope         string                  `json:"scope"`
-	Title         string                  `json:"title,omitempty"`
-	ContentSHA256 string                  `json:"content_sha256"`
+	Kind          string                     `json:"kind"`
+	ID            string                     `json:"id"`
+	Version       string                     `json:"version"`
+	Scope         string                     `json:"scope"`
+	Title         writingtemplates.Localized `json:"title"`
+	ContentSHA256 string                     `json:"content_sha256"`
+	// Body is process-local source text. The immutable source asset is persisted
+	// at BodyAssetPath so task projections, API responses, and SSE events never
+	// echo the full Skill/template body.
+	Body          string                  `json:"-"`
+	BodyAssetPath string                  `json:"body_asset_path,omitempty"`
 	Techniques    []WritingSourceSnapshot `json:"techniques,omitempty"` // reserved for #27
 }
 
@@ -459,7 +469,8 @@ func (resolver *skillSourceResolver) ResolveCandidateSource(ctx context.Context,
 		}
 		return WritingSourceSnapshot{
 			Kind: "skill", ID: name, Version: document.Revision, Scope: string(scope),
-			Title: document.Name, ContentSHA256: sha256Text(document.Content),
+			Title:         writingtemplates.Localized{ZH: document.Name, EN: document.Name},
+			ContentSHA256: sha256Text(document.Content), Body: document.Content,
 		}, nil
 	}
 	return WritingSourceSnapshot{}, domainError("skill_missing", "Skill was not found", lastErr, map[string]any{"name": name})

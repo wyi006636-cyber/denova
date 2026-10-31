@@ -22,6 +22,8 @@ func TestWriteWritingComparisonErrorBranches(t *testing.T) {
 		{"not found", writingcomparisonapp.ErrNotFound, consts.StatusNotFound, writingcomparisonapp.CodeNotFound},
 		{"revision", writingcomparisonapp.ErrRevisionConflict, consts.StatusConflict, writingcomparisonapp.CodeRevisionConflict},
 		{"state", writingcomparisonapp.ErrStateConflict, consts.StatusConflict, writingcomparisonapp.CodeStateConflict},
+		{"run active", &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeRunActive, Cause: writingcomparisonapp.ErrStateConflict}, consts.StatusConflict, writingcomparisonapp.CodeRunActive},
+		{"recovery failed", &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeRecoveryFailed, Cause: errors.New("unreadable")}, consts.StatusInternalServerError, writingcomparisonapp.CodeRecoveryFailed},
 		{"candidate count", &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeCandidateCount}, consts.StatusBadRequest, writingcomparisonapp.CodeCandidateCount},
 		{"target", &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeTargetPathInvalid}, consts.StatusBadRequest, writingcomparisonapp.CodeTargetPathInvalid},
 		{"profile", &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeProfileUnavailable}, consts.StatusBadRequest, writingcomparisonapp.CodeProfileUnavailable},
@@ -33,6 +35,9 @@ func TestWriteWritingComparisonErrorBranches(t *testing.T) {
 		{"skill changed", &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeSkillVersionChanged}, consts.StatusBadRequest, writingcomparisonapp.CodeSkillVersionChanged},
 		{"invalid", &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeInvalidRequest}, consts.StatusBadRequest, writingcomparisonapp.CodeInvalidRequest},
 		{"asset", &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeAssetCorrupt}, consts.StatusConflict, writingcomparisonapp.CodeAssetCorrupt},
+		{"context budget", &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeContextBudgetExceeded}, consts.StatusBadRequest, writingcomparisonapp.CodeContextBudgetExceeded},
+		{"empty output", &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeEmptyOutput}, consts.StatusBadGateway, writingcomparisonapp.CodeEmptyOutput},
+		{"model error", &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeModelError}, consts.StatusBadGateway, writingcomparisonapp.CodeModelError},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

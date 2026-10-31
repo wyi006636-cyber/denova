@@ -1,6 +1,7 @@
 package writingtemplates
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -63,22 +64,22 @@ func ValidateCategories(categories []Category) error {
 
 func validateTemplate(item Template, categories []Category) error {
 	if item.Version != SchemaVersion {
-		return fmt.Errorf("unsupported writing template schema version %d", item.Version)
+		return invalidTemplateError("unsupported writing template schema version %d", item.Version)
 	}
 	if !templateIDPattern.MatchString(item.ID) {
-		return fmt.Errorf("invalid writing template ID %q", item.ID)
+		return invalidTemplateError("invalid writing template ID %q", item.ID)
 	}
 	if item.ContentVersion < 1 {
-		return fmt.Errorf("writing template %q content_version must be positive", item.ID)
+		return invalidTemplateError("writing template %q content_version must be positive", item.ID)
 	}
 	if item.Kind != KindTemplate && item.Kind != KindTechnique {
-		return fmt.Errorf("writing template %q has unknown kind %q", item.ID, item.Kind)
+		return invalidTemplateError("writing template %q has unknown kind %q", item.ID, item.Kind)
 	}
 	if strings.TrimSpace(item.Body) == "" {
-		return fmt.Errorf("writing template %q body is required", item.ID)
+		return invalidTemplateError("writing template %q body is required", item.ID)
 	}
 	if len(item.Category) == 0 || len(item.Category) > 2 {
-		return fmt.Errorf("writing template %q category must contain one or two IDs", item.ID)
+		return invalidTemplateError("writing template %q category must contain one or two IDs", item.ID)
 	}
 	categoryMap := make(map[string]Category, len(categories))
 	for _, category := range categories {
@@ -86,45 +87,49 @@ func validateTemplate(item Template, categories []Category) error {
 	}
 	for index, categoryID := range item.Category {
 		if !categoryIDPattern.MatchString(categoryID) {
-			return fmt.Errorf("writing template %q has invalid category ID %q", item.ID, categoryID)
+			return invalidTemplateError("writing template %q has invalid category ID %q", item.ID, categoryID)
 		}
 		category, ok := categoryMap[categoryID]
 		if !ok {
-			return fmt.Errorf("%w: template %q refers to missing category %q", ErrCategoryMissing, item.ID, categoryID)
+			return errors.Join(ErrCategoryMissing, invalidTemplateError("template %q refers to missing category %q", item.ID, categoryID))
 		}
 		if index == 0 && category.Parent != "" {
-			return fmt.Errorf("writing template %q category must start at a root: %q", item.ID, categoryID)
+			return invalidTemplateError("writing template %q category must start at a root: %q", item.ID, categoryID)
 		}
 		if index == 1 {
 			if category.Parent != item.Category[0] {
-				return fmt.Errorf("writing template %q category path does not match parent %q", item.ID, item.Category[0])
+				return invalidTemplateError("writing template %q category path does not match parent %q", item.ID, item.Category[0])
 			}
 		}
 	}
 	last := categoryMap[item.Category[len(item.Category)-1]]
 	for _, category := range categories {
 		if category.Parent == last.ID {
-			return fmt.Errorf("writing template %q category %q is not a leaf", item.ID, last.ID)
+			return invalidTemplateError("writing template %q category %q is not a leaf", item.ID, last.ID)
 		}
 	}
 	seenTasks := make(map[string]struct{}, len(item.Tasks))
 	if len(item.Tasks) == 0 {
-		return fmt.Errorf("writing template %q must declare at least one task", item.ID)
+		return invalidTemplateError("writing template %q must declare at least one task", item.ID)
 	}
 	for _, task := range item.Tasks {
 		if _, ok := allowedTasks[task]; !ok {
-			return fmt.Errorf("writing template %q has unknown task %q", item.ID, task)
+			return invalidTemplateError("writing template %q has unknown task %q", item.ID, task)
 		}
 		if _, duplicate := seenTasks[task]; duplicate {
-			return fmt.Errorf("writing template %q repeats task %q", item.ID, task)
+			return invalidTemplateError("writing template %q repeats task %q", item.ID, task)
 		}
 		seenTasks[task] = struct{}{}
 	}
 	root := item.Category[0]
 	if (root == "draft") != (item.Kind == KindTemplate) {
-		return fmt.Errorf("writing template %q kind %q does not match root category %q", item.ID, item.Kind, root)
+		return invalidTemplateError("writing template %q kind %q does not match root category %q", item.ID, item.Kind, root)
 	}
 	return nil
+}
+
+func invalidTemplateError(format string, args ...any) error {
+	return fmt.Errorf("%w: %s", ErrInvalidTemplate, fmt.Sprintf(format, args...))
 }
 
 func normalizeTemplate(item Template) Template {

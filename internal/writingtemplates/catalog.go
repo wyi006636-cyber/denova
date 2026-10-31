@@ -24,7 +24,6 @@ type Catalog struct {
 }
 
 func NewCatalog(dataRoot string) *Catalog { return &Catalog{DataRoot: strings.TrimSpace(dataRoot)} }
-func New(dataRoot string) *Catalog        { return NewCatalog(dataRoot) }
 
 func (c *Catalog) List(ctx context.Context, filter ListFilter) ([]Template, error) {
 	if err := contextErr(ctx); err != nil {
@@ -98,8 +97,6 @@ func appendFiltered(items []Template, item Template, filter ListFilter) []Templa
 	return items
 }
 
-func (c *Catalog) ListAll(ctx context.Context) ([]Template, error) { return c.List(ctx, ListFilter{}) }
-
 func (c *Catalog) Get(ctx context.Context, id string) (Template, error) {
 	if err := contextErr(ctx); err != nil {
 		return Template{}, err
@@ -159,7 +156,7 @@ func (c *Catalog) Create(ctx context.Context, item Template) (Template, error) {
 	if autoID {
 		item.ID = newTemplateID(item.Title.EN)
 	} else if !strings.HasPrefix(item.ID, "user.") {
-		return Template{}, fmt.Errorf("user writing template ID must start with user.")
+		return Template{}, fmt.Errorf("%w: user writing template ID must start with user", ErrInvalidTemplate)
 	}
 	item.Version = SchemaVersion
 	if item.ContentVersion == 0 {
@@ -221,10 +218,10 @@ func (c *Catalog) Update(ctx context.Context, id string, item Template, baseRevi
 			item.ContentVersion = current.ContentVersion
 		}
 		if item.ContentVersion < current.ContentVersion {
-			return Template{}, fmt.Errorf("writing template %q content_version cannot decrease below %d", id, current.ContentVersion)
+			return Template{}, fmt.Errorf("%w: writing template %q content_version cannot decrease below %d", ErrInvalidTemplate, id, current.ContentVersion)
 		}
 		if item.Body != current.Body && item.ContentVersion <= current.ContentVersion {
-			return Template{}, fmt.Errorf("writing template %q body changes require content_version > %d", id, current.ContentVersion)
+			return Template{}, fmt.Errorf("%w: writing template %q body changes require content_version > %d", ErrInvalidTemplate, id, current.ContentVersion)
 		}
 		item.CreatedAt = firstNonEmpty(current.CreatedAt, item.CreatedAt, time.Now().UTC().Format(time.RFC3339Nano))
 		item.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
