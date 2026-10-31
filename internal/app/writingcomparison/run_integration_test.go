@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"denova/config"
@@ -83,7 +84,7 @@ func TestRunCandidatesAreReadOnlyAndPartialFailureKeepsCompletedCandidate(t *tes
 	cfg := config.Config{ModelEndpoints: []config.ModelEndpointSettings{{ID: "fixture", Provider: string(providers.ProviderOpenAICompatible), Protocol: string(providers.ProtocolOpenAIChatCompletions), BaseURL: server.URL + "/v1", APIKey: "test-key"}}, ModelProfiles: []config.ModelProfileSettings{{ID: "writer-a", EndpointID: "fixture", Model: "fixture-a"}, {ID: "writer-b", EndpointID: "fixture", Model: "fixture-b"}}}
 	host := testHost{cfg: cfg, dirs: []skills.Directory{{Scope: skills.ScopeWorkspace, Path: skillRoot}}}
 	service := NewService(host, WithTemplateResolver(fixtureTemplateResolver{}))
-	input := CreateInput{TargetPath: "chapters/ch00002.md", ChapterTask: ChapterTask{Text: "Write the chapter", Source: "author"}, Candidates: []CandidateInput{{ProfileID: "writer-a", Source: WritingSourceRef{Kind: "template", ID: "fixture", Version: "1"}}, {ProfileID: "writer-b", Source: WritingSourceRef{Kind: "skill", ID: "fixture-skill"}}}, ReviewModelProfileID: "writer-a", FinalWriterProfileID: "writer-b"}
+	input := CreateInput{TargetPath: "chapters/ch00002.md", ChapterTask: ChapterTask{Text: "Write the chapter", Source: "author"}, Candidates: []CandidateInput{{ProfileID: "writer-a", Source: WritingSourceRef{Kind: "skill", ID: "fixture-skill"}}, {ProfileID: "writer-b", Source: WritingSourceRef{Kind: "template", ID: "fixture", Version: "1"}}}, ReviewModelProfileID: "writer-a", FinalWriterProfileID: "writer-b"}
 	task, err := service.Create(context.Background(), layout, input)
 	if err != nil {
 		t.Fatal(err)
@@ -128,7 +129,7 @@ func TestRunCandidatesAreReadOnlyAndPartialFailureKeepsCompletedCandidate(t *tes
 			t.Fatalf("candidate request %d is not the two-message read-only contract: %+v", index, request)
 		}
 	}
-	if requests[0].Messages[0].Content != prompts.ComposeCandidateDraftInstruction("Write prose.", "") {
+	if requests[0].Messages[0].Content != prompts.ComposeCandidateDraftInstruction("---\nname: fixture-skill\ndescription: fixture\n---\nWrite a complete chapter.", "") {
 		t.Fatalf("candidate system instruction diverges from preview contract: %q", requests[0].Messages[0].Content)
 	}
 }
@@ -169,6 +170,50 @@ func TestRecoverMarksStartedCandidateIncompleteWithoutReplay(t *testing.T) {
 	}
 	if recovered.Execution != ExecutionIncomplete || recovered.Candidates[0].Status != CandidateIncomplete {
 		t.Fatalf("recovered task = %+v", recovered)
+	}
+}
+
+func TestRecoveryDoesNotReplayCandidateModelCall(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": "fixture", "model": "fixture-a", "choices": []any{map[string]any{"index": 0, "message": map[string]any{"role": "assistant", "content": "candidate"}, "finish_reason": "stop"}}})
+	}))
+	defer server.Close()
+	layout := testLayout(t)
+	cfg := config.Config{ModelEndpoints: []config.ModelEndpointSettings{{ID: "fixture", Provider: string(providers.ProviderOpenAICompatible), Protocol: string(providers.ProtocolOpenAIChatCompletions), BaseURL: server.URL + "/v1", APIKey: "test-key"}}, ModelProfiles: []config.ModelProfileSettings{{ID: "writer-a", EndpointID: "fixture", Model: "fixture-a"}, {ID: "writer-b", EndpointID: "fixture", Model: "fixture-b"}}}
+	service := NewService(testHost{cfg: cfg}, WithTemplateResolver(fixtureTemplateResolver{}))
+	task, err := service.Create(context.Background(), layout, CreateInput{TargetPath: "chapters/ch00001.md", ChapterTask: ChapterTask{Text: "task"}, Candidates: []CandidateInput{{ProfileID: "writer-a", Source: WritingSourceRef{Kind: "template", ID: "fixture", Version: "1"}}, {ProfileID: "writer-b", Source: WritingSourceRef{Kind: "template", ID: "fixture", Version: "1"}}}, ReviewModelProfileID: "writer-a", FinalWriterProfileID: "writer-b"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	queued, err := service.Run(context.Background(), layout, task.ID, task.Revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handle, err := NewStore(layout).Open(context.Background(), queued.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	queued, err = handle.Append(context.Background(), queued.Revision, Event{Kind: EventExecutionChanged, FromExecution: ExecutionQueued, ToExecution: ExecutionRunning})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := handle.Append(context.Background(), queued.Revision, Event{Kind: EventCandidateStarted, CandidateID: "candidate-1"}); err != nil {
+		t.Fatal(err)
+	}
+	_ = handle.Close()
+	restartedService := NewService(testHost{cfg: cfg}, WithTemplateResolver(fixtureTemplateResolver{}))
+	if err := restartedService.Recover(context.Background(), layout); err != nil {
+		t.Fatal(err)
+	}
+	recovered, err := restartedService.Get(context.Background(), layout, queued.ID)
+	if err != nil || recovered.Candidates[0].Status != CandidateIncomplete {
+		t.Fatalf("recovered=%+v err=%v", recovered, err)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("recovery replayed %d model calls", got)
 	}
 }
 
