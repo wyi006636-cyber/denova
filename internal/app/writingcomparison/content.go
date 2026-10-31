@@ -10,12 +10,13 @@ import (
 	projectdomain "denova/internal/project"
 )
 
+// CandidateContent is one immutable candidate revision. Content is always the
+// complete verified asset; the API never returns a partial body.
 type CandidateContent struct {
 	CandidateID string `json:"candidate_id"`
 	Revision    int    `json:"revision"`
 	SHA256      string `json:"sha256"`
 	Content     string `json:"content"`
-	Truncated   bool   `json:"truncated"`
 }
 
 func (service *Service) CandidateContent(ctx context.Context, layout projectdomain.Layout, taskID, candidateID string, revision int) (CandidateContent, error) {

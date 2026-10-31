@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	agentrun "denova/internal/agents/run"
 	"denova/internal/api/sse"
 	writingcomparisonapp "denova/internal/app/writingcomparison"
+	projectdomain "denova/internal/project"
 )
 
 func (h *Handlers) HandleWritingComparisonCandidateOptions(ctx context.Context, c *app.RequestContext) {
@@ -27,8 +29,26 @@ func (h *Handlers) HandleWritingComparisonCandidateOptions(ctx context.Context, 
 	writeJSON(c, consts.StatusOK, map[string]any{"project_id": scope.ProjectID, "profiles": options.Profiles, "max_candidates": options.MaxCandidates})
 }
 
-func (h *Handlers) HandleWritingComparisonRun(ctx context.Context, c *app.RequestContext) {
+// requireWritingComparisonScope resolves the Project scope and, on the first
+// comparison request for that Project, marks runs interrupted by a previous
+// process as incomplete. Recovery belongs to the comparison routes that read
+// or drive task state (list, detail, run, stream, content); a failure is
+// reported there with a stable code and never affects unrelated Project
+// requests such as writing, game, or chat.
+func (h *Handlers) requireWritingComparisonScope(ctx context.Context, c *app.RequestContext) (projectdomain.Layout, bool) {
 	scope, ok := requireProjectScope(c)
+	if !ok {
+		return projectdomain.Layout{}, false
+	}
+	if err := h.app.WritingComparison().RecoverProjectOnce(ctx, scope); err != nil {
+		writeWritingComparisonError(c, err)
+		return projectdomain.Layout{}, false
+	}
+	return scope, true
+}
+
+func (h *Handlers) HandleWritingComparisonRun(ctx context.Context, c *app.RequestContext) {
+	scope, ok := h.requireWritingComparisonScope(ctx, c)
 	if !ok {
 		return
 	}
@@ -69,7 +89,9 @@ func (h *Handlers) HandleWritingComparisonRun(ctx context.Context, c *app.Reques
 		emit(agentrun.Event{Type: "done", Data: map[string]any{"kind": "comparison.completed", "task_id": id}})
 	})
 	if err != nil {
-		_ = h.app.WritingComparison().RegistrationFailed(ctx, scope, id)
+		if rollbackErr := h.app.WritingComparison().RegistrationFailed(ctx, scope, id); rollbackErr != nil {
+			slog.WarnContext(ctx, "writing comparison registration rollback failed", "task_id", id, "error", rollbackErr)
+		}
 		writeWritingComparisonError(c, err)
 		return
 	}
@@ -77,7 +99,7 @@ func (h *Handlers) HandleWritingComparisonRun(ctx context.Context, c *app.Reques
 }
 
 func (h *Handlers) HandleWritingComparisonStream(ctx context.Context, c *app.RequestContext) {
-	scope, ok := requireProjectScope(c)
+	scope, ok := h.requireWritingComparisonScope(ctx, c)
 	if !ok {
 		return
 	}
@@ -90,7 +112,7 @@ func (h *Handlers) HandleWritingComparisonStream(ctx context.Context, c *app.Req
 }
 
 func (h *Handlers) HandleWritingComparisonCandidateContent(ctx context.Context, c *app.RequestContext) {
-	scope, ok := requireProjectScope(c)
+	scope, ok := h.requireWritingComparisonScope(ctx, c)
 	if !ok {
 		return
 	}
@@ -130,7 +152,7 @@ func (h *Handlers) HandleWritingComparisonCreate(ctx context.Context, c *app.Req
 }
 
 func (h *Handlers) HandleWritingComparisonList(ctx context.Context, c *app.RequestContext) {
-	scope, ok := requireProjectScope(c)
+	scope, ok := h.requireWritingComparisonScope(ctx, c)
 	if !ok {
 		return
 	}
@@ -152,7 +174,7 @@ func (h *Handlers) HandleWritingComparisonList(ctx context.Context, c *app.Reque
 }
 
 func (h *Handlers) HandleWritingComparisonDetail(ctx context.Context, c *app.RequestContext) {
-	scope, ok := requireProjectScope(c)
+	scope, ok := h.requireWritingComparisonScope(ctx, c)
 	if !ok {
 		return
 	}
@@ -177,8 +199,14 @@ func writeWritingComparisonError(c *app.RequestContext, err error) {
 		status, key, code = consts.StatusNotFound, "api.writingComparison.notFound", writingcomparisonapp.CodeNotFound
 	case errors.Is(err, writingcomparisonapp.ErrRevisionConflict):
 		status, key, code = consts.StatusConflict, "api.writingComparison.revisionConflict", writingcomparisonapp.CodeRevisionConflict
+	// run_active is a state conflict subtype; it must win before the generic
+	// state branch so clients can show "still generating" instead of an error.
+	case code == writingcomparisonapp.CodeRunActive:
+		status, key = consts.StatusConflict, "api.writingComparison.runActive"
 	case errors.Is(err, writingcomparisonapp.ErrStateConflict):
 		status, key, code = consts.StatusConflict, "api.writingComparison.stateConflict", writingcomparisonapp.CodeStateConflict
+	case code == writingcomparisonapp.CodeRecoveryFailed:
+		status, key = consts.StatusInternalServerError, "api.writingComparison.recoveryFailed"
 	case code == writingcomparisonapp.CodeCandidateCount:
 		status, key = consts.StatusBadRequest, "api.writingComparison.candidateCount"
 	case code == writingcomparisonapp.CodeTargetPathInvalid:

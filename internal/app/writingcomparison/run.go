@@ -36,7 +36,7 @@ func (service *Service) Run(ctx context.Context, layout projectdomain.Layout, id
 		return Task{}, &RevisionConflictError{Expected: expectedRevision, Actual: task.Revision}
 	}
 	if task.Execution == ExecutionQueued || task.Execution == ExecutionRunning {
-		return Task{}, domainError(CodeStateConflict, "comparison run is already active", ErrStateConflict, nil)
+		return Task{}, domainError(CodeRunActive, "comparison run is already active", ErrStateConflict, nil)
 	}
 	if task.Phase != PhaseConfiguring && task.Phase != PhaseGenerating {
 		if task.Execution != ExecutionIncomplete {
@@ -302,10 +302,19 @@ func taskErrorFrom(err error) *TaskError {
 }
 
 func (service *Service) Recover(ctx context.Context, layout projectdomain.Layout) error {
-	entries, err := os.ReadDir(layout.ComparisonsDir())
+	// Stat first: on Windows, reading a regular file as a directory reports
+	// "not exist", which would hide a corrupt Project Store as "no tasks".
+	info, err := os.Stat(layout.ComparisonsDir())
 	if os.IsNotExist(err) {
 		return nil
 	}
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("writing comparisons path is not a directory: %s", layout.ComparisonsDir())
+	}
+	entries, err := os.ReadDir(layout.ComparisonsDir())
 	if err != nil {
 		return err
 	}

@@ -57,8 +57,11 @@ func NewService(host Host, options ...ServiceOption) *Service {
 	return service
 }
 
-// RecoverProjectOnce performs the startup/first-access scan exactly once for
-// one stable Project Store. Subsequent list/detail reads remain pure.
+// RecoverProjectOnce performs the first-access scan exactly once for one
+// stable Project Store. Only comparison routes call it, so a failure is
+// reported there with CodeRecoveryFailed and never blocks unrelated Project
+// requests. A failed scan is not remembered and is retried on the next call.
+// Subsequent list/detail reads remain pure.
 func (service *Service) RecoverProjectOnce(ctx context.Context, layout projectdomain.Layout) error {
 	if service == nil {
 		return nil
@@ -70,7 +73,8 @@ func (service *Service) RecoverProjectOnce(ctx context.Context, layout projectdo
 		return nil
 	}
 	if err := service.Recover(ctx, layout); err != nil {
-		return err
+		slog.WarnContext(ctx, "writing comparison project recovery failed", "project_id", layout.ProjectID, "error", err)
+		return domainError(CodeRecoveryFailed, "interrupted comparison runs could not be recovered", err, nil)
 	}
 	service.recoveredProjects[key] = struct{}{}
 	return nil

@@ -217,6 +217,32 @@ func TestRecoveryDoesNotReplayCandidateModelCall(t *testing.T) {
 	}
 }
 
+func TestRunWhileActiveReturnsRunActiveCode(t *testing.T) {
+	layout := testLayout(t)
+	service := NewService(testHost{cfg: testConfig()})
+	task, err := NewStore(layout).Create(context.Background(), testTask(layout))
+	if err != nil {
+		t.Fatal(err)
+	}
+	queued, err := service.Run(context.Background(), layout, task.ID, task.Revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The latest revision passes the CAS check, so only the active-run guard
+	// can reject this request.
+	_, err = service.Run(context.Background(), layout, queued.ID, queued.Revision)
+	if code := ErrorCode(err); code != CodeRunActive {
+		t.Fatalf("second run code=%q err=%v, want %q", code, err, CodeRunActive)
+	}
+	if !errors.Is(err, ErrStateConflict) {
+		t.Fatalf("run_active must remain a state conflict subtype: %v", err)
+	}
+	current, err := service.Get(context.Background(), layout, queued.ID)
+	if err != nil || current.Revision != queued.Revision || current.Execution != ExecutionQueued {
+		t.Fatalf("rejected rerun changed the task: %+v err=%v", current, err)
+	}
+}
+
 func TestRegistrationFailureReleasesActiveRunAndAllowsRunAgain(t *testing.T) {
 	layout := testLayout(t)
 	service := NewService(testHost{cfg: testConfig()})

@@ -23,8 +23,15 @@ const (
 	CodeNotFound                   = "not_found"
 	CodeRevisionConflict           = "revision_conflict"
 	CodeStateConflict              = "state_conflict"
-	CodeAssetCorrupt               = "asset_corrupt"
-	CodeInternal                   = "internal"
+	// CodeRunActive means the task is queued or running. Clients show it as
+	// "still generating", distinct from an illegal state transition.
+	CodeRunActive    = "run_active"
+	CodeAssetCorrupt = "asset_corrupt"
+	// CodeRecoveryFailed means the once-per-Project interrupted-run scan could
+	// not complete. Only comparison routes report it; it is retried on the
+	// next comparison request.
+	CodeRecoveryFailed = "recovery_failed"
+	CodeInternal       = "internal"
 )
 
 // ErrorCode returns the stable public code carried by an application error.
