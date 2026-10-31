@@ -3,7 +3,10 @@ package writingtemplates
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
+
+	"denova/internal/agents/prompts"
 )
 
 func TestPreviewHasStableThreeSegmentContract(t *testing.T) {
@@ -31,6 +34,14 @@ func TestPreviewHasStableThreeSegmentContract(t *testing.T) {
 	defaultPreview, err := catalog.Preview(context.Background(), "draft.payoff-climax", "  ")
 	if err != nil || defaultPreview.Segments[2].Text != TargetHintText {
 		t.Fatalf("default target hint = %+v, err=%v", defaultPreview, err)
+	}
+	item, err := catalog.ResolveForCandidate(context.Background(), "draft.payoff-climax", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := []string{defaultPreview.Segments[0].Text, defaultPreview.Segments[1].Text, defaultPreview.Segments[2].Text}
+	if got, want := strings.Join(parts, "\n\n"), prompts.ComposeCandidateDraftInstruction(item.Body, ""); got != want {
+		t.Fatalf("preview/system mismatch: got %q want %q", got, want)
 	}
 }
 

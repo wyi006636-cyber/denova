@@ -10,6 +10,7 @@ import (
 	"denova/config"
 	"denova/internal/agents/skills"
 	projectdomain "denova/internal/project"
+	"denova/internal/writingtemplates"
 
 	"github.com/alfredxw/denova/agent/model/providers"
 )
@@ -29,7 +30,7 @@ func (host testHost) SkillDirectories(context.Context, projectdomain.Layout) ([]
 type testSourceResolver struct{}
 
 func (testSourceResolver) ResolveCandidateSource(context.Context, WritingSourceRef) (WritingSourceSnapshot, error) {
-	return WritingSourceSnapshot{Kind: "skill", ID: "novel-lite", Version: "v1", Scope: "builtin", Title: "Novel Lite", ContentSHA256: "source-hash"}, nil
+	return WritingSourceSnapshot{Kind: "skill", ID: "novel-lite", Version: "v1", Scope: "builtin", Title: writingtemplates.Localized{ZH: "Novel Lite", EN: "Novel Lite"}, ContentSHA256: "source-hash"}, nil
 }
 
 type selectiveSourceResolver struct{}
@@ -38,7 +39,7 @@ func (selectiveSourceResolver) ResolveCandidateSource(_ context.Context, ref Wri
 	if ref.Kind == "template" {
 		return WritingSourceSnapshot{}, &Error{Code: CodeTemplateCatalogUnavailable, Message: "template catalog unavailable"}
 	}
-	return WritingSourceSnapshot{Kind: "skill", ID: "novel-lite", Version: "v1", Scope: "builtin", Title: "Novel Lite", ContentSHA256: "source-hash"}, nil
+	return WritingSourceSnapshot{Kind: "skill", ID: "novel-lite", Version: "v1", Scope: "builtin", Title: writingtemplates.Localized{ZH: "Novel Lite", EN: "Novel Lite"}, ContentSHA256: "source-hash"}, nil
 }
 
 func testConfig() config.Config {

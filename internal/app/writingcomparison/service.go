@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"denova/config"
@@ -39,10 +40,12 @@ func WithTemplateResolver(resolver WritingSourceResolver) ServiceOption {
 type Service struct {
 	host             Host
 	templateResolver WritingSourceResolver
+	activeMu         sync.Mutex
+	activeRuns       map[string]struct{}
 }
 
 func NewService(host Host, options ...ServiceOption) *Service {
-	service := &Service{host: host}
+	service := &Service{host: host, activeRuns: make(map[string]struct{})}
 	for _, option := range options {
 		if option != nil {
 			option(service)
@@ -153,6 +156,9 @@ func (service *Service) Create(ctx context.Context, layout projectdomain.Layout,
 }
 
 func (service *Service) Get(ctx context.Context, layout projectdomain.Layout, id string) (Task, error) {
+	if err := service.Recover(ctx, layout); err != nil {
+		return Task{}, err
+	}
 	if err := projectdomain.ValidateID(id); err != nil {
 		return Task{}, ErrNotFound
 	}
@@ -160,10 +166,45 @@ func (service *Service) Get(ctx context.Context, layout projectdomain.Layout, id
 }
 
 func (service *Service) List(ctx context.Context, layout projectdomain.Layout, options ListOptions) ([]TaskSummary, error) {
+	if err := service.Recover(ctx, layout); err != nil {
+		return nil, err
+	}
 	if options.Phase != "" && !options.Phase.Valid() {
 		return nil, domainError(CodeInvalidRequest, "Comparison task phase is invalid", ErrInvalidRequest, map[string]any{"phase": options.Phase})
 	}
 	return NewStore(layout).List(ctx, options)
+}
+
+func comparisonRunKey(layout projectdomain.Layout, id string) string {
+	return layout.ProjectID + "\x00" + strings.TrimSpace(id)
+}
+
+func (service *Service) markRunActive(layout projectdomain.Layout, id string) {
+	if service == nil {
+		return
+	}
+	service.activeMu.Lock()
+	service.activeRuns[comparisonRunKey(layout, id)] = struct{}{}
+	service.activeMu.Unlock()
+}
+
+func (service *Service) clearRunActive(layout projectdomain.Layout, id string) {
+	if service == nil {
+		return
+	}
+	service.activeMu.Lock()
+	delete(service.activeRuns, comparisonRunKey(layout, id))
+	service.activeMu.Unlock()
+}
+
+func (service *Service) isRunActive(layout projectdomain.Layout, id string) bool {
+	if service == nil {
+		return false
+	}
+	service.activeMu.Lock()
+	defer service.activeMu.Unlock()
+	_, ok := service.activeRuns[comparisonRunKey(layout, id)]
+	return ok
 }
 
 func (service *Service) config(ctx context.Context, layout projectdomain.Layout) (config.Config, error) {
@@ -377,7 +418,7 @@ func supportedProtocol(value string) bool {
 
 func endpointRequiresAPIKey(provider, protocol, baseURL string) bool {
 	parsed, err := url.Parse(strings.TrimSpace(baseURL))
-	if err == nil && parsed.Hostname() != "" && isLoopbackHost(parsed.Hostname()) {
+	if err == nil && parsed.Hostname() != "" && isLocalNetworkHost(parsed.Hostname()) {
 		return false
 	}
 	// All currently supported hosted protocols authenticate with an API key.
@@ -392,6 +433,20 @@ func isLoopbackHost(host string) bool {
 		return true
 	}
 	return net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback()
+}
+
+func isLocalNetworkHost(host string) bool {
+	if isLoopbackHost(host) || strings.HasSuffix(strings.ToLower(host), ".local") {
+		return true
+	}
+	ip := net.ParseIP(strings.Trim(host, "[]"))
+	if ip == nil {
+		return false
+	}
+	if ip.IsPrivate() {
+		return true
+	}
+	return ip.IsLinkLocalUnicast()
 }
 
 func firstNonEmpty(values ...string) string {

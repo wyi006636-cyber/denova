@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"denova/internal/agents/skills"
+	"denova/internal/writingtemplates"
 )
 
 const (
@@ -158,13 +159,16 @@ func (ref WritingSourceRef) identifier() string {
 }
 
 type WritingSourceSnapshot struct {
-	Kind          string                  `json:"kind"`
-	ID            string                  `json:"id"`
-	Version       string                  `json:"version"`
-	Scope         string                  `json:"scope"`
-	Title         string                  `json:"title,omitempty"`
-	ContentSHA256 string                  `json:"content_sha256"`
-	Techniques    []WritingSourceSnapshot `json:"techniques,omitempty"` // reserved for #27
+	Kind          string                     `json:"kind"`
+	ID            string                     `json:"id"`
+	Version       string                     `json:"version"`
+	Scope         string                     `json:"scope"`
+	Title         writingtemplates.Localized `json:"title"`
+	ContentSHA256 string                     `json:"content_sha256"`
+	// Body is the exact source text admitted at task creation. Keeping it with
+	// the snapshot prevents a later Skill/template edit from changing a run.
+	Body       string                  `json:"body,omitempty"`
+	Techniques []WritingSourceSnapshot `json:"techniques,omitempty"` // reserved for #27
 }
 
 // WritingSourceResolver is intentionally tiny so T1's template catalog can
@@ -459,7 +463,8 @@ func (resolver *skillSourceResolver) ResolveCandidateSource(ctx context.Context,
 		}
 		return WritingSourceSnapshot{
 			Kind: "skill", ID: name, Version: document.Revision, Scope: string(scope),
-			Title: document.Name, ContentSHA256: sha256Text(document.Content),
+			Title:         writingtemplates.Localized{ZH: document.Name, EN: document.Name},
+			ContentSHA256: sha256Text(document.Content), Body: document.Content,
 		}, nil
 	}
 	return WritingSourceSnapshot{}, domainError("skill_missing", "Skill was not found", lastErr, map[string]any{"name": name})

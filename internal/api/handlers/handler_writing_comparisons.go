@@ -9,6 +9,8 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 
+	agentrun "denova/internal/agents/run"
+	"denova/internal/api/sse"
 	writingcomparisonapp "denova/internal/app/writingcomparison"
 )
 
@@ -23,6 +25,89 @@ func (h *Handlers) HandleWritingComparisonCandidateOptions(ctx context.Context, 
 		return
 	}
 	writeJSON(c, consts.StatusOK, map[string]any{"project_id": scope.ProjectID, "profiles": options.Profiles, "max_candidates": options.MaxCandidates})
+}
+
+func (h *Handlers) HandleWritingComparisonRun(ctx context.Context, c *app.RequestContext) {
+	scope, ok := requireProjectScope(c)
+	if !ok {
+		return
+	}
+	var request struct {
+		ExpectedRevision uint64 `json:"expected_revision"`
+	}
+	if err := decodeStrictJSONRequest(c.Request.Body(), &request); err != nil {
+		writeWritingComparisonError(c, &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeInvalidRequest, Cause: writingcomparisonapp.ErrInvalidRequest})
+		return
+	}
+	id := strings.TrimSpace(c.Param("id"))
+	task, err := h.app.WritingComparison().Run(ctx, scope, id, request.ExpectedRevision)
+	if err != nil {
+		writeWritingComparisonError(c, err)
+		return
+	}
+	display, err := h.app.StartWritingComparisonRun(ctx, scope, id, func(runCtx context.Context, emit func(agentrun.Event)) {
+		runErr := h.app.WritingComparison().Execute(runCtx, scope, id, func(event writingcomparisonapp.Event) {
+			data := map[string]any{"kind": event.Kind, "task_id": id}
+			if event.Task != nil {
+				data["task"] = event.Task
+			}
+			if event.CandidateID != "" {
+				data["candidate_id"] = event.CandidateID
+			}
+			if event.Revision != nil {
+				data["revision"] = event.Revision
+			}
+			if event.Error != nil {
+				data["error"] = event.Error
+			}
+			emit(agentrun.Event{Type: string(event.Kind), Data: data})
+		})
+		if runErr != nil {
+			emit(agentrun.Event{Type: "error", Data: map[string]any{"kind": "comparison.failed", "task_id": id, "message": runErr.Error(), "code": writingcomparisonapp.CodeInternal}})
+			return
+		}
+		emit(agentrun.Event{Type: "done", Data: map[string]any{"kind": "comparison.completed", "task_id": id}})
+	})
+	if err != nil {
+		writeWritingComparisonError(c, err)
+		return
+	}
+	writeJSON(c, consts.StatusAccepted, map[string]any{"project_id": scope.ProjectID, "task": task, "task_id": display.ID(), "stream_cursor": display.Cursor()})
+}
+
+func (h *Handlers) HandleWritingComparisonStream(ctx context.Context, c *app.RequestContext) {
+	scope, ok := requireProjectScope(c)
+	if !ok {
+		return
+	}
+	task := h.app.WritingComparisonDisplayTask(scope.ProjectID, strings.TrimSpace(c.Param("id")))
+	if task == nil {
+		writeWritingComparisonError(c, writingcomparisonapp.ErrNotFound)
+		return
+	}
+	sse.StreamTask(ctx, c, task)
+}
+
+func (h *Handlers) HandleWritingComparisonCandidateContent(ctx context.Context, c *app.RequestContext) {
+	scope, ok := requireProjectScope(c)
+	if !ok {
+		return
+	}
+	revision := 0
+	if raw := strings.TrimSpace(c.Query("revision")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 {
+			writeWritingComparisonError(c, &writingcomparisonapp.Error{Code: writingcomparisonapp.CodeInvalidRequest, Cause: writingcomparisonapp.ErrInvalidRequest})
+			return
+		}
+		revision = parsed
+	}
+	content, err := h.app.WritingComparison().CandidateContent(ctx, scope, strings.TrimSpace(c.Param("id")), strings.TrimSpace(c.Param("candidate_id")), revision)
+	if err != nil {
+		writeWritingComparisonError(c, err)
+		return
+	}
+	writeJSON(c, consts.StatusOK, content)
 }
 
 func (h *Handlers) HandleWritingComparisonCreate(ctx context.Context, c *app.RequestContext) {
