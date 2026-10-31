@@ -106,13 +106,15 @@ func writeWritingTemplateError(c *app.RequestContext, err error) {
 	args := []any{"detail", strings.TrimSpace(err.Error())}
 	switch {
 	case errors.Is(err, writingtemplates.ErrNotFound):
-		status, code, key, args = consts.StatusNotFound, "template_not_found", "api.writingTemplates.notFound", nil
+		status, code, key, args = consts.StatusNotFound, "template_missing", "api.writingTemplates.notFound", nil
 	case errors.Is(err, writingtemplates.ErrRevisionConflict):
 		status, code, key, args = consts.StatusConflict, "revision_conflict", "api.writingTemplates.revisionConflict", nil
+	case errors.Is(err, writingtemplates.ErrCategoryMissing):
+		code, key, args = "category_missing", "api.writingTemplates.categoryMissing", nil
 	case errors.Is(err, writingtemplates.ErrVersionRequired):
-		code, key, args = "version_required", "api.writingTemplates.versionRequired", nil
+		code, key, args = "template_version_required", "api.writingTemplates.versionRequired", nil
 	case errors.Is(err, writingtemplates.ErrVersionChanged):
-		status, code, key, args = consts.StatusConflict, "version_changed", "api.writingTemplates.versionChanged", nil
+		code, key, args = "template_version_changed", "api.writingTemplates.versionChanged", nil
 	case errors.Is(err, writingtemplates.ErrNotUsableForCandidate):
 		code, key, args = "template_not_usable", "api.writingTemplates.notUsableForCandidate", nil
 	case errors.Is(err, writingtemplates.ErrDataRootRequired):

@@ -90,7 +90,7 @@ func validateTemplate(item Template, categories []Category) error {
 		}
 		category, ok := categoryMap[categoryID]
 		if !ok {
-			return fmt.Errorf("writing template %q refers to missing category %q", item.ID, categoryID)
+			return fmt.Errorf("%w: template %q refers to missing category %q", ErrCategoryMissing, item.ID, categoryID)
 		}
 		if index == 0 && category.Parent != "" {
 			return fmt.Errorf("writing template %q category must start at a root: %q", item.ID, categoryID)
@@ -108,6 +108,9 @@ func validateTemplate(item Template, categories []Category) error {
 		}
 	}
 	seenTasks := make(map[string]struct{}, len(item.Tasks))
+	if len(item.Tasks) == 0 {
+		return fmt.Errorf("writing template %q must declare at least one task", item.ID)
+	}
 	for _, task := range item.Tasks {
 		if _, ok := allowedTasks[task]; !ok {
 			return fmt.Errorf("writing template %q has unknown task %q", item.ID, task)
@@ -116,6 +119,10 @@ func validateTemplate(item Template, categories []Category) error {
 			return fmt.Errorf("writing template %q repeats task %q", item.ID, task)
 		}
 		seenTasks[task] = struct{}{}
+	}
+	root := item.Category[0]
+	if (root == "draft") != (item.Kind == KindTemplate) {
+		return fmt.Errorf("writing template %q kind %q does not match root category %q", item.ID, item.Kind, root)
 	}
 	return nil
 }

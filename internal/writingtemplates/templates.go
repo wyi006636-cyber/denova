@@ -6,6 +6,7 @@ package writingtemplates
 import (
 	"context"
 	"errors"
+	"strings"
 )
 
 const SchemaVersion = 1
@@ -24,6 +25,7 @@ const (
 
 var (
 	ErrNotFound              = errors.New("writing template not found")
+	ErrCategoryMissing       = errors.New("writing template category missing")
 	ErrNotUsableForCandidate = errors.New("writing template cannot drive a candidate")
 	ErrVersionRequired       = errors.New("writing template content version is required")
 	ErrVersionChanged        = errors.New("writing template content version changed")
@@ -62,7 +64,7 @@ type Template struct {
 	Tasks          []string  `json:"tasks"`
 	// Body is English. Quoted Chinese terms, word lists, and example sentences
 	// may appear as data; the instruction itself stays in English.
-	Body           string   `json:"body"`
+	Body           string   `json:"body,omitempty"`
 	Preview        string   `json:"preview,omitempty"`
 	RecommendedFor []string `json:"recommended_for,omitempty"`
 
@@ -76,6 +78,9 @@ type Template struct {
 	CreatedAt         string `json:"created_at,omitempty"`
 	UpdatedAt         string `json:"updated_at,omitempty"`
 	BuiltinOverridden bool   `json:"builtin_overridden,omitempty"`
+	// BuiltinContentVersion is derived for a user override so clients can tell
+	// that the release copy has advanced without replacing the author's text.
+	BuiltinContentVersion int `json:"builtin_content_version,omitempty"`
 }
 
 // Category is one node in the flat, at-most-two-level category table.
@@ -158,7 +163,7 @@ func (c *Catalog) Preview(ctx context.Context, id string, targetHint string) (Pr
 	if err != nil {
 		return PreviewResponse{}, err
 	}
-	if stringsTrim(targetHint) == "" {
+	if strings.TrimSpace(targetHint) == "" {
 		targetHint = TargetHintText
 	}
 	return PreviewResponse{Segments: []PreviewSegment{
@@ -173,16 +178,6 @@ func contextErr(ctx context.Context) error {
 		return nil
 	}
 	return ctx.Err()
-}
-
-func stringsTrim(value string) string {
-	for len(value) > 0 && (value[0] == ' ' || value[0] == '\t' || value[0] == '\r' || value[0] == '\n') {
-		value = value[1:]
-	}
-	for len(value) > 0 && (value[len(value)-1] == ' ' || value[len(value)-1] == '\t' || value[len(value)-1] == '\r' || value[len(value)-1] == '\n') {
-		value = value[:len(value)-1]
-	}
-	return value
 }
 
 func hasTask(tasks []string, target string) bool {

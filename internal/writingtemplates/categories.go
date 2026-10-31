@@ -12,11 +12,14 @@ func (c *Catalog) Categories(ctx context.Context) ([]Category, error) {
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
-	if err := c.ensureMaterialized(); err != nil {
+	if err := c.ensureDir(ctx); err != nil {
 		return nil, err
 	}
 	data, err := os.ReadFile(filepath.Join(c.dir(), "categories.json"))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return builtinCategories()
+		}
 		return nil, err
 	}
 	categories, err := decodeCategories(data)
@@ -40,7 +43,10 @@ func decodeCategories(data []byte) ([]Category, error) {
 	return categories, nil
 }
 
-func (c *Catalog) categoriesForValidation() ([]Category, error) {
+func (c *Catalog) categoriesForValidation(ctx context.Context) ([]Category, error) {
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
 	data, err := os.ReadFile(filepath.Join(c.dir(), "categories.json"))
 	if err == nil {
 		if categories, decodeErr := decodeCategories(data); decodeErr == nil {
