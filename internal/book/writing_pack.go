@@ -14,13 +14,17 @@ func WritingContextPackPaths(state *State, targetPath string) []string {
 	if state == nil {
 		return nil
 	}
-	paths := []string{"ideas.md", "setting/outline.md", "setting/progress.md", "setting/character-states.md", "setting/story-ledger.md", "setting/case-index.md", "setting/lore/items.json"}
-	if targetPath = filepath.ToSlash(strings.TrimSpace(targetPath)); targetPath != "" {
+	targetPath = filepath.ToSlash(strings.TrimSpace(targetPath))
+	paths := make([]string, 0, 24)
+	// The current target and its immediate predecessor carry the most useful
+	// continuity signal, so they must win before indexes when the budget is
+	// tight.
+	if targetPath != "" {
 		paths = append(paths, targetPath)
 	}
 	entries, err := os.ReadDir(filepath.Join(state.Workspace(), "chapters"))
+	chapters := []string{}
 	if err == nil {
-		chapters := make([]string, 0, len(entries))
 		for _, entry := range entries {
 			if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
 				continue
@@ -28,11 +32,26 @@ func WritingContextPackPaths(state *State, targetPath string) []string {
 			chapters = append(chapters, filepath.ToSlash(filepath.Join("chapters", entry.Name())))
 		}
 		sort.Strings(chapters)
-		if len(chapters) > 12 {
-			chapters = chapters[len(chapters)-12:]
+		previous := ""
+		for _, chapter := range chapters {
+			if chapter < targetPath {
+				previous = chapter
+			}
 		}
-		paths = append(paths, chapters...)
+		if previous != "" && previous != targetPath {
+			paths = append(paths, previous)
+		}
 	}
+	paths = append(paths, "ideas.md", "setting/outline.md", "setting/progress.md", "setting/character-states.md", "setting/story-ledger.md")
+	if len(chapters) > 12 {
+		chapters = chapters[len(chapters)-12:]
+	}
+	for _, chapter := range chapters {
+		if chapter != targetPath && chapter != "" && !containsPath(paths, chapter) {
+			paths = append(paths, chapter)
+		}
+	}
+	paths = append(paths, "setting/case-index.md", "setting/lore/items.json")
 	seen := make(map[string]struct{}, len(paths))
 	result := make([]string, 0, len(paths))
 	for _, path := range paths {
@@ -47,6 +66,15 @@ func WritingContextPackPaths(state *State, targetPath string) []string {
 		result = append(result, path)
 	}
 	return result
+}
+
+func containsPath(paths []string, target string) bool {
+	for _, path := range paths {
+		if path == target {
+			return true
+		}
+	}
+	return false
 }
 
 // WritingContextPackPaths is also available as a State method for callers

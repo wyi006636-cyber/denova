@@ -93,6 +93,20 @@ func (store *Store) Create(ctx context.Context, task Task) (Task, error) {
 	if err := os.Mkdir(dir, 0o700); err != nil {
 		return Task{}, err
 	}
+	for _, candidate := range task.Candidates {
+		if strings.TrimSpace(candidate.Source.Body) == "" || strings.TrimSpace(candidate.Source.BodyAssetPath) == "" {
+			continue
+		}
+		assetPath, pathErr := store.AssetPath(task.ID, candidate.Source.BodyAssetPath)
+		if pathErr != nil {
+			_ = os.RemoveAll(dir)
+			return Task{}, pathErr
+		}
+		if assetErr := WriteImmutableAsset(assetPath, []byte(candidate.Source.Body)); assetErr != nil {
+			_ = os.RemoveAll(dir)
+			return Task{}, fmt.Errorf("write writing source asset: %w", assetErr)
+		}
+	}
 	journalFile := filepath.Join(dir, journalFilename)
 	// conversationjournal requires a syntactically valid first record before it
 	// can open a canonical file. Seed the immutable task.created event as a

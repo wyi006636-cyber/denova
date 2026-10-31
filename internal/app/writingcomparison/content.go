@@ -2,6 +2,9 @@ package writingcomparison
 
 import (
 	"context"
+	"errors"
+	"io/fs"
+	"os"
 	"strings"
 
 	projectdomain "denova/internal/project"
@@ -40,7 +43,7 @@ func (service *Service) CandidateContent(ctx context.Context, layout projectdoma
 	}
 	data, err := ReadVerifiedAsset(path, candidate.Revision.SHA256)
 	if err != nil {
-		if err == ErrAssetCorrupt {
+		if errors.Is(err, ErrAssetCorrupt) || errors.Is(err, fs.ErrNotExist) || errors.Is(err, os.ErrNotExist) {
 			return CandidateContent{}, &Error{Code: CodeAssetCorrupt, Message: "candidate asset checksum mismatch", Cause: ErrAssetCorrupt}
 		}
 		return CandidateContent{}, err

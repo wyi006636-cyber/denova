@@ -52,6 +52,16 @@ func TestResolveForCandidateRejectsTemplateWithoutChapterTask(t *testing.T) {
 	}
 }
 
+func TestTemplateValidationUsesStableErrorCode(t *testing.T) {
+	catalog := NewCatalog(t.TempDir())
+	item := userTemplate()
+	item.ID = "user.invalid"
+	item.Body = ""
+	if _, err := catalog.Create(context.Background(), item); !errors.Is(err, ErrInvalidTemplate) {
+		t.Fatalf("validation error = %v, want ErrInvalidTemplate", err)
+	}
+}
+
 func TestResolveForCandidateTracksBuiltinOverrideVersion(t *testing.T) {
 	catalog := NewCatalog(t.TempDir())
 	builtin, err := catalog.Get(context.Background(), "draft.payoff-climax")

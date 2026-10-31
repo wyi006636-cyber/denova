@@ -32,6 +32,7 @@ var (
 	ErrVersionRequired       = errors.New("writing template content version is required")
 	ErrVersionChanged        = errors.New("writing template content version changed")
 	ErrRevisionConflict      = errors.New("writing template changed elsewhere; reload before saving")
+	ErrInvalidTemplate       = errors.New("writing template validation failed")
 	ErrDataRootRequired      = errors.New("writing template data root is required")
 )
 

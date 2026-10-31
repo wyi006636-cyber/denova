@@ -3,6 +3,7 @@ package writingcomparison
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +12,8 @@ import (
 	"testing"
 
 	"denova/config"
+	"denova/internal/agents/prompts"
+	"denova/internal/agents/skills"
 	"denova/internal/writingtemplates"
 	"github.com/alfredxw/denova/agent/model/providers"
 )
@@ -18,7 +21,7 @@ import (
 type fixtureTemplateResolver struct{}
 
 func (fixtureTemplateResolver) ResolveCandidateSource(context.Context, WritingSourceRef) (WritingSourceSnapshot, error) {
-	return WritingSourceSnapshot{Kind: "template", ID: "fixture", Version: "1", Scope: "builtin", Title: writingtemplates.Localized{ZH: "Fixture", EN: "Fixture"}, ContentSHA256: AssetSHA256([]byte("write prose")), Body: "Write prose."}, nil
+	return WritingSourceSnapshot{Kind: "template", ID: "fixture", Version: "1", Scope: "builtin", Title: writingtemplates.Localized{ZH: "Fixture", EN: "Fixture"}, ContentSHA256: AssetSHA256([]byte("Write prose.")), Body: "Write prose."}, nil
 }
 
 func TestRunCandidatesAreReadOnlyAndPartialFailureKeepsCompletedCandidate(t *testing.T) {
@@ -70,10 +73,17 @@ func TestRunCandidatesAreReadOnlyAndPartialFailureKeepsCompletedCandidate(t *tes
 	if err := os.WriteFile(filepath.Join(setting, "progress.md"), progress, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	skillRoot := filepath.Join(layout.ContentRoot, "skills")
+	if err := os.MkdirAll(filepath.Join(skillRoot, "fixture-skill"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillRoot, "fixture-skill", skills.SkillFileName), []byte("---\nname: fixture-skill\ndescription: fixture\n---\nWrite a complete chapter."), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	cfg := config.Config{ModelEndpoints: []config.ModelEndpointSettings{{ID: "fixture", Provider: string(providers.ProviderOpenAICompatible), Protocol: string(providers.ProtocolOpenAIChatCompletions), BaseURL: server.URL + "/v1", APIKey: "test-key"}}, ModelProfiles: []config.ModelProfileSettings{{ID: "writer-a", EndpointID: "fixture", Model: "fixture-a"}, {ID: "writer-b", EndpointID: "fixture", Model: "fixture-b"}}}
-	host := testHost{cfg: cfg}
+	host := testHost{cfg: cfg, dirs: []skills.Directory{{Scope: skills.ScopeWorkspace, Path: skillRoot}}}
 	service := NewService(host, WithTemplateResolver(fixtureTemplateResolver{}))
-	input := CreateInput{TargetPath: "chapters/ch00002.md", ChapterTask: ChapterTask{Text: "Write the chapter", Source: "author"}, Candidates: []CandidateInput{{ProfileID: "writer-a", Source: WritingSourceRef{Kind: "template", ID: "fixture", Version: "1"}}, {ProfileID: "writer-b", Source: WritingSourceRef{Kind: "template", ID: "fixture", Version: "1"}}}, ReviewModelProfileID: "writer-a", FinalWriterProfileID: "writer-b"}
+	input := CreateInput{TargetPath: "chapters/ch00002.md", ChapterTask: ChapterTask{Text: "Write the chapter", Source: "author"}, Candidates: []CandidateInput{{ProfileID: "writer-a", Source: WritingSourceRef{Kind: "template", ID: "fixture", Version: "1"}}, {ProfileID: "writer-b", Source: WritingSourceRef{Kind: "skill", ID: "fixture-skill"}}}, ReviewModelProfileID: "writer-a", FinalWriterProfileID: "writer-b"}
 	task, err := service.Create(context.Background(), layout, input)
 	if err != nil {
 		t.Fatal(err)
@@ -106,6 +116,20 @@ func TestRunCandidatesAreReadOnlyAndPartialFailureKeepsCompletedCandidate(t *tes
 	defer mu.Unlock()
 	if len(requests) != 2 || requests[0].Messages[len(requests[0].Messages)-1].Content != requests[1].Messages[len(requests[1].Messages)-1].Content {
 		t.Fatalf("model requests do not share the frozen user message: %+v", requests)
+	}
+	if completed.Snapshot == nil || completed.Snapshot.SHA256 == "" {
+		t.Fatal("completed task is missing the frozen snapshot hash")
+	}
+	if _, err := service.Run(context.Background(), layout, completed.ID, completed.Revision); !errors.Is(err, ErrStateConflict) {
+		t.Fatalf("partial task rerun error=%v, want state conflict", err)
+	}
+	for index, request := range requests {
+		if len(request.Messages) != 2 || request.Messages[0].Role != "system" || request.Messages[1].Role != "user" {
+			t.Fatalf("candidate request %d is not the two-message read-only contract: %+v", index, request)
+		}
+	}
+	if requests[0].Messages[0].Content != prompts.ComposeCandidateDraftInstruction("Write prose.", "") {
+		t.Fatalf("candidate system instruction diverges from preview contract: %q", requests[0].Messages[0].Content)
 	}
 }
 
@@ -143,7 +167,30 @@ func TestRecoverMarksStartedCandidateIncompleteWithoutReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if recovered.Execution != ExecutionIncomplete || recovered.Candidates[0].Status != CandidateRunning {
+	if recovered.Execution != ExecutionIncomplete || recovered.Candidates[0].Status != CandidateIncomplete {
 		t.Fatalf("recovered task = %+v", recovered)
+	}
+}
+
+func TestRegistrationFailureReleasesActiveRunAndAllowsRunAgain(t *testing.T) {
+	layout := testLayout(t)
+	service := NewService(testHost{cfg: testConfig()})
+	task, err := NewStore(layout).Create(context.Background(), testTask(layout))
+	if err != nil {
+		t.Fatal(err)
+	}
+	queued, err := service.Run(context.Background(), layout, task.ID, task.Revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.RegistrationFailed(context.Background(), layout, queued.ID); err != nil {
+		t.Fatal(err)
+	}
+	recovered, err := service.Get(context.Background(), layout, queued.ID)
+	if err != nil || recovered.Execution != ExecutionIncomplete {
+		t.Fatalf("registration rollback task=%+v err=%v", recovered, err)
+	}
+	if _, err := service.Run(context.Background(), layout, queued.ID, recovered.Revision); err != nil {
+		t.Fatalf("task could not be queued again after registration failure: %v", err)
 	}
 }

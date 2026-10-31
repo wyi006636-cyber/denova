@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"denova/config"
 	agentcontext "denova/internal/agents/context"
@@ -25,6 +26,12 @@ import (
 func freezeWritingSnapshot(ctx context.Context, cfg config.Config, layout projectdomain.Layout, task Task, store *Store) (*SnapshotRef, error) {
 	state := book.NewState(layout.ContentRoot)
 	contexts := prompts.IDEWorkspaceRuntimeContextsForContextWithLore(state, prompts.IDEContextRef{CurrentFile: task.Target.Path}, task.Target.ChapterCursor, lore.LoreScopeAsOf)
+	// Candidate generation has no file tools. Keep the ordinary writing Agent
+	// prompt unchanged, but remove tool-navigation instructions from this
+	// frozen, fully inlined context so the candidate contract is truthful.
+	contexts.Stable = candidateContextText(contexts.Stable)
+	contexts.Dynamic = candidateContextText(contexts.Dynamic)
+	contexts.Lore = candidateContextText(contexts.Lore)
 	budget := agentcontext.ContextBudgetForAgent(&cfg, config.AgentKindIDE)
 	if budget.MaxTotalBytes <= 0 {
 		budget = agentcontext.DefaultBudget()
@@ -38,7 +45,7 @@ func freezeWritingSnapshot(ctx context.Context, cfg config.Config, layout projec
 		Messages: []*agentschema.Message{agentschema.UserMessage(task.ChapterTask.Text)}, Fragments: fragments,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("assemble writing snapshot context: %w", err)
+		return nil, domainError(CodeContextBudgetExceeded, "writing context exceeds the Agent injection budget", err, map[string]any{"limit": budget.MaxTotalBytes})
 	}
 	snapshotID := fmt.Sprintf("snapshot-%d", time.Now().UTC().UnixNano())
 	snapshot := &SnapshotRef{ID: snapshotID, FrozenAt: time.Now().UTC(), TargetRevision: task.Target.BaseRevision, Budget: SnapshotBudget{Bytes: budget.MaxTotalBytes}}
@@ -91,7 +98,7 @@ func freezeWritingSnapshot(ctx context.Context, cfg config.Config, layout projec
 		}
 		truncated := false
 		if len(data) > limit {
-			data = []byte(strings.TrimSpace(string(data[:limit])))
+			data = []byte(strings.TrimSpace(truncateUTF8(string(data), limit)))
 			truncated = true
 		}
 		if len(data) == 0 {
@@ -121,12 +128,51 @@ func freezeWritingSnapshot(ctx context.Context, cfg config.Config, layout projec
 
 func assetSlug(value string) string {
 	value = strings.Trim(filepath.ToSlash(value), "/")
-	value = strings.NewReplacer("/", "-", "\\", "-", ":", "-", " ", "-").Replace(value)
+	var builder strings.Builder
+	separator := false
+	for _, r := range value {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' {
+			if separator && builder.Len() > 0 {
+				builder.WriteByte('-')
+			}
+			builder.WriteRune(r)
+			separator = false
+			continue
+		}
+		if builder.Len() > 0 {
+			separator = true
+		}
+	}
+	value = strings.Trim(builder.String(), "-_")
 	if value == "" {
 		return "context"
 	}
-	if len(value) > 80 {
-		value = value[:80]
+	if len([]rune(value)) > 80 {
+		value = string([]rune(value)[:80])
 	}
-	return value
+	return strings.Trim(value, "-")
+}
+
+func truncateUTF8(value string, maxBytes int) string {
+	if maxBytes <= 0 || len(value) <= maxBytes {
+		return value
+	}
+	runes := []rune(value)
+	for len(runes) > 0 && len(string(runes)) > maxBytes {
+		runes = runes[:len(runes)-1]
+	}
+	return string(runes)
+}
+
+func candidateContextText(value string) string {
+	lines := strings.Split(value, "\n")
+	kept := make([]string, 0, len(lines))
+	for _, line := range lines {
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "tool") || strings.Contains(lower, "file tools") || strings.Contains(lower, "use `read`") || strings.Contains(lower, "use `glob`") || strings.Contains(lower, "use `grep`") {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	return strings.TrimSpace(strings.Join(kept, "\n"))
 }

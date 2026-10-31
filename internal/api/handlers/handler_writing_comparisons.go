@@ -63,12 +63,13 @@ func (h *Handlers) HandleWritingComparisonRun(ctx context.Context, c *app.Reques
 			emit(agentrun.Event{Type: string(event.Kind), Data: data})
 		})
 		if runErr != nil {
-			emit(agentrun.Event{Type: "error", Data: map[string]any{"kind": "comparison.failed", "task_id": id, "message": runErr.Error(), "code": writingcomparisonapp.CodeInternal}})
+			emit(agentrun.Event{Type: "error", Data: map[string]any{"kind": "comparison.failed", "task_id": id, "message": runErr.Error(), "code": writingcomparisonapp.ErrorCode(runErr)}})
 			return
 		}
 		emit(agentrun.Event{Type: "done", Data: map[string]any{"kind": "comparison.completed", "task_id": id}})
 	})
 	if err != nil {
+		_ = h.app.WritingComparison().RegistrationFailed(ctx, scope, id)
 		writeWritingComparisonError(c, err)
 		return
 	}
@@ -194,6 +195,12 @@ func writeWritingComparisonError(c *app.RequestContext, err error) {
 		status, key = consts.StatusBadRequest, "api.writingComparison.invalidRequest"
 	case code == writingcomparisonapp.CodeAssetCorrupt:
 		status, key = consts.StatusConflict, "api.writingComparison.assetCorrupt"
+	case code == writingcomparisonapp.CodeContextBudgetExceeded:
+		status, key = consts.StatusBadRequest, "api.writingComparison.contextBudgetExceeded"
+	case code == writingcomparisonapp.CodeEmptyOutput:
+		status, key = consts.StatusBadGateway, "api.writingComparison.emptyOutput"
+	case code == writingcomparisonapp.CodeModelError:
+		status, key = consts.StatusBadGateway, "api.writingComparison.modelError"
 	}
 	details := map[string]any{}
 	if typed != nil && typed.Details != nil {

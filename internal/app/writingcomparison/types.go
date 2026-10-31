@@ -72,10 +72,14 @@ func (e Execution) Valid() bool {
 type CandidateStatus string
 
 const (
-	CandidatePending   CandidateStatus = "pending"
-	CandidateRunning   CandidateStatus = "running"
-	CandidateCompleted CandidateStatus = "completed"
-	CandidateFailed    CandidateStatus = "failed"
+	CandidatePending CandidateStatus = "pending"
+	CandidateRunning CandidateStatus = "running"
+	// CandidateIncomplete is durable recovery state. It means a candidate was
+	// running when the process stopped and must be resumed explicitly by a
+	// later run; it is never treated as a completed or failed candidate.
+	CandidateIncomplete CandidateStatus = "incomplete"
+	CandidateCompleted  CandidateStatus = "completed"
+	CandidateFailed     CandidateStatus = "failed"
 )
 
 type TargetRef struct {
@@ -165,10 +169,12 @@ type WritingSourceSnapshot struct {
 	Scope         string                     `json:"scope"`
 	Title         writingtemplates.Localized `json:"title"`
 	ContentSHA256 string                     `json:"content_sha256"`
-	// Body is the exact source text admitted at task creation. Keeping it with
-	// the snapshot prevents a later Skill/template edit from changing a run.
-	Body       string                  `json:"body,omitempty"`
-	Techniques []WritingSourceSnapshot `json:"techniques,omitempty"` // reserved for #27
+	// Body is process-local source text. The immutable source asset is persisted
+	// at BodyAssetPath so task projections, API responses, and SSE events never
+	// echo the full Skill/template body.
+	Body          string                  `json:"-"`
+	BodyAssetPath string                  `json:"body_asset_path,omitempty"`
+	Techniques    []WritingSourceSnapshot `json:"techniques,omitempty"` // reserved for #27
 }
 
 // WritingSourceResolver is intentionally tiny so T1's template catalog can

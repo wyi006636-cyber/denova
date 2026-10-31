@@ -25,6 +25,7 @@ func TestWritingTemplateErrorBodiesAreLocalizedAndStable(t *testing.T) {
 		{name: "required", err: writingtemplates.ErrVersionRequired, status: consts.StatusBadRequest, code: "template_version_required"},
 		{name: "changed", err: writingtemplates.ErrVersionChanged, status: consts.StatusBadRequest, code: "template_version_changed"},
 		{name: "unusable", err: writingtemplates.ErrNotUsableForCandidate, status: consts.StatusBadRequest, code: "template_not_usable"},
+		{name: "invalid", err: writingtemplates.ErrInvalidTemplate, status: consts.StatusBadRequest, code: "template_invalid"},
 		{name: "unavailable", err: writingtemplates.ErrDataRootRequired, status: consts.StatusInternalServerError, code: "catalog_unavailable"},
 	}
 	for _, test := range tests {

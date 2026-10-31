@@ -2,10 +2,12 @@ package writingcomparison
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"denova/config"
 )
@@ -63,5 +65,33 @@ func TestFreezeWritingSnapshotRecordsBudgetOmission(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected budget omission, got %+v", snapshot.Omitted)
+	}
+}
+
+func TestCandidateSnapshotContextRemovesToolInstructionsAndPreservesUTF8(t *testing.T) {
+	contextText := candidateContextText("keep this\nUse `read` for known files.\nuse a tool to inspect more\n结尾")
+	if strings.Contains(strings.ToLower(contextText), "tool") || strings.Contains(contextText, "`read`") {
+		t.Fatalf("tool instruction leaked into candidate context: %q", contextText)
+	}
+	if !strings.Contains(contextText, "结尾") {
+		t.Fatalf("candidate context lost UTF-8 content: %q", contextText)
+	}
+	truncated := truncateUTF8("中文正文内容", len([]byte("中文正文")))
+	if !strings.Contains(truncated, "中文") || !utf8.ValidString(truncated) {
+		t.Fatalf("UTF-8 truncation = %q", truncated)
+	}
+}
+
+func TestFreezeWritingSnapshotBudgetFailureUsesStableCode(t *testing.T) {
+	layout := testLayout(t)
+	limit := 1
+	cfg := config.Config{AgentContexts: config.AgentContextSettings{IDE: config.AgentContextOverride{MaxTotalInjectedBytes: &limit}}}
+	_, err := freezeWritingSnapshot(context.Background(), cfg, layout, testTask(layout), NewStore(layout))
+	var typed *Error
+	if !errors.As(err, &typed) || typed.Code != CodeContextBudgetExceeded {
+		if typed == nil {
+			t.Fatalf("budget error=%v", err)
+		}
+		t.Fatalf("budget error=%v code=%q", err, typed.Code)
 	}
 }

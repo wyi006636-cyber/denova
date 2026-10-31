@@ -70,6 +70,13 @@ func TestCatalogCreateAutoIDAndUserIDBoundary(t *testing.T) {
 	if err != nil || !strings.HasPrefix(created.ID, "user.template-") {
 		t.Fatalf("fallback ID = %+v, err=%v", created, err)
 	}
+	long, err := catalog.Create(context.Background(), Template{Title: Localized{EN: strings.Repeat("very-long-title ", 30)}, Kind: KindTemplate, Category: []string{"draft", "continuation"}, Tasks: []string{TaskChapterDraft}, Body: "body"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(long.ID) > len("user.")+48+1+6 {
+		t.Fatalf("generated long-title ID is not bounded: %q", long.ID)
+	}
 }
 
 func TestCatalogCASVersionAndMissingUpdate(t *testing.T) {
@@ -84,8 +91,8 @@ func TestCatalogCASVersionAndMissingUpdate(t *testing.T) {
 	changed := userTemplate()
 	changed.Body = "Changed body"
 	changed.ContentVersion = created.ContentVersion
-	if _, err := catalog.Update(context.Background(), created.ID, changed, created.Revision); err == nil {
-		t.Fatal("accepted body change without version bump")
+	if _, err := catalog.Update(context.Background(), created.ID, changed, created.Revision); !errors.Is(err, ErrInvalidTemplate) {
+		t.Fatalf("body change without version bump error=%v, want ErrInvalidTemplate", err)
 	}
 	changed.ContentVersion = created.ContentVersion + 1
 	updated, err := catalog.Update(context.Background(), created.ID, changed, created.Revision)
@@ -262,6 +269,33 @@ func TestCatalogListFiltersAndDerivedPayload(t *testing.T) {
 	for index := 1; index < len(items); index++ {
 		if items[index-1].Source == "user" || (items[index].Source == "builtin" && items[index-1].Source != "builtin") {
 			t.Fatalf("builtins are not sorted before users: %q then %q", items[index-1].ID, items[index].ID)
+		}
+	}
+}
+
+func TestCatalogListOrdersBuiltinsBeforeUsersAndUsesStableIDs(t *testing.T) {
+	catalog := NewCatalog(t.TempDir())
+	for _, title := range []string{"Zeta", "Alpha"} {
+		item := userTemplate()
+		item.Title.EN = title
+		if _, err := catalog.Create(context.Background(), item); err != nil {
+			t.Fatal(err)
+		}
+	}
+	items, err := catalog.List(context.Background(), ListFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	seenUser := false
+	for index := 1; index < len(items); index++ {
+		if items[index].Source == "user" {
+			seenUser = true
+		}
+		if seenUser && items[index].Source == "builtin" {
+			t.Fatalf("builtin appears after user: %q", items[index].ID)
+		}
+		if items[index-1].Source == items[index].Source && items[index-1].ID > items[index].ID {
+			t.Fatalf("catalog order is not stable: %q then %q", items[index-1].ID, items[index].ID)
 		}
 	}
 }

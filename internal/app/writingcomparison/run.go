@@ -12,6 +12,7 @@ import (
 	"denova/config"
 	"denova/internal/agents/modelio"
 	"denova/internal/agents/prompts"
+	agentrun "denova/internal/agents/run"
 	projectdomain "denova/internal/project"
 
 	agentschema "github.com/alfredxw/denova/agent/schema"
@@ -21,7 +22,7 @@ import (
 // partial or incomplete rerun reuses the existing snapshot and never emits a
 // second snapshot.frozen record.
 func (service *Service) Run(ctx context.Context, layout projectdomain.Layout, id string, expectedRevision uint64) (Task, error) {
-	if err := service.Recover(ctx, layout); err != nil {
+	if err := service.recoverTask(ctx, layout, id); err != nil {
 		return Task{}, err
 	}
 	store := NewStore(layout)
@@ -37,7 +38,7 @@ func (service *Service) Run(ctx context.Context, layout projectdomain.Layout, id
 	if task.Execution == ExecutionQueued || task.Execution == ExecutionRunning {
 		return Task{}, domainError(CodeStateConflict, "comparison run is already active", ErrStateConflict, nil)
 	}
-	if task.Phase != PhaseConfiguring && task.Phase != PhasePartial && task.Phase != PhaseGenerating {
+	if task.Phase != PhaseConfiguring && task.Phase != PhaseGenerating {
 		if task.Execution != ExecutionIncomplete {
 			return Task{}, domainError(CodeStateConflict, "comparison task cannot run in its current state", ErrStateConflict, nil)
 		}
@@ -117,7 +118,19 @@ func (service *Service) Execute(ctx context.Context, layout projectdomain.Layout
 		if emit != nil {
 			emit(Event{Kind: EventCandidateStarted, CandidateID: candidate.ID, Task: &task})
 		}
-		content, callErr := service.generateCandidate(ctx, &cfg, task, candidate, userMessage)
+		candidate, sourceErr := loadCandidateSource(ctx, store, task, candidate)
+		if sourceErr != nil {
+			taskError := taskErrorFrom(sourceErr)
+			task, err = handle.Append(ctx, task.Revision, Event{Kind: EventCandidateFailed, CandidateID: candidate.ID, Error: taskError})
+			if err != nil {
+				return err
+			}
+			if emit != nil {
+				emit(Event{Kind: EventCandidateFailed, CandidateID: candidate.ID, Error: taskError, Task: &task})
+			}
+			continue
+		}
+		content, usage, durationMs, callErr := service.generateCandidate(ctx, &cfg, task, candidate, userMessage)
 		if callErr != nil {
 			taskError := taskErrorFrom(callErr)
 			failed := Event{Kind: EventCandidateFailed, CandidateID: candidate.ID, Error: taskError}
@@ -148,7 +161,7 @@ func (service *Service) Execute(ctx context.Context, layout projectdomain.Layout
 		}
 		system := prompts.ComposeCandidateDraftInstruction(candidate.Source.Body, prompts.TargetHintText)
 		inputHash := AssetSHA256([]byte(task.Snapshot.SHA256 + system + candidate.Requirement))
-		revision := &CandidateRevision{Number: 1, Path: relative, SHA256: AssetSHA256([]byte(content)), Bytes: len(content), InputSHA256: inputHash, Model: candidate.Profile, CreatedAt: time.Now().UTC()}
+		revision := &CandidateRevision{Number: 1, Path: relative, SHA256: AssetSHA256([]byte(content)), Bytes: len(content), InputSHA256: inputHash, Model: candidate.Profile, CreatedAt: time.Now().UTC(), Usage: usage, DurationMs: durationMs}
 		task, err = handle.Append(ctx, task.Revision, Event{Kind: EventCandidateCompleted, CandidateID: candidate.ID, Revision: revision})
 		if err != nil {
 			return err
@@ -192,32 +205,72 @@ func (service *Service) finishRunError(ctx context.Context, handle *Handle, task
 	return cause
 }
 
-func (service *Service) generateCandidate(ctx context.Context, cfg *config.Config, task Task, candidate Candidate, userMessage string) (string, error) {
+func (service *Service) generateCandidate(ctx context.Context, cfg *config.Config, task Task, candidate Candidate, userMessage string) (string, *Usage, int64, error) {
 	resolved, err := config.ResolveModelProfile(cfg, config.ModelProfileSettings{ID: candidate.Profile.ProfileID})
 	if err != nil {
-		return "", err
+		return "", nil, 0, err
 	}
 	modelConfig, err := modelio.ConfigFromResolved(resolved)
 	if err != nil {
-		return "", err
+		return "", nil, 0, err
 	}
-	model, err := modelio.NewChatModel(ctx, modelConfig)
+	traceCtx, finishTrace := agentrun.WithStandaloneTrace(ctx, cfg, config.AgentKindIDE, "writing_comparison_candidate", "generate", map[string]any{"task_id": task.ID, "candidate_id": candidate.ID})
+	var traceErr error
+	defer func() { finishTrace(traceErr) }()
+	model, err := modelio.NewChatModel(traceCtx, modelConfig)
 	if err != nil {
-		return "", err
+		traceErr = err
+		return "", nil, 0, domainError(CodeModelError, "candidate model could not be created", err, nil)
 	}
 	system := prompts.ComposeCandidateDraftInstruction(candidate.Source.Body, prompts.TargetHintText)
 	messages := []*agentschema.Message{agentschema.SystemMessage(system), agentschema.UserMessage(userMessage)}
 	if err := modelio.ValidateConfiguredInput(cfg, config.AgentKindIDE, messages, nil); err != nil {
-		return "", err
+		traceErr = err
+		return "", nil, 0, err
 	}
-	response, err := model.Generate(ctx, messages)
+	span, callID, llmTraceCtx := agentrun.BeginLLMCallTrace(traceCtx, config.AgentKindIDE, "writing_comparison_candidate", "generate", modelConfig, messages, nil, false)
+	startedAt := time.Now()
+	response, err := model.Generate(llmTraceCtx, messages)
+	durationMs := time.Since(startedAt).Milliseconds()
 	if err != nil {
-		return "", err
+		traceErr = err
+		agentrun.FinishLLMCallTrace(span, callID, config.AgentKindIDE, "writing_comparison_candidate", "generate", modelConfig.Model, 0, nil, err, nil)
+		return "", nil, durationMs, domainError(CodeModelError, "candidate model generation failed", err, nil)
 	}
+	agentrun.FinishLLMCallTrace(span, callID, config.AgentKindIDE, "writing_comparison_candidate", "generate", modelConfig.Model, 0, response, nil, nil)
 	if response == nil || strings.TrimSpace(response.Content) == "" {
-		return "", fmt.Errorf("candidate model returned empty content")
+		err := domainError(CodeEmptyOutput, "candidate model returned empty content", nil, nil)
+		traceErr = err
+		return "", nil, durationMs, err
 	}
-	return strings.TrimSpace(response.Content), nil
+	var usage *Usage
+	if response.ResponseMeta != nil && response.ResponseMeta.Usage != nil {
+		providerUsage := response.ResponseMeta.Usage
+		usage = &Usage{InputTokens: providerUsage.PromptTokens, OutputTokens: providerUsage.CompletionTokens, TotalTokens: providerUsage.TotalTokens}
+	}
+	return strings.TrimSpace(response.Content), usage, durationMs, nil
+}
+
+func loadCandidateSource(ctx context.Context, store *Store, task Task, candidate Candidate) (Candidate, error) {
+	if strings.TrimSpace(candidate.Source.Body) != "" {
+		return candidate, nil
+	}
+	if strings.TrimSpace(candidate.Source.BodyAssetPath) == "" {
+		return candidate, domainError(CodeAssetCorrupt, "candidate source asset is missing", ErrAssetCorrupt, nil)
+	}
+	path, err := store.AssetPath(task.ID, candidate.Source.BodyAssetPath)
+	if err != nil {
+		return candidate, err
+	}
+	data, err := ReadVerifiedAsset(path, candidate.Source.ContentSHA256)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) || errors.Is(err, ErrAssetCorrupt) {
+			return candidate, domainError(CodeAssetCorrupt, "candidate source asset is unavailable", ErrAssetCorrupt, nil)
+		}
+		return candidate, err
+	}
+	candidate.Source.Body = string(data)
+	return candidate, nil
 }
 
 func snapshotUserMessage(ctx context.Context, store *Store, task Task) (string, error) {
@@ -244,14 +297,7 @@ func taskErrorFrom(err error) *TaskError {
 	if err == nil {
 		return nil
 	}
-	code := CodeInternal
-	var typed *Error
-	if errors.As(err, &typed) && typed.Code != "" {
-		code = typed.Code
-	}
-	if errors.Is(err, ErrAssetCorrupt) {
-		code = CodeAssetCorrupt
-	}
+	code := ErrorCode(err)
 	return &TaskError{Code: code, Message: err.Error()}
 }
 
@@ -273,13 +319,18 @@ func (service *Service) Recover(ctx context.Context, layout projectdomain.Layout
 		}
 		handle, openErr := store.Open(ctx, entry.Name())
 		if openErr != nil {
+			slog.WarnContext(ctx, "writing comparison task recovery open failed", "task_id", entry.Name(), "error", openErr)
 			continue
 		}
 		task := handle.Current()
 		if task.Execution == ExecutionRunning || task.Execution == ExecutionQueued {
-			_, _ = handle.Append(ctx, task.Revision, Event{Kind: EventExecutionChanged, FromExecution: task.Execution, ToExecution: ExecutionIncomplete})
+			if _, appendErr := handle.Append(ctx, task.Revision, Event{Kind: EventExecutionChanged, FromExecution: task.Execution, ToExecution: ExecutionIncomplete, Reason: "recovered at startup"}); appendErr != nil {
+				slog.WarnContext(ctx, "writing comparison task recovery append failed", "task_id", entry.Name(), "error", appendErr)
+			}
 		}
-		_ = handle.Close()
+		if closeErr := handle.Close(); closeErr != nil {
+			slog.WarnContext(ctx, "writing comparison task recovery close failed", "task_id", entry.Name(), "error", closeErr)
+		}
 	}
 	return nil
 }

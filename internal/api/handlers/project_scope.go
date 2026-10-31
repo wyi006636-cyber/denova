@@ -36,6 +36,10 @@ func (handlers *Handlers) ProjectScopeMiddleware(ctx context.Context, c *app.Req
 	}
 	defer operation.Release()
 	layout := operation.Layout()
+	if err := handlers.app.WritingComparison().RecoverProjectOnce(operation.Context(), layout); err != nil {
+		writeProjectScopeResolutionError(c, projectID, err)
+		return
+	}
 	c.Set(projectScopeContextKey, layout)
 	slog.DebugContext(operation.Context(), "[internal/api/handlers/project_scope.go] resolved project request scope",
 		"project_id", layout.ProjectID,
