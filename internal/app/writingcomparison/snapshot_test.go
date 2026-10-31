@@ -5,11 +5,14 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"unicode/utf8"
 
 	"denova/config"
+	"denova/internal/book"
+	"denova/internal/book/lore"
 	projectdomain "denova/internal/project"
 )
 
@@ -69,16 +72,92 @@ func TestFreezeWritingSnapshotRecordsBudgetOmission(t *testing.T) {
 	}
 }
 
-func TestCandidateSnapshotContextRemovesToolInstructionsAndPreservesUTF8(t *testing.T) {
-	contextText := candidateContextText("keep this\nUse `read` for known files.\nuse a tool to inspect more\n结尾")
-	if strings.Contains(strings.ToLower(contextText), "tool") || strings.Contains(contextText, "`read`") {
-		t.Fatalf("tool instruction leaked into candidate context: %q", contextText)
+// frozenCandidateForbidden matches tool and interactive onboarding wording
+// that a read-only, tool-less candidate must never receive.
+var frozenCandidateForbidden = regexp.MustCompile("`read`|`glob`|`grep`|query_lore_items|(?s:confirm.*with the author)|update CREATOR\\.md|generate setting/outline\\.md|use a tool|with Lore tools")
+
+func frozenSnapshotText(t *testing.T, layout projectdomain.Layout, taskID string, snapshot *SnapshotRef) string {
+	t.Helper()
+	var builder strings.Builder
+	for _, fragment := range snapshot.Fragments {
+		builder.Write(mustReadSnapshotAsset(t, layout, taskID, fragment.AssetPath))
+		builder.WriteString("\n")
 	}
-	if !strings.Contains(contextText, "结尾") {
-		t.Fatalf("candidate context lost UTF-8 content: %q", contextText)
+	return builder.String()
+}
+
+func TestFrozenCandidateContextHasNoToolInstructionsAndKeepsLoreBodies(t *testing.T) {
+	layout := testLayout(t)
+	files := map[string]string{
+		"ideas.md":                    "A revenge story on a flooded planet.",
+		"setting/outline.md":          "outline body",
+		"setting/progress.md":         "progress body",
+		"chapters/ch00001-opening.md": "opening prose",
 	}
+	for relative, content := range files {
+		path := filepath.Join(layout.ContentRoot, filepath.FromSlash(relative))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store := lore.NewStore(layout.ContentRoot)
+	if _, err := store.Create(lore.ItemInput{ID: "smithy", Type: "location", Name: "Smithy", LoadMode: lore.LoadModeResident, Content: "The smith keeps every tool polished.\nThe forge opens at dawn."}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Create(lore.ItemInput{ID: "archive", Type: "location", Name: "Hidden Archive", LoadMode: lore.LoadModeManual, BriefDescription: "Sealed records", Content: "on-demand body"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Create(lore.ItemInput{ID: "seal", Type: "item", Name: "Old Seal", Content: "base", Spans: []lore.Span{{ID: "broken", From: "ch00001", Content: "The seal cracked; every tool failed to open it."}}}); err != nil {
+		t.Fatal(err)
+	}
+	task := testTask(layout)
+	task.Target = TargetRef{Path: "chapters/ch00002.md", BaseRevision: "missing", ChapterCursor: "ch00002"}
+	snapshot, err := freezeWritingSnapshot(context.Background(), config.Config{}, layout, task, NewStore(layout))
+	if err != nil {
+		t.Fatal(err)
+	}
+	frozen := frozenSnapshotText(t, layout, task.ID, snapshot)
+	if match := frozenCandidateForbidden.FindString(frozen); match != "" {
+		t.Fatalf("frozen candidate context contains %q:\n%s", match, frozen)
+	}
+	for _, required := range []string{
+		"The smith keeps every tool polished.\nThe forge opens at dawn.",
+		"The seal cracked; every tool failed to open it.",
+		"Hidden Archive",
+		"No file or Lore tools are available.",
+		"outline body",
+		"opening prose",
+	} {
+		if !strings.Contains(frozen, required) {
+			t.Fatalf("frozen candidate context lost %q:\n%s", required, frozen)
+		}
+	}
+}
+
+func TestFrozenCandidateContextForNewWorkIsReadOnly(t *testing.T) {
+	layout := testLayout(t)
+	if err := book.NewState(layout.ContentRoot).InitWorkspace(); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := freezeWritingSnapshot(context.Background(), config.Config{}, layout, testTask(layout), NewStore(layout))
+	if err != nil {
+		t.Fatal(err)
+	}
+	frozen := frozenSnapshotText(t, layout, testTask(layout).ID, snapshot)
+	if match := frozenCandidateForbidden.FindString(frozen); match != "" {
+		t.Fatalf("new-work frozen context contains %q:\n%s", match, frozen)
+	}
+	if !strings.Contains(frozen, "Do not ask the author questions") {
+		t.Fatalf("new-work frozen context is missing the read-only notice:\n%s", frozen)
+	}
+}
+
+func TestTruncateUTF8KeepsRuneBoundary(t *testing.T) {
 	truncated := truncateUTF8("中文正文内容", len([]byte("中文正文")))
-	if !strings.Contains(truncated, "中文") || !utf8.ValidString(truncated) {
+	if truncated != "中文正文" || !utf8.ValidString(truncated) {
 		t.Fatalf("UTF-8 truncation = %q", truncated)
 	}
 }

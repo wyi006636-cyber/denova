@@ -231,3 +231,14 @@ func (s *Store) ProgressiveContextMarkdown() (string, error) {
 	}
 	return renderIndexGuide(collection)
 }
+
+// ReadOnlyContextMarkdown renders the same authored index as
+// ProgressiveContextMarkdown for a model without Lore tools. Only the access
+// preamble differs; groups, entries and inlined bodies are identical.
+func (s *Store) ReadOnlyContextMarkdown() (string, error) {
+	collection, err := s.loadOrCreate()
+	if err != nil {
+		return "", err
+	}
+	return renderIndexGuideWithPreamble(collection, loreIndexReadOnlyPreamble)
+}

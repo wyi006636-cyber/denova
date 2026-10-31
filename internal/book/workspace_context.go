@@ -33,13 +33,64 @@ func (c WorkspaceContext) Markdown() string {
 	return strings.TrimSpace(strings.Join(nonEmptyContextValues(c.Stable, c.Dynamic), "\n\n"))
 }
 
+// WorkspaceContextAccess names how the model reaches the files and Lore listed
+// in a workspace projection. It changes only the access instructions; indexed
+// paths, Lore groups and inlined resident bodies stay identical.
+type WorkspaceContextAccess int
+
+const (
+	// WorkspaceContextToolAccess is the ordinary writing Agent contract: file
+	// bodies are omitted and loaded on demand with file and Lore tools.
+	WorkspaceContextToolAccess WorkspaceContextAccess = iota
+	// WorkspaceContextReadOnlySnapshot is the comparison candidate contract:
+	// the model has no tools, and the caller inlines selected file bodies in
+	// the same frozen snapshot under their paths.
+	WorkspaceContextReadOnlySnapshot
+)
+
+// workspaceAccessText holds every model-visible sentence that depends on the
+// access contract, so one exhaustive switch decides the whole variant.
+type workspaceAccessText struct {
+	indexSourceNote string
+	loreUnavailable string
+	loreContext     func(*lore.Store) (string, error)
+}
+
+func workspaceAccessTextFor(access WorkspaceContextAccess) workspaceAccessText {
+	switch access {
+	case WorkspaceContextToolAccess:
+		return workspaceAccessText{
+			indexSourceNote: "Source: current book workspace snapshot. Entries are workspace-relative discovery paths only; file contents are intentionally omitted. Use `read` for known files, `glob` to discover additional paths, and `grep` for targeted searches. Read only the sources required by the current request and writing workflow. A path's presence does not prove that its file is non-empty or finalized.",
+			loreUnavailable: "## Lore Index unavailable\n\nDo not assume setting coverage. Read needed canon with Lore tools before proceeding.",
+			loreContext:     (*lore.Store).ProgressiveContextMarkdown,
+		}
+	case WorkspaceContextReadOnlySnapshot:
+		return workspaceAccessText{
+			indexSourceNote: "Source: frozen book workspace snapshot for a read-only draft. No file or Lore tools are available. Listed files whose contents fit the snapshot budget are inlined later in this snapshot under sections titled with their path; a listed file without such a section was omitted, so treat its content as unknown. A path's presence does not prove that its file is non-empty or finalized.",
+			loreUnavailable: "## Lore Index unavailable\n\nThe Lore Index could not be loaded for this snapshot. Do not assume setting coverage beyond the inlined sources.",
+			loreContext:     (*lore.Store).ReadOnlyContextMarkdown,
+		}
+	default:
+		panic(fmt.Sprintf("unknown workspace context access %d", access))
+	}
+}
+
 // WorkspaceContext returns a compact source index. Content changes do not
 // rotate the index, which keeps the model prefix cacheable while every file
 // read observes the authoritative workspace state at tool-execution time.
 func (s *State) WorkspaceContext() WorkspaceContext {
+	return s.WorkspaceContextFor(WorkspaceContextToolAccess)
+}
+
+// WorkspaceContextFor returns the source index described for one access
+// contract. Callers that give the model file tools must use
+// WorkspaceContextToolAccess; read-only callers must inline the bodies they
+// promise in the same model input.
+func (s *State) WorkspaceContextFor(access WorkspaceContextAccess) WorkspaceContext {
 	if s == nil {
 		return WorkspaceContext{}
 	}
+	text := workspaceAccessTextFor(access)
 
 	stableFiles := make([]workspaceContextPath, 0, 2)
 	if s.hasMeaningfulIdeas() {
@@ -63,14 +114,14 @@ func (s *State) WorkspaceContext() WorkspaceContext {
 		dynamicFiles = append(dynamicFiles, workspaceContextPath{Purpose: "Writing method case index", Path: "setting/case-index.md"})
 	}
 
-	stable := renderWorkspacePathIndex("Workspace Source Index", []workspaceContextPathSection{
+	stable := renderWorkspacePathIndex("Workspace Source Index", text.indexSourceNote, []workspaceContextPathSection{
 		{Title: "Canonical writing files", Paths: stableFiles},
 	})
-	if loreContext := s.progressiveLoreContext(); loreContext != "" {
+	if loreContext := s.progressiveLoreContext(text); loreContext != "" {
 		stable = strings.TrimSpace(strings.Join(nonEmptyContextValues(stable, loreContext), "\n\n"))
 	}
 
-	dynamic := renderWorkspacePathIndex("Current Writing Source Index", []workspaceContextPathSection{
+	dynamic := renderWorkspacePathIndex("Current Writing Source Index", text.indexSourceNote, []workspaceContextPathSection{
 		{Title: "Current writing state", Paths: dynamicFiles},
 		{Title: "Recent chapter-group plans", Paths: contextPaths("Chapter-group plan", s.recentChapterGroupPaths(workspaceContextChapterGroupLimit))},
 		{Title: "Recent chapter paths", Paths: contextPaths("Chapter path", s.recentChapterPaths(workspaceContextChapterLimit))},
@@ -89,7 +140,7 @@ type workspaceContextPathSection struct {
 	Paths []workspaceContextPath
 }
 
-func renderWorkspacePathIndex(title string, sections []workspaceContextPathSection) string {
+func renderWorkspacePathIndex(title, sourceNote string, sections []workspaceContextPathSection) string {
 	entryCount := 0
 	for _, section := range sections {
 		entryCount += len(section.Paths)
@@ -100,7 +151,8 @@ func renderWorkspacePathIndex(title string, sections []workspaceContextPathSecti
 
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "## %s\n\n", title)
-	sb.WriteString("Source: current book workspace snapshot. Entries are workspace-relative discovery paths only; file contents are intentionally omitted. Use `read` for known files, `glob` to discover additional paths, and `grep` for targeted searches. Read only the sources required by the current request and writing workflow. A path's presence does not prove that its file is non-empty or finalized.\n")
+	sb.WriteString(sourceNote)
+	sb.WriteString("\n")
 	for _, section := range sections {
 		if len(section.Paths) == 0 {
 			continue
@@ -180,11 +232,11 @@ func latestContextPaths(paths []string, limit int) []string {
 	return paths[len(paths)-limit:]
 }
 
-func (s *State) progressiveLoreContext() string {
-	context, err := lore.NewStore(s.workspace).ProgressiveContextMarkdown()
+func (s *State) progressiveLoreContext(text workspaceAccessText) string {
+	context, err := text.loreContext(lore.NewStore(s.workspace))
 	if err != nil {
 		slog.Error("[lore] workspace index context unavailable", "error", err)
-		return "## Lore Index unavailable\n\nDo not assume setting coverage. Read needed canon with Lore tools before proceeding."
+		return text.loreUnavailable
 	}
 	return strings.TrimSpace(context)
 }

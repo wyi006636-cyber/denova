@@ -25,13 +25,10 @@ import (
 
 func freezeWritingSnapshot(ctx context.Context, cfg config.Config, layout projectdomain.Layout, task Task, store *Store) (*SnapshotRef, error) {
 	state := book.NewState(layout.ContentRoot)
-	contexts := prompts.IDEWorkspaceRuntimeContextsForContextWithLore(state, prompts.IDEContextRef{CurrentFile: task.Target.Path}, task.Target.ChapterCursor, lore.LoreScopeAsOf)
-	// Candidate generation has no file tools. Keep the ordinary writing Agent
-	// prompt unchanged, but remove tool-navigation instructions from this
-	// frozen, fully inlined context so the candidate contract is truthful.
-	contexts.Stable = candidateContextText(contexts.Stable)
-	contexts.Dynamic = candidateContextText(contexts.Dynamic)
-	contexts.Lore = candidateContextText(contexts.Lore)
+	// Candidates run without tools; the read-only variant describes the file
+	// bodies inlined below instead of tool navigation. The ordinary writing
+	// Agent context is produced by a separate entry point and stays unchanged.
+	contexts := prompts.CandidateWorkspaceRuntimeContexts(state, task.Target.Path, task.Target.ChapterCursor, lore.LoreScopeAsOf)
 	budget := agentcontext.ContextBudgetForAgent(&cfg, config.AgentKindIDE)
 	if budget.MaxTotalBytes <= 0 {
 		budget = agentcontext.DefaultBudget()
@@ -162,17 +159,4 @@ func truncateUTF8(value string, maxBytes int) string {
 		runes = runes[:len(runes)-1]
 	}
 	return string(runes)
-}
-
-func candidateContextText(value string) string {
-	lines := strings.Split(value, "\n")
-	kept := make([]string, 0, len(lines))
-	for _, line := range lines {
-		lower := strings.ToLower(line)
-		if strings.Contains(lower, "tool") || strings.Contains(lower, "file tools") || strings.Contains(lower, "use `read`") || strings.Contains(lower, "use `glob`") || strings.Contains(lower, "use `grep`") {
-			continue
-		}
-		kept = append(kept, line)
-	}
-	return strings.TrimSpace(strings.Join(kept, "\n"))
 }

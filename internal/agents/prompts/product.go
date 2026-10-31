@@ -41,6 +41,13 @@ type IDEWorkspaceRuntimeContexts struct {
 }
 
 func IDEWorkspaceRuntimeContextsForState(state *book.State) IDEWorkspaceRuntimeContexts {
+	return workspaceRuntimeContexts(state, book.WorkspaceContextToolAccess, EmptyIDEStateHint())
+}
+
+// workspaceRuntimeContexts renders the workspace index for one access
+// contract. emptyHint replaces the index when the work has no indexed sources
+// yet; its wording must match what the receiving model is able to do.
+func workspaceRuntimeContexts(state *book.State, access book.WorkspaceContextAccess, emptyHint string) IDEWorkspaceRuntimeContexts {
 	contexts := IDEWorkspaceRuntimeContexts{
 		StableTitle:  ideWorkspaceStableContextTitle,
 		DynamicTitle: ideWorkspaceDynamicContextTitle,
@@ -48,11 +55,11 @@ func IDEWorkspaceRuntimeContextsForState(state *book.State) IDEWorkspaceRuntimeC
 	if state == nil {
 		return contexts
 	}
-	workspaceContext := state.WorkspaceContext()
+	workspaceContext := state.WorkspaceContextFor(access)
 	contexts.Stable = strings.TrimSpace(workspaceContext.Stable)
 	contexts.Dynamic = strings.TrimSpace(workspaceContext.Dynamic)
 	if contexts.Stable == "" && contexts.Dynamic == "" {
-		contexts.Stable = EmptyIDEStateHint()
+		contexts.Stable = emptyHint
 	}
 	return contexts
 }
@@ -78,17 +85,26 @@ func IDEWorkspaceRuntimeContextsForContextWithLore(state *book.State, ide IDECon
 		)
 		contexts.Dynamic = strings.TrimSpace(strings.Join(nonEmptyStrings(contexts.Dynamic, extra), "\n\n"))
 	}
-	if state != nil {
-		visibility := lore.ResolveSpanVisibility(ide.CurrentFile, loreAsOf, loreScope)
-		items, err := lore.NewStore(state.Workspace()).List()
-		if err == nil {
-			spanContext, spanErr := lore.VisibleSpansMarkdown(items, visibility.Cursor, visibility.Scope, lore.VisibleSpanContextMaxBytes)
-			if spanErr == nil {
-				contexts.Lore = strings.TrimSpace(spanContext)
-			}
-		}
-	}
+	contexts.Lore = chapterLoreContext(state, ide.CurrentFile, loreAsOf, loreScope)
 	return contexts
+}
+
+// chapterLoreContext renders the request-scoped chapter span fragment. Span
+// bodies are inlined, so the same text serves tool and read-only callers.
+func chapterLoreContext(state *book.State, currentFile, loreAsOf, loreScope string) string {
+	if state == nil {
+		return ""
+	}
+	visibility := lore.ResolveSpanVisibility(currentFile, loreAsOf, loreScope)
+	items, err := lore.NewStore(state.Workspace()).List()
+	if err != nil {
+		return ""
+	}
+	spanContext, err := lore.VisibleSpansMarkdown(items, visibility.Cursor, visibility.Scope, lore.VisibleSpanContextMaxBytes)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(spanContext)
 }
 
 // ValidateLoreSpanContext checks the complete request-scoped span fragment
