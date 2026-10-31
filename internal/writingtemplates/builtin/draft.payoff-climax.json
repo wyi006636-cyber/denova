@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "draft.payoff-climax",
+  "content_version": 1,
+  "kind": "template",
+  "title": {
+    "zh-CN": "爽点高潮成稿",
+    "en-US": "Payoff Climax"
+  },
+  "summary": {
+    "zh-CN": "先抑后扬建立落差，让高光来自前因、准备与选择，并把即时代价留在结尾。",
+    "en-US": "Builds a grounded low point before an earned turn, then leaves the immediate cost and danger visible."
+  },
+  "category": [
+    "draft",
+    "payoff"
+  ],
+  "tasks": [
+    "chapter_full_draft"
+  ],
+  "recommended_for": [
+    "payoff-chapter",
+    "climax-rewrite",
+    "turning-point"
+  ],
+  "preview": "适用于有明确铺垫的逆袭、反转和高光章；缺铺垫时会主动降低强度。",
+  "body": "You are drafting one complete payoff or climax chapter of a Chinese web novel for a single author. The chapter must make a promised turn land through the protagonist's earned preparation, choice, and cost.\n\nINPUTS\n- Frozen story context: supplied prose, character states, story ledger, lore spans, outline, chapter-group plan, chapter task, target chapter path, and any existing target text.\n- The target word count, when one is supplied.\n- The candidate contract: this output is the complete target chapter and replaces the target chapter as a whole; it is not an add-on fragment.\n\nPRECEDENCE WHEN INPUTS DISAGREE\n1. Established story facts in supplied prose, character states, lore, and the story ledger win over all other instructions.\n2. The chapter task and author's explicit requirement win over general craft habits.\n3. The existing target text determines the starting situation; if a whole-chapter replacement is requested, preserve every fact the task does not authorise changing.\n4. Never invent a missing ability, relationship, object, ally, villain, rule, location, or backstory to force a larger payoff. If the context cannot support a full reversal, lower the scale of the payoff.\n\nWHERE THE CHAPTER STARTS\n- Target chapter already has prose: continue from the immediate unfinished motion, answer, reaction, or danger at the end of the supplied text. Do not restart the scene or re-explain it.\n- Target chapter is empty: begin inside the immediate problem already established by the task and frozen context, with an action in progress rather than background.\n- Target chapter is being replaced as a whole: rebuild the complete chapter around the task while retaining the established canon and point of view.\n\nPAYOFF CONTRACT\n- Establish the low point, disadvantage, or pressure early. Make the concrete loss visible before the high point arrives.\n- Build the turn from facts already present in the supplied context: a known ability, preparation, promise, relationship, observation, or constraint must become useful at a cost.\n- Give the protagonist a concrete choice under pressure. Allies may help, but the protagonist's preparation and choice must cause the core result.\n- Let the high point unfold through actions and consequences. Show the opponent's mistaken assumption, the protagonist's method, and the immediate result instead of announcing victory.\n- Make reactions visible through an interrupted action, changed position, damaged object, silence, changed plan, or a person forced to answer. Do not use bystanders' surprise as a substitute for the result.\n- Include a cost, limitation, or new risk grounded in established facts or the current task. Do not use a newly invented rule.\n\nSEQUENCE\n- Start in motion and connect directly to the current problem.\n- Tighten the pressure through at least two observable setbacks or complications before the turn; each setback must change the available options.\n- Place the prepared choice at the point where it has the greatest consequence. The reversal should be clear in retrospect without being announced in advance.\n- After the high point, show the first immediate consequence and leave the unresolved danger, obligation, relationship change, or question that the next chapter must face.\n\nWORD TARGET\n- When a word target is supplied, distribute the chapter around it: give enough space to the low point and setbacks, then the payoff, then the immediate cost. A short chapter may compress the setbacks into one compound complication, but it must still show pressure, choice, result, and cost. Do not add repetition merely to meet a number.\n\nPROSE DISCIPLINE\n- Produce the complete chapter in Simplified Chinese as prose only. No title line, outline, bullet list, JSON, code fence, preamble, author note, or self-check report.\n- Prefer concrete objects, actions, sensory detail, and spoken choices over abstract explanations.\n- Do not name emotions or write “he realised”, “she felt”, or a wave of emotion as a substitute for behavior. Show what attention catches, what the body does, and what the character chooses next.\n- Keep every character's voice, knowledge, relationship, proper noun, point of view, tense, and hard number exactly within the supplied canon. Keep deliberate authorial habits rather than flattening the voice.\n- Use short sentences where action needs pressure and longer sentences where the reader must track a costly decision.\n\nBOUNDARIES\n- Do not add a new ability, object, ally, villain, location, rule, or backstory to make the payoff possible.\n- Do not resolve an open thread that the task and context do not authorise.\n- Do not let a character use information they do not have.\n- Stop on the immediate impact or an unclosed edge. Do not summarise the theme, moralise, explain the lesson, or promise a later chapter."
+}

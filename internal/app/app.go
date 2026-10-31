@@ -46,6 +46,7 @@ import (
 	"denova/internal/terminal"
 	"denova/internal/update"
 	"denova/internal/workspace/filewatch"
+	"denova/internal/writingtemplates"
 )
 
 // App 是 API 层使用的应用门面；具体业务由领域应用服务承接。
@@ -108,6 +109,7 @@ type App struct {
 	bookApp            *bookapp.Service
 	casebookApp        *casebookapp.Service
 	resourceCatalog    *resourcecatalogapp.Service
+	writingTemplates   *writingtemplates.Catalog
 	resourceMarket     *resourceexchange.Market
 	resourceExchange   *resourceexchange.Service
 	settingsApp        *settingsapp.Service
@@ -363,6 +365,7 @@ func (a *App) ensureServices() {
 		a.bookApp = bookapp.NewService(dataDir, a.projectRegistry, a.bookMetaStore)
 		a.casebookApp = casebookapp.NewService(a)
 		a.resourceCatalog = resourcecatalogapp.NewService(dataDir, resourceCatalogHost{app: a})
+		a.writingTemplates = writingtemplates.NewCatalog(dataDir)
 		a.resourceMarket = resourceexchange.NewMarket(dataDir)
 		a.resourceExchange = resourceexchange.New(dataDir, a.projectRegistry, a.resourceCatalog, a.platform)
 		a.settingsApp = settingsapp.NewService(settingsHost{app: a})
@@ -494,6 +497,14 @@ func (a *App) BookAssets() *bookapp.Service {
 func (a *App) ResourceCatalog() *resourcecatalogapp.Service {
 	a.ensureServices()
 	return a.resourceCatalog
+}
+
+// WritingTemplates exposes the user-level writing template catalog. Templates
+// are global resources and are intentionally independent of the foreground
+// project or writing session.
+func (a *App) WritingTemplates() *writingtemplates.Catalog {
+	a.ensureServices()
+	return a.writingTemplates
 }
 
 // SettingsService exposes layered settings persistence while App retains only

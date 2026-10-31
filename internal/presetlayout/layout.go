@@ -23,6 +23,13 @@ func GamePlanning(dataRoot string) string {
 	return filepath.Join(Root(dataRoot), "game-planning")
 }
 
+// WritingTemplates returns the user-level writing template catalog directory.
+// Template IDs, rather than this host-specific path, remain the durable
+// identity of catalog entries.
+func WritingTemplates(dataRoot string) string {
+	return filepath.Join(Root(dataRoot), "writing-templates")
+}
+
 func EventPackages(dataRoot string) string {
 	return filepath.Join(Root(dataRoot), "event-packages")
 }

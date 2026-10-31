@@ -1,0 +1,22 @@
+{
+  "compose.revise-from-review": {
+    "content_version": 1,
+    "sha256": "db05ec502765548754d50ff599de2ce4205978fe6203e92339083d922eb95f95"
+  },
+  "diagnose.consistency-review": {
+    "content_version": 1,
+    "sha256": "328e744817cb8a0bddf7ee6a6cb1536df8764b6af1ec7c0ed86406e7f356f5f3"
+  },
+  "draft.chapter-continue": {
+    "content_version": 1,
+    "sha256": "ef1155c97b04e333d4bf5af49347274281dc3619ac0c042c6574cfb4e1bfc078"
+  },
+  "draft.first-chapter-hook": {
+    "content_version": 1,
+    "sha256": "3f3c2aa08f6a8b56fdf1bd6ca4bd5fd09bc90ca0ddde38f6357643f939561f67"
+  },
+  "draft.payoff-climax": {
+    "content_version": 1,
+    "sha256": "fc25a4edeec74cd8b7d7f646671b8895d8ba624ee1781f6a21a92e39b238fe73"
+  }
+}
