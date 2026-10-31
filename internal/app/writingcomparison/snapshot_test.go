@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"denova/config"
+	projectdomain "denova/internal/project"
 )
 
 func TestFreezeWritingSnapshotRecordsMissingTargetAndEmptyCursor(t *testing.T) {
@@ -94,4 +95,46 @@ func TestFreezeWritingSnapshotBudgetFailureUsesStableCode(t *testing.T) {
 		}
 		t.Fatalf("budget error=%v code=%q", err, typed.Code)
 	}
+}
+
+func TestFreezeWritingSnapshotTruncatesChineseFileOnRuneBoundary(t *testing.T) {
+	layout := testLayout(t)
+	path := filepath.Join(layout.ContentRoot, "chapters", "ch00001.md")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("中文正文内容继续"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	limit := 2000
+	fragmentLimit := 8
+	cfg := config.Config{AgentContexts: config.AgentContextSettings{IDE: config.AgentContextOverride{MaxTotalInjectedBytes: &limit, MaxFragmentBytes: &fragmentLimit}}}
+	task := testTask(layout)
+	task.Target = TargetRef{Path: "chapters/ch00001.md", Exists: true, BaseRevision: "sha256:" + AssetSHA256([]byte("中文正文内容继续")), ChapterCursor: "ch00001"}
+	snapshot, err := freezeWritingSnapshot(context.Background(), cfg, layout, task, NewStore(layout))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range snapshot.Fragments {
+		if fragment.Path == task.Target.Path {
+			if !fragment.Truncated || !utf8.ValidString(string(mustReadSnapshotAsset(t, layout, task.ID, fragment.AssetPath))) {
+				t.Fatalf("Chinese fragment=%+v", fragment)
+			}
+			return
+		}
+	}
+	t.Fatalf("target fragment missing: %+v", snapshot.Fragments)
+}
+
+func mustReadSnapshotAsset(t *testing.T, layout projectdomain.Layout, taskID, relative string) []byte {
+	t.Helper()
+	path, err := NewStore(layout).AssetPath(taskID, relative)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
 }
